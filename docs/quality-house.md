@@ -1,6 +1,6 @@
 # Quality House
 
-The 14 WHATs × 15 HOWs House of Quality. The roof carries function-vs-
+The 14 WHATs × 14 HOWs House of Quality. The roof carries function-vs-
 function correlations; the basement carries v0.1 targets (mirrored from
 [`qfd.md`](qfd.md) §2) plus the weighted-vote sums
 (`Σ = Σ(W weight × cell strength)`) and rounded relative weights. The
@@ -247,7 +247,7 @@ market"), not as a fair head-to-head buyer's guide.
 
 % --- Dimensions tuned for the typewriter QFD (14 W x 15 H) ---
 \def\qfdNW{14}
-\def\qfdNH{15}
+\def\qfdNH{14}
 \def\qfdWhatW{4.6}
 \def\qfdImpW{0.7}
 \def\qfdHdrH{5.0}
@@ -338,8 +338,7 @@ market"), not as a fair head-to-head buyer's guide.
     11/{H11 Total stack budget},
     12/{H12 Wi-Fi reconnect time},
     13/{H13 Idle / typing / push current},
-    14/{H14 Module / API surface count},
-    15/{H15 Clean release build time}%
+    14/{H15 Clean release build time}%
   }
     \node[rotate=90, anchor=west, font=\scriptsize]
       at ({\c - 0.5}, 0.15) {\t};
@@ -362,10 +361,9 @@ market"), not as a fair head-to-head buyer's guide.
   % W3 row 3: H8S
   \node[qfdrel/S] at ({8 - 0.5},  {-3 + 0.5}) {};
 
-  % W4 row 4: H6M H12M H14W
+  % W4 row 4: H6M H12M
   \node[qfdrel/M] at ({6 - 0.5},  {-4 + 0.5}) {};
   \node[qfdrel/M] at ({12 - 0.5}, {-4 + 0.5}) {};
-  \node[qfdrel/W] at ({14 - 0.5}, {-4 + 0.5}) {};
 
   % W5 row 5: H4S H10M
   \node[qfdrel/S] at ({4 - 0.5},  {-5 + 0.5}) {};
@@ -381,37 +379,33 @@ market"), not as a fair head-to-head buyer's guide.
   \node[qfdrel/M] at ({11 - 0.5}, {-6 + 0.5}) {};
   \node[qfdrel/M] at ({12 - 0.5}, {-6 + 0.5}) {};
 
-  % W7 row 7: H1M H2M H3M H13M H14W
+  % W7 row 7: H1M H2M H3M H13M
   \node[qfdrel/M] at ({1 - 0.5},  {-7 + 0.5}) {};
   \node[qfdrel/M] at ({2 - 0.5},  {-7 + 0.5}) {};
   \node[qfdrel/M] at ({3 - 0.5},  {-7 + 0.5}) {};
   \node[qfdrel/M] at ({13 - 0.5}, {-7 + 0.5}) {};
-  \node[qfdrel/W] at ({14 - 0.5}, {-7 + 0.5}) {};
 
   % W8 row 8: H1W H2S H3S
   \node[qfdrel/W] at ({1 - 0.5},  {-8 + 0.5}) {};
   \node[qfdrel/S] at ({2 - 0.5},  {-8 + 0.5}) {};
   \node[qfdrel/S] at ({3 - 0.5},  {-8 + 0.5}) {};
 
-  % W9 row 9: H10W H11W H14S H15M
+  % W9 row 9: H10W H11W H15M
   \node[qfdrel/W] at ({10 - 0.5}, {-9 + 0.5}) {};
   \node[qfdrel/W] at ({11 - 0.5}, {-9 + 0.5}) {};
-  \node[qfdrel/S] at ({14 - 0.5}, {-9 + 0.5}) {};
-  \node[qfdrel/M] at ({15 - 0.5}, {-9 + 0.5}) {};
+  \node[qfdrel/M] at ({14 - 0.5}, {-9 + 0.5}) {};
 
-  % W10 row 10: H10M H13W H14M H15W
+  % W10 row 10: H10M H13W H15W
   \node[qfdrel/M] at ({10 - 0.5}, {-10 + 0.5}) {};
   \node[qfdrel/W] at ({13 - 0.5}, {-10 + 0.5}) {};
-  \node[qfdrel/M] at ({14 - 0.5}, {-10 + 0.5}) {};
-  \node[qfdrel/W] at ({15 - 0.5}, {-10 + 0.5}) {};
+  \node[qfdrel/W] at ({14 - 0.5}, {-10 + 0.5}) {};
 
   % W11 row 11: H13S
   \node[qfdrel/S] at ({13 - 0.5}, {-11 + 0.5}) {};
 
-  % W12 row 12: H6W H8M H14M
+  % W12 row 12: H6W H8M
   \node[qfdrel/W] at ({6 - 0.5},  {-12 + 0.5}) {};
   \node[qfdrel/M] at ({8 - 0.5},  {-12 + 0.5}) {};
-  \node[qfdrel/M] at ({14 - 0.5}, {-12 + 0.5}) {};
 
   % W13 row 13: H9M
   \node[qfdrel/M] at ({9 - 0.5},  {-13 + 0.5}) {};
@@ -442,25 +436,23 @@ market"), not as a fair head-to-head buyer's guide.
   \node[font=\scriptsize] at (C-9-10)  {$-\!-$};   % H9-H10 heap vs binary
   \node[font=\scriptsize] at (C-10-15) {$-\!-$};   % H10-H15 binary vs build
   \node[font=\scriptsize] at (C-11-13) {$-$};      % H11-H13
-  \node[font=\scriptsize] at (C-14-15) {$-$};      % H14-H15 modularity vs build
 
   % ---------- Basement: target / abs weight / rel weight % ----------
   \foreach \c/\tgt/\abs/\rel in {%
-    1/{$\leq$200\,ms}/148/9,
+    1/{$\leq$200\,ms}/148/10,
     2/{$\leq$1 line}/177/11,
     3/{1 : 20}/144/9,
     4/{$\leq$5\,s}/62/4,
     5/{$\geq$1\,h}/111/7,
-    6/{$\geq$95\,\%}/134/8,
+    6/{$\geq$95\,\%}/134/9,
     7/{$\leq$30\,s}/27/2,
-    8/{100\,\%}/156/9,
+    8/{100\,\%}/156/10,
     9/{$\geq$1\,MB}/193/12,
-    10/{$\leq$2\,MB}/41/2,
+    10/{$\leq$2\,MB}/41/3,
     11/{$\leq$80\,KB}/45/3,
-    12/{$\leq$30\,s}/153/9,
-    13/{obs.}/137/8,
-    14/{$\leq$8}/117/7,
-    15/{$\leq$7\,min}/29/2%
+    12/{$\leq$30\,s}/153/10,
+    13/{obs.}/137/9,
+    14/{$\leq$7\,min}/29/2%
   } {
     \node[font=\scriptsize] at ({\c - 0.5}, {-\qfdNW - 0.5}) {\tgt};
     \node[font=\scriptsize] at ({\c - 0.5}, {-\qfdNW - 1.5}) {\abs};
@@ -648,7 +640,7 @@ picture.
   `++` strong reinforcement (`◎`), `+` mild reinforcement (`○`), `−` mild
   conflict (`×`), `−−` strong conflict (`⊗`).
 - **Basement rows** are: v0.1 target → §3 column sum (`Σ` of
-  `weight × strength`) → relative weight as integer % of total (1674).
+  `weight × strength`) → relative weight as integer % of total (1557).
   Relative weights round to 100.
 - **H7, H10, H15** (push time, binary size, build time) sit at the bottom
   of the basement — knowingly-paid costs per `qfd.md` §7, not signals to

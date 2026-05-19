@@ -66,7 +66,6 @@ shows what "better" looks like (↑ higher, ↓ lower, → fixed).
 | H11 | Stack budget across all tasks                      |  ↓  | ≤ 80 KB (sum)            | same                |
 | H12 | Wi-Fi reconnect on transient outage                |  ↓  | ≤ 30 s                   | ≤ 10 s              |
 | H13 | Idle / typing / push current draw                  |  ↓  | measured only            | sized for >2 days   |
-| H14 | Module count / public-API surface (refactor proxy) |  →  | ≤ 8 modules              | same                |
 | H15 | Build time (clean, release)                        |  ↓  | ≤ 7 min                  | ≤ 5 min             |
 
 ---
@@ -160,7 +159,7 @@ the design are called out below.
 - **H6 push success ↔ H12 Wi-Fi reconnect** (reinforcing). Both come from
   the same network stack; investing in reconnect backoff helps both.
 - **H10 binary ↔ H15 build time** (strong). std builds are slow. Accepted
-  in [ADR-001] — refactor leverage (H14) is the long-term payoff, not the
+  in [ADR-001] — refactor leverage is the long-term payoff, not the
   per-build seconds.
 - **H4 boot ↔ H10 binary** (mild). Larger binary = slower flash load.
   Affordable at our size class but worth watching as features land.
@@ -169,8 +168,6 @@ the design are called out below.
   parked. W14's portability outcome raises the value of that policy
   from "battery hygiene" to "the thing that lets the device leave the
   desk."
-- **H14 modularity ↔ H15 build time** (mild). More small crates = more
-  link work. Boring vs valuable; we lean toward modularity.
 - **W13 typography ↔ H9 heap + H10 binary** (mild, future). Achieving a
   writing-tool tone needs room for glyph caches and font assets. Not
   load-bearing in v0.1 (one mono font), but the v1.0 tone goal is why H9
@@ -225,7 +222,6 @@ Function-to-component matrix (9 strong / 3 medium / 1 weak):
 | H11 stk   |        |        |   9    |        |        |       |        |         |   3    |        |         |    3    |         |         |         |         |
 | H12 wifi  |   3    |   9    |        |        |        |       |        |         |        |        |         |         |    3    |         |         |         |
 | H13 mA    |   9    |        |   1    |        |   9    |       |        |         |   3    |   3    |         |         |         |         |         |    9    |
-| H14 mod   |        |   3    |   3    |        |        |   3   |   9    |    3    |        |        |         |    9    |         |         |         |         |
 | H15 build |        |   9    |        |        |        |       |        |         |        |        |         |    9    |    3    |         |         |         |
 
 ### Read across, not down
@@ -233,7 +229,7 @@ Function-to-component matrix (9 strong / 3 medium / 1 weak):
 - **C5/C6/C7** (panel + graphics + widget) are the single most leveraged
   cluster — they own H1, H2, H3 (the top of the priority list). [ADR-002]
   and [ADR-003] are the ADRs to keep most honest as v0.x progresses.
-- **C12** (`gitoxide`) is overloaded: H6, H7, H9, H10, H11, H14, H15 all
+- **C12** (`gitoxide`) is overloaded: H6, H7, H9, H10, H11, H15 all
   touch it. That's why [ADR-004] includes a kill-switch (fall back to
   `libgit2-sys` if spike 7 fails). It's also why H9 sits in the top three
   priorities — `gitoxide`'s memory profile is the unknown.
@@ -393,6 +389,21 @@ These are the live tensions we are watching, not deciding harder:
   "W13 reframed, W14 removed" bullet above); the slot is now repurposed.
   §6's "(b) narrow voter base" override for H8 no longer applies and
   has been retired in the §6 preamble.
+- **H14 retired — not a function.** §2 frames HOWs as "engineering
+  functions" but H14 ("Module count / public-API surface (refactor
+  proxy)") is a static property of source-code organisation, not a
+  runtime function nor an artifact characteristic like H10 binary or
+  H15 build time. The refactor-leverage idea survives in §5's
+  component structure and the ADRs that decide architectural
+  discipline; it does not need a HoQ matrix slot. Removed from §2,
+  the §5 matrix row, the C12 overloaded-list mention, and the §4
+  H14↔H15 conflict bullet. W9's matrix vote shrinks from
+  `H10 W + H11 W + H14 S + H15 M` to `H10 W + H11 W + H15 M` — an
+  honest reading that "codebase absorbs the planned roadmap" is
+  delivered by ADRs, not by a measurable function. ID "H14" left as
+  a gap (cross-doc HOW references survive without renumbering H15).
+  Total basement Σ drops 1674 → 1557, so rel% recomputed in
+  [`quality-house.md`](quality-house.md).
 
 The minor variance between README's "~12 lines" and product/[ADR-003]'s
 "~11 lines" of edit area is within rounding for a 14 px glyph in a 240 px
