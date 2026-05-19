@@ -325,18 +325,18 @@ market"), not as a fair head-to-head buyer's guide.
 
   % ---------- HOWs (rotated column titles) ----------
   \foreach \c/\t in {%
-    1/{H1 Keypress$\to$glyph latency},
+    1/{H1 Type latency},
     2/{H2 Refresh area per keystroke},
     3/{H3 Full-refresh cadence},
-    4/{H4 Cold boot to cursor},
+    4/{H4 Boot latency (cold)},
     5/{H5 Continuous-typing endurance},
-    6/{H6 Push success rate},
-    7/{H7 Push end-to-end time},
-    8/{H8 Save durability vs power loss},
+    6/{H6 Publish reliability},
+    7/{H7 Publish latency},
+    8/{H8 Save durability},
     9/{H9 PSRAM heap headroom},
     10/{H10 Firmware binary size},
     11/{H11 Total stack budget},
-    12/{H12 Wi-Fi reconnect time},
+    12/{H12 Network reconnect time},
     13/{H13 Idle / typing / push current},
     14/{H15 Clean release build time}%
   }
@@ -642,7 +642,7 @@ picture.
 - **Basement rows** are: v0.1 target → §3 column sum (`Σ` of
   `weight × strength`) → relative weight as integer % of total (1557).
   Relative weights round to 100.
-- **H7, H10, H15** (push time, binary size, build time) sit at the bottom
+- **H7, H10, H15** (Publish latency, binary size, build time) sit at the bottom
   of the basement — knowingly-paid costs per `qfd.md` §7, not signals to
   optimise harder.
 

@@ -1,7 +1,8 @@
 # Quality Function Deployment
 
 Translates what the device must _be_ (user-facing requirements) into what it
-must _do_ (engineering functions) and what we must _build_ (components).
+must _achieve_ (engineering characteristics) and what we must _build_
+(components).
 Surfaces the few targets that dominate the design and the conflicts between
 them. Every decision cell points back to [`adr.md`](adr.md).
 
@@ -46,35 +47,60 @@ What a user (= me) values about the device, with importance weights on a
 
 ---
 
-## 2. Engineering functions (the HOWs)
+## 2. Engineering characteristics (the HOWs)
 
-Measurable characteristics. Targets are v0.1 unless noted. Direction column
-shows what "better" looks like (↑ higher, ↓ lower, → fixed).
+Measurable attributes — performance metrics of the device's functions
+(below), or properties of its firmware artifact, memory layout, and build
+process. See [`../GLOSSARY.md`](../GLOSSARY.md) for the ontology layers
+(WHAT / Function / Characteristic / Metric / Target). Targets are v0.1
+unless noted. Direction column shows what "better" looks like
+(↑ higher, ↓ lower, → fixed).
 
-| ID  | Function                                           | Dir | v0.1 target              | v1.0 target         |
+### Functions
+
+The device performs these. The HOW rows below measure quality attributes
+of these functions, or of artifacts they produce.
+
+| Function  | Transformation                                  |
+| --------- | ----------------------------------------------- |
+| Type      | keypress → glyph rendered + buffer mutated      |
+| Save      | dirty buffer → persisted file on SD             |
+| Publish   | persisted file → commit on remote               |
+| Recover   | degraded file state → readable file             |
+| Boot      | power-on → cursor ready                         |
+| Provision | uninitialized device → configured device        |
+
+**Provision** is build-time-only in v0.1 ([ADR-005], [ADR-007]); it
+joins the runtime five from v0.9 onward. Sub-functions referenced
+inside HOW names: **Render** (buffer → e-ink frame, inside Type),
+**Reconnect** (network outage → restored, inside Publish).
+
+### Characteristics
+
+| ID  | Characteristic                                     | Dir | v0.1 target              | v1.0 target         |
 | --- | -------------------------------------------------- | :-: | ------------------------ | ------------------- |
-| H1  | Keypress → glyph latency                           |  ↓  | ≤ 200 ms                 | ≤ 150 ms            |
+| H1  | Type latency (keypress → glyph)                    |  ↓  | ≤ 200 ms                 | ≤ 150 ms            |
 | H2  | Partial-refresh region area per keystroke          |  ↓  | ≤ 1 text line (~22 px h) | same                |
 | H3  | Full-refresh cadence (clears ghosting)             |  →  | 1 per 20 partials        | tuned by panel temp |
-| H4  | Cold boot → cursor ready                           |  ↓  | ≤ 5 s                    | ≤ 3 s               |
+| H4  | Boot latency (cold)                                |  ↓  | ≤ 5 s                    | ≤ 3 s               |
 | H5  | Continuous-typing endurance (no drop, no leak)     |  ↑  | ≥ 1 h                    | ≥ 8 h               |
-| H6  | `Ctrl-G` push success rate on healthy Wi-Fi        |  ↑  | ≥ 95 %                   | ≥ 99 %              |
-| H7  | Push end-to-end (one-file commit)                  |  ↓  | ≤ 30 s                   | ≤ 10 s              |
-| H8  | Save survives power loss after status confirms     |  →  | 100 %                    | 100 %               |
-| H9  | PSRAM heap headroom during push                    |  ↑  | ≥ 1 MB free at peak      | same                |
+| H6  | Publish reliability (network up)                   |  ↑  | ≥ 95 %                   | ≥ 99 %              |
+| H7  | Publish latency (one file)                         |  ↓  | ≤ 30 s                   | ≤ 10 s              |
+| H8  | Save durability (post-confirm power loss)          |  →  | 100 %                    | 100 %               |
+| H9  | PSRAM heap headroom during Publish                 |  ↑  | ≥ 1 MB free at peak      | same                |
 | H10 | Firmware binary size                               |  ↓  | ≤ 2 MB                   | ≤ 1.5 MB            |
 | H11 | Stack budget across all tasks                      |  ↓  | ≤ 80 KB (sum)            | same                |
-| H12 | Wi-Fi reconnect on transient outage                |  ↓  | ≤ 30 s                   | ≤ 10 s              |
-| H13 | Idle / typing / push current draw                  |  ↓  | measured only            | sized for >2 days   |
+| H12 | Network reconnect time (transient outage)          |  ↓  | ≤ 30 s                   | ≤ 10 s              |
+| H13 | Idle / typing / Publish current draw               |  ↓  | measured only            | sized for >2 days   |
 | H15 | Build time (clean, release)                        |  ↓  | ≤ 7 min                  | ≤ 5 min             |
 
 ---
 
 ## 3. House of Quality — WHATs × HOWs
 
-The matrix (row × column = how strongly function H advances requirement
+The matrix (row × column = how strongly characteristic H advances requirement
 W) and its Σ row — the weighted vote `Σ(weight × strength)` on which
-functions deserve the most engineering attention — live in
+characteristics deserve the most engineering attention — live in
 [`quality-house.md`](quality-house.md). The Σ totals quoted below are
 from its basement row.
 
@@ -91,11 +117,11 @@ from its basement row.
    voter base spans W3 (power-loss correctness), W6 (long sessions),
    W12 (file scopes), and W14 (carrying = unclean shutdowns) — the
    fourth voter is what lifts H8 into the top three by arithmetic alone.
-4. **H12 — Wi-Fi reconnect** (153). Mobile use is the chief driver
+4. **H12 — network reconnect time** (153). Mobile use is the chief driver
    (W14 + W2 + W4 + W6); [ADR-005] PAT auth and reconnect backoff own
    this. Previously below the top six on a stationary v0.1 reading;
    W14 promotes it.
-5. **H1 — keypress latency** (148). The single most user-visible number;
+5. **H1 — Type latency** (148). The single most user-visible number;
    [ADR-002] and [ADR-003] are co-conspirators.
 6. **H3 — full-refresh cadence** (144). The ghosting/flash tradeoff; lives
    in the render layer.
@@ -107,13 +133,13 @@ acknowledged tradeoff to watched metric. The v0.1 "measured only" target
 gain a second audience — sizing the v0.8 cell against a real portability
 target, not just informing ADR-008's deferral.
 
-H6 (push success, 134) drops out of the top six. Its ADR ownership
+H6 (Publish reliability, 134) drops out of the top six. Its ADR ownership
 ([ADR-004] gitoxide + [ADR-005] PAT) and spike 7 kill-switch are unchanged
 — the matrix simply reads W14's mobile-use voter as a louder signal for
-reconnect (H12) than for the push transport itself.
+reconnect (H12) than for the Publish transport itself.
 
-**Why H8 ranks where it does.** Pre-W14, HoQ totals rewarded functions
-that touch many WHATs over functions that absolutely matter for one WHAT.
+**Why H8 ranks where it does.** Pre-W14, HoQ totals rewarded characteristics
+that touch many WHATs over characteristics that absolutely matter for one WHAT.
 W3 ("Pulling power never corrupts the file", weight 10) was H8's
 strongest single voter, but H8 still sat at #6 because its base was
 narrow. W14's "carrying = bumps = unclean shutdowns" widens H8's voter
@@ -121,7 +147,7 @@ base and pushes it to #3 by arithmetic. §6's "table-stakes correctness"
 override is no longer the load-bearing argument for H8's prominence —
 its acceptance-criteria override for H4/H5 still is. See §6.
 
-The bottom three (H7 push time, H15 build time, H10 binary size) are real
+The bottom three (H7 Publish latency, H15 build time, H10 binary size) are real
 costs but ones we knowingly took on ([ADR-001]) and are not in the critical
 path of user experience. The tightened H15 v0.1 target (≤ 7 min) reflects
 user preference for faster iteration, not matrix-derived priority; if it
@@ -130,9 +156,9 @@ before the runtime decision does.
 
 ---
 
-## 4. Roof — function-vs-function tradeoffs
+## 4. Roof — HOW-vs-HOW tradeoffs
 
-The roof shows where pushing one function pushes another the wrong way.
+The roof shows where pushing one characteristic pushes another the wrong way.
 Classical QFD single-character symbols: **`◎`** strong reinforcement,
 **`○`** mild reinforcement, **`×`** mild conflict, **`⊗`** strong
 conflict. The 15×15 roof matrix lives in
@@ -150,14 +176,14 @@ the design are called out below.
 - **H9 heap ↔ H10 binary size** (strong). std + gitoxide + mbedtls inflate
   both. We chose to spend on these ([ADR-001], [ADR-004]) because 16 MB flash
   and 8 MB PSRAM make them affordable; the kill-switch is spike 7. If
-  heap during push refuses to come under 1 MB free, [ADR-004] flips to
+  heap during Publish refuses to come under 1 MB free, [ADR-004] flips to
   libgit2-sys for v0.1.
 - **H9 heap ↔ H5 soak** (strong). A long writing session grows the rope
-  and the glyph cache; pushing on top can OOM. Mitigation: 256 KB file cap
-  (v0.1 tech doc) + glyph cache eviction before push + watching the spike
-  in spike 7.
-- **H6 push success ↔ H12 Wi-Fi reconnect** (reinforcing). Both come from
-  the same network stack; investing in reconnect backoff helps both.
+  and the glyph cache; Publishing on top can OOM. Mitigation: 256 KB file
+  cap (v0.1 tech doc) + glyph cache eviction before Publish + watching the
+  spike in spike 7.
+- **H6 Publish reliability ↔ H12 network reconnect** (reinforcing). Both come
+  from the same network stack; investing in reconnect backoff helps both.
 - **H10 binary ↔ H15 build time** (strong). std builds are slow. Accepted
   in [ADR-001] — refactor leverage is the long-term payoff, not the
   per-build seconds.
@@ -179,9 +205,9 @@ the design are called out below.
 
 ---
 
-## 5. Function → Component mapping (Phase 2)
+## 5. HOW → Component mapping (Phase 2)
 
-Which subsystem owns the delivery of each function. Cells are which ADR
+Which subsystem owns the delivery of each characteristic. Cells are which ADR
 constrains the choice.
 
 Components (with anchoring ADR):
@@ -205,7 +231,7 @@ Components (with anchoring ADR):
 | C15 | eFuse-derived encryption key         | [ADR-005], [ADR-007]  |
 | C16 | USB-C wall PSU                       | [ADR-008]             |
 
-Function-to-component matrix (9 strong / 3 medium / 1 weak):
+HOW-to-component matrix (9 strong / 3 medium / 1 weak):
 
 |           | C1 SoC | C2 std | C3 thr | C4 PSR | C5 EPD | C6 eg | C7 wid | C8 rope | C9 USB | C10 SD | C11 LFS | C12 gix | C13 TLS | C14 PAT | C15 efs | C16 PSU |
 | --------- | :----: | :----: | :----: | :----: | :----: | :---: | :----: | :-----: | :----: | :----: | :-----: | :-----: | :-----: | :-----: | :-----: | :-----: |
@@ -214,13 +240,13 @@ Function-to-component matrix (9 strong / 3 medium / 1 weak):
 | H3 cad    |        |        |        |        |   9    |   3   |   9    |         |        |        |         |         |         |         |         |         |
 | H4 boot   |   3    |   9    |   3    |   1    |   3    |       |        |         |        |   9    |    3    |         |         |         |         |         |
 | H5 soak   |   3    |   3    |   3    |   9    |   1    |       |        |    9    |   9    |   3    |         |    3    |    3    |         |         |         |
-| H6 push%  |        |   3    |        |        |        |       |        |         |        |        |         |    9    |    9    |    9    |         |         |
-| H7 push s |        |        |   3    |   1    |        |       |        |         |        |   3    |         |    9    |    9    |         |         |         |
+| H6 reli   |        |   3    |        |        |        |       |        |         |        |        |         |    9    |    9    |    9    |         |         |
+| H7 lat    |        |        |   3    |   1    |        |       |        |         |        |   3    |         |    9    |    9    |         |         |         |
 | H8 dura   |        |   3    |        |        |        |       |        |         |        |   9    |    9    |         |         |         |         |         |
 | H9 heap   |   3    |   3    |        |   9    |        |       |        |    3    |        |        |         |    9    |    9    |         |         |         |
 | H10 bin   |        |   9    |   1    |        |        |   3   |   3    |    3    |   3    |        |         |    9    |    3    |         |         |         |
 | H11 stk   |        |        |   9    |        |        |       |        |         |   3    |        |         |    3    |         |         |         |         |
-| H12 wifi  |   3    |   9    |        |        |        |       |        |         |        |        |         |         |    3    |         |         |         |
+| H12 recon |   3    |   9    |        |        |        |       |        |         |        |        |         |         |    3    |         |         |         |
 | H13 mA    |   9    |        |   1    |        |   9    |       |        |         |   3    |   3    |         |         |         |         |         |    9    |
 | H15 build |        |   9    |        |        |        |       |        |         |        |        |         |    9    |    3    |         |         |         |
 
@@ -241,7 +267,7 @@ Function-to-component matrix (9 strong / 3 medium / 1 weak):
   cells in the matrix describe the v0.9+ shape per [ADR-007], not v0.1
   reality.
 - **C2** (std runtime) sits underneath almost everything, but it's the
-  _enabler_ (H4 boot, H10 binary, H12 Wi-Fi) rather than the bottleneck.
+  _enabler_ (H4 boot, H10 binary, H12 reconnect) rather than the bottleneck.
   Reversing [ADR-001] would force re-deciding [ADR-004], [ADR-005],
   [ADR-006], [ADR-007] all at once — they're a single decision in three
   drawers.
@@ -257,15 +283,15 @@ also lifted H8 durability over its narrow voter base; W14 has widened
 that base, so H8's #3 spot is now arithmetic — see §3.) These are the
 numbers spikes 2–7 must validate before integration starts.
 
-| Rank | Function       | Target                                | Watched on        | If we miss it                                                             |
+| Rank | Characteristic | Target                                | Watched on        | If we miss it                                                             |
 | ---- | -------------- | ------------------------------------- | ----------------- | ------------------------------------------------------------------------- |
 | 1    | H2 region area | ≤ 1 line per keypress                 | spike 2 + spike 5 | Increase font size to shrink per-glyph dirty rect ([ADR-003] consequence) |
 | 2    | H9 PSRAM heap  | ≥ 1 MB free at push peak              | spike 7           | [ADR-004] kill-switch → `libgit2-sys`; cap rope at 128 KB                 |
-| 3    | H8 durability  | 100 % survive power yank after status | bench HIL         | Re-evaluate [ADR-007] (move config to internal NVS only)                  |
-| 4    | H1 latency     | ≤ 200 ms keypress→glyph               | spike 5           | Larger partial-refresh region; render multi-char bursts                   |
-| 5    | H6 push %      | ≥ 95 % on healthy Wi-Fi               | spike 6 + spike 7 | TLS cipher trim; reconnect backoff tuning                                 |
+| 3    | H8 durability  | 100 % (post-confirm power loss)       | bench HIL         | Re-evaluate [ADR-007] (move config to internal NVS only)                  |
+| 4    | H1 Type latency | ≤ 200 ms (keypress → glyph)          | spike 5           | Larger partial-refresh region; render multi-char bursts                   |
+| 5    | H6 Publish reliability | ≥ 95 % (network up)           | spike 6 + spike 7 | TLS cipher trim; reconnect backoff tuning                                 |
 | 6    | H3 cadence     | full every ~20 partials               | spike 2           | Adjust per panel temperature; defer flash to idle ≥ 1 s                   |
-| 7    | H4 boot        | ≤ 5 s to cursor                       | integration smoke | Trim startup logging; lazy-mount SD after splash                          |
+| 7    | H4 Boot latency | ≤ 5 s (cold, to cursor)              | integration smoke | Trim startup logging; lazy-mount SD after splash                          |
 | 8    | H5 soak        | 1 h no leak / no drop                 | 1 h bench soak    | Glyph-cache eviction; PSRAM heap-fragmentation review                     |
 
 The two not-in-MVP rows but already-shaped-by-design:
@@ -371,15 +397,15 @@ These are the live tensions we are watching, not deciding harder:
   releases" — brittle vs roadmap reshuffles). All rephrased as outcomes;
   the named solutions remain documented in §7 tradeoffs and the relevant
   ADRs where they belong. Matrix cell strengths held — each cell scored
-  the function against the underlying outcome, not the surface phrasing —
-  so no Σ recompute.
+  the characteristic against the underlying outcome, not the surface
+  phrasing — so no Σ recompute.
 - **§3 vs §6 priority lists clarified.** The two were giving different
   orderings without saying why. §6 now states explicitly that it is a
   curated rank with two named overrides over §3's pure arithmetic:
   acceptance-criteria critical paths (H4, H5) and table-stakes correctness
   (H8) get manual lifts. §3 now names the HoQ structural bias that makes
   the curation necessary — reward for spread, penalty for narrow-but-
-  critical functions — using H8/W3 as the canonical example.
+  critical characteristics — using H8/W3 as the canonical example.
 - **W14 added — portability outcome.** Captures "I can carry the device
   and write away from a desk" as a distinct WHAT from W11 (multi-day
   battery), weight 8. Recomputed basement Σ; H8 lifted from #6 to #3 in
@@ -389,21 +415,64 @@ These are the live tensions we are watching, not deciding harder:
   "W13 reframed, W14 removed" bullet above); the slot is now repurposed.
   §6's "(b) narrow voter base" override for H8 no longer applies and
   has been retired in the §6 preamble.
-- **H14 retired — not a function.** §2 frames HOWs as "engineering
-  functions" but H14 ("Module count / public-API surface (refactor
-  proxy)") is a static property of source-code organisation, not a
-  runtime function nor an artifact characteristic like H10 binary or
-  H15 build time. The refactor-leverage idea survives in §5's
-  component structure and the ADRs that decide architectural
-  discipline; it does not need a HoQ matrix slot. Removed from §2,
-  the §5 matrix row, the C12 overloaded-list mention, and the §4
-  H14↔H15 conflict bullet. W9's matrix vote shrinks from
+- **H14 retired — outside §2's scope.** §2 covers measurable engineering
+  characteristics — performance metrics of the device's functions, or
+  properties of its firmware artifact, memory layout, and build process.
+  H14 ("Module count / public-API surface (refactor proxy)") is a
+  property of source-code organisation, none of those. The refactor-
+  leverage idea survives in §5's component structure and the ADRs that
+  decide architectural discipline; it does not need a HoQ matrix slot.
+  Removed from §2, the §5 matrix row, the C12 overloaded-list mention,
+  and the §4 H14↔H15 conflict bullet. W9's matrix vote shrinks from
   `H10 W + H11 W + H14 S + H15 M` to `H10 W + H11 W + H15 M` — an
   honest reading that "codebase absorbs the planned roadmap" is
-  delivered by ADRs, not by a measurable function. ID "H14" left as
-  a gap (cross-doc HOW references survive without renumbering H15).
+  delivered by ADRs, not by a measurable characteristic. ID "H14" left
+  as a gap (cross-doc HOW references survive without renumbering H15).
   Total basement Σ drops 1674 → 1557, so rel% recomputed in
   [`quality-house.md`](quality-house.md).
+- **HOWs renamed "characteristics," not "functions."** A function is a
+  transformation (input → output); HOWs like H6 "success rate" and
+  H10 "binary size" are *measures* of functions or properties of
+  artifacts, not transformations themselves. §2's header, §4's
+  ("HOW-vs-HOW tradeoffs"), §5's ("HOW → Component mapping") and
+  caption, and §6's column header all cascaded — wherever "function"
+  meant HOW. Classical QFD uses "engineering characteristics" (or
+  "substitute quality characteristics") for exactly this slot. The
+  methodology name in the title (Quality Function Deployment) stays —
+  it is the framework's proper noun, not a claim about this doc's
+  vocabulary.
+- **H6/H7/H8/H12 swept for solution-shape phrasing and measure-vs-
+  attribute.** Two drifts in one pass. (a) Solution names inside
+  characteristic names: H6 was "`Ctrl-G` push success rate on healthy
+  Wi-Fi" — three solutions inside one name (the key, the git verb, the
+  transport); H7 was "Push end-to-end (one-file commit)" — git verb and
+  its unit; H12 was "Wi-Fi reconnect on transient outage" — transport
+  in the name. (b) Measure or behaviour assertion instead of attribute:
+  H6's "success rate" is a metric; H8 "Save survives power loss after
+  status confirms" is a behaviour assertion. Renamed to pure attributes
+  under outcome-shaped conditions: H6 = "Publish reliability (network
+  up)", H7 = "Publish latency (one file)", H8 = "Save durability
+  (post-confirm power loss)", H12 = "Network reconnect time (transient
+  outage)". H7's "latency" pairs with H1's "Type latency".
+  Matrix cell strengths held; no Σ recompute.
+- **Functions surfaced as their own ontology layer.** Earlier, the
+  HOW names packed both a function reference and an attribute
+  ("Publish reliability" = Publish [function] + reliability
+  [attribute]) without Functions being defined anywhere. §2 now
+  opens with a Functions inventory (Type, Save, Publish, Recover,
+  Boot, Provision) so the function names HOWs reference have a
+  single source of truth. Render and Reconnect remain sub-functions
+  referenced inside HOW names; they did not earn top-level slots in
+  v0.1. The five-layer ontology stack (WHAT / Function /
+  Characteristic / Metric+Unit / Target) is documented in
+  [`../GLOSSARY.md`](../GLOSSARY.md), peer to `CONTEXT.md`
+  (device vocabulary). With Functions explicit, two arrow-style HOW
+  names collapsed for parallelism: H1 "Keypress → glyph latency" →
+  "Type latency (keypress → glyph)", H4 "Cold boot → cursor ready" →
+  "Boot latency (cold)". The arrow text moved to the parenthetical
+  context where it belongs once the function name carries the
+  transformation; H4's "to cursor" is implicit in Boot's definition.
+  Matrix cell strengths held; no Σ recompute.
 
 The minor variance between README's "~12 lines" and product/[ADR-003]'s
 "~11 lines" of edit area is within rounding for a 14 px glyph in a 240 px
@@ -414,7 +483,7 @@ tall edit region and is not load-bearing.
 ## How to keep this document honest
 
 - When a new ADR lands, add its components to §5 and re-score any
-  function-row whose dominant component changed.
+  characteristic-row whose dominant component changed.
 - When a spike returns numbers, update §6's "Target" or "Watched on"
   columns — this is the doc that _should_ feel out of date if measured
   reality drifts from estimates.
