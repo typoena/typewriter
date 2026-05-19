@@ -472,7 +472,7 @@ market"), not as a fair head-to-head buyer's guide.
   % Pass 1: stash each score as a named coordinate so the profile lines
   % below can reuse it without recomputing.
   \foreach \r/\so/\st/\sf/\sg/\sh in {%
-    1/4/2/4/5/3,
+    1/4/1/4/5/3,
     2/5/4/4/2/4,
     3/4/4/2/2/2,
     4/5/2/2/5/2,
@@ -588,7 +588,7 @@ hackable-Linux 3).
 
 | ID  | WHAT (truncated)                                  | Typoena | reM. | Frw.T | Frw.S | Pom. | Rationale (shortest defensible)                                                                                                                                                                                                                                            |
 | --- | ------------------------------------------------- | :-----: | :--: | :---: | :---: | :--: | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| W1  | Sub-second response to typing                     |    4    |  2   |   4   |   3   |  5   | Typoena targets ≤200 ms; reMarkable e-ink visibly laggy — tested less responsive than Smart Typewriter; both Freewrites post-Sailfish trimmed latency 40–100 % (Frw.T plausibly inside 200 ms; Frw.S still trails by one notch on larger panel); Pomera LCD ~zero.         |
+| W1  | Sub-second response to typing                     |    4    |  1   |   4   |   3   |  5   | Typoena targets ≤200 ms; reMarkable e-ink visibly laggy on a typing-focused device — tested less responsive than Smart Typewriter, and latency is so load-bearing for W1 that it earns a 1 not a 2; both Freewrites post-Sailfish trimmed latency 40–100 % (Frw.T plausibly inside 200 ms; Frw.S still trails by one notch on larger panel); Pomera LCD ~zero. |
 | W2  | Publishing is one deliberate action away          |    5    |  4   |   4   |   4   |  2   | Ctrl-G atomic; reMarkable + Freewrite cloud-sync is one-tap but not git; Pomera = USB/SD copy or QR transfer.                                                                                                                                                              |
 | W3  | Pulling power never corrupts the file             |    4    |  4   |   2   |   2   |  2   | Typoena: atomic-rename + fsync. reMarkable journals. Freewrite + Pomera: forum reports of corruption on yank.                                                                                                                                                              |
 | W4  | Provisioning never interrupts writing             |    5    |  2   |   2   |   2   |  5   | Typoena v0.1: build-time config (dev-only). reM/Frw need Wi-Fi + account. Pomera: literally none.                                                                                                                                                                          |
@@ -604,9 +604,11 @@ hackable-Linux 3).
 | W14 | I can carry the device and write away from a desk |    2    |  4   |   5   |   1   |  5   | Typoena v0.1 wall-powered (ADR-008), no enclosure spec yet — desk-bound by design. reMarkable + Type Folio bag-friendly with bulk. Freewrite Traveler is the form-factor reference (~1.6 lb, folds). Smart Typewriter ~5 lb, desk-bound. Pomera DM250 pocketable foldable. |
 
 **Totals** (sum across 14 WHATs, no weighting): Typoena 52, Pomera 50,
-Freewrite Traveler 47, reMarkable 45, Freewrite Smart Typewriter 42
+Freewrite Traveler 47, reMarkable 44, Freewrite Smart Typewriter 42
 (Traveler pre-Sailfish 44; Smart pre-Sailfish 39; reMarkable W1 dropped
-3→2 after author's firsthand test). Pomera closing to within 2 of
+3→2→1 across two rounds of author testing — first to 2 after firsthand
+typing, then to 1 once latency was recognised as the dominant W1
+signal). Pomera closing to within 2 of
 Typoena is W14 doing what W14 should — surfacing the dimension on
 which v0.1's tethered MVP loses ground that v0.8 is expected to
 recover. The "Pomera + Wi-Fi + git + hackable BOM" framing from
