@@ -159,11 +159,11 @@ before the runtime decision does.
 ## 4. Roof — HOW-vs-HOW tradeoffs
 
 The roof shows where pushing one characteristic pushes another the wrong way.
-Classical QFD single-character symbols: **`◎`** strong reinforcement,
-**`○`** mild reinforcement, **`×`** mild conflict, **`⊗`** strong
-conflict. The 15×15 roof matrix lives in
-[`quality-house.md`](quality-house.md); the cells that actually shape
-the design are called out below.
+ASCII glyphs (with classical QFD equivalents): **`++`** strong
+reinforcement (`◎`), **`+`** mild reinforcement (`○`), **`−`** mild
+conflict (`×`), **`−−`** strong conflict (`⊗`). The 14×14 roof matrix
+lives in [`quality-house.md`](quality-house.md); the cells that
+actually shape the design are called out below.
 
 ### Conflicts that actually shape the design
 
