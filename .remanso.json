@@ -4,7 +4,8 @@
     "Intel One Mono",
     "Geist Mono",
     "Space Mono",
-    "PT Serif"
+    "PT Serif",
+    "IBM Plex Serif"
   ],
   "fontSize": "15pt",
   "pageWidth": "640px",
