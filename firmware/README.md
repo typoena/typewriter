@@ -7,6 +7,41 @@ context.
 
 ## Current state
 
+**Modal editor (vim modes) — modes verified 2026-07-05.** The firmware is now a
+small vim-style modal text editor. [`src/editor.rs`](src/editor.rs) owns the
+buffer, caret, motions, and per-mode rendering; [`src/main.rs`](src/main.rs) is
+the hardware loop that drains keystrokes, redraws, and picks a refresh strategy;
+[`src/usb_kbd.rs`](src/usb_kbd.rs) decodes editing chords and a dual-role Caps
+key. The buffer is pure ASCII, so a byte offset doubles as the caret's character
+index (Tab expands to spaces on insert).
+
+Modes (shown live in a small status strip below the text):
+
+- **Insert** — the boot mode; keys type at the caret. `Ctrl+W` /
+  `Ctrl+Backspace` delete the previous word, `Cmd+Backspace` deletes to the
+  start of the line.
+- **Normal** — motions `h j k l`, `w b e`, `0` `$`, `gg` `G`; edits `x`, `dd`,
+  and the `d` / `c` (change) operators over motions and text objects — `ciw`,
+  `daw`, `di(`, `ci"`, … (bracket pairs are nesting-aware); `i a A I o O` to
+  enter insert; count prefixes like `3j`, `2dd`.
+- **View** — read-only reading: `j` / `k` scroll, `space` pages, `gg` / `G`
+  jump; edits are locked out.
+
+**Caps Lock is dual-role**: tapped it is `Esc` (→ Normal); held it is `Ctrl`.
+So Caps no longer types capitals — use Shift.
+
+Rendering reuses the partial refresh from Spike 5: additive Insert typing stays
+on the fast windowed path with a ~750 ms debounced caret, while caret moves,
+deletes, mode switches, and View scrolling take a clean full-area partial
+(~630 ms). Count prefixes collapse repeated motion into a single refresh, which
+matters at this latency.
+
+Known rough edges (deferred): no backspace auto-repeat (the keyboard is on
+`SET_IDLE(0)` and only key-downs are tracked), non-sticky column on `j` / `k`,
+the `$` / end-of-line block caret sits one cell past the last char, `iw` / `aw`
+are whitespace-delimited (like vim's `iW` / `aW`), and `cw` isn't special-cased
+to `ce`.
+
 **Spike 5 — partial refresh + typing: verified 2026-07-04.** `main.rs` wires
 the keyboard to the panel: [`src/usb_kbd.rs`](src/usb_kbd.rs) feeds decoded
 key-downs (US layout, edge-detected) into a queue, and the main loop keeps a
