@@ -8,10 +8,9 @@
 //! Display factory demo. See `docs/v0.1-mvp-technical.md` (Spike 2) and
 //! ADR-003.
 //!
-//! **Spike 2a scope:** hardware reset, init, uniform full-screen fill, full
-//! refresh — enough to prove wiring + SPI + both controllers + refresh.
-//! Text (an `embedded-graphics` `DrawTarget` + the per-quadrant blit from
-//! GxEPD2's `_writeFromImage`) is Spike 2b.
+//! Capabilities: hardware reset, init, uniform fill, full-frame blit via an
+//! `embedded-graphics` `DrawTarget` (`Frame`), full refresh (`display_frame`),
+//! and partial refresh (`display_frame_partial`) — Spikes 2 and 5.
 
 use embedded_graphics::pixelcolor::BinaryColor;
 use embedded_graphics::prelude::*;
@@ -44,6 +43,7 @@ impl Frame {
         Self { buf: vec![0xFF; FB_BYTES] }
     }
 
+    #[allow(dead_code)] // symmetric with new_white; kept as part of the API
     pub fn new_black() -> Self {
         Self { buf: vec![0x00; FB_BYTES] }
     }
@@ -271,6 +271,27 @@ impl<'d> Epd<'d> {
         Ok(())
     }
 
+    /// Port of GxEPD2 `_Update_Part` — the partial-update waveform. No full
+    /// flashing; only pixels that differ between the "previous" (`0x26`) and
+    /// "current" (`0x24`) banks transition. Much faster than a full refresh
+    /// but leaves faint ghosting that a periodic full refresh clears. Like
+    /// GxEPD2 for this dual-controller panel, the update covers the whole
+    /// panel (windowing isn't worthwhile — the waveform time dominates, not
+    /// the area).
+    fn update_part(&mut self) -> Result<(), EspError> {
+        self.set_ram_area(0, 0, WIDTH / 2, HEIGHT, 0x03, 0x80)?; // slave
+        self.set_ram_area(0, 0, WIDTH / 2, HEIGHT, 0x03, 0x00)?; // master
+        self.cmd(0x3C)?; // border waveform control
+        self.data(&[0x80])?; // VCOM
+        self.cmd(0x21)?; // display update control 1
+        self.data(&[0x00, 0x10])?; // RED normal, cascade
+        self.cmd(0x22)?; // display update control 2
+        self.data(&[0xFF])?; // partial update
+        self.cmd(0x20)?; // master activation
+        self.wait_while_busy(2000)?; // partial is well under the full ~2.2 s
+        Ok(())
+    }
+
     /// Fill the whole panel with one value and full-refresh.
     /// `0xFF` = white, `0x00` = black. Port of GxEPD2 `clearScreen`.
     pub fn clear_screen(&mut self, value: u8) -> Result<(), EspError> {
@@ -316,6 +337,20 @@ impl<'d> Epd<'d> {
         self.write_frame_bank(0x26, fb)?; // previous
         self.write_frame_bank(0x24, fb)?; // current
         self.update_full()?;
+        Ok(())
+    }
+
+    /// Show a full 792×272 framebuffer with a *partial* refresh (fast, no
+    /// flashing). Requires the `0x26` (previous) bank to already hold the
+    /// on-screen image — true after any `display_frame`, `clear_screen`, or a
+    /// prior `display_frame_partial`. Writes the new image to `0x24`, runs the
+    /// partial waveform, then syncs `0x26` to the new image so the next
+    /// partial update has a correct baseline.
+    pub fn display_frame_partial(&mut self, fb: &[u8]) -> Result<(), EspError> {
+        assert_eq!(fb.len(), FB_BYTES, "framebuffer must be 99 x 272 bytes");
+        self.write_frame_bank(0x24, fb)?; // current = new
+        self.update_part()?; // transition previous (0x26) -> current (0x24)
+        self.write_frame_bank(0x26, fb)?; // previous = new, for the next partial
         Ok(())
     }
 }
