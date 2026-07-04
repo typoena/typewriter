@@ -1,27 +1,28 @@
-//! Spike 4 — USB host: read keycodes from a USB HID boot keyboard.
+//! USB host HID boot keyboard → key-event queue.
 //!
 //! Drives the ESP-IDF USB Host Library directly through the raw `esp-idf-sys`
 //! bindings (the convenience HID class driver is a managed component that isn't
-//! vendored in mainline, and a boot keyboard doesn't need it). On attach it:
-//!   1. opens the device and dumps its device/config descriptors,
-//!   2. claims the boot-keyboard interface,
-//!   3. sends SET_PROTOCOL(boot) + SET_IDLE(0) control transfers,
-//!   4. polls the interrupt-IN endpoint and decodes each 8-byte boot report
-//!      into modifiers + keycodes, logged over UART.
+//! vendored in mainline, and a boot keyboard doesn't need it). `start()`
+//! installs the host stack, spawns the daemon + client event pumps on their own
+//! threads, and returns immediately; decoded key-down events are pushed onto a
+//! queue the caller drains with `next_key()`. This keeps the USB pumps off the
+//! main thread so the main thread can own the e-paper panel.
 //!
-//! The boot-keyboard parameters below were confirmed by Increment 1's
-//! enumeration of the bench keyboard (VID:PID 19f5:3255): interface 0 is
-//! class 03 / subclass 01 / protocol 01 with interrupt-IN endpoint 0x81,
-//! wMaxPacketSize 8. A general driver would parse these from the config
-//! descriptor; for the spike we target the confirmed layout.
+//! On attach it opens the device, dumps its descriptors, claims the boot
+//! keyboard interface (interface 0 / EP 0x81 / 8-byte reports, confirmed by
+//! Spike 4's enumeration of VID:PID 19f5:3255), switches it to boot protocol,
+//! and polls the interrupt-IN endpoint. Each report is edge-detected against
+//! the previous one so a held key yields a single key-down, then translated
+//! through a US QWERTY layout.
 //!
-//! Logging goes over the CP2102 UART bridge (console = UART0), which is
-//! independent of the USB PHY, so installing the host library does not
-//! disturb the serial monitor.
+//! Logging goes over the CP2102 UART bridge (console = UART0), independent of
+//! the USB PHY, so the host library and the serial monitor coexist.
 
+use std::collections::VecDeque;
 use std::ffi::c_void;
 use std::ptr;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU8, Ordering};
+use std::sync::{Mutex, OnceLock};
 
 use esp_idf_svc::sys::esp;
 use esp_idf_svc::sys::{
@@ -37,7 +38,15 @@ use esp_idf_svc::sys::{
     usb_transfer_t, EspError, ESP_INTR_FLAG_LEVEL1,
 };
 
-/// Boot-keyboard parameters, confirmed by Increment 1's enumeration.
+/// A decoded key-down event.
+#[derive(Debug, Clone, Copy)]
+pub enum Key {
+    Char(char),
+    Enter,
+    Backspace,
+}
+
+/// Boot-keyboard parameters, confirmed by Spike 4's enumeration.
 const KBD_INTERFACE: u8 = 0;
 const KBD_ALT_SETTING: u8 = 0;
 const KBD_EP_IN: u8 = 0x81;
@@ -49,8 +58,7 @@ const SET_PROTOCOL_BOOT: [u8; 8] = [0x21, 0x0b, 0x00, 0x00, KBD_INTERFACE, 0x00,
 const SET_IDLE_INFINITE: [u8; 8] = [0x21, 0x0a, 0x00, 0x00, KBD_INTERFACE, 0x00, 0x00, 0x00];
 
 /// Address of a freshly-attached device, published by the client event
-/// callback (a C function pointer, so it can't capture state) and consumed by
-/// the main loop. 0 means "nothing pending".
+/// callback and consumed by the client loop. 0 means "nothing pending".
 static NEW_DEV_ADDR: AtomicU8 = AtomicU8::new(0);
 /// Set when the open device is unplugged.
 static DEV_GONE: AtomicBool = AtomicBool::new(false);
@@ -58,8 +66,103 @@ static DEV_GONE: AtomicBool = AtomicBool::new(false);
 static CTRL_DONE: AtomicBool = AtomicBool::new(false);
 static CTRL_STATUS: AtomicU32 = AtomicU32::new(0);
 
+/// Queue of decoded key-down events, drained by the main thread. A plain
+/// mutex-guarded queue rather than a channel because `mpsc::Sender` is not
+/// `Sync` and so can't live in a `static`.
+static KEY_QUEUE: OnceLock<Mutex<VecDeque<Key>>> = OnceLock::new();
+/// Keycodes held in the previous report, for key-down edge detection. Only
+/// ever touched from the single client thread's `report_cb`.
+static PREV_KEYS: Mutex<[u8; 6]> = Mutex::new([0; 6]);
+
+/// Pop the next decoded key-down event, if any.
+pub fn next_key() -> Option<Key> {
+    KEY_QUEUE.get()?.lock().unwrap().pop_front()
+}
+
+/// Install the USB Host Library and spawn the daemon + client event pumps.
+/// Returns once the stack is up; key events then arrive via `next_key()`.
+pub fn start() -> Result<(), EspError> {
+    // Internal PHY (skip_phy_setup = false), root port powered on install,
+    // default full-speed peripheral (BIT0 — the S3 has a single USB-OTG).
+    let mut host_config: usb_host_config_t = unsafe { core::mem::zeroed() };
+    host_config.intr_flags = ESP_INTR_FLAG_LEVEL1 as i32;
+    host_config.peripheral_map = 1 << 0;
+    esp!(unsafe { usb_host_install(&host_config) })?;
+    log::info!("USB Host Library installed; waiting for a keyboard…");
+
+    let _ = KEY_QUEUE.set(Mutex::new(VecDeque::new()));
+
+    // The daemon pump services enumeration and root-port events. It must run
+    // continuously or an attach never completes.
+    std::thread::Builder::new()
+        .stack_size(4096)
+        .name("usb_host_daemon".into())
+        .spawn(|| loop {
+            let mut event_flags: u32 = 0;
+            unsafe { usb_host_lib_handle_events(u32::MAX, &mut event_flags) };
+        })
+        .expect("spawn usb host daemon thread");
+
+    // The client pump registers the client, handles attach/detach, and (via
+    // report_cb, called from within its handle_events) decodes key events.
+    std::thread::Builder::new()
+        .stack_size(8192)
+        .name("usb_client".into())
+        .spawn(client_loop)
+        .expect("spawn usb client thread");
+
+    Ok(())
+}
+
+/// Client event pump: register the client and service device attach/detach
+/// forever. Runs on its own thread.
+fn client_loop() {
+    let mut client_config: usb_host_client_config_t = unsafe { core::mem::zeroed() };
+    client_config.max_num_event_msg = 5;
+    client_config.__bindgen_anon_1.async_.client_event_callback = Some(client_event_cb);
+    client_config.__bindgen_anon_1.async_.callback_arg = ptr::null_mut();
+    let mut client: usb_host_client_handle_t = ptr::null_mut();
+    let err = unsafe { usb_host_client_register(&client_config, &mut client) };
+    if err != 0 {
+        log::error!("usb_host_client_register failed: {err}");
+        return;
+    }
+
+    let mut open_dev: usb_device_handle_t = ptr::null_mut();
+    let mut report_xfer: *mut usb_transfer_t = ptr::null_mut();
+    loop {
+        // Blocks until a client event; the callbacks (attach/detach, control
+        // completion, interrupt reports) all fire from within here.
+        unsafe { usb_host_client_handle_events(client, u32::MAX) };
+
+        let addr = NEW_DEV_ADDR.swap(0, Ordering::SeqCst);
+        if addr != 0 {
+            match setup_keyboard(client, addr) {
+                Ok((dev, xfer)) => {
+                    open_dev = dev;
+                    report_xfer = xfer;
+                }
+                Err(e) => log::error!("keyboard setup failed: {e:?}"),
+            }
+        }
+        if DEV_GONE.swap(false, Ordering::SeqCst) && !open_dev.is_null() {
+            log::info!("keyboard unplugged; releasing interface and closing");
+            // Order per the USB Host Library: free transfers, release
+            // interfaces, then close the device.
+            if !report_xfer.is_null() {
+                unsafe { usb_host_transfer_free(report_xfer) };
+                report_xfer = ptr::null_mut();
+            }
+            unsafe { usb_host_interface_release(client, open_dev, KBD_INTERFACE) };
+            unsafe { usb_host_device_close(client, open_dev) };
+            open_dev = ptr::null_mut();
+            *PREV_KEYS.lock().unwrap() = [0; 6];
+        }
+    }
+}
+
 /// Client event callback — runs inside `usb_host_client_handle_events`. Keep
-/// it minimal: stash what happened and let the main loop do the FFI work.
+/// it minimal: stash what happened and let the client loop do the FFI work.
 unsafe extern "C" fn client_event_cb(msg: *const usb_host_client_event_msg_t, _arg: *mut c_void) {
     let msg = unsafe { &*msg };
     #[allow(non_upper_case_globals)]
@@ -83,16 +186,16 @@ unsafe extern "C" fn ctrl_cb(transfer: *mut usb_transfer_t) {
     CTRL_DONE.store(true, Ordering::SeqCst);
 }
 
-/// Interrupt-IN completion callback: decode the boot report and resubmit to
-/// keep polling. Runs inside `usb_host_client_handle_events`. On any
-/// non-completed status (e.g. the device was unplugged and the transfer was
-/// canceled) it stops resubmitting.
+/// Interrupt-IN completion callback: decode the boot report into key-down
+/// events and resubmit to keep polling. Runs inside the client loop's
+/// `usb_host_client_handle_events`. On any non-completed status (e.g. the
+/// device was unplugged and the transfer canceled) it stops resubmitting.
 unsafe extern "C" fn report_cb(transfer: *mut usb_transfer_t) {
     let t = unsafe { &mut *transfer };
     if t.status == usb_transfer_status_t_USB_TRANSFER_STATUS_COMPLETED {
         let n = (t.actual_num_bytes as usize).min(BOOT_REPORT_LEN);
         let report = unsafe { core::slice::from_raw_parts(t.data_buffer, n) };
-        decode_boot_report(report);
+        handle_report(report);
         let err = unsafe { usb_host_transfer_submit(transfer) };
         if err != 0 {
             log::error!("interrupt resubmit failed: {err}");
@@ -102,72 +205,70 @@ unsafe extern "C" fn report_cb(transfer: *mut usb_transfer_t) {
     }
 }
 
-/// Install the USB Host Library, spawn the daemon event pump, register a
-/// client, and service attach/detach forever. Does not return under normal
-/// operation.
-pub fn run() -> Result<(), EspError> {
-    // Internal PHY (skip_phy_setup = false), root port powered on install,
-    // default full-speed peripheral (BIT0 — the S3 has a single USB-OTG).
-    let mut host_config: usb_host_config_t = unsafe { core::mem::zeroed() };
-    host_config.intr_flags = ESP_INTR_FLAG_LEVEL1 as i32;
-    host_config.peripheral_map = 1 << 0;
-    esp!(unsafe { usb_host_install(&host_config) })?;
-    log::info!("USB Host Library installed; waiting for a device…");
+/// Edge-detect key-downs in an 8-byte boot report and enqueue translated keys.
+/// Layout: [modifiers, reserved, key1..key6]; 0 means "no key".
+fn handle_report(report: &[u8]) {
+    if report.len() < 3 {
+        return;
+    }
+    let shift = report[0] & 0x22 != 0; // LShift (0x02) | RShift (0x20)
+    let current = &report[2..];
 
-    // The daemon pump services enumeration and root-port events. It must run
-    // continuously or an attach never completes. Own thread, blocking forever.
-    std::thread::Builder::new()
-        .stack_size(4096)
-        .name("usb_host_daemon".into())
-        .spawn(|| loop {
-            let mut event_flags: u32 = 0;
-            unsafe { usb_host_lib_handle_events(u32::MAX, &mut event_flags) };
-        })
-        .expect("spawn usb host daemon thread");
-
-    // Register the client that receives device attach/detach callbacks.
-    let mut client_config: usb_host_client_config_t = unsafe { core::mem::zeroed() };
-    client_config.max_num_event_msg = 5;
-    client_config.__bindgen_anon_1.async_.client_event_callback = Some(client_event_cb);
-    client_config.__bindgen_anon_1.async_.callback_arg = ptr::null_mut();
-    let mut client: usb_host_client_handle_t = ptr::null_mut();
-    esp!(unsafe { usb_host_client_register(&client_config, &mut client) })?;
-
-    let mut open_dev: usb_device_handle_t = ptr::null_mut();
-    let mut report_xfer: *mut usb_transfer_t = ptr::null_mut();
-    loop {
-        // Blocks until a client event; the callbacks (attach/detach, control
-        // completion, interrupt reports) all fire from within here.
-        unsafe { usb_host_client_handle_events(client, u32::MAX) };
-
-        let addr = NEW_DEV_ADDR.swap(0, Ordering::SeqCst);
-        if addr != 0 {
-            match setup_keyboard(client, addr) {
-                Ok((dev, xfer)) => {
-                    open_dev = dev;
-                    report_xfer = xfer;
-                }
-                Err(e) => log::error!("keyboard setup failed: {e:?}"),
-            }
+    let mut prev = PREV_KEYS.lock().unwrap();
+    for &k in current {
+        if k == 0 || prev.contains(&k) {
+            continue; // not pressed, or already held last report
         }
-        if DEV_GONE.swap(false, Ordering::SeqCst) && !open_dev.is_null() {
-            log::info!("device unplugged; releasing interface and closing");
-            // Order per the USB Host Library: free transfers, release
-            // interfaces, then close the device.
-            if !report_xfer.is_null() {
-                unsafe { usb_host_transfer_free(report_xfer) };
-                report_xfer = ptr::null_mut();
+        if let Some(key) = translate(k, shift) {
+            log::info!("key: {key:?}");
+            if let Some(q) = KEY_QUEUE.get() {
+                q.lock().unwrap().push_back(key);
             }
-            unsafe { usb_host_interface_release(client, open_dev, KBD_INTERFACE) };
-            unsafe { usb_host_device_close(client, open_dev) };
-            open_dev = ptr::null_mut();
         }
     }
+
+    let mut next = [0u8; 6];
+    for (slot, &k) in next.iter_mut().zip(current.iter()) {
+        *slot = k;
+    }
+    *prev = next;
+}
+
+/// Translate a HID keyboard usage ID to a key event using a US QWERTY layout.
+fn translate(usage: u8, shift: bool) -> Option<Key> {
+    let key = match usage {
+        0x04..=0x1d => {
+            let base = b'a' + (usage - 0x04);
+            Key::Char(if shift { base.to_ascii_uppercase() } else { base } as char)
+        }
+        0x1e..=0x27 => {
+            const UNSHIFTED: [char; 10] = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+            const SHIFTED: [char; 10] = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')'];
+            let i = (usage - 0x1e) as usize;
+            Key::Char(if shift { SHIFTED[i] } else { UNSHIFTED[i] })
+        }
+        0x28 => Key::Enter,
+        0x2a => Key::Backspace,
+        0x2b => Key::Char('\t'),
+        0x2c => Key::Char(' '),
+        0x2d => Key::Char(if shift { '_' } else { '-' }),
+        0x2e => Key::Char(if shift { '+' } else { '=' }),
+        0x2f => Key::Char(if shift { '{' } else { '[' }),
+        0x30 => Key::Char(if shift { '}' } else { ']' }),
+        0x31 => Key::Char(if shift { '|' } else { '\\' }),
+        0x33 => Key::Char(if shift { ':' } else { ';' }),
+        0x34 => Key::Char(if shift { '"' } else { '\'' }),
+        0x35 => Key::Char(if shift { '~' } else { '`' }),
+        0x36 => Key::Char(if shift { '<' } else { ',' }),
+        0x37 => Key::Char(if shift { '>' } else { '.' }),
+        0x38 => Key::Char(if shift { '?' } else { '/' }),
+        _ => return None,
+    };
+    Some(key)
 }
 
 /// Open a newly-attached device, dump its descriptors, claim the keyboard
 /// interface, put it in boot protocol, and start polling for reports.
-/// Returns the device handle and the in-flight report transfer.
 fn setup_keyboard(
     client: usb_host_client_handle_t,
     addr: u8,
@@ -184,7 +285,7 @@ fn setup_keyboard(
     control_request(client, dev, &SET_IDLE_INFINITE, "SET_IDLE(0)")?;
 
     let xfer = start_report_polling(dev)?;
-    log::info!("polling EP {KBD_EP_IN:#04x} — type on the keyboard");
+    log::info!("polling EP {KBD_EP_IN:#04x} — keyboard ready");
     Ok((dev, xfer))
 }
 
@@ -193,7 +294,7 @@ fn open_and_dump(
     client: usb_host_client_handle_t,
     addr: u8,
 ) -> Result<usb_device_handle_t, EspError> {
-    log::info!("device attached at address {addr}; opening");
+    log::info!("keyboard attached at address {addr}; opening");
     let mut dev: usb_device_handle_t = ptr::null_mut();
     esp!(unsafe { usb_host_device_open(client, addr, &mut dev) })?;
 
@@ -275,72 +376,4 @@ fn start_report_polling(dev: usb_device_handle_t) -> Result<*mut usb_transfer_t,
     }
     esp!(unsafe { usb_host_transfer_submit(xfer) })?;
     Ok(xfer)
-}
-
-/// Decode an 8-byte HID boot keyboard report into modifiers + keycodes and log
-/// it. Layout: [modifiers, reserved, key1..key6]; 0 means "no key".
-fn decode_boot_report(report: &[u8]) {
-    if report.len() < 3 {
-        return;
-    }
-    let modifiers = report[0];
-    const MOD_NAMES: [(u8, &str); 8] = [
-        (0x01, "LCtrl"),
-        (0x02, "LShift"),
-        (0x04, "LAlt"),
-        (0x08, "LGui"),
-        (0x10, "RCtrl"),
-        (0x20, "RShift"),
-        (0x40, "RAlt"),
-        (0x80, "RGui"),
-    ];
-    let mods: Vec<&str> = MOD_NAMES
-        .iter()
-        .filter(|(bit, _)| modifiers & bit != 0)
-        .map(|(_, name)| *name)
-        .collect();
-
-    let keys: Vec<String> = report[2..]
-        .iter()
-        .filter(|&&k| k != 0)
-        .map(|&k| keycode_name(k))
-        .collect();
-
-    if mods.is_empty() && keys.is_empty() {
-        log::info!("report: (all keys released)");
-    } else {
-        log::info!("report: mods=[{}] keys=[{}]", mods.join("+"), keys.join(" "));
-    }
-}
-
-/// Map a HID keyboard usage ID to a readable label. Covers the common range;
-/// anything else falls back to hex.
-fn keycode_name(k: u8) -> String {
-    match k {
-        0x04..=0x1d => ((b'a' + (k - 0x04)) as char).to_string(),
-        0x1e..=0x26 => ((b'1' + (k - 0x1e)) as char).to_string(), // 1-9
-        0x27 => "0".into(),
-        0x28 => "Enter".into(),
-        0x29 => "Esc".into(),
-        0x2a => "Backspace".into(),
-        0x2b => "Tab".into(),
-        0x2c => "Space".into(),
-        0x2d => "-".into(),
-        0x2e => "=".into(),
-        0x2f => "[".into(),
-        0x30 => "]".into(),
-        0x31 => "\\".into(),
-        0x33 => ";".into(),
-        0x34 => "'".into(),
-        0x36 => ",".into(),
-        0x37 => ".".into(),
-        0x38 => "/".into(),
-        0x39 => "CapsLock".into(),
-        0x3a..=0x45 => format!("F{}", k - 0x3a + 1), // F1-F12
-        0x4f => "Right".into(),
-        0x50 => "Left".into(),
-        0x51 => "Down".into(),
-        0x52 => "Up".into(),
-        _ => format!("0x{k:02x}"),
-    }
 }
