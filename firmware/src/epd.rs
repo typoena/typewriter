@@ -278,9 +278,14 @@ impl<'d> Epd<'d> {
     /// GxEPD2 for this dual-controller panel, the update covers the whole
     /// panel (windowing isn't worthwhile — the waveform time dominates, not
     /// the area).
-    fn update_part(&mut self) -> Result<(), EspError> {
-        self.set_ram_area(0, 0, WIDTH / 2, HEIGHT, 0x03, 0x80)?; // slave
-        self.set_ram_area(0, 0, WIDTH / 2, HEIGHT, 0x03, 0x00)?; // master
+    /// `y0`/`h` restrict the update to a horizontal band of rows. E-paper
+    /// update time scales with the number of gate lines driven, so a narrow
+    /// band (one text line) is far faster than the whole panel — the win that
+    /// makes per-keystroke typing responsive. Full width is always driven
+    /// (both controllers), so the seam/mirroring logic is untouched.
+    fn update_part(&mut self, y0: u16, h: u16) -> Result<(), EspError> {
+        self.set_ram_area(0, y0, WIDTH / 2, h, 0x03, 0x80)?; // slave
+        self.set_ram_area(0, y0, WIDTH / 2, h, 0x03, 0x00)?; // master
         self.cmd(0x3C)?; // border waveform control
         self.data(&[0x80])?; // VCOM
         self.cmd(0x21)?; // display update control 1
@@ -301,29 +306,31 @@ impl<'d> Epd<'d> {
         Ok(())
     }
 
-    /// Blit a full 792×272 framebuffer into one RAM bank on both
-    /// controllers. Port of the full-frame case of GxEPD2 `_writeFromImage`:
-    /// slave gets panel bytes 0..=49 of each row in X-increment mode; the
-    /// master's sources are wired mirrored, so it gets bytes 49..=98 in
-    /// bitmap order while the address counter walks RAM 49..=0 (mode 0x02).
-    /// The seam byte 49 (px 392..399) lands on both; the 4 columns past each
-    /// controller's 396 sources aren't wired.
-    fn write_frame_bank(&mut self, command: u8, fb: &[u8]) -> Result<(), EspError> {
-        let mut buf = Vec::with_capacity(CTRL_BYTES);
-        for y in 0..HEIGHT as usize {
+    /// Blit rows `y0..y0+h` of a 792×272 framebuffer into one RAM bank on both
+    /// controllers. Port of GxEPD2 `_writeFromImage`, windowed in Y: slave gets
+    /// panel bytes 0..=49 of each row in X-increment mode; the master's sources
+    /// are wired mirrored, so it gets bytes 49..=98 in bitmap order while the
+    /// address counter walks RAM 49..=0 (mode 0x02). The seam byte 49
+    /// (px 392..399) lands on both; the 4 columns past each controller's 396
+    /// sources aren't wired. Pass `(0, HEIGHT)` for a full-frame blit.
+    fn write_frame_bank(&mut self, command: u8, fb: &[u8], y0: u16, h: u16) -> Result<(), EspError> {
+        let rows = y0 as usize..(y0 + h) as usize;
+
+        let mut buf = Vec::with_capacity(CTRL_BYTES_W * h as usize);
+        for y in rows.clone() {
             let row = &fb[y * FB_BYTES_W..(y + 1) * FB_BYTES_W];
             buf.extend_from_slice(&row[..CTRL_BYTES_W]);
         }
-        self.set_ram_area(0, 0, WIDTH / 2, HEIGHT, 0x03, 0x80)?; // slave
+        self.set_ram_area(0, y0, WIDTH / 2, h, 0x03, 0x80)?; // slave
         self.cmd(command | 0x80)?;
         self.data(&buf)?;
 
         buf.clear();
-        for y in 0..HEIGHT as usize {
+        for y in rows {
             let row = &fb[y * FB_BYTES_W..(y + 1) * FB_BYTES_W];
             buf.extend_from_slice(&row[FB_BYTES_W - CTRL_BYTES_W..]);
         }
-        self.set_ram_area(0, 0, WIDTH / 2, HEIGHT, 0x02, 0x00)?; // master
+        self.set_ram_area(0, y0, WIDTH / 2, h, 0x02, 0x00)?; // master
         self.cmd(command)?;
         self.data(&buf)?;
         Ok(())
@@ -334,23 +341,31 @@ impl<'d> Epd<'d> {
     /// consistent "previous" image.
     pub fn display_frame(&mut self, fb: &[u8]) -> Result<(), EspError> {
         assert_eq!(fb.len(), FB_BYTES, "framebuffer must be 99 x 272 bytes");
-        self.write_frame_bank(0x26, fb)?; // previous
-        self.write_frame_bank(0x24, fb)?; // current
+        self.write_frame_bank(0x26, fb, 0, HEIGHT)?; // previous
+        self.write_frame_bank(0x24, fb, 0, HEIGHT)?; // current
         self.update_full()?;
         Ok(())
     }
 
-    /// Show a full 792×272 framebuffer with a *partial* refresh (fast, no
-    /// flashing). Requires the `0x26` (previous) bank to already hold the
-    /// on-screen image — true after any `display_frame`, `clear_screen`, or a
-    /// prior `display_frame_partial`. Writes the new image to `0x24`, runs the
-    /// partial waveform, then syncs `0x26` to the new image so the next
-    /// partial update has a correct baseline.
-    pub fn display_frame_partial(&mut self, fb: &[u8]) -> Result<(), EspError> {
+    /// Partial-refresh only rows `y0..y0+h` of the panel from a full
+    /// framebuffer — the fast per-keystroke path (pass `(0, HEIGHT)` for the
+    /// whole panel). Requires the `0x26` (previous) bank to already hold the
+    /// on-screen image for those rows — true after any `display_frame`,
+    /// `clear_screen`, or a prior partial covering them. Writes the new rows to
+    /// `0x24`, runs the partial waveform over just that band, then syncs `0x26`
+    /// so the next partial has a correct baseline. `fb` is always the full
+    /// frame; only the given rows are used.
+    pub fn display_frame_partial_window(
+        &mut self,
+        fb: &[u8],
+        y0: u16,
+        h: u16,
+    ) -> Result<(), EspError> {
         assert_eq!(fb.len(), FB_BYTES, "framebuffer must be 99 x 272 bytes");
-        self.write_frame_bank(0x24, fb)?; // current = new
-        self.update_part()?; // transition previous (0x26) -> current (0x24)
-        self.write_frame_bank(0x26, fb)?; // previous = new, for the next partial
+        assert!(h > 0 && y0 + h <= HEIGHT, "row window out of range");
+        self.write_frame_bank(0x24, fb, y0, h)?; // current = new
+        self.update_part(y0, h)?; // transition previous (0x26) -> current (0x24)
+        self.write_frame_bank(0x26, fb, y0, h)?; // previous = new, for next time
         Ok(())
     }
 }

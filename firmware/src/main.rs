@@ -27,8 +27,9 @@ const CH: i32 = 20;
 const COLS: usize = (epd::WIDTH / 10) as usize; // 79 characters per line
 const ROWS: usize = (epd::HEIGHT / 20) as usize; // 13 lines
 
-/// Clear accumulated partial-refresh ghosting with a full refresh this often.
-const FULL_REFRESH_EVERY: u32 = 20;
+/// Occasional full refresh, mainly for panel longevity — partial updates on
+/// this panel stay visually clean far longer, so this is deliberately rare.
+const FULL_REFRESH_EVERY: u32 = 64;
 
 fn main() -> anyhow::Result<()> {
     // Required once before any esp-idf-svc call; some runtime patches
@@ -67,7 +68,8 @@ fn main() -> anyhow::Result<()> {
 
     // First render is full (establishes the on-screen baseline for partials).
     let mut text = String::new();
-    epd.display_frame(render_frame(&text).bytes())?;
+    let mut shown = render_frame(&text);
+    epd.display_frame(shown.bytes())?;
 
     let mut updates: u32 = 0;
     loop {
@@ -84,22 +86,45 @@ fn main() -> anyhow::Result<()> {
         }
 
         let frame = render_frame(&text);
+        // Only the rows that changed since the last shown frame need updating —
+        // usually just the edited line, which the partial refresh windows to.
+        let Some((y0, y1)) = changed_rows(shown.bytes(), frame.bytes()) else {
+            shown = frame;
+            continue; // no visible change (e.g. backspace at start of buffer)
+        };
+
         updates += 1;
         let full = updates % FULL_REFRESH_EVERY == 0;
-
         let t0 = Instant::now();
         if full {
             epd.display_frame(frame.bytes())?;
         } else {
-            epd.display_frame_partial(frame.bytes())?;
+            epd.display_frame_partial_window(frame.bytes(), y0, y1 - y0 + 1)?;
         }
         let ms = t0.elapsed().as_millis();
         log::info!(
-            "{} refresh #{updates}: {ms} ms ({keys} key(s), {} chars)",
+            "{} refresh #{updates}: {ms} ms (rows {y0}..={y1}, {keys} key(s), {} chars)",
             if full { "FULL" } else { "partial" },
             text.chars().count(),
         );
+        shown = frame;
     }
+}
+
+/// First and last (inclusive) framebuffer rows that differ between two frames,
+/// or `None` if identical. Lets the partial refresh target just the band a
+/// keystroke touched instead of all 272 rows.
+fn changed_rows(a: &[u8], b: &[u8]) -> Option<(u16, u16)> {
+    let w = epd::FB_BYTES_W;
+    let mut first: Option<u16> = None;
+    let mut last = 0u16;
+    for y in 0..epd::HEIGHT as usize {
+        if a[y * w..(y + 1) * w] != b[y * w..(y + 1) * w] {
+            first.get_or_insert(y as u16);
+            last = y as u16;
+        }
+    }
+    first.map(|f| (f, last))
 }
 
 /// Apply a key event to the text buffer.
