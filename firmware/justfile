@@ -10,6 +10,15 @@ esp_env := ". ~/export-esp.sh &&"
 elf := "target/xtensa-esp32s3-espidf/release/firmware"
 elf_wifi := "target/xtensa-esp32s3-espidf/release/wifi_tls"
 elf_sd := "target/xtensa-esp32s3-espidf/release/sd_fat"
+elf_git := "target/xtensa-esp32s3-espidf/release/git_smoke"
+
+# Spike 7 Path 2 — env for the git2/libgit2 build. LIBGIT2_SRC points at the
+# vendored libgit2 submodule (v1.9.4, matches libgit2-sys 0.18.5). pkgconfig/
+# holds fake .pc files so libgit2-sys + libz-sys run in system mode and the
+# symbols come from the esp-idf libgit2 component. Only the git recipes set this,
+# so the editor build never compiles libgit2.
+libgit2_src := justfile_directory() + "/components/libgit2/vendor"
+git_env := "LIBGIT2_SRC=" + libgit2_src + " LIBGIT2_NO_VENDOR=1 PKG_CONFIG_ALLOW_CROSS=1 PKG_CONFIG_LIBDIR=" + justfile_directory() + "/pkgconfig"
 
 # list recipes
 default:
@@ -50,6 +59,18 @@ flash-sd:
 # serial monitor for the SD spike, with decoded backtraces
 monitor-sd:
     espflash monitor --elf {{elf_sd}}
+
+# Spike 7 Path 2 — build the git2/libgit2 smoke (git2 safe API on device)
+build-git:
+    {{esp_env}} {{git_env}} cargo build --release --bin git_smoke --features git
+
+# Spike 7 Path 2 — flash + monitor the git2/libgit2 smoke
+flash-git:
+    {{esp_env}} {{git_env}} cargo run --release --bin git_smoke --features git
+
+# serial monitor for the git smoke, with decoded backtraces
+monitor-git:
+    espflash monitor --elf {{elf_git}}
 
 # detect board, print chip/MAC/flash size
 info:
