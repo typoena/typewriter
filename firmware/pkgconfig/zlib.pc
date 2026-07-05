@@ -1,0 +1,16 @@
+# Fake pkg-config file for zlib (Spike 7, Path 2).
+#
+# libz-sys is a non-optional dependency of libgit2-sys. Left to itself it would
+# either grab the host (macOS) zlib or vendor-build its own libz.a — and either
+# way its zlib symbols would collide with the zlib we bundle *inside* the
+# libgit2 component (deps/zlib, which lives in esp-idf's link group where the
+# ordering is safe). This .pc makes libz-sys's probe succeed while emitting
+# NOTHING, so it contributes no symbols and the component's bundled zlib wins.
+#
+# PKG_CONFIG_LIBDIR is pointed at this directory only, so neither probe can fall
+# through to the host's real zlib.pc.
+Name: zlib
+Description: zlib bundled into the libgit2 esp-idf component
+Version: 1.3.1
+Libs:
+Cflags:

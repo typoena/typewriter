@@ -1,0 +1,14 @@
+# Fake pkg-config file for the libgit2 esp-idf component (Spike 7, Path 2).
+#
+# libgit2-sys in system mode (LIBGIT2_NO_VENDOR=1) probes for a system libgit2
+# via pkg-config; without one it aborts, with one it emits link flags. We don't
+# want it to build OR link anything — esp-idf already builds liblibgit2.a and
+# puts it in the final link group (that's how git_smoke's 538 symbols resolved).
+# So this .pc makes the probe *succeed* (right version, in range [1.9.4,1.10.0))
+# while emitting NOTHING (empty Libs/Cflags). The symbols come from the
+# component; libgit2-sys supplies only its hand-written Rust bindings.
+Name: libgit2
+Description: libgit2 built as an esp-idf component (mbedTLS)
+Version: 1.9.4
+Libs:
+Cflags:

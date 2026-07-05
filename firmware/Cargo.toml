@@ -29,6 +29,15 @@ name = "sd_fat"
 path = "src/bin/sd_fat.rs"
 harness = false
 
+# Spike 7 Path 2 — libgit2 link/run smoke via the git2 safe API. Gated behind
+# the `git` feature so the editor build never pulls libgit2-sys/pkg-config.
+# Build: cargo build --release --bin git_smoke --features git (env in justfile).
+[[bin]]
+name = "git_smoke"
+path = "src/bin/git_smoke.rs"
+harness = false
+required-features = ["git"]
+
 [profile.release]
 opt-level = "s"
 
@@ -40,9 +49,17 @@ esp-idf-sys = { git = "https://github.com/esp-rs/esp-idf-sys.git" }
 esp-idf-hal = { git = "https://github.com/esp-rs/esp-idf-hal.git" }
 esp-idf-svc = { git = "https://github.com/esp-rs/esp-idf-svc.git" }
 
+[features]
+# Pulls the git2 safe API. libgit2 itself is built by the esp-idf component
+# (firmware/components/libgit2/) with mbedTLS; git2/libgit2-sys are used in
+# system mode (LIBGIT2_NO_VENDOR=1) purely for the Rust bindings, so we disable
+# their default features to avoid dragging in openssl-sys/libssh2-sys.
+git = ["dep:git2"]
+
 [dependencies]
 anyhow = "1"
 log = "0.4"
+git2 = { version = "0.20", default-features = false, optional = true }
 esp-idf-svc = { version = "0.52.1", features = ["critical-section", "embassy-time-driver", "embassy-sync"] }
 # Remove `generic-queue-8` if you plan to use `embassy-time` WITH `embassy-executor`
 embassy-time = { version = "0.5", features = ["generic-queue-8"] }
@@ -53,3 +70,10 @@ embedded-svc = "0.29"
 
 [build-dependencies]
 embuild = "0.33"
+
+# TEMPORARY — Spike 7 Path 2 Gate A probe. Builds libgit2 as an esp-idf
+# component (see firmware/components/libgit2/). Compiled against on-disk source
+# via LIBGIT2_SRC. Revert if the probe fails; promote (vendor the source) if it
+# passes.
+[[package.metadata.esp-idf-sys.extra_components]]
+component_dirs = ["components/libgit2"]
