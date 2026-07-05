@@ -2,7 +2,19 @@
 # You might have to increase this further if you allocate large stack variables in the main task.
 # Bumped for the TLS handshake (Spike 6): mbedtls runs on the calling task and
 # wants several KB of stack on top of the app's own usage.
-CONFIG_ESP_MAIN_TASK_STACK_SIZE=12288
+# Bumped hard for Spike 7: libgit2's call chain is stack-hungry. Nearly every
+# function puts a `char path[GIT_PATH_MAX]` (4 KB) buffer on the stack, and the
+# repository_init → config-write → FATFS → wear-leveling chain nests ~10 of them
+# deep — a trivial config write measured ~67 KB of stack on hardware, overflowing
+# the previous 48 KB and smashing an adjacent newlib lock handle (LoadProhibited
+# in xQueueGenericSend). The push (smart-HTTP + pack + mbedTLS) is deeper still.
+# NOTE: this earlier looked like "time() only works on the main task" — but that
+# iteration ran git on a std::thread with the default 4 KB stack; the same chain
+# just overflowed sooner. It's stack depth, not thread-vs-main.
+# CAVEAT: this sdkconfig is shared with the editor build, so the editor also
+# reserves this stack for nothing. Once the push is proven, git should move to a
+# dedicated large-stack task and this can drop back to ~16 KB.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=98304
 
 # Increase a bit these stack sizes as they are also a bit too small by default
 CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE=4096
