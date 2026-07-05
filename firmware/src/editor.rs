@@ -7,7 +7,10 @@
 //! on the logical (`\n`-delimited) buffer; word-wrapping and scrolling are a
 //! render-time concern handled by [`Editor::draw`].
 
-use embedded_graphics::mono_font::ascii::{FONT_6X10, FONT_10X20};
+// ISO-8859-15 (Latin-9) rather than the ascii subset: same glyph cells, but it
+// carries the accented Latin glyphs (à é ê ç … plus œ €) that international
+// input will emit. ASCII rendering is byte-for-byte unchanged.
+use embedded_graphics::mono_font::iso_8859_15::{FONT_6X10, FONT_10X20};
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::BinaryColor;
 use embedded_graphics::prelude::*;
