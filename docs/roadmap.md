@@ -35,6 +35,28 @@ Out of scope: Vim, palette, multiple files, branches, conflict handling.
 - [ ] `Esc` returns to Normal
 - [ ] Line numbers in the left gutter: relative in Normal mode (current line
       shown as its absolute number), absolute in Insert mode
+- [ ] Groundwork — UTF-8-correct buffer: caret motions and edits step by
+      character, not byte (drop the ASCII == byte-offset assumption in
+      `editor.rs`), so every motion added here and later stays correct once
+      accented input lands. Done early so it isn't retrofitted across the whole
+      motion/text-object surface. Render font is already ISO-8859-15 (Latin-9),
+      so accented glyphs display.
+
+## v0.2.5 — International input — [ ]
+
+A small focused release between navigation and editing. US-International
+dead-key accent composition, resolved in the keyboard layer (`usb_kbd.rs`) so
+the editor still receives a single `Key::Char`. Builds on the v0.2
+UTF-8-correct buffer and the ISO-8859-15 render font.
+
+- [ ] Dead keys — grave, acute, circumflex, diaeresis, tilde — compose with
+      the next letter: à é ê ë ñ, ç (via `'`+c), both cases
+- [ ] `'`+space emits a literal apostrophe (the everyday apostrophe path); a
+      dead key followed by a non-composing letter emits the accent then the
+      letter
+- [ ] A non-character event (Enter, Backspace, arrows) flushes any pending
+      accent as its literal first
+- [ ] Pending-accent indicator in the side-panel status strip
 
 ## v0.3 — Vim editing — [ ]
 

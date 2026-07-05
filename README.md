@@ -130,7 +130,8 @@ gantt
     v0.1 it writes, it pushes :v01, 2026-06-01, 4w
     section Vim
     v0.2 navigation           :v02, after v01, 3w
-    v0.3 editing              :v03, after v02, 3w
+    v0.2.5 international input :v025, after v02, 2w
+    v0.3 editing              :v03, after v025, 3w
     v0.4 visual + ex          :v04, after v03, 2w
     section Files
     v0.5 palette + multi-file :v05, after v04, 3w
@@ -146,6 +147,7 @@ gantt
 | ------------------------------------------------------- | ------------ | ------------------------------------------ |
 | [v0.1](docs/roadmap.md#v01--mvp-it-writes-it-pushes--)  | MVP          | Boots, edits one file, `Ctrl-G` pushes.    |
 | [v0.2](docs/roadmap.md#v02--vim-navigation--)           | Vim nav      | Normal/Insert, motions, line numbers.      |
+| [v0.2.5](docs/roadmap.md#v025--international-input--)    | Intl input   | US-Intl dead keys: à é ê ç, `'`+space = `'`. |
 | [v0.3](docs/roadmap.md#v03--vim-editing--)              | Vim edit     | `dd yy p`, undo/redo, counts.              |
 | [v0.4](docs/roadmap.md#v04--visual-mode--ex-commands--) | Visual + ex  | `v V`, `:w :q :e` command line.           |
 | [v0.5](docs/roadmap.md#v05--file-palette--multi-file--) | Files        | `Ctrl-P` over `/repo` + `/local`, buffers. |
