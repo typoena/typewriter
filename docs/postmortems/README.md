@@ -11,3 +11,4 @@
 | Date       | Incident                                                                 | Status |
 | ---------- | ------------------------------------------------------------------------ | ------ |
 | 2026-07-05 | [Spike 3 (SD) — card rejects CMD59 (SPI-mode CRC)](2026-07-05-spike3-sd-cmd59.md) | Paused — awaiting a compliant microSD; wiring + firmware proven |
+| 2026-07-05 | [Spike 7 (git push) — ADR-004 kill-switch fired: gix can't push over HTTPS](2026-07-05-spike7-gix-https-push.md) | Turned — pivoted to libgit2; git mechanics proven on desktop, device build next |

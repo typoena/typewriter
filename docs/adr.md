@@ -227,6 +227,19 @@ risk table).
 Implementation: [v0.1 technical → `git` module](v0.1-mvp-technical.md#module-breakdown)
 and [risks table](v0.1-mvp-technical.md#risks-and-how-well-know-they-bit-us).
 
+### Outcome — Spike 7, 2026-07-05: kill-switch fired
+
+`gix` was ruled out for v0.1 and the fallback taken. gitoxide supports push only
+over `file://` and `ssh://` — **not HTTP(S)** — so with HTTPS + PAT fixed by
+[ADR-005], the smart-HTTP push path this ADR bet on does not exist yet. We
+switched to **`libgit2` (`git2` crate)** and proved `add → commit → push`
+(incl. `pull --no-edit` + retry) on desktop
+([`spikes/spike7-git-push`](../spikes/spike7-git-push/)). The remaining risk is
+now the on-device **libgit2 → xtensa/mbedtls cross-compile** — the very pain
+this ADR chose gix to avoid. Full context:
+[postmortem](postmortems/2026-07-05-spike7-gix-https-push.md). Revisit gix if
+its HTTP(S) push lands upstream before v0.1 ships.
+
 ---
 
 ## ADR-005: Auth — HTTPS + GitHub Personal Access Token
