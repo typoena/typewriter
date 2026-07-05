@@ -27,7 +27,21 @@ fn main() {
     // them in with env!(). Empty when unset: the network spike checks at
     // runtime and prints a clear message, so the *editor* build never has to
     // carry Wi-Fi creds. Source them from firmware/.env (loaded by `just`).
-    for var in ["TW_WIFI_SSID", "TW_WIFI_PASS"] {
+    //
+    // The TW_REMOTE_URL / TW_GH_USER / TW_PAT / TW_AUTHOR_* vars back Spike 7's
+    // on-device push (src/bin/git_push.rs). env!() embeds a value only in a
+    // binary that references it, so the editor binary carries none of these.
+    // NOTE: TW_PAT ends up in the git_push image — fine for the bench spike, but
+    // a product must not bake the PAT into flash (ADR-005).
+    for var in [
+        "TW_WIFI_SSID",
+        "TW_WIFI_PASS",
+        "TW_REMOTE_URL",
+        "TW_GH_USER",
+        "TW_PAT",
+        "TW_AUTHOR_NAME",
+        "TW_AUTHOR_EMAIL",
+    ] {
         let val = std::env::var(var).unwrap_or_default();
         println!("cargo:rustc-env={var}={val}");
         println!("cargo:rerun-if-env-changed={var}");
