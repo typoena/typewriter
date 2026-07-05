@@ -9,6 +9,7 @@ set dotenv-load := true
 esp_env := ". ~/export-esp.sh &&"
 elf := "target/xtensa-esp32s3-espidf/release/firmware"
 elf_wifi := "target/xtensa-esp32s3-espidf/release/wifi_tls"
+elf_sd := "target/xtensa-esp32s3-espidf/release/sd_fat"
 
 # list recipes
 default:
@@ -37,6 +38,18 @@ flash-wifi:
 # serial monitor for the Wi-Fi spike, with decoded backtraces
 monitor-wifi:
     espflash monitor --elf {{elf_wifi}}
+
+# Spike 3 — build the SD/FAT spike (no .env needed)
+build-sd:
+    {{esp_env}} cargo build --release --bin sd_fat
+
+# Spike 3 — flash + monitor the SD/FAT spike
+flash-sd:
+    {{esp_env}} cargo run --release --bin sd_fat
+
+# serial monitor for the SD spike, with decoded backtraces
+monitor-sd:
+    espflash monitor --elf {{elf_sd}}
 
 # detect board, print chip/MAC/flash size
 info:

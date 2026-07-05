@@ -22,6 +22,13 @@ name = "wifi_tls"
 path = "src/bin/wifi_tls.rs"
 harness = false
 
+# Spike 3 — SD card (FAT) over the shared SPI2 bus. Standalone bench program.
+# Flash with `just flash-sd`.
+[[bin]]
+name = "sd_fat"
+path = "src/bin/sd_fat.rs"
+harness = false
+
 [profile.release]
 opt-level = "s"
 
