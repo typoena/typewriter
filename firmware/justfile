@@ -11,6 +11,12 @@ elf := "target/xtensa-esp32s3-espidf/release/firmware"
 elf_wifi := "target/xtensa-esp32s3-espidf/release/wifi_tls"
 elf_sd := "target/xtensa-esp32s3-espidf/release/sd_fat"
 elf_git := "target/xtensa-esp32s3-espidf/release/git_smoke"
+elf_git_push := "target/xtensa-esp32s3-espidf/release/git_push"
+
+# Custom partition table (adds the `storage` FAT partition for the git working
+# copy). Only the git-push flash applies it — the editor flash keeps the default
+# single-app layout, so this change is scoped to Spike 7's finish.
+partition_table := justfile_directory() + "/partitions.csv"
 
 # Spike 7 Path 2 — env for the git2/libgit2 build. LIBGIT2_SRC points at the
 # vendored libgit2 submodule (v1.9.4, matches libgit2-sys 0.18.5). pkgconfig/
@@ -71,6 +77,20 @@ flash-git:
 # serial monitor for the git smoke, with decoded backtraces
 monitor-git:
     espflash monitor --elf {{elf_git}}
+
+# Spike 7 finish — build the on-device git push (Wi-Fi + SNTP + flash-FAT + libgit2)
+build-git-push:
+    {{esp_env}} {{git_env}} cargo build --release --bin git_push --features git
+
+# Spike 7 finish — flash + monitor. espflash applies the custom partition table
+# (so the `storage` FAT partition exists) and sets 16 MB flash. Uses espflash
+# directly, not `cargo run`, so the table is applied only to this binary.
+flash-git-push: build-git-push
+    espflash flash --monitor --partition-table {{partition_table}} --flash-size 16mb {{elf_git_push}}
+
+# serial monitor for the git push, with decoded backtraces
+monitor-git-push:
+    espflash monitor --elf {{elf_git_push}}
 
 # detect board, print chip/MAC/flash size
 info:

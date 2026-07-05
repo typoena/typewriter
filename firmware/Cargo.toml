@@ -38,6 +38,16 @@ path = "src/bin/git_smoke.rs"
 harness = false
 required-features = ["git"]
 
+# Spike 7 Path 2 finish — on-device init/commit/push over mbedTLS HTTPS. Wi-Fi +
+# SNTP + flash-FAT + libgit2 in one bench binary. Gated behind `git` like
+# git_smoke. Build/flash with `just flash-git-push` (needs the git TW_* vars in
+# .env; flashes partitions.csv so the `storage` FAT partition exists).
+[[bin]]
+name = "git_push"
+path = "src/bin/git_push.rs"
+harness = false
+required-features = ["git"]
+
 [profile.release]
 opt-level = "s"
 
