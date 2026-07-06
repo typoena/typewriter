@@ -48,6 +48,15 @@ path = "src/bin/git_push.rs"
 harness = false
 required-features = ["git"]
 
+# Milestone #2A — persistent-clone publish cycle (clone + open + fast-forward
+# push), the product's real git flow. Same `git` gate + TW_* env + partition
+# table as git_push. Build/flash with `just flash-git-sync`.
+[[bin]]
+name = "git_sync"
+path = "src/bin/git_sync.rs"
+harness = false
+required-features = ["git"]
+
 [profile.release]
 opt-level = "s"
 

@@ -12,6 +12,7 @@ elf_wifi := "target/xtensa-esp32s3-espidf/release/wifi_tls"
 elf_sd := "target/xtensa-esp32s3-espidf/release/sd_fat"
 elf_git := "target/xtensa-esp32s3-espidf/release/git_smoke"
 elf_git_push := "target/xtensa-esp32s3-espidf/release/git_push"
+elf_git_sync := "target/xtensa-esp32s3-espidf/release/git_sync"
 
 # Custom partition table (adds the `storage` FAT partition for the git working
 # copy). Only the git-push flash applies it — the editor flash keeps the default
@@ -91,6 +92,19 @@ flash-git-push: build-git-push
 # serial monitor for the git push, with decoded backtraces
 monitor-git-push:
     espflash monitor --elf {{elf_git_push}}
+
+# Milestone #2A — build the persistent-clone publish cycle (clone + fast-forward push)
+build-git-sync:
+    {{esp_env}} {{git_env}} cargo build --release --bin git_sync --features git
+
+# Milestone #2A — flash + monitor. Applies the same custom partition table as
+# git-push (the `storage` FAT partition holds the persistent clone).
+flash-git-sync: build-git-sync
+    espflash flash --monitor --partition-table {{partition_table}} --flash-size 16mb {{elf_git_sync}}
+
+# serial monitor for the git sync, with decoded backtraces
+monitor-git-sync:
+    espflash monitor --elf {{elf_git_sync}}
 
 # detect board, print chip/MAC/flash size
 info:
