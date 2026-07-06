@@ -217,8 +217,13 @@ up.
       provisioning / from secure storage instead of `env!()` into the image.
 - [ ] Fold the push into the editor's `git` module (persistent clone +
       fast-forward, not a fresh per-boot branch) over the HTTPS+PAT remote.
-- [ ] Optional tidy: move git to a dedicated large-stack task so the shared
-      main-task stack (and the editor build) can drop back to ~16 KB.
+- [x] Move git to a dedicated large-stack task so the shared main-task stack (and
+      the editor build) can drop back — **DONE + hardware-verified 2026-07-06**.
+      `git_publish` now runs on its own `std::thread` (`GIT_STACK = 96 KB` via
+      `Builder::stack_size`; main joins it), and `CONFIG_ESP_MAIN_TASK_STACK_SIZE`
+      dropped 98304 → **12288** (the Spike-6 value proven with the editor +
+      TLS-on-main). On-device push succeeded off-main — no panic/overflow, no
+      ENOMEM on the spawn — retiring the "time()-only-works-on-main" misdiagnosis.
 
 ## Path 2 result — libgit2 compiles and links on xtensa (Gate A + Gate B)
 
@@ -362,9 +367,10 @@ microcommits through `a15789a`).
    only works on the main task, not a std::thread" conclusion from the first
    on-device attempt was wrong — that thread had the *default 4 KB* stack, so the
    same deep chain just overflowed sooner. It was always stack depth, not
-   thread-vs-main. (Caveat: `sdkconfig.defaults` is shared with the editor build,
-   which now over-reserves this stack; a dedicated large-stack git task would let
-   it drop back to ~16 KB.)
+   thread-vs-main. (This stack has since moved: `sdkconfig.defaults` is shared
+   with the editor build, so git was later given its OWN 96 KB `std::thread` and
+   the main-task stack dropped back to 12 KB — see the follow-ups. The misdiagnosis
+   is now doubly retired: the push runs fine off the main task.)
 
 2. **`p_rename` = remove-then-rename** (`esp_stubs.c`). FATFS `f_rename` fails
    `EEXIST` if the target exists and FAT has no hardlinks, so libgit2's own
