@@ -241,13 +241,33 @@ fn open_or_clone() -> Result<(Repository, bool)> {
             Ok((repo, false))
         }
         Err(_) => {
-            log::info!("no repo at {REPO_DIR} — cloning {REMOTE_URL}");
+            // A leftover at REPO_DIR is a partial clone (libgit2 refuses to clone
+            // into a non-empty dir, code=Exists). Remove it and re-clone. NOTE:
+            // this only succeeds if the leftover is writable — libgit2 marks
+            // objects/packs read-only, FATFS won't f_unlink a read-only file
+            // (EACCES), and POSIX chmod does NOT clear the attribute on esp-idf's
+            // FATFS VFS (verified on hardware). So a clone that got far enough to
+            // write objects can't be cleared from here yet; the proper fix is an
+            // AM_RDO-clearing unlink shim in esp_stubs.c (increment B, needed for
+            // fetch/repack too). Until then the fallback is a one-time wipe:
+            // `espflash erase-region 0x310000 0x400000`.
+            if Path::new(REPO_DIR).exists() {
+                log::warn!("{REPO_DIR} exists but is not a valid repo — removing stale clone");
+                fs::remove_dir_all(REPO_DIR).with_context(|| {
+                    format!(
+                        "removing stale {REPO_DIR} — if this is EACCES (read-only files on \
+                         FATFS), erase the storage partition once: \
+                         `espflash erase-region 0x310000 0x400000`"
+                    )
+                })?;
+            }
+            log::info!("cloning {REMOTE_URL} → {REPO_DIR}");
             let mut fo = FetchOptions::new();
             fo.remote_callbacks(auth_callbacks());
             let repo = RepoBuilder::new()
                 .fetch_options(fo)
                 .clone(REMOTE_URL, Path::new(REPO_DIR))
-                .context("clone (is REPO_DIR a leftover partial clone? it must not exist)")?;
+                .context("clone")?;
             Ok((repo, true))
         }
     }
