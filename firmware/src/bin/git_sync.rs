@@ -246,8 +246,7 @@ fn publish() -> Result<String> {
 fn open_or_clone() -> Result<(Repository, bool)> {
     if RECLONE_EACH_BOOT && Path::new(REPO_DIR).exists() {
         log::warn!("RECLONE_EACH_BOOT — removing {REPO_DIR} to re-clone from scratch");
-        fs::remove_dir_all(REPO_DIR)
-            .context("RECLONE_EACH_BOOT wipe — deletes libgit2 objects, needs the RO-delete fix")?;
+        remove_tree(Path::new(REPO_DIR)).context("RECLONE_EACH_BOOT wipe")?;
     }
     match Repository::open(REPO_DIR) {
         Ok(repo) => {
@@ -256,24 +255,12 @@ fn open_or_clone() -> Result<(Repository, bool)> {
         }
         Err(_) => {
             // A leftover at REPO_DIR is a partial clone (libgit2 refuses to clone
-            // into a non-empty dir, code=Exists). Remove it and re-clone. NOTE:
-            // this only succeeds if the leftover is writable — libgit2 marks
-            // objects/packs read-only, FATFS won't f_unlink a read-only file
-            // (EACCES), and POSIX chmod does NOT clear the attribute on esp-idf's
-            // FATFS VFS (verified on hardware). So a clone that got far enough to
-            // write objects can't be cleared from here yet; the proper fix is an
-            // AM_RDO-clearing unlink shim in esp_stubs.c (increment B, needed for
-            // fetch/repack too). Until then the fallback is a one-time wipe:
-            // `espflash erase-region 0x310000 0x400000`.
+            // into a non-empty dir, code=Exists). Remove it and re-clone via
+            // remove_tree (path-based) — std::fs::remove_dir_all EACCESes on
+            // esp-idf's FATFS VFS (see remove_tree). Hardware-verified.
             if Path::new(REPO_DIR).exists() {
                 log::warn!("{REPO_DIR} exists but is not a valid repo — removing stale clone");
-                fs::remove_dir_all(REPO_DIR).with_context(|| {
-                    format!(
-                        "removing stale {REPO_DIR} — if this is EACCES (read-only files on \
-                         FATFS), erase the storage partition once: \
-                         `espflash erase-region 0x310000 0x400000`"
-                    )
-                })?;
+                remove_tree(Path::new(REPO_DIR)).context("removing stale clone")?;
             }
             log::info!("cloning {REMOTE_URL} → {REPO_DIR}");
             let mut fo = FetchOptions::new();
@@ -363,6 +350,34 @@ fn fetch_and_integrate(repo: &Repository, branch: &str) -> Result<()> {
         return Ok(());
     }
     bail!("origin/{branch} diverged from local — a real merge commit is needed (increment B, deferred)")
+}
+
+/// Recursively remove a directory tree by PATH — deliberately NOT
+/// `std::fs::remove_dir_all`. std's version deletes race-free via the
+/// openat/unlinkat/fdopendir family, which esp-idf's path-based FATFS VFS does
+/// not implement → it fails with EACCES on the first entry. A plain
+/// read_dir → remove_file/remove_dir walk uses only what FATFS supports.
+/// (Hardware-diagnosed: std::remove_dir_all EACCES'd where this succeeds, and
+/// every entry reported writable — so read-only was never the blocker; the
+/// esp_stubs p_open/p_creat shim keeps objects writable so this — and libgit2's
+/// own gc/repack/fetch-prune deletes — never hit a read-only file on FAT.)
+/// Reads each directory fully before recursing so no readdir handle is open
+/// during removal.
+fn remove_tree(path: &Path) -> Result<()> {
+    let meta = fs::symlink_metadata(path).with_context(|| format!("stat {}", path.display()))?;
+    if meta.is_dir() {
+        let children: Vec<_> = fs::read_dir(path)
+            .with_context(|| format!("read_dir {}", path.display()))?
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .collect();
+        for child in children {
+            remove_tree(&child)?;
+        }
+        fs::remove_dir(path).with_context(|| format!("rmdir {}", path.display()))
+    } else {
+        fs::remove_file(path).with_context(|| format!("unlink {}", path.display()))
+    }
 }
 
 /// Auth + cert callbacks shared by clone, fetch, and push. Captures only the
