@@ -1,9 +1,9 @@
 # Roadmap — version details
 
 Frequent releases. Each version is a usable artifact, not a checkpoint.
-This file holds the macro-plan (Gantt below) and the per-version scope. The
-user-facing requirements and engineering targets each release feeds into are
-tracked in [`qfd.md`](qfd.md).
+This file holds the macro-plan (Macroplan block below) and the per-version
+scope. The user-facing requirements and engineering targets each release feeds
+into are tracked in [`qfd.md`](qfd.md).
 
 ## Status — synced 2026-07-07
 
@@ -18,29 +18,82 @@ inline `(✓)` marks the done half of a split item.
 
 ## Macro-plan
 
-Original baseline (June 2026 start, not re-dated) — actuals are in the Status
-block above.
+Macroplan source — paste into the macroplan app to render the week-by-week
+view. `original` dates are the June 2026 baseline and never move; slips get
+appended as `reestimates`, per-item actuals live in the Status block above.
 
-```mermaid
-gantt
-    title Typoena — macro plan
-    dateFormat YYYY-MM-DD
-    axisFormat %b %Y
-    section MVP
-    v0.1 it writes, it pushes :v01, 2026-06-01, 4w
-    section Vim
-    v0.2 navigation           :v02, after v01, 3w
-    v0.2.5 international input :v025, after v02, 2w
-    v0.3 editing              :v03, after v025, 3w
-    v0.4 visual + ex          :v04, after v03, 2w
-    section Files
-    v0.5 palette + multi-file :v05, after v04, 3w
-    v0.6 markdown             :v06, after v05, 2w
-    v0.7 search + git         :v07, after v06, 3w
-    section Hardware polish
-    v0.8 battery + sleep      :v08, after v07, 4w
-    v0.9 robustness           :v09, after v08, 4w
-    v1.0 polish               :v10, after v09, 4w
+```macroplan
+title = "Typoena — macro plan"
+
+[[feature]]
+name = "v0.1 it writes, it pushes"
+start = 2026-06-01
+original = 2026-06-29
+status = "at-risk"
+note = "Overdue — core editing + on-device git push proven in spikes, but blocked on SD (compatible ≤32 GB card), boot splash, and wiring save/publish into main.rs."
+
+[[feature]]
+name = "v0.2 navigation"
+start = 2026-06-29
+original = 2026-07-20
+status = "on-track"
+note = "Core work landed early: motions and modes already run; gutter, Ctrl-d/u, UTF-8 buffer remain."
+
+[[feature]]
+name = "v0.2.5 international input"
+start = 2026-07-20
+original = 2026-08-03
+
+[[feature]]
+name = "v0.3 editing"
+start = 2026-08-03
+original = 2026-08-24
+status = "on-track"
+note = "Deletes, counts, and operator grammar done early in core; yank/paste, undo/redo remain."
+
+[[feature]]
+name = "v0.4 visual + ex"
+start = 2026-08-24
+original = 2026-09-07
+status = "on-track"
+note = ": command-line mechanism and :fmt done early; Visual mode not started."
+
+[[feature]]
+name = "v0.5 palette + multi-file"
+start = 2026-09-07
+original = 2026-09-28
+
+[[feature]]
+name = "v0.6 markdown"
+start = 2026-09-28
+original = 2026-10-12
+status = "on-track"
+note = "Done early in core — only the 80-col ruler remains."
+
+[[feature]]
+name = "v0.7 search + git"
+start = 2026-10-12
+original = 2026-11-02
+
+[[feature]]
+name = "v0.8 battery + sleep"
+start = 2026-11-02
+original = 2026-11-30
+
+[[feature]]
+name = "v0.9 robustness"
+start = 2026-11-30
+original = 2026-12-28
+
+[[feature]]
+name = "v1.0 polish"
+start = 2026-12-28
+original = 2027-01-25
+
+[[milestone]]
+name = "MVP ships"
+week = 2026-06-29
+requires = ["v0.1 it writes, it pushes"]
 ```
 
 ---
