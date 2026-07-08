@@ -84,9 +84,6 @@ pub struct Editor {
     /// not a live count, so ordinary typing never repaints the panel row — it is
     /// refreshed on a typing pause / non-Insert action via `refresh_stats`.
     shown_words: usize,
-    /// Word count captured at the session start (buffer load / boot), so the
-    /// panel can show words *added* this session. Empty boot buffer → 0.
-    session_base_words: usize,
     /// Whether a USB keyboard is attached; drives the panel disconnect flag.
     /// Fed from `usb_kbd::keyboard_present()` by the main loop.
     keyboard_present: bool,
@@ -111,7 +108,6 @@ impl Editor {
             pending_g: false,
             cmdline: String::new(),
             shown_words: 0,
-            session_base_words: 0,
             keyboard_present: false,
         }
     }
@@ -923,12 +919,13 @@ impl Editor {
         f
     }
 
-    /// Draw the side panel: a full-height rule, then the mode and any pending
-    /// command state, in the small 6×10 font. This is the metadata surface every
-    /// later panel field (filename, word count, clock, Wi-Fi, publish state)
-    /// will add to; v0.1 shows the mode plus the transient count/operator echo.
-    /// Everything here is event-driven (mode/command state), never per-keystroke,
-    /// so it adds no typing-time ghosting.
+    /// Draw the side panel: a full-height rule, word count at the top, and the
+    /// mode indicator + pending-command echo at the bottom-left, with a
+    /// keyboard-disconnect flag just above the mode while the keyboard is
+    /// dropped. Small 6×10 font. This is the surface every later field
+    /// (filename, clock, Wi-Fi, publish state) will add to. Word count is a
+    /// throttled snapshot and the rest is event-driven, so the panel never
+    /// repaints per keystroke.
     fn draw_panel(&self, f: &mut Frame) {
         // The rule dividing writing column from panel, full panel height.
         Rectangle::new(Point::new(DIVIDER_X, 0), Size::new(1, epd::HEIGHT as u32))
@@ -937,59 +934,55 @@ impl Editor {
             .unwrap();
 
         let style = MonoTextStyle::new(&FONT_6X10, BinaryColor::On);
-        let name = match self.mode {
-            Mode::Normal => "NORMAL",
-            Mode::Insert => "INSERT",
-            Mode::View => "VIEW",
-            Mode::Command => "COMMAND",
-        };
-        Text::with_baseline(name, Point::new(PANEL_X, 2), style, Baseline::Top)
-            .draw(f)
-            .unwrap();
 
-        // Pending count / operator / text-object / g, one line below the mode —
-        // transient feedback while a multi-key command is mid-entry.
-        let mut pend = String::new();
-        if self.count > 0 {
-            pend.push_str(&self.count.to_string());
-        }
-        match self.pending_op {
-            Some(Op::Delete) => pend.push('d'),
-            Some(Op::Change) => pend.push('c'),
-            None => {}
-        }
-        match self.pending_obj {
-            Some(false) => pend.push('i'),
-            Some(true) => pend.push('a'),
-            None => {}
-        }
-        if self.pending_g {
-            pend.push('g');
-        }
-        if !pend.is_empty() {
-            Text::with_baseline(&pend, Point::new(PANEL_X, 14), style, Baseline::Top)
-                .draw(f)
-                .unwrap();
-        }
-
-        // Word count + words added this session, from the throttled snapshot.
+        // Word count, from the throttled snapshot (never per keystroke).
         let words = format!("{} words", self.shown_words);
-        Text::with_baseline(&words, Point::new(PANEL_X, 40), style, Baseline::Top)
-            .draw(f)
-            .unwrap();
-        let session = format!(
-            "+{} this session",
-            self.shown_words.saturating_sub(self.session_base_words)
-        );
-        Text::with_baseline(&session, Point::new(PANEL_X, 52), style, Baseline::Top)
+        Text::with_baseline(&words, Point::new(PANEL_X, 2), style, Baseline::Top)
             .draw(f)
             .unwrap();
 
-        // Keyboard-disconnect flag at the panel foot, shown only while the
-        // keyboard is dropped. Latin-9 has no ⌨/✗ glyph, so plain text.
+        // Keyboard-disconnect flag, just above the mode line, shown only while
+        // the keyboard is dropped. Latin-9 has no ⌨/✗ glyph, so plain text.
         if !self.keyboard_present {
             Text::with_baseline(
                 "NO KBD",
+                Point::new(PANEL_X, epd::HEIGHT as i32 - 34),
+                style,
+                Baseline::Top,
+            )
+            .draw(f)
+            .unwrap();
+        }
+
+        // Mode indicator + pending count/operator echo at the panel's bottom-
+        // left. In Command mode the ':' line (bottom strip) takes over instead.
+        // All event-driven — never repaints per keystroke.
+        if self.mode != Mode::Command {
+            let name = match self.mode {
+                Mode::Normal => "NORMAL",
+                Mode::Insert => "INSERT",
+                Mode::View => "VIEW",
+                Mode::Command => unreachable!(),
+            };
+            let mut s = format!("-- {name} --");
+            if self.count > 0 {
+                s.push_str(&format!(" {}", self.count));
+            }
+            match self.pending_op {
+                Some(Op::Delete) => s.push('d'),
+                Some(Op::Change) => s.push('c'),
+                None => {}
+            }
+            match self.pending_obj {
+                Some(false) => s.push('i'),
+                Some(true) => s.push('a'),
+                None => {}
+            }
+            if self.pending_g {
+                s.push('g');
+            }
+            Text::with_baseline(
+                &s,
                 Point::new(PANEL_X, epd::HEIGHT as i32 - 22),
                 style,
                 Baseline::Top,
@@ -999,8 +992,8 @@ impl Editor {
         }
     }
 
-    /// The transient `:` command line, in the bottom 12 px strip below the
-    /// writing column (vim-style). Shown only while composing a command.
+    /// The transient `:` command line, in the bottom strip below the writing
+    /// column (vim-style). Shown only while composing a command.
     fn draw_cmdline(&self, f: &mut Frame) {
         if self.mode != Mode::Command {
             return;
