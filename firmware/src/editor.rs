@@ -946,7 +946,7 @@ impl Editor {
         if !self.keyboard_present {
             Text::with_baseline(
                 "NO KBD",
-                Point::new(PANEL_X, epd::HEIGHT as i32 - 34),
+                Point::new(PANEL_X, epd::HEIGHT as i32 - 24),
                 style,
                 Baseline::Top,
             )
@@ -983,7 +983,7 @@ impl Editor {
             }
             Text::with_baseline(
                 &s,
-                Point::new(PANEL_X, epd::HEIGHT as i32 - 22),
+                Point::new(PANEL_X, epd::HEIGHT as i32 - 12),
                 style,
                 Baseline::Top,
             )
