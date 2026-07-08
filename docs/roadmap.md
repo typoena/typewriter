@@ -68,7 +68,7 @@ name = "v0.6 markdown"
 start = 2026-09-28
 original = 2026-10-12
 status = "on-track"
-note = "Done early in core — only the 80-col ruler remains."
+note = "Render affordances done early; 80-col ruler + snippet engine (added 2026-07-08) remain."
 
 [[feature]]
 name = "v0.7 search + git"
@@ -215,12 +215,41 @@ buffer-lifecycle risk first).
 
 ## v0.6 — Markdown affordances — [~]
 
-**Status:** done early — only the 80-col ruler remains.
+**Status:** render affordances done early; the 80-col ruler and the snippet
+engine remain (snippets are net-new scope, added 2026-07-08).
 
 - [x] Heading lines bolded in render (faux-bold double-strike)
 - [x] List continuation on Enter inside `- ` / `1. ` (with empty-item exit)
 - [x] Soft-wrap at word boundaries
 - [ ] Optional column ruler at 80
+- [ ] **Snippets** — trigger-driven text expansion for Markdown authoring
+      (Zed-inspired, but no completion popup: e-ink's ~630 ms refresh rules out
+      a live filtering menu, and it fights the distraction-free premise). Shape,
+      mirroring the existing `list_marker` insert-transform:
+  - [ ] **Trigger:** Tab in Insert mode. If the word immediately before the
+        caret matches a snippet prefix, expand it; otherwise insert spaces as
+        today (`expand_snippet(word) -> Option<(body, stops)>`, alongside
+        `list_marker`).
+  - [ ] **Body syntax:** literal text + numbered empty tab stops `$1 … $n` and a
+        final `$0`. **No placeholder text** (`${1:label}`) — the editor has no
+        selection/overtype model, so a placeholder would just be text to delete.
+        **No dynamic/computed values** (e.g. no `date` — there's no RTC; the
+        wall clock is valid only after Wi-Fi+SNTP, so it'd stamp 1970 on a cold
+        boot).
+  - [ ] **Tab-stop session:** after expansion the caret lands on `$1`; Tab
+        advances to the next stop, **forward only** (no Shift-Tab). Stored stop
+        offsets shift with edits at the caret (all pending stops are always
+        after it). Session auto-aborts on Esc, a mode change, or a motion that
+        leaves the stops.
+  - [ ] **Indicator:** on a typing pause (same throttle as the insert cursor /
+        word-count refresh — the panel never repaints per keystroke), if the
+        word before the caret is a snippet prefix, the **side panel** shows the
+        hint (the target expansion). Quiet while typing; hint appears on pause.
+  - [ ] **Source:** snippet table hard-coded in the binary to start; a
+        git-syncable file on SD (`/sd/repo/.snippets`) is a later option,
+        deferred while SD is still blocked.
+  - [ ] Starter set: link `[$1]($2)$0`, image `![$1]($2)$0`, fenced code block,
+        etc.
 
 ## v0.7 — Search + better git — [ ]
 
