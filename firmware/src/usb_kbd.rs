@@ -71,6 +71,10 @@ const SET_IDLE_INFINITE: [u8; 8] = [0x21, 0x0a, 0x00, 0x00, KBD_INTERFACE, 0x00,
 static NEW_DEV_ADDR: AtomicU8 = AtomicU8::new(0);
 /// Set when the open device is unplugged.
 static DEV_GONE: AtomicBool = AtomicBool::new(false);
+/// Whether a keyboard is currently open (attached + set up). Unlike `DEV_GONE`
+/// (a one-shot detach event the client loop consumes), this is the persistent
+/// connection state the side-panel disconnect flag reads via `keyboard_present`.
+static KBD_PRESENT: AtomicBool = AtomicBool::new(false);
 /// Control-transfer completion, published by `ctrl_cb` to the setup routine.
 static CTRL_DONE: AtomicBool = AtomicBool::new(false);
 static CTRL_STATUS: AtomicU32 = AtomicU32::new(0);
@@ -90,6 +94,12 @@ static CAPS_USED: AtomicBool = AtomicBool::new(false);
 /// Pop the next decoded key-down event, if any.
 pub fn next_key() -> Option<Key> {
     KEY_QUEUE.get()?.lock().unwrap().pop_front()
+}
+
+/// Whether a USB keyboard is currently attached and set up. Read by the main
+/// loop to drive the side-panel disconnect flag.
+pub fn keyboard_present() -> bool {
+    KBD_PRESENT.load(Ordering::SeqCst)
 }
 
 /// Install the USB Host Library and spawn the daemon + client event pumps.
@@ -154,6 +164,7 @@ fn client_loop() {
                 Ok((dev, xfer)) => {
                     open_dev = dev;
                     report_xfer = xfer;
+                    KBD_PRESENT.store(true, Ordering::SeqCst);
                 }
                 Err(e) => log::error!("keyboard setup failed: {e:?}"),
             }
@@ -170,6 +181,7 @@ fn client_loop() {
             unsafe { usb_host_device_close(client, open_dev) };
             open_dev = ptr::null_mut();
             *PREV_KEYS.lock().unwrap() = [0; 6];
+            KBD_PRESENT.store(false, Ordering::SeqCst);
         }
     }
 }
