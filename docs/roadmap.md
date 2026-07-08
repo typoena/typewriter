@@ -120,6 +120,11 @@ lives in the `git_sync` / `sd_fat` spike bins, not `main.rs`.
   `git push`; on push failure, `git pull --no-edit` then retry the push
   (no-op short-circuit when nothing is staged). Proven on device in the
   `git_sync` spike (✓); not yet wired to the editor.
+- [ ] Split the display into **writing column** (~60 cols) + **side panel**
+      (~20 cols) for all metadata — the surface every later panel feature
+      writes to. Not built yet: `editor.rs` still renders full-width 79 cols.
+      Defined in [`CONTEXT.md` § Screen regions](../CONTEXT.md#screen-regions)
+      and [product § Screen layout](v0.1-mvp-product.md#screen-layout).
 - [~] Partial refresh on edits (✓ Spike 5); full refresh on save — save not wired yet
 
 Out of scope: Vim, palette, multiple files, branches, conflict handling.
