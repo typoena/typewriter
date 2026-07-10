@@ -1,11 +1,13 @@
 //! Modal text editor core: a vim-style buffer with Normal / Insert (edit) /
 //! View (read-only) modes, rendered onto the e-paper [`Frame`].
 //!
-//! The buffer is plain ASCII — the US-QWERTY decoder only ever produces ASCII
-//! and Tab expands to spaces on insert — so a byte offset into the `String` is
-//! also a character index, and `caret` is that offset. Motions and edits work
-//! on the logical (`\n`-delimited) buffer; word-wrapping and scrolling are a
-//! render-time concern handled by [`Editor::draw`].
+//! The buffer is a UTF-8 `String` (the keyboard's dead-key composer feeds it
+//! accented Latin-9 characters). `caret` is a byte offset that always sits on a
+//! char boundary: motions and edits step whole characters via `next_char` /
+//! `prev_char`, and display columns are character counts, so a two-byte `é`
+//! never traps the caret mid-character. Motions and edits work on the logical
+//! (`\n`-delimited) buffer; word-wrapping and scrolling are a render-time
+//! concern handled by [`Editor::draw`].
 
 // ISO-8859-15 (Latin-9) rather than the ascii subset: same glyph cells, but it
 // carries the accented Latin glyphs (à é ê ç … plus œ €) that international
@@ -63,8 +65,8 @@ enum Op {
 /// The editor state: buffer, caret, mode, viewport, and pending command state.
 pub struct Editor {
     text: String,
-    /// Byte offset of the caret (== char index; the buffer is ASCII). Ranges
-    /// over `0..=text.len()`.
+    /// Byte offset of the caret, always on a UTF-8 char boundary. Ranges over
+    /// `0..=text.len()`; step it only via `next_char`/`prev_char`.
     caret: usize,
     mode: Mode,
     /// Index of the first visible display line.
@@ -161,7 +163,7 @@ impl Editor {
                 self.mode = Mode::Normal;
                 // vim drops the caret onto the last inserted char.
                 if self.caret > self.line_start(self.caret) {
-                    self.caret -= 1;
+                    self.caret = self.prev_char(self.caret);
                 }
             }
         }
@@ -223,7 +225,8 @@ impl Editor {
                 'e' => {
                     let mut t = self.caret;
                     (0..n).for_each(|_| t = self.word_end_pos(t));
-                    self.apply_op(op, self.caret, t + 1);
+                    // Inclusive of the last char: end the range past it.
+                    self.apply_op(op, self.caret, self.next_char(t));
                 }
                 '0' => self.apply_op(op, self.line_start(self.caret), self.caret),
                 '$' => self.apply_op(op, self.caret, self.line_end(self.caret)),
@@ -426,34 +429,59 @@ impl Editor {
         i
     }
 
+    /// Byte offset one character right of `i`, clamped to the buffer end. `i`
+    /// must be a char boundary (every caret position is one).
+    fn next_char(&self, i: usize) -> usize {
+        self.text[i..].chars().next().map_or(i, |c| i + c.len_utf8())
+    }
+
+    /// Byte offset one character left of `i`, clamped to 0.
+    fn prev_char(&self, i: usize) -> usize {
+        self.text[..i].chars().next_back().map_or(i, |c| i - c.len_utf8())
+    }
+
+    /// Byte offset `col` characters into the text starting at `start`, clamped
+    /// to `end` (so a shorter target line lands the caret at its end).
+    fn advance_chars(&self, start: usize, col: usize, end: usize) -> usize {
+        let mut pos = start;
+        for _ in 0..col {
+            if pos >= end {
+                break;
+            }
+            pos = self.next_char(pos);
+        }
+        pos.min(end)
+    }
+
     fn move_left(&mut self) {
         if self.caret > self.line_start(self.caret) {
-            self.caret -= 1;
+            self.caret = self.prev_char(self.caret);
         }
     }
 
     fn move_right(&mut self) {
         if self.caret < self.line_end(self.caret) {
-            self.caret += 1;
+            self.caret = self.next_char(self.caret);
         }
     }
 
     /// Like `l` but allowed to land one past the last char (for `a`).
     fn move_right_append(&mut self) {
         if self.caret < self.line_end(self.caret) {
-            self.caret += 1;
+            self.caret = self.next_char(self.caret);
         }
     }
 
     fn move_down(&mut self) {
-        let col = self.caret - self.line_start(self.caret);
+        let ls = self.line_start(self.caret);
+        let col = self.text[ls..self.caret].chars().count();
         let le = self.line_end(self.caret);
         if le >= self.text.len() {
             return; // already on the last line
         }
         let next_start = le + 1;
         let next_end = self.line_end(next_start);
-        self.caret = (next_start + col).min(next_end);
+        self.caret = self.advance_chars(next_start, col, next_end);
     }
 
     fn move_up(&mut self) {
@@ -461,10 +489,10 @@ impl Editor {
         if ls == 0 {
             return; // already on the first line
         }
-        let col = self.caret - ls;
+        let col = self.text[ls..self.caret].chars().count();
         let prev_start = self.line_start(ls - 1);
         let prev_end = ls - 1; // the '\n' that ends the previous line
-        self.caret = (prev_start + col).min(prev_end);
+        self.caret = self.advance_chars(prev_start, col, prev_end);
     }
 
     /// Start of the next whitespace-delimited word after `from`.
@@ -494,21 +522,27 @@ impl Editor {
         i
     }
 
-    /// End of the current/next word (lands on its last char).
+    /// Byte offset of the last character of the current/next word — vim `e`
+    /// lands the caret on that char. Skips any leading whitespace, then runs to
+    /// the word's end; whitespace includes `\n`, so it can cross lines.
     fn word_end_pos(&self, from: usize) -> usize {
-        let b = self.text.as_bytes();
-        let n = b.len();
-        let mut i = from + 1;
-        if i >= n {
+        let start = self.next_char(from);
+        if start >= self.text.len() {
             return from;
         }
-        while i < n && b[i].is_ascii_whitespace() {
-            i += 1;
+        let mut last = from;
+        let mut in_word = false;
+        for (off, c) in self.text[start..].char_indices() {
+            if c.is_ascii_whitespace() {
+                if in_word {
+                    break;
+                }
+            } else {
+                in_word = true;
+                last = start + off;
+            }
         }
-        while i < n && !b[i].is_ascii_whitespace() {
-            i += 1;
-        }
-        i.saturating_sub(1)
+        last
     }
 
     // --- Edits -------------------------------------------------------------
@@ -548,8 +582,8 @@ impl Editor {
 
     fn backspace(&mut self) {
         if self.caret > 0 {
-            self.caret -= 1;
-            self.text.remove(self.caret);
+            self.caret = self.prev_char(self.caret);
+            self.text.remove(self.caret); // removes the whole char at the caret
         }
     }
 
@@ -560,7 +594,7 @@ impl Editor {
             self.text.remove(self.caret);
             // Keep the caret on a char: if it fell off the line end, step back.
             if self.caret >= self.line_end(self.caret) && self.caret > self.line_start(self.caret) {
-                self.caret -= 1;
+                self.caret = self.prev_char(self.caret);
             }
         }
     }
@@ -763,18 +797,20 @@ impl Editor {
     /// Wrap the buffer into display lines, tracking each line's buffer offset.
     /// Soft-wrap at word boundaries: a logical line too long for `WRITE_COLS`
     /// breaks at the last space that fits, so words are never split — except a
-    /// single word wider than the writing column, hard-broken at `WRITE_COLS`. Buffer is
-    /// ASCII (1 byte = 1 char), so a char index within a line is also a byte
-    /// offset (matches the rest of `editor.rs`; UTF-8 correctness is v0.2 work).
+    /// single word wider than the writing column, hard-broken at `WRITE_COLS`.
+    /// Wrapping counts characters (one per display cell), while `Line.start` is
+    /// a byte offset into the buffer, so caret math stays correct for multi-byte
+    /// (accented) characters.
     fn layout(&self) -> Vec<Line> {
         let mut lines: Vec<Line> = Vec::new();
-        let mut base = 0usize; // buffer offset of the current logical line's start
+        let mut base = 0usize; // byte offset of the current logical line's start
         for logical in self.text.split('\n') {
             let chars: Vec<char> = logical.chars().collect();
             if chars.is_empty() {
                 lines.push(Line { start: base, text: String::new() });
             } else {
                 let mut c = 0usize; // char index within `logical`
+                let mut byte = 0usize; // byte offset of chars[c] within `logical`
                 while c < chars.len() {
                     let remaining = chars.len() - c;
                     let take = if remaining <= WRITE_COLS {
@@ -798,18 +834,21 @@ impl Editor {
                         }
                     };
                     lines.push(Line {
-                        start: base + c,
+                        start: base + byte,
                         text: chars[c..c + take].iter().collect(),
                     });
+                    byte += chars[c..c + take].iter().map(|ch| ch.len_utf8()).sum::<usize>();
                     c += take;
                 }
             }
-            base += chars.len() + 1; // + the '\n' that `split` consumed
+            base += logical.len() + 1; // bytes + the '\n' that `split` consumed
         }
         lines
     }
 
-    /// Display (row, col) of the caret within `lay`.
+    /// Display (row, col) of the caret within `lay`. `col` is a character count
+    /// (display cells) from the row's start, not a byte offset, so it is correct
+    /// for multi-byte characters and indexes `Line.text` via `chars().nth`.
     fn caret_rc(&self, lay: &[Line]) -> (usize, usize) {
         let mut row = 0;
         for (i, l) in lay.iter().enumerate() {
@@ -819,7 +858,8 @@ impl Editor {
                 break;
             }
         }
-        (row, self.caret - lay[row].start)
+        let col = self.text[lay[row].start..self.caret].chars().count();
+        (row, col)
     }
 
     /// Move the viewport so the caret stays visible (Normal/Insert), or just
@@ -1271,6 +1311,77 @@ mod tests {
     #[test]
     fn draw_produces_a_full_frame_for_ascii() {
         let mut e = typed("hello world");
+        let frame = e.draw(true);
+        assert_eq!(frame.bytes().len(), display::FB_BYTES);
+    }
+
+    // ---- UTF-8 correctness: accented (Latin-9) input the composer feeds ----
+
+    #[test]
+    fn insert_accented_char_advances_by_utf8_len() {
+        let e = typed("é");
+        assert_eq!(e.text, "é");
+        assert_eq!(e.caret, 2); // 'é' is two bytes; caret is a byte offset
+    }
+
+    #[test]
+    fn backspace_deletes_whole_multibyte_char() {
+        let mut e = typed("café");
+        e.handle(Key::Backspace);
+        assert_eq!(e.text, "caf");
+        assert_eq!(e.caret, 3);
+    }
+
+    #[test]
+    fn normal_hl_step_over_multibyte_chars() {
+        let mut e = typed("aéb"); // bytes: a(1) é(2) b(1)
+        e.handle(Key::Escape); // Normal, caret onto 'b' at byte 3
+        assert_eq!(e.caret, 3);
+        e.handle(Key::Char('h')); // onto 'é'
+        assert_eq!(e.caret, 1);
+        e.handle(Key::Char('h')); // onto 'a'
+        assert_eq!(e.caret, 0);
+        e.handle(Key::Char('l')); // back onto 'é'
+        assert_eq!(e.caret, 1);
+        e.handle(Key::Char('l')); // onto 'b'
+        assert_eq!(e.caret, 3);
+    }
+
+    #[test]
+    fn delete_char_under_caret_removes_whole_multibyte() {
+        let mut e = typed("aéb");
+        e.handle(Key::Escape); // caret on 'b'
+        e.handle(Key::Char('h')); // caret on 'é'
+        e.handle(Key::Char('x'));
+        assert_eq!(e.text, "ab");
+    }
+
+    #[test]
+    fn de_deletes_through_end_of_accented_word() {
+        let mut e = typed("café bar");
+        e.handle(Key::Escape);
+        e.handle(Key::Char('0')); // line start, on 'c'
+        e.handle(Key::Char('d'));
+        e.handle(Key::Char('e')); // delete to the end of "café"
+        assert_eq!(e.text, " bar");
+    }
+
+    #[test]
+    fn vertical_move_keeps_char_column_across_accents() {
+        let mut e = typed("éé"); // line 0: two 2-byte chars
+        e.handle(Key::Enter);
+        for c in "xxx".chars() {
+            e.handle(Key::Char(c));
+        }
+        e.handle(Key::Escape); // Normal, on last 'x'
+        e.handle(Key::Char('k')); // up to line 0 at the same character column
+        assert!(e.text.is_char_boundary(e.caret)); // never lands mid-character
+    }
+
+    #[test]
+    fn draw_runs_for_accented_buffer() {
+        // Every glyph here is in ISO-8859-15, which the composer is limited to.
+        let mut e = typed("café naïve garçon çÿ");
         let frame = e.draw(true);
         assert_eq!(frame.bytes().len(), display::FB_BYTES);
     }
