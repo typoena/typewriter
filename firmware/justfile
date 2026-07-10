@@ -114,54 +114,61 @@ info:
 ports:
     @ls /dev/cu.usb* 2>/dev/null || echo "no USB serial device found"
 
-# Pre-seed an SD card with a full clone of the notes repo, copied from a
-# computer (the decision in docs/notes/git-sync-images-and-repo-size.md). The
-# device never cold-clones 566 MB over Wi-Fi + mbedTLS; a laptop copies the
-# clone onto the card via a reader, and the device only ever takes the `open` +
-# fast-forward path. Dest on the card is a top-level `repo/`, matching the
-# on-device /sd/repo the editor opens (roadmap v0.1).
+# ─── SD card provisioning ────────────────────────────────────────────────────
+# Prepare an SD card on a computer so it can go straight into Typoena (the
+# decision in docs/notes/git-sync-images-and-repo-size.md): the device never
+# cold-clones 566 MB over Wi-Fi + mbedTLS; a laptop copies the clone onto the
+# card via a reader, and the device only ever takes the `open` + fast-forward
+# path. Three entry points, each ejecting the card when done:
 #
-#   just seed-sd ~/code/notes          # auto-detect the one removable card
-#   just seed-sd ~/code/notes MYSD     # or name /Volumes/<name> if >1 card
+#   just init ~/code/notes    # full prep of a fresh card: repo + config
+#   just load ~/code/notes    # (re)copy just the notes repo → /sd/repo
+#   just provision            # (re)write just the config from firmware/.env
 #
-# Everything the repo's .gitignore ignores is excluded (node_modules is 3.9 GB,
-# gitignored, and never in .git) — the device needs .git + the checkout
-# (~720 MB), not the JS deps or any local secrets like firmware/.env. Copying
-# (not a fresh `git clone` of the local path) preserves origin → GitHub so
-# on-device fetch/push still work; the recipe warns if origin isn't a remote.
+# Add a /Volumes/<name> as the last arg if more than one card is mounted.
+# The `_`-prefixed recipes are shared internals (hidden from `just --list`).
 sd_repo_dir := "repo"
 
-seed-sd repo_src sd_volume="":
+# Full prep of a fresh card: copy the notes repo + write config, then eject.
+# Run this once per card. <repo-src> is a clone made on this computer.
+init repo_src sd_volume="":
     #!/usr/bin/env bash
     set -euo pipefail
+    vol="$(just _card "{{sd_volume}}" | tail -n1)"
+    just _load-repo "{{repo_src}}" "$vol"
+    just _write-conf "$vol"
+    just _eject "$vol"
 
-    # Resolve + validate the source clone.
-    src="{{repo_src}}"
-    src="${src%/}"                       # strip trailing slash
-    [ -d "$src/.git" ] || { echo "error: '$src' is not a git repo (no .git/)"; exit 1; }
+# (Re)copy just the notes repo to /sd/repo (full clone, gitignored paths
+# excluded), then eject — e.g. to refresh the card after big upstream changes.
+load repo_src sd_volume="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    vol="$(just _card "{{sd_volume}}" | tail -n1)"
+    just _load-repo "{{repo_src}}" "$vol"
+    just _eject "$vol"
 
-    origin="$(git -C "$src" remote get-url origin 2>/dev/null || true)"
-    case "$origin" in
-        https://*|git@*|ssh://*|git://*)
-            echo "source origin: $origin" ;;
-        "")
-            echo "warning: '$src' has no 'origin' remote — the device can't fetch/push after seeding" ;;
-        *)
-            echo "warning: origin is '$origin' (looks like a local path, not a remote) —"
-            echo "         the device fetch/push will fail; set origin to the GitHub URL first" ;;
-    esac
-    # Opportunistic cross-check against TW_REMOTE_URL (loaded from .env if present).
-    if [ -n "${TW_REMOTE_URL:-}" ] && [ -n "$origin" ] && [ "$origin" != "${TW_REMOTE_URL}" ]; then
-        echo "warning: origin ($origin) != TW_REMOTE_URL (${TW_REMOTE_URL})"
-    fi
+# (Re)write just the config (Wi-Fi + PAT + git identity) from firmware/.env,
+# then eject — e.g. to rotate the PAT or switch networks without touching repo/.
+provision sd_volume="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    vol="$(just _card "{{sd_volume}}" | tail -n1)"
+    just _write-conf "$vol"
+    just _eject "$vol"
 
-    # Detect the target card. Prefer an explicit /Volumes/<name>; else auto-detect
-    # exactly one ejectable + external volume (refuse on 0 or >1 — a wrong guess
-    # here means rsync --delete wipes the wrong disk's repo/).
+# Resolve the target card volume. Prints the /Volumes/<name> path as the last
+# stdout line (callers capture it); all diagnostics go to stderr. Prefers an
+# explicit name; else auto-detects exactly one ejectable + external volume, and
+# refuses on 0 or >1 — a wrong guess here means rsync --delete wipes the wrong
+# disk's repo/.
+_card sd_volume="":
+    #!/usr/bin/env bash
+    set -euo pipefail
     want="{{sd_volume}}"
     if [ -n "$want" ]; then
         vol="/Volumes/$want"
-        [ -d "$vol" ] || { echo "error: '$vol' is not mounted"; exit 1; }
+        [ -d "$vol" ] || { echo "error: '$vol' is not mounted" >&2; exit 1; }
     else
         cands=()
         for v in /Volumes/*; do
@@ -173,30 +180,51 @@ seed-sd repo_src sd_volume="":
             fi
         done
         case "${#cands[@]}" in
-            0) echo "error: no removable card detected under /Volumes — insert an SD card (FAT32)"; exit 1 ;;
+            0) echo "error: no removable card detected under /Volumes — insert an SD card (FAT32)" >&2; exit 1 ;;
             1) vol="${cands[0]}" ;;
-            *) echo "error: multiple removable volumes — name one as the 2nd arg (just seed-sd <src> <name>):"
-               printf '  %s\n' "${cands[@]#/Volumes/}"; exit 1 ;;
+            *) echo "error: multiple removable volumes — name one as the volume arg:" >&2
+               printf '  %s\n' "${cands[@]#/Volumes/}" >&2; exit 1 ;;
         esac
     fi
-
     # The device won't mount a non-FAT card (esp_vfs_fat, format_if_mount_failed=false).
     fs="$(diskutil info "$vol" 2>/dev/null | grep -iE 'File System Personality' | sed 's/.*:[[:space:]]*//' || true)"
     case "$fs" in
         *FAT32*|*MS-DOS*) : ;;
-        *) echo "warning: '$vol' is '$fs', not FAT32 — the device may fail to mount it" ;;
+        *) echo "warning: '$vol' is '$fs', not FAT32 — the device may fail to mount it" >&2 ;;
     esac
+    echo "$vol"
 
-    dest="$vol/{{sd_repo_dir}}"
-    echo "seeding: $src  ->  $dest"
+# Copy a full clone of the notes repo to <vol>/repo. Everything the repo's
+# .gitignore ignores is excluded (node_modules is 3.9 GB, gitignored, never in
+# .git) — the device needs .git + the checkout (~720 MB), not the JS deps or
+# secrets like firmware/.env. Copying (not a fresh `git clone` of the local
+# path) preserves origin → GitHub so on-device fetch/push still work.
+_load-repo repo_src vol:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    src="{{repo_src}}"; src="${src%/}"   # strip trailing slash
+    [ -d "$src/.git" ] || { echo "error: '$src' is not a git repo (no .git/)"; exit 1; }
+
+    origin="$(git -C "$src" remote get-url origin 2>/dev/null || true)"
+    case "$origin" in
+        https://*|git@*|ssh://*|git://*) echo "source origin: $origin" ;;
+        "")  echo "warning: '$src' has no 'origin' remote — the device can't fetch/push after loading" ;;
+        *)   echo "warning: origin is '$origin' (looks like a local path, not a remote) —"
+             echo "         the device fetch/push will fail; set origin to the GitHub URL first" ;;
+    esac
+    if [ -n "${TW_REMOTE_URL:-}" ] && [ -n "$origin" ] && [ "$origin" != "${TW_REMOTE_URL}" ]; then
+        echo "warning: origin ($origin) != TW_REMOTE_URL (${TW_REMOTE_URL})"
+    fi
+
+    dest="{{vol}}/{{sd_repo_dir}}"
+    echo "copying repo: $src  ->  $dest"
     mkdir -p "$dest"
 
-    # Build the exclude list from git's own ignore resolution (the repo's
-    # .gitignore, plus .git/info/exclude and any global excludes). --directory
-    # collapses a fully-ignored dir (node_modules/, 3.9 GB) to one line, so the
-    # list stays tiny. Driving off git — not rsync's own dir-merge — means we
-    # never list a tracked file or anything under .git/, so a .gitignore pattern
-    # like `logs/` or `*.pack` can't silently corrupt the copied clone.
+    # Build the exclude list from git's own ignore resolution (.gitignore +
+    # .git/info/exclude + global). --directory collapses a fully-ignored dir
+    # (node_modules/, 3.9 GB) to one line. Driving off git — not rsync's own
+    # dir-merge — means we never list a tracked file or anything under .git/, so
+    # a .gitignore pattern like `logs/` or `*.pack` can't corrupt the clone.
     ignore_list="$(mktemp)"
     trap 'rm -f "$ignore_list"' EXIT
     git -C "$src" -c core.quotePath=false ls-files \
@@ -209,11 +237,47 @@ seed-sd repo_src sd_volume="":
     # -P for progress on the ~700 MB copy. Scoped to repo/, never the card root.
     rsync -rtP --delete --modify-window=1 --exclude-from="$ignore_list" "$src/" "$dest/"
 
-    # Flush and eject so the card can go straight into Typoena.
+# Write <vol>/typoena.conf (Wi-Fi + PAT + git identity) from firmware/.env
+# (already loaded via `set dotenv-load`), the same file the build uses — so no
+# re-typing creds, no prompts, no network. The PAT is written to the file but
+# only ever reported as set/MISSING, never echoed. FAT has no file permissions,
+# so physical custody of the card is the control: use a fine-grained PAT
+# (contents:write on just the notes repo) so a lost card is a one-token revoke.
+_write-conf vol:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    conf="{{vol}}/typoena.conf"
+    if [ -n "${TW_WIFI_SSID:-}${TW_REMOTE_URL:-}${TW_PAT:-}" ]; then
+        {
+            printf '# Typoena runtime config — generated by `just provision` from firmware/.env.\n'
+            printf '# Plaintext secrets on removable media: keep the card safe; scope TW_PAT\n'
+            printf '# to contents:write on just the notes repo. `key=value`, `#` = comment.\n'
+            printf 'TW_WIFI_SSID=%s\n'   "${TW_WIFI_SSID:-}"
+            printf 'TW_WIFI_PASS=%s\n'   "${TW_WIFI_PASS:-}"
+            printf 'TW_REMOTE_URL=%s\n'  "${TW_REMOTE_URL:-}"
+            printf 'TW_GH_USER=%s\n'     "${TW_GH_USER:-}"
+            printf 'TW_PAT=%s\n'         "${TW_PAT:-}"
+            printf 'TW_AUTHOR_NAME=%s\n' "${TW_AUTHOR_NAME:-}"
+            printf 'TW_AUTHOR_EMAIL=%s\n' "${TW_AUTHOR_EMAIL:-}"
+        } > "$conf"
+        mask() { if [ -n "${1:-}" ]; then printf 'set'; else printf 'MISSING'; fi; }
+        echo "wrote $conf (values reused from firmware/.env, never printed):"
+        echo "  wifi: ssid=$(mask "${TW_WIFI_SSID:-}") pass=$(mask "${TW_WIFI_PASS:-}")"
+        echo "  git:  remote=$(mask "${TW_REMOTE_URL:-}") gh_user=$(mask "${TW_GH_USER:-}") pat=$(mask "${TW_PAT:-}")"
+        echo "  author: name=$(mask "${TW_AUTHOR_NAME:-}") email=$(mask "${TW_AUTHOR_EMAIL:-}")"
+    else
+        echo "note: no TW_* values in firmware/.env — leaving any existing $conf untouched"
+        echo "      (copy .env.example → firmware/.env and fill in Wi-Fi + PAT to provision)"
+    fi
+
+# Flush + eject so the card can go straight into Typoena.
+_eject vol:
+    #!/usr/bin/env bash
+    set -euo pipefail
     sync
-    echo "seeded ok — ejecting $vol"
-    if diskutil eject "$vol" >/dev/null 2>&1; then
+    echo "ejecting {{vol}}"
+    if diskutil eject "{{vol}}" >/dev/null 2>&1; then
         echo "✅ card ejected — remove it and insert into Typoena"
     else
-        echo "⚠️  eject failed (a file may still be open) — eject '$vol' from Finder before removing"
+        echo "⚠️  eject failed (a file may still be open) — eject '{{vol}}' from Finder before removing"
     fi
