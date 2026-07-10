@@ -172,6 +172,11 @@ fn translate(usage: u8, shift: bool, ctrl: bool, cmd: bool) -> Option<Key> {
         0x33 => Key::Char(if shift { ':' } else { ';' }),
         0x34 => Key::Char(if shift { '"' } else { '\'' }),
         0x35 => Key::Char(if shift { '~' } else { '`' }),
+        // The physical Esc key (0x29) is repurposed to type backtick / tilde:
+        // Escape comes from a Caps tap instead, which frees this key to reach
+        // `~ — and their grave/tilde dead-key accents, and Markdown code fences —
+        // without a Fn layer on 60% boards.
+        0x29 => Key::Char(if shift { '~' } else { '`' }),
         0x36 => Key::Char(if shift { '<' } else { ',' }),
         0x37 => Key::Char(if shift { '>' } else { '.' }),
         0x38 => Key::Char(if shift { '?' } else { '/' }),
@@ -368,6 +373,13 @@ mod tests {
     }
 
     #[test]
+    fn esc_key_is_repurposed_to_backtick_and_tilde() {
+        // 0x29 (the physical Esc key) types `/~ now; Escape comes from a Caps tap.
+        assert_eq!(translate(0x29, false, false, false), Some(Key::Char('`')));
+        assert_eq!(translate(0x29, true, false, false), Some(Key::Char('~')));
+    }
+
+    #[test]
     fn translate_ctrl_or_cmd_swallows_plain_chars() {
         assert_eq!(translate(0x04, false, true, false), None); // Ctrl+a
         assert_eq!(translate(0x04, false, false, true), None); // Cmd+a
@@ -399,6 +411,13 @@ mod tests {
             feed(&mut d, &report(0, &[0x04, 0x05])),
             vec![Key::Char('a'), Key::Char('b')]
         );
+    }
+
+    #[test]
+    fn physical_esc_key_decodes_to_backtick_not_escape() {
+        // End to end: a report with usage 0x29 yields a backtick, not Escape.
+        let mut d = Decoder::new();
+        assert_eq!(feed(&mut d, &report(0, &[0x29])), vec![Key::Char('`')]);
     }
 
     // ---- Decoder: Caps Lock dual role ----
