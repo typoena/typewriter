@@ -26,12 +26,6 @@ CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=4096
 # `std::thread::Builder::new().stack_size(XXX)` for spawning
 CONFIG_PTHREAD_TASK_STACK_SIZE_DEFAULT=4096
 
-# Raise the compile-time log ceiling so the sdmmc/sdspi drivers' per-command
-# DEBUG logs (the raw R1 response bytes) are built in. Runtime level stays INFO
-# by default; the SD spike bumps just the sdmmc/sdspi tags to DEBUG so we can see
-# exactly what each init command returns. (Diagnostic for Spike 3 init failures.)
-CONFIG_LOG_MAXIMUM_LEVEL_DEBUG=y
-
 # FatFS long filenames (Spike 3 — SD). Default is 8.3-only, which rejects the
 # persistence module's atomic-save temp name (`notes.md.tmp` has two dots).
 # LFN on the heap keeps the working buffer off the (small) task stack.

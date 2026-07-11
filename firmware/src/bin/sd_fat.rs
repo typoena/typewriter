@@ -81,13 +81,6 @@ fn main() -> Result<()> {
 
     log::info!("Typoena — Spike 3 (SD/FAT on shared SPI2), {BUILD_TAG}");
 
-    // Diagnostic: surface the sdmmc/sdspi drivers' per-command DEBUG logs (the
-    // raw R1 response bytes) so an init failure shows *which* command the card
-    // rejects and with what response — not just the final propagated error.
-    for tag in [c"sdmmc_sd", c"sdmmc_cmd", c"sdmmc_init", c"sdspi_transaction", c"sdspi_host"] {
-        unsafe { sys::esp_log_level_set(tag.as_ptr(), sys::esp_log_level_t_ESP_LOG_DEBUG) };
-    }
-
     match run() {
         Ok(()) => {
             log::info!("✅ Spike 3 complete — mount + atomic write/fsync/rename/read-back on shared bus")
