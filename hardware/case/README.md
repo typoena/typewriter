@@ -81,9 +81,10 @@ serviceable.
 
 - The through-**aperture** is a hair larger than the active area and stays
   *inside* the glass-minus-lip envelope, so the lip covers only dead border.
-- The recess opens into the cavity, and an **FPC bay** — an open notch in the
-  **left bezel** (the user's left as they face the screen) — lets the flex exit
-  and fold down to the DESPI-C579 breakout below.
+- The recess opens into the cavity, and an **internal FPC clearance** on the
+  **left** (the user's left as they face the screen) — kept below the bezel lip
+  so it's invisible from outside — lets the flex fold back to the DESPI-C579
+  breakout. Nothing breaks the external bezel.
 - Foam does three jobs: cushions the glass, takes up print tolerance
   (±0.2–0.5 mm), and removes any need for adhesive. Cut it from a plain EVA/
   PORON sheet — no sticky backing.
@@ -96,7 +97,7 @@ The glass is **trapped at both edges** between the front lip and the rear
 foam+bracket; the bracket is what stops it dropping *into* the cavity
 (`show="section"`):
 
-![Midline section: glass clamped between the front lip and the rear foam + bracket; the FPC bay is the notch in the left bezel, standoffs on the cavity floor](renders/section.png)
+![Midline section: glass clamped between the front lip and the rear foam + bracket; the internal FPC clearance is hidden below the left bezel, standoffs on the cavity floor](renders/section.png)
 
 ![The screwed bracket — four corner holes, window clears the active area](renders/bracket.png)
 
