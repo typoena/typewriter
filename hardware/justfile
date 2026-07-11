@@ -3,8 +3,10 @@
 
 scad := "case/typoena-case.scad"
 
-# shared OpenSCAD flags (everything but the camera + the part to show)
-base    := "--imgsize=1100,825 --colorscheme=Tomorrow --viewall --autocenter"
+# shared OpenSCAD flags (everything but the camera + the part to show).
+# $fn is pinned here so preview quality is stable no matter what the file's
+# editing value is set to.
+base    := "--imgsize=1100,825 --colorscheme=Tomorrow --viewall --autocenter -D '$fn=48'"
 # the standard 3/4 camera used by most previews (rotate 62° tilt, 22° azimuth)
 std_cam := "--camera=0,0,0,62,0,22,0"
 
