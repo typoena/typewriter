@@ -49,7 +49,7 @@ name = "v0.2 navigation"
 start = 2026-06-29
 original = 2026-07-20
 status = "on-track"
-note = "Core work landed early: motions and modes already run; gutter, Ctrl-d/u, UTF-8 buffer remain."
+note = "Core work landed early: motions and modes already run; Ctrl-d/u and the UTF-8 buffer landed 2026-07-11; only the line-number gutter remains."
 
 [[feature]]
 name = "v0.2.5 international input"
@@ -190,12 +190,16 @@ Out of scope: Vim, palette, multiple files, branches, conflict handling.
 ## v0.2 — Vim navigation — [~]
 
 **Status:** navigation done in core; the **UTF-8-correct buffer landed
-2026-07-11** (hardware-verified). Remaining = `Ctrl-d/u` and the line-number
-gutter. Shipped early beyond scope: a read-only **View** mode and the full
-`d`/`c` operator + text-object grammar (see v0.3 / v0.4).
+2026-07-11** (hardware-verified) and **`Ctrl-d/u` half-page scroll landed
+2026-07-11** (host-tested). Remaining = the line-number gutter. Shipped early
+beyond scope: a read-only **View** mode and the full `d`/`c` operator +
+text-object grammar (see v0.3 / v0.4).
 
 - [x] Mode state machine (Normal / Insert / View), mode indicator in the status strip
-- [~] Movement: `h j k l`, `w b e`, `0 $`, `gg G` (✓); `Ctrl-d Ctrl-u` remain
+- [x] Movement: `h j k l`, `w b e`, `0 $`, `gg G`, `Ctrl-d Ctrl-u`. `Ctrl-d/u`
+      step **display** (soft-wrapped) rows, not logical lines — half a page is
+      half the visible window however prose wraps; decoded as `HalfPageDown/Up`
+      intents in the keymap, caret moves and the viewport follows.
 - [x] `i a o O A` to enter Insert
 - [x] `Esc` returns to Normal
 - [ ] Line numbers in the left gutter: **absolute** — Spike 13 first. Relative

@@ -34,6 +34,10 @@ const WRITE_COLS: usize = 60;
 /// Visible writing rows. 13 × 20 px = 260 px; the bottom 12 px is the transient
 /// `:` command line (the only thing left of the old status band).
 const ROWS: usize = (HEIGHT / 20) as usize; // 13
+/// Half-page scroll distance for `Ctrl-d`/`Ctrl-u`, in **display rows** — vim's
+/// `'scroll'` default (half the visible window). Fixed, not configurable: a
+/// resizable `'scroll'` is meaningless on a fixed 13-row panel.
+const HALF_PAGE: usize = ROWS / 2; // 6
 /// x of the 1 px rule dividing writing column from side panel, and the left edge
 /// of panel text (a small gutter past the rule).
 const DIVIDER_X: i32 = WRITE_COLS as i32 * CW; // 600
@@ -230,6 +234,10 @@ impl Editor {
             Key::Backspace => self.backspace(),
             Key::DeleteWord => self.delete_word_before(),
             Key::DeleteLine => self.delete_to_line_start(),
+            // Half-page scroll is a navigation gesture — Normal/View only. In
+            // Insert it's a no-op rather than yanking the caret off the text
+            // you're typing.
+            Key::HalfPageDown | Key::HalfPageUp => {}
             Key::Escape => {
                 self.mode = Mode::Normal;
                 // vim drops the caret onto the last inserted char.
@@ -245,7 +253,20 @@ impl Editor {
     fn normal_key(&mut self, key: Key) {
         let c = match key {
             Key::Char(c) => c,
-            // Esc and non-character events cancel any pending command.
+            // Ctrl-d/u: scroll half a screen by *display* rows (see
+            // `move_display_rows`). Like any non-motion key, they abandon a
+            // pending count/operator first.
+            Key::HalfPageDown => {
+                self.reset_pending();
+                self.move_display_rows(HALF_PAGE as isize);
+                return;
+            }
+            Key::HalfPageUp => {
+                self.reset_pending();
+                self.move_display_rows(-(HALF_PAGE as isize));
+                return;
+            }
+            // Esc and other non-character events cancel any pending command.
             _ => {
                 self.reset_pending();
                 return;
@@ -468,6 +489,10 @@ impl Editor {
             Key::Char('j') => self.scroll_top += 1, // clamped in draw()
             Key::Char('k') => self.scroll_top = self.scroll_top.saturating_sub(1),
             Key::Char(' ') => self.scroll_top += ROWS,
+            // Half-page scroll, mirroring Normal mode — here it's a pure
+            // viewport move (View has no caret to chase). Clamped in draw().
+            Key::HalfPageDown => self.scroll_top += HALF_PAGE,
+            Key::HalfPageUp => self.scroll_top = self.scroll_top.saturating_sub(HALF_PAGE),
             Key::Char('G') => {
                 let total = self.layout().len();
                 self.scroll_top = total.saturating_sub(ROWS);
@@ -574,6 +599,25 @@ impl Editor {
         let prev_start = self.line_start(ls - 1);
         let prev_end = ls - 1; // the '\n' that ends the previous line
         self.caret = self.advance_chars(prev_start, col, prev_end);
+    }
+
+    /// Move the caret by `delta` **display** (soft-wrapped) rows, keeping the
+    /// column where the target row is long enough. This is the `Ctrl-d`/`Ctrl-u`
+    /// step: unlike `j`/`k` (which move by *logical* line and so jump over
+    /// wrapped continuation rows), it walks the rendered layout, so half a page
+    /// is half the visible window no matter how the prose wraps. In Normal mode
+    /// the caret is always kept on-screen, so moving it *is* the scroll — the
+    /// viewport follows via `adjust_scroll` at draw time.
+    fn move_display_rows(&mut self, delta: isize) {
+        let lay = self.layout();
+        if lay.is_empty() {
+            return;
+        }
+        let (row, col) = self.caret_rc(&lay);
+        let target = (row as isize + delta).clamp(0, lay.len() as isize - 1) as usize;
+        let line = &lay[target];
+        let row_end = line.start + line.text.len();
+        self.caret = self.advance_chars(line.start, col, row_end);
     }
 
     /// Start of the next whitespace-delimited word after `from`.
@@ -1538,6 +1582,93 @@ mod tests {
         assert_eq!(e.text(), "");
         assert_eq!(e.caret, 0);
         assert_eq!(e.mode(), Mode::Normal);
+    }
+
+    // ---- Ctrl-d / Ctrl-u half-page scroll (v0.2) ----
+
+    /// The core reason this isn't `HALF_PAGE × move_down`: on one long paragraph
+    /// that soft-wraps, half-page-down steps *display* rows, advancing the caret
+    /// half a window into the wrap — whereas `j` (logical-line) can't move
+    /// within the single line at all.
+    #[test]
+    fn half_page_down_steps_display_rows_within_a_wrapped_line() {
+        let mut e = Editor::with_text("a".repeat(WRITE_COLS * 10)); // 10 wrapped rows
+        e.caret = 0;
+        e.handle(Key::HalfPageDown);
+        assert_eq!(e.caret, WRITE_COLS * HALF_PAGE); // down HALF_PAGE display rows
+
+        // Contrast: `j` on the same single logical line is a no-op.
+        let mut j = Editor::with_text("a".repeat(WRITE_COLS * 10));
+        j.caret = 0;
+        j.handle(Key::Char('j'));
+        assert_eq!(j.caret, 0);
+    }
+
+    /// Up is the inverse of down within a wrapped line.
+    #[test]
+    fn half_page_up_is_the_inverse_within_a_wrapped_line() {
+        let mut e = Editor::with_text("a".repeat(WRITE_COLS * 10));
+        e.caret = WRITE_COLS * HALF_PAGE;
+        e.handle(Key::HalfPageUp);
+        assert_eq!(e.caret, 0);
+    }
+
+    /// Clamps at both ends: up from the top stays; down past the bottom lands on
+    /// the last row on a character boundary, never out of range.
+    #[test]
+    fn half_page_clamps_at_both_ends() {
+        let mut e = Editor::with_text("a".repeat(WRITE_COLS * 3)); // 3 rows
+        e.caret = 0;
+        e.handle(Key::HalfPageUp);
+        assert_eq!(e.caret, 0);
+        e.handle(Key::HalfPageDown);
+        e.handle(Key::HalfPageDown);
+        assert!(e.caret <= e.text.len());
+        assert!(e.text.is_char_boundary(e.caret));
+    }
+
+    /// The viewport follows the caret past the window: after enough half-pages,
+    /// `scroll_top` advances (in draw) and the caret stays visible.
+    #[test]
+    fn half_page_down_scrolls_the_viewport() {
+        let text = vec!["a"; 40].join("\n"); // 40 one-char lines = 40 display rows
+        let mut e = Editor::with_text(text);
+        e.caret = 0;
+        for _ in 0..4 {
+            e.handle(Key::HalfPageDown);
+        }
+        e.draw(true); // adjust_scroll runs here
+        assert!(e.scroll_top() > 0, "viewport should have scrolled");
+        let lay = e.layout();
+        let (row, _) = e.caret_rc(&lay);
+        assert!(row >= e.scroll_top() && row < e.scroll_top() + ROWS);
+    }
+
+    /// In View mode (read-only) half-page moves the viewport directly and leaves
+    /// the caret alone.
+    #[test]
+    fn half_page_scrolls_viewport_in_view_mode() {
+        let mut e = Editor::with_text(vec!["a"; 40].join("\n"));
+        let caret_before = e.caret;
+        e.handle(Key::Char('v')); // Normal -> View
+        assert_eq!(e.mode(), Mode::View);
+        e.handle(Key::HalfPageDown);
+        assert_eq!(e.scroll_top(), HALF_PAGE);
+        assert_eq!(e.caret, caret_before); // caret untouched in View
+        e.handle(Key::HalfPageUp);
+        assert_eq!(e.scroll_top(), 0);
+    }
+
+    /// Inert in Insert mode — it must not yank the caret off the text you're
+    /// typing.
+    #[test]
+    fn half_page_is_a_noop_in_insert_mode() {
+        let mut e = Editor::with_text(vec!["a"; 40].join("\n"));
+        e.caret = 0;
+        e.handle(Key::Char('i')); // Normal -> Insert
+        e.handle(Key::HalfPageDown);
+        assert_eq!(e.caret, 0);
+        assert_eq!(e.mode(), Mode::Insert);
     }
 
     #[test]

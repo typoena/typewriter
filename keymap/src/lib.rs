@@ -30,6 +30,10 @@ pub enum Key {
     DeleteWord,
     /// Cmd/GUI+Backspace — delete back to the start of the current line.
     DeleteLine,
+    /// Ctrl+D — scroll down half a screen (vim `Ctrl-d`).
+    HalfPageDown,
+    /// Ctrl+U — scroll up half a screen (vim `Ctrl-u`).
+    HalfPageUp,
     /// Caps Lock tapped on its own. A no-op for now; groundwork for a future
     /// vim-style normal mode.
     Escape,
@@ -140,6 +144,8 @@ fn translate(usage: u8, shift: bool, ctrl: bool, cmd: bool) -> Option<Key> {
             });
         }
         0x1a if ctrl => return Some(Key::DeleteWord), // Ctrl+W, readline-style
+        0x07 if ctrl => return Some(Key::HalfPageDown), // Ctrl+D, half-page down
+        0x18 if ctrl => return Some(Key::HalfPageUp), // Ctrl+U, half-page up
         _ => {}
     }
 
