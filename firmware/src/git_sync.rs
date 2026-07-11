@@ -25,6 +25,7 @@
 //! baked at build time (`TW_*`, ADR-007: v0.1 device config is compiled in).
 
 use std::cell::RefCell;
+use std::path::Path;
 use std::rc::Rc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -182,11 +183,27 @@ fn publish_once() -> Result<PublishOutcome> {
         format!("opening git repo at {REPO_DIR} — provision the card with a clone (just init) whose origin is your remote")
     })?;
 
+    // Absorb any foreign push before committing, so a remote that has moved ahead
+    // (e.g. a maintenance commit) fast-forwards cleanly instead of diverging when
+    // we push. Committing first and reconciling later can't undo a divergence.
+    fast_forward_before_commit(&repo).context("pre-commit fast-forward")?;
+
     // Stage everything (add --all also stages deletions, for a future note-delete)
-    // and build the tree from what the editor saved.
+    // and build the tree from what the editor saved. The per-path filter drops
+    // macOS AppleDouble sidecars (`._name`) and `.DS_Store` that Finder/Spotlight
+    // sprinkle onto the FAT card whenever it's mounted on a Mac — without it, a
+    // blind add --all sweeps them into the commit (it did once: 07d87772 shipped
+    // `._.git`, `._README.md`, `._notes.md`). Filtering here fixes it for *every*
+    // repo at the device level, so no per-repo `.gitignore` is needed.
     let mut index = repo.index().context("opening index")?;
+    let mut skip_macos_cruft = |path: &Path, _matched: &[u8]| -> i32 {
+        match path.file_name().and_then(|n| n.to_str()) {
+            Some(name) if name.starts_with("._") || name == ".DS_Store" => 1, // skip
+            _ => 0,                                                            // add
+        }
+    };
     index
-        .add_all(["*"], IndexAddOption::DEFAULT, None)
+        .add_all(["*"], IndexAddOption::DEFAULT, Some(&mut skip_macos_cruft))
         .context("staging (add --all)")?;
     index.write().context("writing index")?;
     let tree = repo.find_tree(index.write_tree().context("writing tree")?)?;
@@ -271,6 +288,56 @@ fn try_push(repo: &Repository, refspec: &str) -> Result<()> {
     }
     log::info!("push accepted by remote");
     Ok(())
+}
+
+/// Before committing, fetch origin and fast-forward the local branch if it has
+/// fallen behind — so the device self-heals from a *foreign* push (a maintenance
+/// commit, another tool) instead of stacking a commit on a stale base and
+/// diverging at push time (the `07d87772` cleanup was exactly such a push).
+///
+/// Uses a **MIXED** reset, not the force checkout `fetch_and_integrate` uses: the
+/// note the editor just saved is in the working tree but not yet committed, so the
+/// branch ref and index move to origin while the working tree is left untouched —
+/// no un-synced writing is lost, and the next `add_all` re-stages it on top of the
+/// updated tip. Best-effort: transient fetch failures fall through to the existing
+/// optimistic commit → push → retry path; only a genuine divergence hard-stops.
+fn fast_forward_before_commit(repo: &Repository) -> Result<()> {
+    // Unborn HEAD (first commit into an empty remote): nothing to reconcile.
+    let Ok(head) = repo.head() else {
+        return Ok(());
+    };
+    let Some(branch) = head.shorthand().map(str::to_string) else {
+        return Ok(()); // detached HEAD — not a case this appliance produces
+    };
+
+    let mut remote = repo.find_remote("origin")?;
+    let mut fo = FetchOptions::new();
+    fo.remote_callbacks(auth_callbacks());
+    if let Err(e) = remote.fetch(&[branch.as_str()], Some(&mut fo), None) {
+        log::warn!("pre-commit fetch skipped ({e}); committing optimistically");
+        return Ok(());
+    }
+
+    let Ok(fetch_head) = repo.find_reference("FETCH_HEAD") else {
+        return Ok(()); // remote has no such branch yet
+    };
+    let theirs = repo.reference_to_annotated_commit(&fetch_head)?;
+    let (analysis, _) = repo.merge_analysis(&[&theirs])?;
+
+    if analysis.is_up_to_date() {
+        return Ok(()); // local is at or ahead of origin — commit as-is
+    }
+    if analysis.is_fast_forward() {
+        log::info!(
+            "pre-commit: local {branch} is behind origin — fast-forwarding to {} (mixed, keeps the unsaved note)",
+            short(theirs.id())
+        );
+        let their_obj = repo.find_object(theirs.id(), None)?;
+        repo.reset(&their_obj, git2::ResetType::Mixed, None)
+            .context("mixed reset to origin during pre-commit fast-forward")?;
+        return Ok(());
+    }
+    bail!("origin/{branch} diverged from local before commit — needs a real merge (increment B, deferred)")
 }
 
 /// Fetch origin and integrate `branch` into the local branch. Handles up-to-date
