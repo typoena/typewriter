@@ -316,20 +316,42 @@ pending-`g` machinery, no vim clash. View mode stays; `v`/`V` are now Visual.
 - [x] Ahead of schedule / unscheduled: `:fmt` Markdown formatter
       (table alignment, blank-line collapse, trailing-whitespace strip)
 
-## v0.5 — File palette + multi-file — [ ]
+## v0.5 — File palette + multi-file — [~]
 
-**Status:** not started (Spikes 11 + 14 retire the panel-mechanism and
-buffer-lifecycle risk first).
+**Status:** buffer **foundation** landed in core 2026-07-11 (slice 1 of 4),
+host-tested; the palette + transient panel (Spike 11) and delete → git-staging
+(Spike 14) remain the on-device gates. The single-file `Effect` return became a
+drained **effect queue** (`Save{path,contents}` / `Load{path}` / `Publish` /
+`Pull`), so one action can ask the host for several steps in order — opening a
+non-resident file queues a `Save` of the outgoing dirty buffer *then* a `Load` of
+the target. The multi-buffer state deliberately avoids a rope-per-buffer rewrite:
+the active buffer keeps its fields inline on `Editor`, inactive buffers park in a
+small LRU `Vec<Buffer>` (≤ 3 resident = active + 2), and a switch marshals fields
+in/out so the ~3k-line editing engine is untouched. A dirty parked buffer is
+saved before it is evicted (nothing leaves RAM unsaved); `:e <path>` opens by
+prefix (`/sd/repo` → Tracked, `/sd/local` → Local); `:sync` is refused in-core in
+a Local buffer. Firmware drains the queue **to empty** each batch (a `Load` can
+cascade an eviction `Save`), and `persistence::{load_path,save_path}` generalise
+the atomic save off the hard-coded `notes.md`. 93 editor tests pass; the default
+(no-git) firmware binary builds clean. Remaining v0.5 slices: 2 palette + fuzzy +
+transient panel, 3 `:enew` + delete, 4 prefs + palette command mode.
 
 - [ ] `Ctrl-P` opens fuzzy file palette over **both** `/sd/repo/` and
       `/sd/local/`, with a scope marker (e.g. `[git]` / `[local]`) per result
-- [ ] Open, switch, close buffers (keep ≤ 3 in memory)
-- [ ] `:e` and palette share the same recent-files list
+- [~] Open, switch, close buffers (keep ≤ 3 in memory) — **open + switch + the
+      ≤ 3 LRU-resident model with dirty-aware save-before-evict done in core**
+      (host-tested); `:e <path>` drives it today. Explicit **close** (and the
+      palette that surfaces switching) still to come.
+- [~] `:e` and palette share the same recent-files list — **`:e <path>` landed**
+      (prefix → scope); the shared recent-files list arrives with the palette.
 - [ ] `:enew` creates a new file — prompts for scope (tracked vs local)
 - [ ] Delete a file — removes it from the SD card; for a Tracked file the
       removal reaches the next `Ctrl-G` Publish's staged set (`git rm` / `add -A`
       semantics, not plain `git add .`); a Local file is just unlinked
-- [ ] `Ctrl-G` is disabled / hidden when the current buffer is local-scope
+- [~] `Ctrl-G` is disabled / hidden when the current buffer is local-scope —
+      **`:sync` / Publish is blocked in-core for a Local buffer** (posts "Publish
+      unavailable (Local)"); the side-panel affordance that hides/greys the
+      gesture is the remaining half.
 - [ ] The side panel briefly shows file count on `Ctrl-G` when the publish bundles
       more than one dirty Tracked file (e.g. `"publishing 3 files: abc1234"`),
       so workspace-scoped behaviour stays visible to the user

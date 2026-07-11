@@ -13,7 +13,7 @@
 // ISO-8859-15 (Latin-9) rather than the ascii subset: same glyph cells, but it
 // carries the accented Latin glyphs (à é ê ç … plus œ €) that international
 // input will emit. ASCII rendering is byte-for-byte unchanged.
-use embedded_graphics::mono_font::iso_8859_15::{FONT_6X10, FONT_10X20};
+use embedded_graphics::mono_font::iso_8859_15::{FONT_9X15, FONT_10X20};
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::BinaryColor;
 use embedded_graphics::prelude::*;
@@ -31,14 +31,16 @@ pub const CH: i32 = 20;
 /// [`Editor::text_cols`]). The right **side panel** holds metadata (see
 /// CONTEXT.md § Screen regions). 63 cols × 10 px = 630 px; the driver's
 /// `x = 396` seam runs through it invisibly. The remaining 162 px (right of the
-/// divider) hold the ~25-col side panel. Widened from 60 so the gutter doesn't
-/// narrow the text: a ≤ 99-line file keeps a full 60-col text column.
+/// divider) hold the ~17-col side panel (at its FONT_9X15 metadata font — see
+/// [`PANEL_COLS`]). Widened from 60 so the gutter doesn't narrow the text: a
+/// ≤ 99-line file keeps a full 60-col text column.
 const WRITE_COLS: usize = 63;
 /// Minimum digit columns in the line-number gutter (before the 1-col separator).
 /// Files up to 99 lines still get a 2-wide gutter so short notes don't jitter.
 const GUTTER_MIN_DIGITS: usize = 2;
-/// Visible writing rows. 13 × 20 px = 260 px; the bottom 12 px is the transient
-/// `:` command line (the only thing left of the old status band).
+/// Visible writing rows. 13 × 20 px = 260 px. The transient `:` command line is
+/// drawn at body size over the **bottom** writing row (see [`Editor::draw_cmdline`]),
+/// so no rows are permanently reserved for it.
 const ROWS: usize = (HEIGHT / 20) as usize; // 13
 /// Half-page scroll distance for `Ctrl-d`/`Ctrl-u`, in **display rows** — vim's
 /// `'scroll'` default (half the visible window). Fixed, not configurable: a
@@ -48,10 +50,22 @@ const HALF_PAGE: usize = ROWS / 2; // 6
 /// of panel text (a small gutter past the rule).
 const DIVIDER_X: i32 = WRITE_COLS as i32 * CW; // 630
 const PANEL_X: i32 = DIVIDER_X + 8; // 638
-/// Side-panel text width in 6 px (`FONT_6X10`) columns, for clamping panel
-/// strings — the snackbar notice, word count — so they never draw past the
-/// right edge of the panel.
-const PANEL_COLS: usize = (WIDTH as usize - PANEL_X as usize) / 6; // 25
+/// Side-panel font cell: **FONT_9X15** — a middle size between the old squint-y
+/// 6×10 and the body 10×20. Legible metadata without eating as many columns as
+/// the body font would (the `:` command line, being text you type, stays at the
+/// body 10×20 — see [`Editor::draw_cmdline`]). Kept as its own pair (not reusing
+/// `CW`/`CH`) so the panel font tunes independently of the writing font; change
+/// these **and** the `MonoTextStyle` font in `draw_panel` together.
+const PANEL_CW: i32 = 9;
+const PANEL_CH: i32 = 15;
+/// Side-panel text width in [`PANEL_CW`]-px columns, for clamping panel strings —
+/// the snackbar notice, word count — so they never draw past the right edge of
+/// the panel.
+const PANEL_COLS: usize = (WIDTH as usize - PANEL_X as usize) / PANEL_CW as usize; // 15
+/// Max wrapped lines the snackbar draws under the word count, so a long notice
+/// can't run down into the bottom mode strip. Four PANEL_CH rows ≈ 60 chars,
+/// enough for any current message.
+const NOTICE_MAX_LINES: usize = 4;
 /// Tab stop, in spaces. Tabs never enter the buffer — they expand on insert so
 /// the buffer stays 1 char = 1 column.
 const TAB: &str = "    ";
@@ -77,24 +91,104 @@ pub enum Mode {
     Command,
 }
 
-/// A side effect the host (firmware) must carry out after a `:` command. The
-/// editor core is pure and does no IO, so persistence and publishing can't
-/// happen here — they're signalled out through [`Editor::handle`]'s return
-/// value and actioned by the main loop. `:fmt` is pure text work and stays
-/// in-core, so it yields [`Effect::None`].
+/// Which of the two file scopes ([`CONTEXT.md`]) a buffer belongs to. Fixed at
+/// creation — there is no move-between-scopes operation. **Tracked** files live
+/// under [`REPO_DIR`] and can be Published (`:sync`); **Local** files live under
+/// [`LOCAL_DIR`] and never leave the device, so `:sync` is refused in-core.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Scope {
+    Tracked,
+    Local,
+}
+
+/// A side effect the host (firmware) must carry out. The editor core is pure and
+/// does no IO, so persistence, publishing, and file reads can't happen here —
+/// they are queued and drained by [`Editor::take_effects`] after a key batch,
+/// then actioned by the main loop. `:fmt` is pure text work and stays in-core,
+/// so it queues nothing.
+///
+/// A single key can queue more than one effect: opening a file that isn't
+/// resident queues a [`Save`](Effect::Save) of the outgoing dirty buffer *and* a
+/// [`Load`](Effect::Load) of the target. Effects are serviced in order.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Effect {
-    /// Nothing for the host to do — ordinary keys, `:fmt`, unknown commands.
-    None,
-    /// `:w` (and the `:wq`/`:x` aliases) — persist the buffer to storage.
-    Save,
-    /// `:sync` — publish the buffer (save, then git push). The host saves
-    /// first: publishing an unsaved buffer is meaningless.
+    /// Persist `contents` to `path` (an atomic save on the host). Queued by `:w`
+    /// (and the `:wq`/`:x` aliases), by save-before-switch, and by
+    /// save-before-evict. The contents ride along because the buffer being saved
+    /// is not always the active one — an evicted buffer's text is no longer
+    /// reachable through [`Editor::text`]. On success the host calls
+    /// [`Editor::mark_saved`].
+    Save { path: String, scope: Scope, contents: String },
+    /// Read `path` from disk; on success the host installs it with
+    /// [`Editor::install_loaded`]. Queued when switching to a file that is not
+    /// resident in memory (`:e`, palette pick).
+    Load { path: String, scope: Scope },
+    /// `:sync` — publish the Tracked working copy (git push). Preceded by a
+    /// [`Save`](Effect::Save) of the current buffer in the same batch. Never
+    /// queued from a Local buffer (blocked in-core).
     Publish,
     /// `:gl` — pull from the remote: fetch, then **fast-forward only**. The host
     /// refuses (and surfaces) a divergence rather than merging, and never
     /// touches local commits. Complements `:sync` (push) as the download half.
     Pull,
+}
+
+/// Tracked files live here (the git working copy).
+pub const REPO_DIR: &str = "/sd/repo";
+/// Local files live here (never published).
+pub const LOCAL_DIR: &str = "/sd/local";
+
+/// Resolve a `:e` argument (or palette pick) to an absolute path + [`Scope`]. An
+/// absolute path under [`LOCAL_DIR`] is Local; any other absolute path (including
+/// under [`REPO_DIR`]) is Tracked. A bare name (no `/`) is joined onto the current
+/// buffer's scope directory, so `:e draft.md` opens a sibling of the file you're
+/// in.
+fn resolve_path(arg: &str, current: Scope) -> (String, Scope) {
+    if arg.starts_with(&format!("{LOCAL_DIR}/")) {
+        (arg.to_string(), Scope::Local)
+    } else if arg.starts_with('/') {
+        (arg.to_string(), Scope::Tracked)
+    } else {
+        let dir = match current {
+            Scope::Tracked => REPO_DIR,
+            Scope::Local => LOCAL_DIR,
+        };
+        (format!("{dir}/{arg}"), current)
+    }
+}
+
+/// Word-wrap `text` to lines of at most `width` characters, for the side-panel
+/// snackbar. Packs whole words greedily; a word longer than `width` is hard-split
+/// across lines (so a long path or oid still shows in full rather than being
+/// truncated). Empty input yields no lines.
+fn wrap_text(text: &str, width: usize) -> Vec<String> {
+    let width = width.max(1);
+    let mut lines: Vec<String> = Vec::new();
+    let mut cur = String::new();
+    for word in text.split_whitespace() {
+        if word.chars().count() > width {
+            if !cur.is_empty() {
+                lines.push(core::mem::take(&mut cur));
+            }
+            let mut chars = word.chars().peekable();
+            while chars.peek().is_some() {
+                lines.push(chars.by_ref().take(width).collect());
+            }
+            continue;
+        }
+        let sep = usize::from(!cur.is_empty());
+        if cur.chars().count() + sep + word.chars().count() > width {
+            lines.push(core::mem::take(&mut cur));
+        }
+        if !cur.is_empty() {
+            cur.push(' ');
+        }
+        cur.push_str(word);
+    }
+    if !cur.is_empty() {
+        lines.push(cur);
+    }
+    lines
 }
 
 /// A pending operator awaiting a motion or text object (`d`elete / `c`hange /
@@ -173,7 +267,49 @@ pub struct Editor {
     /// True while `.` is replaying [`dot`], so the replayed keys are neither
     /// re-recorded nor able to re-trigger `.`.
     replaying: bool,
+    /// Absolute path of the active buffer on the SD card (e.g.
+    /// `/sd/repo/notes.md`). Empty for an unnamed scratch buffer (the boot-message
+    /// layout use); `:w` on an empty path posts "no file name" rather than saving.
+    path: String,
+    /// The active buffer's scope. Gates Publish — `:sync` is refused in Local.
+    scope: Scope,
+    /// Whether the active buffer has unsaved edits. Set at each change-group
+    /// ([`checkpoint`](Self::checkpoint)) and cleared when the host confirms a
+    /// save ([`mark_saved`](Self::mark_saved)). Decides whether a switch/evict
+    /// persists the buffer first. Deliberately over-eager: entering Insert and
+    /// leaving without typing marks it dirty, costing at most one redundant
+    /// (idempotent) save — cheaper than tracking every mutation site.
+    dirty: bool,
+    /// Inactive-but-resident buffers, least-recently-used first. The active
+    /// buffer plus these is capped at [`MAX_RESIDENT`]; switching away parks the
+    /// active buffer here (with its caret, scroll, and undo), switching back
+    /// restores it without touching the disk. A parked buffer pushed over the cap
+    /// is evicted — saved first (via an [`Effect::Save`]) if it is dirty.
+    parked: Vec<Buffer>,
+    /// Host-effect queue, drained by [`take_effects`](Self::take_effects) after a
+    /// key batch. See [`Effect`].
+    requests: Vec<Effect>,
 }
+
+/// A resident-but-inactive buffer: everything needed to restore a file's editing
+/// state when the user switches back, without re-reading the disk. The active
+/// buffer holds these same fields inline on [`Editor`]; parking marshals them
+/// out to here, activation marshals them back.
+struct Buffer {
+    path: String,
+    scope: Scope,
+    text: String,
+    caret: usize,
+    scroll_top: usize,
+    dirty: bool,
+    undo: Vec<(String, usize)>,
+    redo: Vec<(String, usize)>,
+}
+
+/// Buffers kept resident at once — the active one plus [`MAX_RESIDENT`] − 1
+/// parked (v0.5 keeps ≤ 3). Beyond this the least-recently-used parked buffer is
+/// evicted; it is saved first if dirty, so an evicted buffer is never lost.
+const MAX_RESIDENT: usize = 3;
 
 /// Maximum undo depth (change-groups). A full-buffer snapshot per group means
 /// worst-case memory is `UNDO_DEPTH × buffer size`; for note-sized files on the
@@ -211,6 +347,11 @@ impl Editor {
             dot: Vec::new(),
             dot_recording: None,
             replaying: false,
+            path: String::new(),
+            scope: Scope::Tracked,
+            dirty: false,
+            parked: Vec::new(),
+            requests: Vec::new(),
         }
     }
 
@@ -221,7 +362,16 @@ impl Editor {
     /// cell past the end. The first [`Editor::draw`] scrolls it into view. An
     /// empty string is equivalent to [`Editor::new`].
     pub fn with_text(text: String) -> Self {
-        let mut ed = Editor { text, ..Editor::new() };
+        Self::with_file(String::new(), Scope::Tracked, text)
+    }
+
+    /// Seed a fresh editor from a named file's saved text — the boot-load and
+    /// file-open path. Same boot posture as [`with_text`](Self::with_text)
+    /// (Normal mode, caret on the last character) but records the file's `path`
+    /// and `scope` so `:w` knows where to persist and `:sync` knows whether
+    /// Publish is offered.
+    pub fn with_file(path: String, scope: Scope, text: String) -> Self {
+        let mut ed = Editor { text, path, scope, ..Editor::new() };
         ed.caret = ed.text.len();
         if ed.caret > ed.line_start(ed.caret) {
             ed.caret = ed.prev_char(ed.caret);
@@ -236,6 +386,55 @@ impl Editor {
     /// The full buffer contents, for the host to persist on `:w`/`:sync`.
     pub fn text(&self) -> &str {
         &self.text
+    }
+
+    /// Absolute path of the active buffer (empty for an unnamed scratch buffer).
+    pub fn path(&self) -> &str {
+        &self.path
+    }
+
+    /// The active buffer's [`Scope`]. The host hides/greys `Ctrl-G` in Local.
+    pub fn scope(&self) -> Scope {
+        self.scope
+    }
+
+    /// Whether the active buffer has unsaved edits.
+    pub fn dirty(&self) -> bool {
+        self.dirty
+    }
+
+    /// Drain the queued host effects (save/load/publish/pull). The main loop
+    /// calls this after applying a key batch and services them in order.
+    pub fn take_effects(&mut self) -> Vec<Effect> {
+        core::mem::take(&mut self.requests)
+    }
+
+    /// The host confirms `path` was persisted; clear its dirty flag wherever that
+    /// buffer is resident (active or parked). A no-op for a path that is no longer
+    /// in memory (already-evicted buffers were saved on the way out).
+    pub fn mark_saved(&mut self, path: &str) {
+        if self.path == path {
+            self.dirty = false;
+        }
+        if let Some(b) = self.parked.iter_mut().find(|b| b.path == path) {
+            b.dirty = false;
+        }
+    }
+
+    /// Install a file the host read from disk in response to an [`Effect::Load`]:
+    /// park the current buffer and make the loaded one active. If the target
+    /// turned resident in the meantime, switch to that copy instead (its in-memory
+    /// edits win over a stale disk read).
+    pub fn install_loaded(&mut self, path: String, scope: Scope, contents: String) {
+        if path == self.path {
+            return;
+        }
+        if self.parked.iter().any(|b| b.path == path) {
+            self.open_path(path, scope);
+            return;
+        }
+        self.park_active();
+        self.set_active(path, scope, contents);
     }
 
     pub fn scroll_top(&self) -> usize {
@@ -267,13 +466,14 @@ impl Editor {
         self.text.split_whitespace().count()
     }
 
-    /// Dispatch one decoded key event according to the current mode, returning
-    /// any [`Effect`] the host must carry out (only `:` commands produce one;
-    /// every other key yields [`Effect::None`]).
-    pub fn handle(&mut self, key: Key) -> Effect {
+    /// Dispatch one decoded key event according to the current mode. Any host
+    /// effect a `:` command (or a buffer switch) triggers is pushed to the queue
+    /// drained by [`take_effects`](Self::take_effects); ordinary keys queue
+    /// nothing.
+    pub fn handle(&mut self, key: Key) {
         // Any keystroke dismisses the transient notice ("snackbar"). The host
-        // sets a fresh one *after* handle() returns (on a `:` command's effect),
-        // so a save/publish message survives to the next draw, then clears the
+        // sets a fresh one *after* the key batch (on a `:` command's effect), so
+        // a save/publish message survives to the next draw, then clears the
         // moment you move on — no timed repaint (which on e-ink would cost a
         // full ~630 ms flash just to erase text).
         self.notice = None;
@@ -290,7 +490,7 @@ impl Editor {
             && key == Key::Char('.')
         {
             self.repeat_last_change();
-            return Effect::None;
+            return;
         }
 
         // State before dispatch, so `record_dot` can read the transition a key
@@ -298,30 +498,17 @@ impl Editor {
         let before_mode = self.mode;
         let before_pending = self.pending_op.is_some() || self.pending_obj.is_some();
 
-        let effect = match self.mode {
-            Mode::Insert => {
-                self.insert_key(key);
-                Effect::None
-            }
-            Mode::Normal => {
-                self.normal_key(key);
-                Effect::None
-            }
-            Mode::Visual | Mode::VisualLine => {
-                self.visual_key(key);
-                Effect::None
-            }
-            Mode::View => {
-                self.view_key(key);
-                Effect::None
-            }
+        match self.mode {
+            Mode::Insert => self.insert_key(key),
+            Mode::Normal => self.normal_key(key),
+            Mode::Visual | Mode::VisualLine => self.visual_key(key),
+            Mode::View => self.view_key(key),
             Mode::Command => self.command_key(key),
-        };
+        }
 
         if !self.replaying {
             self.record_dot(key, before_mode, before_pending);
         }
-        effect
     }
 
     /// Record `key` into the in-progress change for `.`. Called after dispatch
@@ -631,7 +818,7 @@ impl Editor {
 
     // --- Command mode (`:`) ------------------------------------------------
 
-    fn command_key(&mut self, key: Key) -> Effect {
+    fn command_key(&mut self, key: Key) {
         match key {
             Key::Char(c) => self.cmdline.push(c),
             Key::Backspace => {
@@ -641,10 +828,9 @@ impl Editor {
                 }
             }
             Key::Enter => {
-                let effect = self.execute_command();
+                self.execute_command();
                 self.cmdline.clear();
                 self.mode = Mode::Normal;
-                return effect;
             }
             Key::Escape => {
                 self.cmdline.clear();
@@ -666,36 +852,59 @@ impl Editor {
             // Tab isn't meaningful on a short command line.
             _ => {}
         }
-        Effect::None
     }
 
-    /// Run the typed `:` command, returning any [`Effect`] the host must carry
-    /// out. Unknown commands are silently ignored. The `:q` quit family is
-    /// deliberately absent — an always-on writing appliance has nothing to
-    /// quit to; `:wq`/`:x` therefore just save (the "quit" half is dropped).
-    fn execute_command(&mut self) -> Effect {
-        match self.cmdline.trim() {
-            "fmt" => {
-                self.format_buffer();
-                Effect::None
-            }
+    /// Run the typed `:` command, queuing any [`Effect`] the host must carry out.
+    /// Unknown commands are silently ignored. The `:q` quit family is deliberately
+    /// absent — an always-on writing appliance has nothing to quit to; `:wq`/`:x`
+    /// therefore just save (the "quit" half is dropped).
+    fn execute_command(&mut self) {
+        let cmd = self.cmdline.trim().to_string();
+        // `:e <path>` — open another file (multi-file, v0.5).
+        if let Some(arg) = cmd.strip_prefix("e ") {
+            self.edit_file(arg);
+            return;
+        }
+        match cmd.as_str() {
+            "fmt" => self.format_buffer(),
             "w" | "wq" | "x" => {
                 if self.format_on_save {
                     self.format_buffer();
                 }
-                Effect::Save
+                self.request_save_active();
             }
             "sync" => {
-                // fmt → save → commit → push: format in-core here, then the host
-                // persists and publishes the already-formatted buffer.
+                // Publish is Tracked-only (CONTEXT.md): a Local buffer never
+                // reaches the remote, so `:sync` there is a no-op with a notice.
+                if self.scope == Scope::Local {
+                    self.set_notice("Publish unavailable (Local)");
+                    return;
+                }
+                // fmt → save → push: format in-core, queue the save of the current
+                // buffer, then the git publish. The host services them in order.
                 if self.format_on_save {
                     self.format_buffer();
                 }
-                Effect::Publish
+                self.request_save_active();
+                self.requests.push(Effect::Publish);
             }
-            "gl" => Effect::Pull,
-            _ => Effect::None,
+            "gl" => self.requests.push(Effect::Pull),
+            _ => {}
         }
+    }
+
+    /// Queue an [`Effect::Save`] of the active buffer. Posts "no file name" for an
+    /// unnamed scratch buffer (nothing to save to) rather than writing to `""`.
+    fn request_save_active(&mut self) {
+        if self.path.is_empty() {
+            self.set_notice("no file name");
+            return;
+        }
+        self.requests.push(Effect::Save {
+            path: self.path.clone(),
+            scope: self.scope,
+            contents: self.text.clone(),
+        });
     }
 
     /// `:fmt` — normalize the buffer (align tables, collapse duplicate blank
@@ -742,6 +951,10 @@ impl Editor {
     /// `:fmt`). If the buffer is unchanged since the last baseline it is a no-op,
     /// so calling it more than once before a mutation records only one group.
     fn checkpoint(&mut self) {
+        // A change-group is about to begin, so the buffer is (or is about to be)
+        // modified relative to the last save. See the `dirty` field note on why
+        // this is deliberately slightly over-eager.
+        self.dirty = true;
         if self.undo.last().is_some_and(|(t, _)| t == &self.text) {
             return; // nothing changed since the last baseline
         }
@@ -780,6 +993,115 @@ impl Editor {
         }
         self.mode = Mode::Normal;
         self.reset_pending();
+    }
+
+    // --- Buffers (multi-file) ----------------------------------------------
+
+    /// Switch the active buffer to `path`. If it is already resident (parked),
+    /// restore that copy with its caret/scroll/undo intact — no disk read. If it
+    /// is not resident, queue an [`Effect::Load`]; the host reads the file and
+    /// calls [`install_loaded`](Self::install_loaded), which does the park + swap.
+    /// A dirty outgoing buffer is preserved in RAM (parked) and persisted only
+    /// when it is later evicted, so switching itself never blocks on IO.
+    fn open_path(&mut self, path: String, scope: Scope) {
+        if path == self.path {
+            return; // already the active buffer
+        }
+        match self.parked.iter().position(|b| b.path == path) {
+            Some(i) => {
+                let target = self.parked.remove(i);
+                self.park_active();
+                self.activate(target);
+            }
+            None => self.requests.push(Effect::Load { path, scope }),
+        }
+    }
+
+    /// Move the active buffer's editing state into a parked [`Buffer`], leaving
+    /// the active fields empty for a subsequent [`activate`](Self::activate) or
+    /// [`set_active`](Self::set_active). Evicts the least-recently-used parked
+    /// buffer if that pushes residency over [`MAX_RESIDENT`]; an evicted dirty
+    /// buffer queues a [`Effect::Save`] so no unsaved work leaves memory.
+    fn park_active(&mut self) {
+        let buf = Buffer {
+            path: core::mem::take(&mut self.path),
+            scope: self.scope,
+            text: core::mem::take(&mut self.text),
+            caret: self.caret,
+            scroll_top: self.scroll_top,
+            dirty: self.dirty,
+            undo: core::mem::take(&mut self.undo),
+            redo: core::mem::take(&mut self.redo),
+        };
+        self.parked.push(buf);
+        // Active is currently empty, so residency == parked.len(); keep it under
+        // MAX_RESIDENT so the buffer about to become active fits.
+        while self.parked.len() >= MAX_RESIDENT {
+            let evicted = self.parked.remove(0);
+            if evicted.dirty {
+                self.requests.push(Effect::Save {
+                    path: evicted.path,
+                    scope: evicted.scope,
+                    contents: evicted.text,
+                });
+            }
+        }
+    }
+
+    /// Restore a parked buffer into the active fields (its caret, scroll, undo,
+    /// and dirty flag come back with it). Lands in Normal with input state reset.
+    fn activate(&mut self, b: Buffer) {
+        self.path = b.path;
+        self.scope = b.scope;
+        self.text = b.text;
+        self.caret = b.caret;
+        self.scroll_top = b.scroll_top;
+        self.dirty = b.dirty;
+        self.undo = b.undo;
+        self.redo = b.redo;
+        self.reset_active_input();
+    }
+
+    /// Make a freshly-loaded file the active buffer: same boot posture as
+    /// [`with_file`](Self::with_file) (Normal, caret on the last char) with empty
+    /// undo history and a clean dirty flag.
+    fn set_active(&mut self, path: String, scope: Scope, text: String) {
+        self.path = path;
+        self.scope = scope;
+        self.text = text;
+        self.caret = self.text.len();
+        if self.caret > self.line_start(self.caret) {
+            self.caret = self.prev_char(self.caret);
+        }
+        self.scroll_top = 0;
+        self.dirty = false;
+        self.undo.clear();
+        self.redo.clear();
+        self.reset_active_input();
+    }
+
+    /// Reset the transient per-keystroke input state (mode, pending operator,
+    /// visual anchor, command line) on a buffer swap, so nothing leaks across.
+    /// The register and `.` history are deliberately left alone — they are global
+    /// (vim-like), so a yank in one file pastes in another.
+    fn reset_active_input(&mut self) {
+        self.mode = Mode::Normal;
+        self.visual_anchor = None;
+        self.cmdline.clear();
+        self.reset_pending();
+    }
+
+    /// `:e <arg>` — resolve `arg` to an absolute path + scope and open it. A path
+    /// under `/sd/local/` is Local, one under `/sd/repo/` is Tracked; a bare name
+    /// (no slash) lands in the current buffer's scope directory.
+    fn edit_file(&mut self, arg: &str) {
+        let arg = arg.trim();
+        if arg.is_empty() {
+            self.set_notice("usage: :e <file>");
+            return;
+        }
+        let (path, scope) = resolve_path(arg, self.scope);
+        self.open_path(path, scope);
     }
 
     // --- Visual mode -------------------------------------------------------
@@ -1804,7 +2126,7 @@ impl Editor {
             .draw(f)
             .unwrap();
 
-        let style = MonoTextStyle::new(&FONT_6X10, BinaryColor::On);
+        let style = MonoTextStyle::new(&FONT_9X15, BinaryColor::On);
 
         // Word count, from the throttled snapshot (never per keystroke).
         let words = format!("{} words", self.shown_words);
@@ -1813,13 +2135,21 @@ impl Editor {
             .unwrap();
 
         // Transient notice ("snackbar"), just under the word count: the last
-        // save/publish result. Clamped to the panel width so a long message
-        // can't spill past the right edge; cleared on the next keystroke.
+        // save/publish result. Word-wrapped to the panel width (so a message like
+        // "save FAILED - retry :w" keeps its actionable tail instead of clipping
+        // mid-word) and capped at a few lines so it can't reach the bottom mode
+        // strip; cleared on the next keystroke.
         if let Some(msg) = &self.notice {
-            let shown: String = msg.chars().take(PANEL_COLS).collect();
-            Text::with_baseline(&shown, Point::new(PANEL_X, 16), style, Baseline::Top)
-                .draw(f)
-                .unwrap();
+            for (i, line) in wrap_text(msg, PANEL_COLS)
+                .into_iter()
+                .take(NOTICE_MAX_LINES)
+                .enumerate()
+            {
+                let y = 2 + PANEL_CH + 2 + i as i32 * PANEL_CH;
+                Text::with_baseline(&line, Point::new(PANEL_X, y), style, Baseline::Top)
+                    .draw(f)
+                    .unwrap();
+            }
         }
 
         // Keyboard-disconnect flag, just above the mode line, shown only while
@@ -1827,7 +2157,7 @@ impl Editor {
         if !self.keyboard_present {
             Text::with_baseline(
                 "NO KBD",
-                Point::new(PANEL_X, HEIGHT as i32 - 24),
+                Point::new(PANEL_X, HEIGHT as i32 - 2 * PANEL_CH),
                 style,
                 Baseline::Top,
             )
@@ -1867,7 +2197,7 @@ impl Editor {
             }
             Text::with_baseline(
                 &s,
-                Point::new(PANEL_X, HEIGHT as i32 - 12),
+                Point::new(PANEL_X, HEIGHT as i32 - PANEL_CH),
                 style,
                 Baseline::Top,
             )
@@ -1876,15 +2206,30 @@ impl Editor {
         }
     }
 
-    /// The transient `:` command line, in the bottom strip below the writing
-    /// column (vim-style). Shown only while composing a command.
+    /// The transient `:` command line, drawn at body size (FONT_10X20) along the
+    /// bottom of the writing column (vim-style). Shown only while composing a
+    /// command. At this size it no longer fits the old 12 px sliver, so it
+    /// overlays the bottom writing row: blank that row to white first, then draw
+    /// `:cmd` over it. The row's text reappears on the next render once the
+    /// command finishes (Enter/Esc) — you never read the last line while typing a
+    /// command. Blanks only the writing column (left of the divider), so the
+    /// panel is untouched (and in Command mode its mode line isn't drawn anyway).
     fn draw_cmdline(&self, f: &mut Frame) {
         if self.mode != Mode::Command {
             return;
         }
+        let band_top = (ROWS as i32 - 1) * CH; // start of the last writing row
+        Rectangle::new(
+            Point::new(0, band_top),
+            Size::new(DIVIDER_X as u32, (HEIGHT as i32 - band_top) as u32),
+        )
+        .into_styled(PrimitiveStyle::with_fill(BinaryColor::Off))
+        .draw(f)
+        .unwrap();
+
         let s = format!(":{}", self.cmdline);
-        let style = MonoTextStyle::new(&FONT_6X10, BinaryColor::On);
-        Text::with_baseline(&s, Point::new(2, ROWS as i32 * CH + 1), style, Baseline::Top)
+        let style = MonoTextStyle::new(&FONT_10X20, BinaryColor::On);
+        Text::with_baseline(&s, Point::new(2, HEIGHT as i32 - CH), style, Baseline::Top)
             .draw(f)
             .unwrap();
     }
@@ -2088,17 +2433,39 @@ mod tests {
         e
     }
 
-    /// From a fresh editor, run `:{cmd}<Enter>`, returning the editor and the
-    /// [`Effect`] the Enter produced.
-    fn command(cmd: &str) -> (Editor, Effect) {
-        let mut e = Editor::new();
-        e.handle(Key::Escape); // ensure Normal (power-on already is)
+    /// From a fresh editor over a named Tracked file, run `:{cmd}<Enter>`,
+    /// returning the editor and the drained [`Effect`]s the command queued.
+    fn command(cmd: &str) -> (Editor, Vec<Effect>) {
+        let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
         e.handle(Key::Char(':')); // Normal -> Command
         for c in cmd.chars() {
             e.handle(Key::Char(c));
         }
-        let effect = e.handle(Key::Enter);
-        (e, effect)
+        e.handle(Key::Enter);
+        let effects = e.take_effects();
+        (e, effects)
+    }
+
+    /// Coarse kind of an [`Effect`], ignoring `Save`/`Load` payloads, so the
+    /// command tests can assert intent without pinning path/scope/contents.
+    #[derive(Debug, PartialEq)]
+    enum Kind {
+        Save,
+        Load,
+        Publish,
+        Pull,
+    }
+
+    fn kinds(effects: &[Effect]) -> Vec<Kind> {
+        effects
+            .iter()
+            .map(|e| match e {
+                Effect::Save { .. } => Kind::Save,
+                Effect::Load { .. } => Kind::Load,
+                Effect::Publish => Kind::Publish,
+                Effect::Pull => Kind::Pull,
+            })
+            .collect()
     }
 
     #[test]
@@ -2247,61 +2614,103 @@ mod tests {
 
     #[test]
     fn w_command_signals_save_and_returns_to_normal() {
-        let (e, eff) = command("w");
-        assert_eq!(eff, Effect::Save);
+        let (e, effs) = command("w");
+        assert_eq!(
+            effs,
+            vec![Effect::Save {
+                path: "/sd/repo/notes.md".into(),
+                scope: Scope::Tracked,
+                contents: String::new(),
+            }]
+        );
         assert_eq!(e.mode(), Mode::Normal);
     }
 
     #[test]
-    fn sync_command_signals_publish() {
-        assert_eq!(command("sync").1, Effect::Publish);
+    fn sync_command_saves_then_publishes() {
+        // `:sync` queues a save of the current buffer, then the git publish.
+        assert_eq!(kinds(&command("sync").1), vec![Kind::Save, Kind::Publish]);
     }
 
     #[test]
     fn gl_command_signals_pull() {
-        assert_eq!(command("gl").1, Effect::Pull);
+        assert_eq!(kinds(&command("gl").1), vec![Kind::Pull]);
     }
 
     #[test]
     fn sync_formats_the_buffer_before_publishing() {
         // fmt → save → commit → push: `:sync` runs :fmt in-core first (default on).
-        let mut e = Editor::with_text("hello   \nworld".to_string()); // trailing spaces
+        let mut e = Editor::with_file(
+            "/sd/repo/notes.md".into(),
+            Scope::Tracked,
+            "hello   \nworld".to_string(), // trailing spaces
+        );
         e.handle(Key::Char(':'));
         for c in "sync".chars() {
             e.handle(Key::Char(c));
         }
-        let eff = e.handle(Key::Enter);
-        assert_eq!(eff, Effect::Publish);
+        e.handle(Key::Enter);
+        assert_eq!(kinds(&e.take_effects()), vec![Kind::Save, Kind::Publish]);
         assert_eq!(e.text(), "hello\nworld"); // :fmt stripped the trailing whitespace
     }
 
     #[test]
+    fn sync_is_refused_in_a_local_buffer() {
+        // Publish is Tracked-only; `:sync` in Local queues nothing and warns.
+        let mut e = Editor::with_file(
+            "/sd/local/journal.md".into(),
+            Scope::Local,
+            "dear diary".to_string(),
+        );
+        e.handle(Key::Char(':'));
+        for c in "sync".chars() {
+            e.handle(Key::Char(c));
+        }
+        e.handle(Key::Enter);
+        assert!(e.take_effects().is_empty());
+    }
+
+    #[test]
     fn format_on_save_off_leaves_the_buffer_untouched() {
-        let mut e = Editor::with_text("hello   \nworld".to_string());
+        let mut e = Editor::with_file(
+            "/sd/repo/notes.md".into(),
+            Scope::Tracked,
+            "hello   \nworld".to_string(),
+        );
         e.format_on_save = false;
         e.handle(Key::Char(':'));
         e.handle(Key::Char('w'));
-        let eff = e.handle(Key::Enter);
-        assert_eq!(eff, Effect::Save);
+        e.handle(Key::Enter);
+        assert_eq!(kinds(&e.take_effects()), vec![Kind::Save]);
         assert_eq!(e.text(), "hello   \nworld"); // unchanged when the pref is off
     }
 
     #[test]
     fn wq_and_x_alias_save_dropping_the_quit() {
-        assert_eq!(command("wq").1, Effect::Save);
-        assert_eq!(command("x").1, Effect::Save);
+        assert_eq!(kinds(&command("wq").1), vec![Kind::Save]);
+        assert_eq!(kinds(&command("x").1), vec![Kind::Save]);
     }
 
     #[test]
     fn fmt_stays_in_core_and_asks_the_host_for_nothing() {
-        assert_eq!(command("fmt").1, Effect::None);
+        assert!(command("fmt").1.is_empty());
     }
 
     #[test]
     fn unknown_command_is_ignored() {
-        let (e, eff) = command("q"); // quit is deliberately unimplemented
-        assert_eq!(eff, Effect::None);
+        let (e, effs) = command("q"); // quit is deliberately unimplemented
+        assert!(effs.is_empty());
         assert_eq!(e.mode(), Mode::Normal);
+    }
+
+    #[test]
+    fn w_on_an_unnamed_buffer_posts_no_file_name() {
+        // A scratch buffer (empty path) has nowhere to save to.
+        let mut e = Editor::new();
+        e.handle(Key::Char(':'));
+        e.handle(Key::Char('w'));
+        e.handle(Key::Enter);
+        assert!(e.take_effects().is_empty());
     }
 
     #[test]
@@ -2966,5 +3375,143 @@ mod tests {
         send(&mut e, "Vjj"); // select all three rows, including the blank one
         let _ = e.draw(true); // must not panic on the empty-row highlight path
         assert_eq!(e.mode(), Mode::VisualLine);
+    }
+
+    // ---- Multi-file buffers (v0.5) ----
+
+    /// Drive `:e {arg}<Enter>` from Normal.
+    fn edit(e: &mut Editor, arg: &str) {
+        e.handle(Key::Char(':'));
+        for c in format!("e {arg}").chars() {
+            e.handle(Key::Char(c));
+        }
+        e.handle(Key::Enter);
+    }
+
+    #[test]
+    fn wrap_text_packs_words_and_splits_overlong_tokens() {
+        // Short message: one line.
+        assert_eq!(wrap_text("saved", 15), vec!["saved"]);
+        // Word-wraps on the space, keeping the actionable tail.
+        assert_eq!(
+            wrap_text("save FAILED - retry :w", 15),
+            vec!["save FAILED -", "retry :w"]
+        );
+        // A token longer than the width is hard-split rather than truncated.
+        assert_eq!(
+            wrap_text("supercalifragilistic", 8),
+            vec!["supercal", "ifragili", "stic"]
+        );
+        assert!(wrap_text("", 15).is_empty());
+    }
+
+    #[test]
+    fn resolve_path_maps_prefixes_and_bare_names() {
+        assert_eq!(
+            resolve_path("/sd/local/j.md", Scope::Tracked),
+            ("/sd/local/j.md".to_string(), Scope::Local)
+        );
+        assert_eq!(
+            resolve_path("/sd/repo/n.md", Scope::Local),
+            ("/sd/repo/n.md".to_string(), Scope::Tracked)
+        );
+        // A bare name lands in the current buffer's scope directory.
+        assert_eq!(
+            resolve_path("draft.md", Scope::Local),
+            ("/sd/local/draft.md".to_string(), Scope::Local)
+        );
+        assert_eq!(
+            resolve_path("draft.md", Scope::Tracked),
+            ("/sd/repo/draft.md".to_string(), Scope::Tracked)
+        );
+    }
+
+    #[test]
+    fn an_edit_marks_dirty_and_mark_saved_clears_it() {
+        let mut e = Editor::with_file("/sd/repo/a.md".into(), Scope::Tracked, "hi".into());
+        assert!(!e.dirty()); // a freshly loaded buffer is clean
+        e.handle(Key::Char('x')); // delete a char
+        assert!(e.dirty());
+        e.mark_saved("/sd/repo/a.md");
+        assert!(!e.dirty());
+    }
+
+    #[test]
+    fn e_command_queues_a_load_for_a_nonresident_file() {
+        let mut e = Editor::with_file("/sd/repo/a.md".into(), Scope::Tracked, "A".into());
+        edit(&mut e, "/sd/local/j.md");
+        assert_eq!(
+            e.take_effects(),
+            vec![Effect::Load {
+                path: "/sd/local/j.md".into(),
+                scope: Scope::Local,
+            }]
+        );
+        // The active buffer does not change until the host loads and installs it.
+        assert_eq!(e.path(), "/sd/repo/a.md");
+    }
+
+    #[test]
+    fn install_loaded_parks_current_and_activates_the_target() {
+        let mut e = Editor::with_file("/sd/repo/a.md".into(), Scope::Tracked, "A".into());
+        e.install_loaded("/sd/repo/b.md".into(), Scope::Tracked, "hello B".into());
+        assert_eq!(e.path(), "/sd/repo/b.md");
+        assert_eq!(e.text(), "hello B");
+        assert_eq!(e.mode(), Mode::Normal);
+    }
+
+    #[test]
+    fn switching_back_to_a_resident_buffer_needs_no_load() {
+        let mut e = Editor::with_file("/sd/repo/a.md".into(), Scope::Tracked, "AAA".into());
+        assert_eq!(e.caret, 2); // caret on A's last char
+        e.install_loaded("/sd/repo/b.md".into(), Scope::Tracked, "BBBBB".into());
+        // A is parked (resident) — switching back reads memory, not disk.
+        edit(&mut e, "/sd/repo/a.md");
+        assert!(e.take_effects().is_empty());
+        assert_eq!(e.path(), "/sd/repo/a.md");
+        assert_eq!(e.text(), "AAA");
+        assert_eq!(e.caret, 2); // its caret came back with it
+    }
+
+    #[test]
+    fn the_register_is_global_across_buffers() {
+        let mut e = Editor::with_file("/sd/repo/a.md".into(), Scope::Tracked, "word".into());
+        e.handle(Key::Char('y')); // yy — yank the line
+        e.handle(Key::Char('y'));
+        e.install_loaded("/sd/repo/b.md".into(), Scope::Tracked, String::new());
+        e.handle(Key::Char('p')); // paste it into the other buffer
+        assert!(e.text().contains("word"));
+    }
+
+    #[test]
+    fn a_dirty_parked_buffer_is_saved_when_evicted() {
+        let mut e = Editor::with_file("/sd/repo/a.md".into(), Scope::Tracked, "A".into());
+        // Dirty the active buffer, then push it out of the ≤3 resident window.
+        e.handle(Key::Char('i'));
+        e.handle(Key::Char('!'));
+        e.handle(Key::Escape);
+        assert!(e.dirty());
+        e.take_effects(); // discard anything queued so far
+        e.install_loaded("/sd/repo/b.md".into(), Scope::Tracked, "B".into()); // parks A(dirty)
+        e.install_loaded("/sd/repo/c.md".into(), Scope::Tracked, "C".into()); // parked: [A,B]
+        assert!(e.take_effects().is_empty()); // nothing evicted yet
+        e.install_loaded("/sd/repo/d.md".into(), Scope::Tracked, "D".into()); // evicts A
+        let effs = e.take_effects();
+        assert_eq!(effs.len(), 1, "the evicted dirty buffer must be saved");
+        match &effs[0] {
+            Effect::Save { path, .. } => assert_eq!(path, "/sd/repo/a.md"),
+            other => panic!("expected a Save of A, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_clean_parked_buffer_is_dropped_silently_on_eviction() {
+        let mut e = Editor::with_file("/sd/repo/a.md".into(), Scope::Tracked, "A".into());
+        // A is never edited (clean); filling past ≤3 must evict it without a Save.
+        e.install_loaded("/sd/repo/b.md".into(), Scope::Tracked, "B".into());
+        e.install_loaded("/sd/repo/c.md".into(), Scope::Tracked, "C".into());
+        e.take_effects();
+        e.install_loaded("/sd/repo/d.md".into(), Scope::Tracked, "D".into());
+        assert!(e.take_effects().is_empty()); // clean buffer: no save on evict
     }
 }

@@ -34,6 +34,25 @@ stay Local for their lifetime. Lives under `/sd/local/`.
 _Avoid_: draft, private, untracked, scratch (these all imply impermanence or
 promotability, which is not the model).
 
+### Editing model
+
+**Buffer**:
+A **File** loaded into memory for editing, with its own caret, scroll position,
+and undo history. Opening a file makes it the **active buffer** — the one the
+**Writing column** shows. Up to three buffers stay **resident** at once (the
+active one plus two parked in the background); switching back to a resident
+buffer restores its caret and undo without re-reading the card. A fourth open
+**evicts** the least-recently-used resident buffer — saved first if it has
+unsaved edits, so nothing is lost.
+_Avoid_: tab, window, document (a buffer is not a UI chrome element); "the file"
+when you mean the in-memory copy rather than the bytes on the card.
+
+**Open**:
+Bringing a **File** into the **active buffer**, via `Ctrl-P` (the file palette)
+or `:e`. Scope is read from where the file lives (`/sd/repo` → **Tracked**,
+`/sd/local` → **Local**), never chosen at open time.
+_Avoid_: load (implementation talk for the disk read behind an Open).
+
 ### User-facing actions
 
 **Save**:
@@ -68,7 +87,8 @@ _Avoid_: edit area, text area, main pane (superseded — they named the old
 full-width text region before the side panel carved out its right edge).
 
 **Side panel**:
-The right region (~160 px / ~25 cols, full height) holding all metadata:
+The right region (~160 px / ~17 cols at its FONT_9X15 metadata font, full
+height) holding all metadata:
 filename + dirty dot, word count, elapsed time, clock, Wi-Fi,
 keyboard-disconnect flag, publish state, and the mode indicator at its
 bottom-left. Sits entirely in the master half

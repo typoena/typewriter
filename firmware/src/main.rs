@@ -10,7 +10,7 @@ use esp_idf_svc::hal::spi::{Dma, SpiBusDriver, SpiDriver};
 use esp_idf_svc::hal::units::FromValueType;
 
 use display::Frame;
-use editor::{Editor, Effect, Mode, CH};
+use editor::{Editor, Effect, Mode, Scope, CH};
 use firmware::epd::{self, Epd};
 use firmware::persistence::{Storage, NOTES};
 
@@ -101,7 +101,9 @@ fn main() -> anyhow::Result<()> {
 
     // Seed the editor from the saved note. Boots in Normal mode with the caret
     // on the last character (the resume point) — press `i`/`a`/`o` to write.
-    let mut ed = Editor::with_text(saved);
+    // The boot note is Tracked (`/sd/repo/notes.md`); `:e` / the palette (v0.5)
+    // open others, Tracked or Local.
+    let mut ed = Editor::with_file(NOTES.to_string(), Scope::Tracked, saved);
     // Confirm the boot-load on the panel (no serial console in normal use):
     // "loaded <name>" using the note's filename without its suffix (notes.md ->
     // notes). Cleared by the first keystroke, like any snackbar.
@@ -149,41 +151,56 @@ fn main() -> anyhow::Result<()> {
         // Drain all queued keystrokes (type-ahead absorbed during a refresh),
         // apply them, then do a single refresh for the batch.
         let mut keys = 0;
-        let mut effect = Effect::None;
         while let Some(k) = usb_kbd::next_key() {
-            // A `:` command (only) yields an Effect; keep the last one in the batch.
-            match ed.handle(k) {
-                Effect::None => {}
-                e => effect = e,
-            }
+            ed.handle(k);
             keys += 1;
         }
 
-        // Carry out any host-side effect a `:` command asked for. Save is inline
-        // (fast). `:sync` persists, then hands off to the git thread — the push
-        // is behind the `git` feature, so a light build carries no libgit2/git2.
-        match effect {
-            Effect::None => {}
-            Effect::Save => save_note(&storage, &mut ed),
-            Effect::Publish => {
-                // Publishing an unsaved buffer is meaningless, so persist first.
-                save_note(&storage, &mut ed);
-                // Then signal the git thread — non-blocking, so the ~10 s push
-                // never stalls the editor. The outcome returns on `git_rx` and
-                // updates the snackbar (see the idle branch below).
-                #[cfg(feature = "git")]
-                match git_tx.send(firmware::git_sync::PublishRequest) {
-                    Ok(()) => ed.set_notice("syncing..."),
-                    Err(_) => ed.set_notice("sync: git thread down"),
-                }
-                #[cfg(not(feature = "git"))]
-                log::info!(":sync — saved; light build (no `git` feature) — push skipped");
+        // Service the host-side effects the batch queued, in order. A file open
+        // queues a Save of the outgoing dirty buffer *then* a Load of the target;
+        // `:sync` queues a Save of the current buffer *then* Publish. Save/Load
+        // are inline (fast SD IO); Publish hands off to the git thread — behind
+        // the `git` feature, so a light build carries no libgit2/git2.
+        //
+        // Drain to empty rather than once: servicing a Load can itself queue an
+        // eviction Save (when the swap pushes a dirty parked buffer out of the
+        // ≤3 window), and that must be persisted now, not deferred to the next
+        // keystroke where a power-off could lose it. The queue strictly shrinks
+        // (a Save/Publish/Pull queues nothing; a Load queues at most one Save),
+        // so this terminates.
+        loop {
+            let effects = ed.take_effects();
+            if effects.is_empty() {
+                break;
             }
-            Effect::Pull => {
-                // `:gl` — fetch + fast-forward from the remote. The on-device
-                // fetch/fast-forward on the git thread is v0.7 work (git_sync
-                // only exposes push today), so acknowledge and no-op for now.
-                ed.set_notice("pull: not wired yet (v0.7)");
+            for effect in effects {
+                match effect {
+                    Effect::Save { path, contents, .. } => {
+                        save_buffer(&storage, &mut ed, &path, &contents)
+                    }
+                    Effect::Load { path, scope } => open_buffer(&storage, &mut ed, path, scope),
+                    Effect::Publish => {
+                        // Non-blocking, so the ~10 s push never stalls the editor.
+                        // The outcome returns on `git_rx` and updates the snackbar
+                        // (see the idle branch below). The Save that preceded this
+                        // in the batch already persisted the buffer, so this is a
+                        // pure git push.
+                        #[cfg(feature = "git")]
+                        match git_tx.send(firmware::git_sync::PublishRequest) {
+                            Ok(()) => ed.set_notice("syncing..."),
+                            Err(_) => ed.set_notice("sync: git thread down"),
+                        }
+                        #[cfg(not(feature = "git"))]
+                        log::info!(":sync — saved; light build (no `git` feature) — push skipped");
+                    }
+                    Effect::Pull => {
+                        // `:gl` — fetch + fast-forward from the remote. The
+                        // on-device fetch/fast-forward on the git thread is v0.7
+                        // work (git_sync only exposes push today), so acknowledge
+                        // and no-op for now.
+                        ed.set_notice("pull: not wired yet (v0.7)");
+                    }
+                }
             }
         }
 
@@ -302,7 +319,7 @@ fn main() -> anyhow::Result<()> {
         let ms = t0.elapsed().as_millis();
         if let Err(e) = result {
             // Never fatal — the buffer is the source of truth and safe in RAM,
-            // exactly like a failed `save_note`. Drop this frame, leave `shown`
+            // exactly like a failed `save_buffer`. Drop this frame, leave `shown`
             // untouched so the next paint repaints the same diff, and force a
             // clean full refresh then. Typical cause: internal DMA-capable RAM
             // briefly starved by Wi-Fi/TLS during a background `:sync`; it frees
@@ -365,21 +382,49 @@ fn show_message(epd: &mut Epd, msg: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Persist the buffer to SD. Errors are logged, never propagated: the in-RAM
-/// buffer is the source of truth and must survive a failed write (e.g. a card
-/// pulled mid-session) so the user can fix the card and retry `:w`.
-fn save_note(storage: &Storage, ed: &mut Editor) {
-    let n = ed.text().len();
-    match storage.save(ed.text()) {
+/// Persist a buffer to SD at `path`. Errors are logged, never propagated: the
+/// in-RAM buffer is the source of truth and must survive a failed write (e.g. a
+/// card pulled mid-session) so the user can fix the card and retry `:w`. On
+/// success the editor's dirty flag for that path is cleared.
+fn save_buffer(storage: &Storage, ed: &mut Editor, path: &str, contents: &str) {
+    match storage.save_path(path, contents) {
         Ok(()) => {
-            log::info!(":w — saved {n} bytes to {NOTES}");
+            log::info!(":w — saved {} bytes to {path}", contents.len());
+            ed.mark_saved(path);
             ed.set_notice("saved");
         }
         Err(e) => {
-            log::error!(":w — save FAILED ({e:#}); buffer kept in RAM, retry :w");
+            log::error!("save FAILED ({e:#}); buffer kept in RAM, retry :w");
             ed.set_notice("save FAILED - retry :w");
         }
     }
+}
+
+/// Read `path` from SD and install it as the active buffer (the multi-file open
+/// path, from `:e` / the palette). A read failure keeps the current buffer and
+/// surfaces the reason on the snackbar rather than swapping to an empty screen.
+fn open_buffer(storage: &Storage, ed: &mut Editor, path: String, scope: Scope) {
+    match storage.load_path(&path) {
+        Ok(text) => {
+            log::info!("opened {path} ({} bytes, {scope:?})", text.len());
+            let name = file_stem(&path);
+            ed.set_notice(format!("loaded {name}"));
+            ed.install_loaded(path, scope, text);
+        }
+        Err(e) => {
+            log::error!("open {path} FAILED ({e:#})");
+            ed.set_notice(format!("can't open {}", file_stem(&path)));
+        }
+    }
+}
+
+/// A file's display name — its basename without extension (`/sd/repo/notes.md`
+/// → `notes`), for the snackbar. Falls back to the raw path if it has no stem.
+fn file_stem(path: &str) -> &str {
+    std::path::Path::new(path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or(path)
 }
 
 /// First and last (inclusive) framebuffer rows that differ between two frames,

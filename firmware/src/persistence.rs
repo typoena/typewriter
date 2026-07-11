@@ -250,42 +250,61 @@ impl Storage {
         Path::new(REPO_DIR).is_dir()
     }
 
-    /// Read `notes.md` into a `String`. Returns an empty string if the file
-    /// doesn't exist yet (fresh, but provisioned, repo). Refuses a file larger
-    /// than [`MAX_FILE_BYTES`] rather than loading it.
+    /// Read `notes.md` into a `String` — the boot default note. Thin wrapper over
+    /// [`Storage::load_path`].
     pub fn load(&self) -> Result<String> {
-        match fs::metadata(NOTES) {
+        self.load_path(NOTES)
+    }
+
+    /// Read an arbitrary file under `/sd` into a `String`. Returns an empty string
+    /// if the file doesn't exist yet (a `:e` of a not-yet-created name, or a fresh
+    /// repo). Refuses a file larger than [`MAX_FILE_BYTES`] rather than loading it.
+    ///
+    /// The multi-file (v0.5) load path: the editor names the file, the host reads
+    /// it here and hands the text back through `Editor::install_loaded`.
+    pub fn load_path(&self, path: &str) -> Result<String> {
+        match fs::metadata(path) {
             Ok(m) if m.len() > MAX_FILE_BYTES => bail!(
-                "{NOTES} is {} KiB — over the {} KiB v0.1 limit; open it on a computer to split it",
+                "{path} is {} KiB — over the {} KiB limit; open it on a computer to split it",
                 m.len() / 1024,
                 MAX_FILE_BYTES / 1024
             ),
-            Ok(_) => fs::read_to_string(NOTES).with_context(|| format!("reading {NOTES}")),
+            Ok(_) => fs::read_to_string(path).with_context(|| format!("reading {path}")),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
-            Err(e) => Err(e).with_context(|| format!("stat {NOTES}")),
+            Err(e) => Err(e).with_context(|| format!("stat {path}")),
         }
     }
 
-    /// Atomically persist `contents` to `notes.md`: write the tmp, fsync,
-    /// unlink the target, rename over it. See the module docs for why the unlink
-    /// is mandatory on FAT and [`Storage::recover`] for the crash window it opens.
+    /// Atomically persist `contents` to `notes.md`. Thin wrapper over
+    /// [`Storage::save_path`].
     pub fn save(&self, contents: &str) -> Result<()> {
+        self.save_path(NOTES, contents)
+    }
+
+    /// Atomically persist `contents` to an arbitrary file under `/sd`: write the
+    /// tmp, fsync, unlink the target, rename over it. See the module docs for why
+    /// the unlink is mandatory on FAT. Boot recovery ([`Storage::recover`]) still
+    /// only covers the default `notes.md`; per-file recovery for the other v0.5
+    /// buffers is deferred to the v0.9 crash-safety work — the atomic swap here
+    /// already protects each individual save.
+    pub fn save_path(&self, path: &str, contents: &str) -> Result<()> {
+        let tmp = format!("{path}.tmp");
         {
-            let mut f = fs::File::create(NOTES_TMP)
-                .with_context(|| format!("create {NOTES_TMP} (is {REPO_DIR} present?)"))?;
+            let mut f = fs::File::create(&tmp)
+                .with_context(|| format!("create {tmp} (does its directory exist?)"))?;
             f.write_all(contents.as_bytes())
-                .with_context(|| format!("write {NOTES_TMP}"))?;
+                .with_context(|| format!("write {tmp}"))?;
             // FatFS f_sync — flush the tmp fully before it can replace the target.
-            f.sync_all().with_context(|| format!("fsync {NOTES_TMP}"))?;
+            f.sync_all().with_context(|| format!("fsync {tmp}"))?;
         }
         // FatFS f_rename won't overwrite, so unlink the target first (tolerate a
         // missing target: the first-ever save has nothing to remove).
-        match fs::remove_file(NOTES) {
+        match fs::remove_file(path) {
             Ok(()) => {}
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(e) => return Err(e).with_context(|| format!("unlink {NOTES} before rename")),
+            Err(e) => return Err(e).with_context(|| format!("unlink {path} before rename")),
         }
-        fs::rename(NOTES_TMP, NOTES).with_context(|| format!("rename {NOTES_TMP} -> {NOTES}"))?;
+        fs::rename(&tmp, path).with_context(|| format!("rename {tmp} -> {path}"))?;
         Ok(())
     }
 
