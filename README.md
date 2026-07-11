@@ -5,11 +5,12 @@ mechanical keyboard. You write Markdown, you commit, you push. Nothing else
 runs on it.
 
 > **Status: pre-MVP, hardware on bench.** Display, USB keyboard, live typing
-> with partial refresh, Wi-Fi + TLS, and on-device git push are all verified
-> in spikes. No release has shipped yet — v0.1 is blocked on SD (waiting on a
-> compatible card), the boot splash, and wiring the save/publish path into the
-> app binary. Live per-item status: [`docs/roadmap.md`](docs/roadmap.md) ·
-> failure write-ups: [`docs/postmortems/`](docs/postmortems/README.md).
+> with partial refresh, Wi-Fi + TLS, SD storage, and on-device git push are all
+> verified in spikes; SD mount and save are now wired into the app binary. No
+> release has shipped yet — v0.1's remaining gate is the boot splash and wiring
+> git publish (`Ctrl-G` → push) into the app binary. Live per-item status:
+> [`docs/roadmap.md`](docs/roadmap.md) · failure write-ups:
+> [`docs/postmortems/`](docs/postmortems/README.md).
 
 ---
 
@@ -142,8 +143,6 @@ package.json              pnpm + oxfmt — formatting toolchain for docs/JSON
 
 ## Open questions / risks (tracked, not yet resolved)
 
-- [ ] SD on the bench: the 133 GB card rejects CMD59; waiting on a genuine
-      ≤32 GB card ([postmortem](docs/postmortems/2026-07-05-spike3-sd-cmd59.md)).
 - [ ] Heap fragmentation over a long writing session with the PSRAM allocator.
 - [ ] Real-world e-ink ghosting with the current partial-refresh cadence.
 - [~] Use-after-free freeing the in-flight USB transfer on keyboard unplug —
@@ -151,7 +150,8 @@ package.json              pnpm + oxfmt — formatting toolchain for docs/JSON
   ([`MEMORY_AUDIT.md`](MEMORY_AUDIT.md) finding #1).
 
 Retired risks ([gix push](docs/postmortems/2026-07-05-spike7-gix-https-push.md),
-TinyUSB HID stability, TLS heap, libgit2-on-xtensa) and how they died:
+[SD CMD59 rejection](docs/postmortems/2026-07-05-spike3-sd-cmd59.md), TinyUSB HID
+stability, TLS heap, libgit2-on-xtensa) and how they died:
 [`docs/spikes.md`](docs/spikes.md) and
 [`docs/postmortems/`](docs/postmortems/README.md).
 

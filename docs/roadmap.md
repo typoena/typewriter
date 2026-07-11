@@ -10,11 +10,12 @@ into are tracked in [`qfd.md`](qfd.md).
 The editor **core** has been built 2–3 versions ahead of the device
 **releases**, and is now **extracted into a host-testable `editor` crate** (plus
 a `display` crate for the panel framebuffer) so `cargo test` exercises it off the
-xtensa target. No release has shipped: v0.1's hardware gate (SD, splash, wiring
-the git/save path into the app binary) is still open, even though v0.2
-navigation, **v0.2.5 international input (hardware-verified 2026-07-11)**, and
-most of v0.6 Markdown already run. Version numbers are unchanged — they track
-shippable device releases, not core progress.
+xtensa target. No release has shipped: with SD storage now verified and the
+mount/save path wired into the app binary, v0.1's remaining gate is the boot
+splash and wiring git publish into that binary — even though v0.2 navigation,
+**v0.2.5 international input (hardware-verified 2026-07-11)**, and most of v0.6
+Markdown already run. Version numbers are unchanged — they track shippable device
+releases, not core progress.
 
 Marks: `[x]` done in core · `[~]` partially done · `[ ]` not started. An
 inline `(✓)` marks the done half of a split item.
@@ -33,7 +34,7 @@ name = "v0.1 it writes, it pushes"
 start = 2026-06-01
 original = 2026-06-29
 status = "at-risk"
-note = "Overdue — core editing + on-device git push proven in spikes, but blocked on SD (compatible ≤32 GB card), boot splash, and wiring save/publish into main.rs."
+note = "Overdue — core editing, SD storage, and on-device git push all proven in spikes; SD mount + save now wired into main.rs. Remaining: boot splash and wiring git publish into main.rs."
 
 [[feature]]
 name = "v0.2 navigation"
@@ -108,27 +109,32 @@ requires = ["v0.1 it writes, it pushes"]
 The minimum thing that justifies the hardware existing. Full design:
 [product](v0.1-mvp-product.md) · [technical](v0.1-mvp-technical.md).
 
-**Status:** core editing + partial refresh run on device. **Blocked** on three
-integration items: SD (Spike 3 — awaiting a compatible ≤32 GB card), the boot
-splash (Spike 9), and wiring the git/save path into the app binary — today it
-lives in the `git_sync` / `sd_fat` spike bins, not `main.rs`.
+**Status:** core editing + partial refresh run on device, and **SD mount + save
+are now wired into `main.rs`** (Spike 3 resolved — a genuine ≤32 GB card mounts,
+verified on its own SPI3 host per ADR-012). Remaining v0.1 integration: the boot
+splash (Spike 9) and wiring git **publish** (`Ctrl-G` → push) into the app
+binary — the push still lives in the `git_sync` spike bin, not `main.rs`.
 
 - [~] ESP32-S3 boots (✓); e-ink shows Typoena splash + boot log — splash pending Spike 9
 - [x] USB host enumerates the Nuphy, key events reach the editor (Spike 4)
-- [ ] One hard-coded file (`/sd/repo/notes.md`) opens on boot — SD spike-only,
-      not in `main.rs`. The card is pre-seeded from a computer (`just init`
-      copies a full clone to `/sd/repo` + writes config), never cold-cloned on
-      device — see [note](notes/git-sync-images-and-repo-size.md).
+- [x] One hard-coded file (`/sd/repo/notes.md`) opens on boot — **wired in
+      `main.rs`** (`boot_storage` mounts the SD and loads the note; a missing
+      card / repo / unreadable note halts with a panel message). The card is
+      pre-seeded from a computer (`just init` copies a full clone to `/sd/repo` +
+      writes config), never cold-cloned on device — see
+      [note](notes/git-sync-images-and-repo-size.md).
 - [x] Insert-only editing, backspace, enter, arrow keys — modal editor overshot this early (see v0.2)
 - [x] Line wrap, no line numbers yet — soft-wrap done early (see v0.6)
-- [ ] Save on `Ctrl-S` → SD — SD blocked, not wired to `main.rs`
+- [x] Save to SD via `:w` (and `:sync`) — **wired in `main.rs`** through the
+      `persistence` module's atomic write (unlink-then-rename + `*.tmp`
+      boot-recovery)
 - [~] Wi-Fi credentials + remote URL + PAT + author: today baked into the binary
       via `env!()` (no NVS, no on-device provisioning UI in v0.1). Migrating to
       `/sd/typoena.conf` on the card, provisioned by `just provision` (or
       `just init` for a fresh card) from the same `firmware/.env` the build uses
       (minimum input — rotate the PAT or switch networks without a reflash, no
       card re-copy). Firmware to read it at boot instead of
-      `env!()` — TODO, rides with the SD wiring into `main.rs`.
+      `env!()` — TODO, rides with the git-publish wiring into `main.rs`.
 - [~] `Ctrl-G` runs: `git add .` → commit with an ISO-8601 timestamp message →
   `git push`; on push failure, `git pull --no-edit` then retry the push
   (no-op short-circuit when nothing is staged). Proven on device in the
@@ -150,7 +156,8 @@ lives in the `git_sync` / `sd_fat` spike bins, not `main.rs`.
       rather than a timer — a timed auto-dismiss would cost a ~630 ms full-area
       e-ink flash purely to erase text, which the panel deliberately avoids (cf.
       the dropped pending-accent marker in v0.2.5).
-- [~] Partial refresh on edits (✓ Spike 5); full refresh on save — save not wired yet
+- [~] Partial refresh on edits (✓ Spike 5); save now wired (full-area partial
+      repaint on `:w`)
 
 Out of scope: Vim, palette, multiple files, branches, conflict handling.
 
