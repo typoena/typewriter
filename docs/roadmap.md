@@ -133,11 +133,23 @@ lives in the `git_sync` / `sd_fat` spike bins, not `main.rs`.
   `git push`; on push failure, `git pull --no-edit` then retry the push
   (no-op short-circuit when nothing is staged). Proven on device in the
   `git_sync` spike (✓); not yet wired to the editor.
-- [ ] Split the display into **writing column** (~60 cols) + **side panel**
-      (~20 cols) for all metadata — the surface every later panel feature
-      writes to. Not built yet: `editor.rs` still renders full-width 79 cols.
-      Defined in [`CONTEXT.md` § Screen regions](../CONTEXT.md#screen-regions)
-      and [product § Screen layout](v0.1-mvp-product.md#screen-layout).
+- [x] Split the display into a **writing column** (60 cols) + a **side panel**
+      (~30 cols at FONT_6X10) for metadata — the surface every later panel
+      feature writes to. **Built** in the `editor` crate (`draw_panel`): a
+      full-height divider at x=600, with the panel currently showing the word
+      count, the mode indicator, a NO-KBD flag, and a transient save/publish
+      **snackbar** (below). Later fields (filename, clock, Wi-Fi, battery) add to
+      the same surface. Defined in
+      [`CONTEXT.md` § Screen regions](../CONTEXT.md#screen-regions) and
+      [product § Screen layout](v0.1-mvp-product.md#screen-layout).
+- [x] **Snackbar** — a transient side-panel notice for host events (added
+      2026-07-11). On-device there is no serial log, so boot posts `loaded
+      <name>` (the note's filename without suffix) and `:w`/`:sync` post `saved`
+      / `save FAILED - retry :w`; when git publish is wired it will show the
+      push result. Set via `Editor::set_notice`; cleared on the next keystroke
+      rather than a timer — a timed auto-dismiss would cost a ~630 ms full-area
+      e-ink flash purely to erase text, which the panel deliberately avoids (cf.
+      the dropped pending-accent marker in v0.2.5).
 - [~] Partial refresh on edits (✓ Spike 5); full refresh on save — save not wired yet
 
 Out of scope: Vim, palette, multiple files, branches, conflict handling.
