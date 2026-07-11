@@ -19,7 +19,7 @@ use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use embedded_graphics::text::{Baseline, Text};
 
-use display::{Frame, HEIGHT};
+use display::{Frame, HEIGHT, WIDTH};
 use keymap::Key;
 
 /// FONT_10X20 cell size (writing column) and the grid it tiles into.
@@ -38,6 +38,10 @@ const ROWS: usize = (HEIGHT / 20) as usize; // 13
 /// of panel text (a small gutter past the rule).
 const DIVIDER_X: i32 = WRITE_COLS as i32 * CW; // 600
 const PANEL_X: i32 = DIVIDER_X + 8; // 608
+/// Side-panel text width in 6 px (`FONT_6X10`) columns, for clamping panel
+/// strings — the snackbar notice, word count — so they never draw past the
+/// right edge of the panel.
+const PANEL_COLS: usize = (WIDTH as usize - PANEL_X as usize) / 6; // 30
 /// Tab stop, in spaces. Tabs never enter the buffer — they expand on insert so
 /// the buffer stays 1 char = 1 column.
 const TAB: &str = "    ";
@@ -106,6 +110,10 @@ pub struct Editor {
     /// Whether a USB keyboard is attached; drives the panel disconnect flag.
     /// Fed from `usb_kbd::keyboard_present()` by the main loop.
     keyboard_present: bool,
+    /// Transient side-panel message ("snackbar") — the last host event
+    /// (save/publish result). Shown until the next keystroke dismisses it
+    /// (cleared in [`Editor::handle`]); `None` means nothing to show.
+    notice: Option<String>,
 }
 
 /// One wrapped display line: its text and the buffer offset of its first char.
@@ -119,7 +127,7 @@ impl Editor {
         Editor {
             text: String::new(),
             caret: 0,
-            mode: Mode::Insert, // writing appliance: power-on = ready to type
+            mode: Mode::Normal, // power-on = Normal (vim-style); `with_text` boots the same
             scroll_top: 0,
             count: 0,
             pending_op: None,
@@ -128,21 +136,23 @@ impl Editor {
             cmdline: String::new(),
             shown_words: 0,
             keyboard_present: false,
+            notice: None,
         }
     }
 
     /// Seed a fresh editor from previously saved text — the boot-load path
-    /// (`storage.load()` → `Editor`). The caret lands at the end so the user
-    /// resumes writing exactly where they left off, in the same power-on Insert
-    /// mode as [`Editor::new`]; the first [`Editor::draw`] scrolls it into view.
-    /// An empty string is equivalent to [`Editor::new`].
+    /// (`storage.load()` → `Editor`). Boots in **Normal** mode (vim opens a file
+    /// in Normal, not Insert) with the caret on the *last* character — the
+    /// resume point — matching the Esc→Normal convention rather than sitting one
+    /// cell past the end. The first [`Editor::draw`] scrolls it into view. An
+    /// empty string is equivalent to [`Editor::new`].
     pub fn with_text(text: String) -> Self {
-        let caret = text.len();
-        Editor {
-            text,
-            caret,
-            ..Editor::new()
+        let mut ed = Editor { text, ..Editor::new() };
+        ed.caret = ed.text.len();
+        if ed.caret > ed.line_start(ed.caret) {
+            ed.caret = ed.prev_char(ed.caret);
         }
+        ed
     }
 
     pub fn mode(&self) -> Mode {
@@ -170,6 +180,14 @@ impl Editor {
         self.keyboard_present = present;
     }
 
+    /// Post a transient side-panel notice ("snackbar") — e.g. the result of a
+    /// save or publish. Shown from the next [`Editor::draw`] until the next
+    /// keystroke dismisses it (see [`Editor::handle`]). The host calls this from
+    /// its `:` command effect handlers.
+    pub fn set_notice(&mut self, msg: impl Into<String>) {
+        self.notice = Some(msg.into());
+    }
+
     /// Whitespace-delimited word count of the whole buffer.
     fn word_count(&self) -> usize {
         self.text.split_whitespace().count()
@@ -179,6 +197,12 @@ impl Editor {
     /// any [`Effect`] the host must carry out (only `:` commands produce one;
     /// every other key yields [`Effect::None`]).
     pub fn handle(&mut self, key: Key) -> Effect {
+        // Any keystroke dismisses the transient notice ("snackbar"). The host
+        // sets a fresh one *after* handle() returns (on a `:` command's effect),
+        // so a save/publish message survives to the next draw, then clears the
+        // moment you move on — no timed repaint (which on e-ink would cost a
+        // full ~630 ms flash just to erase text).
+        self.notice = None;
         match self.mode {
             Mode::Insert => {
                 self.insert_key(key);
@@ -951,10 +975,12 @@ impl Editor {
         (1..=6).contains(&hashes) && b.get(i) == Some(&b' ')
     }
 
-    /// Render the current state into a frame. `insert_cursor_on` gates the
-    /// Insert-mode bar caret (suppressed while typing, shown after a pause);
-    /// Normal draws a block caret and View draws none, regardless.
-    pub fn draw(&mut self, insert_cursor_on: bool) -> Frame {
+    /// Render the current state into a frame. `cursor_on` gates the caret: the
+    /// Insert bar caret is suppressed while typing and shown after a pause, and
+    /// `false` also suppresses the Normal block caret so callers can render pure
+    /// text (e.g. a boot message). View never draws a caret. In the main loop
+    /// Normal always passes `true`, so its block caret is unaffected.
+    pub fn draw(&mut self, cursor_on: bool) -> Frame {
         let lay = self.layout();
         let (crow, ccol) = self.caret_rc(&lay);
         self.adjust_scroll(crow, lay.len());
@@ -981,7 +1007,7 @@ impl Editor {
             let x = ccol.min(WRITE_COLS - 1) as i32 * CW;
             let y = (crow - self.scroll_top) as i32 * CH;
             match self.mode {
-                Mode::Normal => {
+                Mode::Normal if cursor_on => {
                     // Block caret: fill the cell, redraw the glyph in white.
                     Rectangle::new(Point::new(x, y), Size::new(CW as u32, CH as u32))
                         .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
@@ -1000,7 +1026,7 @@ impl Editor {
                         .unwrap();
                     }
                 }
-                Mode::Insert if insert_cursor_on => {
+                Mode::Insert if cursor_on => {
                     // Bar caret at the left edge of the cell.
                     Rectangle::new(Point::new(x, y), Size::new(2, CH as u32))
                         .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
@@ -1037,6 +1063,16 @@ impl Editor {
         Text::with_baseline(&words, Point::new(PANEL_X, 2), style, Baseline::Top)
             .draw(f)
             .unwrap();
+
+        // Transient notice ("snackbar"), just under the word count: the last
+        // save/publish result. Clamped to the panel width so a long message
+        // can't spill past the right edge; cleared on the next keystroke.
+        if let Some(msg) = &self.notice {
+            let shown: String = msg.chars().take(PANEL_COLS).collect();
+            Text::with_baseline(&shown, Point::new(PANEL_X, 16), style, Baseline::Top)
+                .draw(f)
+                .unwrap();
+        }
 
         // Keyboard-disconnect flag, just above the mode line, shown only while
         // the keyboard is dropped. Latin-9 has no ⌨/✗ glyph, so plain text.
@@ -1290,9 +1326,11 @@ fn pad_cell(cell: &str, w: usize, align: Align) -> String {
 mod tests {
     use super::*;
 
-    /// Type a run of characters in Insert mode (the power-on mode).
+    /// Type a run of characters in Insert mode, entered with `i` from the
+    /// power-on Normal mode.
     fn typed(s: &str) -> Editor {
         let mut e = Editor::new();
+        e.handle(Key::Char('i')); // Normal -> Insert
         for c in s.chars() {
             e.handle(Key::Char(c));
         }
@@ -1303,7 +1341,7 @@ mod tests {
     /// [`Effect`] the Enter produced.
     fn command(cmd: &str) -> (Editor, Effect) {
         let mut e = Editor::new();
-        e.handle(Key::Escape); // Insert -> Normal
+        e.handle(Key::Escape); // ensure Normal (power-on already is)
         e.handle(Key::Char(':')); // Normal -> Command
         for c in cmd.chars() {
             e.handle(Key::Char(c));
@@ -1487,11 +1525,11 @@ mod tests {
     }
 
     #[test]
-    fn with_text_seeds_buffer_caret_at_end_ready_to_type() {
+    fn with_text_boots_normal_with_caret_on_last_char() {
         let e = Editor::with_text("resumed draft".to_string());
         assert_eq!(e.text(), "resumed draft");
-        assert_eq!(e.caret, 13); // caret at end, continuing the last sentence
-        assert_eq!(e.mode(), Mode::Insert); // power-on = ready to write
+        assert_eq!(e.caret, 12); // on the last char ('t'), the resume point
+        assert_eq!(e.mode(), Mode::Normal); // vim-style: open a file in Normal
     }
 
     #[test]
@@ -1499,12 +1537,21 @@ mod tests {
         let e = Editor::with_text(String::new());
         assert_eq!(e.text(), "");
         assert_eq!(e.caret, 0);
-        assert_eq!(e.mode(), Mode::Insert);
+        assert_eq!(e.mode(), Mode::Normal);
     }
 
     #[test]
     fn text_getter_reflects_edits() {
         let e = typed("hello");
         assert_eq!(e.text(), "hello");
+    }
+
+    #[test]
+    fn a_notice_shows_until_the_next_key_dismisses_it() {
+        let mut e = Editor::new();
+        e.set_notice("saved");
+        assert_eq!(e.notice.as_deref(), Some("saved"));
+        e.handle(Key::Char('j')); // any key dismisses the snackbar
+        assert_eq!(e.notice, None);
     }
 }
