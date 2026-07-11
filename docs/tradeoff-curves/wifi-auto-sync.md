@@ -33,6 +33,17 @@ typing / push current draw"): an ~8 s radio burst at ~150 mA average ⇒
 **0.33 mAh per sync**, so `K ≈ 20 mAh·min/hr`. The vertical scale below moves
 with the real measurement; the *shape* and the knee do not.
 
+**One assumption is baked into that burst: the radio is fully off between
+syncs**, not parked in modem-sleep. Holding the association awake to skip the
+per-sync handshake costs ~15–20 mAh/hr on the WROOM — more than a 1-min interval
+and ~10× the 10-min default — and only pays back above ~150 syncs/hr (one sync
+every ~24 s), which a writing appliance never reaches. So each sync legitimately
+pays a full fresh `wake → associate → handshake` burst, and "off" everywhere
+below means radio **de-init**, not beacon-listening. Tear the connection down
+immediately after each push, too: with syncs ≥2 min apart a keep-alive window
+saves nothing, and Typoena only ever *pushes* — there's no inbound traffic that
+would justify staying reachable.
+
 ## The curve
 
 ```
