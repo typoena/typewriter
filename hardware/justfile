@@ -1,0 +1,25 @@
+# Typoena enclosure — 3D-printed case
+# Run from the hardware/ directory (just sets cwd here automatically).
+
+scad := "case/typoena-case.scad"
+
+# list available recipes
+default:
+    @just --list
+
+# open the case model in OpenSCAD
+open:
+    open -a OpenSCAD {{scad}}
+
+# regenerate the preview PNGs in case/renders/
+render:
+    cd case && openscad -o renders/assembled.png --imgsize=1100,825 --colorscheme=Tomorrow \
+      --camera=0,0,0,62,0,22,0 --viewall --autocenter -D 'show="assembled"' typoena-case.scad
+    cd case && openscad -o renders/body.png --imgsize=1100,825 --colorscheme=Tomorrow \
+      --camera=0,0,0,62,0,22,0 --viewall --autocenter -D 'show="body"' typoena-case.scad
+
+# export STLs for the three printable parts
+stl:
+    cd case && openscad -o body.stl      -D 'show="body"'      typoena-case.scad
+    cd case && openscad -o bracket.stl   -D 'show="bracket"'   typoena-case.scad
+    cd case && openscad -o baseplate.stl -D 'show="baseplate"' typoena-case.scad
