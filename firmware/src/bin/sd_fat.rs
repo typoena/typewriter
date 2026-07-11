@@ -94,7 +94,10 @@ fn write_test(storage: &Storage) -> Result<()> {
         log::info!("{REPO_DIR} missing — creating it (bench setup) so the write test can run");
         fs::create_dir_all(REPO_DIR).with_context(|| format!("create {REPO_DIR}"))?;
     }
-    let payload = format!("typoena spike 3\n{BUILD_TAG}\ndedicated SPI3: SCK14 MOSI15 MISO13 CS10\n");
+    // Newline-free, matching a real editor buffer: `save`/`load` normalize the
+    // trailing terminator (add on write, strip on read), so a payload that ended
+    // in '\n' would read back one byte shorter. This still round-trips identically.
+    let payload = format!("typoena spike 3\n{BUILD_TAG}\ndedicated SPI3: SCK14 MOSI15 MISO13 CS10");
     storage.save(&payload).context("Storage::save")?;
     let back = storage.load().context("Storage::load after save")?;
     if back != payload {

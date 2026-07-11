@@ -269,7 +269,21 @@ impl Storage {
                 m.len() / 1024,
                 MAX_FILE_BYTES / 1024
             ),
-            Ok(_) => fs::read_to_string(path).with_context(|| format!("reading {path}")),
+            Ok(_) => {
+                let mut s =
+                    fs::read_to_string(path).with_context(|| format!("reading {path}"))?;
+                // Drop the single POSIX line terminator that `save_path` adds so the
+                // editor buffer stays newline-free (it counts rows as `#\n + 1`, so a
+                // trailing '\n' would render a phantom blank last line). Also handles a
+                // file authored elsewhere: it loads without that phantom line.
+                if s.ends_with('\n') {
+                    s.pop();
+                    if s.ends_with('\r') {
+                        s.pop(); // tolerate a CRLF terminator
+                    }
+                }
+                Ok(s)
+            }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
             Err(e) => Err(e).with_context(|| format!("stat {path}")),
         }
@@ -294,6 +308,15 @@ impl Storage {
                 .with_context(|| format!("create {tmp} (does its directory exist?)"))?;
             f.write_all(contents.as_bytes())
                 .with_context(|| format!("write {tmp}"))?;
+            // End the file with exactly one newline (POSIX text convention; keeps git
+            // from flagging "No newline at end of file"). The editor buffer is
+            // newline-free by design, so this is the single place the terminator is
+            // added; `load_path` strips it back off on the way in. Guarded so an
+            // already-terminated buffer (e.g. an unformatted external file) isn't
+            // doubled.
+            if !contents.ends_with('\n') {
+                f.write_all(b"\n").with_context(|| format!("write final newline to {tmp}"))?;
+            }
             // FatFS f_sync — flush the tmp fully before it can replace the target.
             f.sync_all().with_context(|| format!("fsync {tmp}"))?;
         }
