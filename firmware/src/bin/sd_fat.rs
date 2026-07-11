@@ -77,11 +77,11 @@ fn main() -> Result<()> {
     esp_idf_svc::sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
 
-    log::info!("Typoena — Spike 3 (SD/FAT on shared SPI2), {BUILD_TAG}");
+    log::info!("Typoena — Spike 3 (SD/FAT on dedicated SPI3), {BUILD_TAG}");
 
     match run() {
         Ok(()) => {
-            log::info!("✅ Spike 3 complete — mount + atomic write/fsync/rename/read-back on shared bus")
+            log::info!("✅ Spike 3 complete — mount + atomic write/fsync/rename/read-back on dedicated SPI3")
         }
         Err(e) => log::error!("❌ Spike 3 failed: {e:?}"),
     }
@@ -93,7 +93,7 @@ fn main() -> Result<()> {
 }
 
 fn run() -> Result<()> {
-    let card = mount_sd().context("mounting SD over SPI2")?;
+    let card = mount_sd().context("mounting SD over SPI3")?;
 
     // SAFETY: `card` is a live handle returned by a successful mount.
     let (max_khz, real_khz) = unsafe { ((*card).max_freq_khz, (*card).real_freq_khz) };
@@ -111,7 +111,7 @@ fn run() -> Result<()> {
     Ok(())
 }
 
-/// Init the shared SPI2 bus and mount the card. Returns the card handle (kept
+/// Init the dedicated SPI3 bus and mount the card. Returns the card handle (kept
 /// alive for the program's lifetime; the spike never unmounts).
 fn mount_sd() -> Result<*mut sys::sdmmc_card_t> {
     // 1) Initialize SPI3 with the SD's four lines. Dedicated bus (ADR-012) — no
@@ -224,7 +224,7 @@ fn file_roundtrip() -> Result<()> {
     let path = format!("{MOUNT_STR}/spike3.md");
     let tmp = format!("{path}.tmp"); // two dots → exercises long-filename support
     let payload =
-        format!("typoena spike 3\n{BUILD_TAG}\nshared SPI2: SCK12 MOSI11 MISO13, SD CS10\n");
+        format!("typoena spike 3\n{BUILD_TAG}\ndedicated SPI3: SCK14 MOSI15 MISO13, SD CS10\n");
 
     {
         let mut f = fs::File::create(&tmp).context("create tmp")?;
