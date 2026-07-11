@@ -1,25 +1,27 @@
-//! Spike 3 — SD card (FAT) over the EPD's shared SPI2 bus.
+//! Spike 3 — SD card (FAT) on its own SPI3 host.
 //!
 //! A small standalone bench program (separate binary from the editor firmware)
 //! that proves the storage stack the persistence module will sit on:
 //!
-//!   1. Bring up SPI2 with the SD's four lines. Three are shared with the EPD
-//!      (SCK 12, MOSI 11) plus a MISO line (13) the write-only EPD never used,
-//!      and the SD gets its own chip-select (10); the EPD's CS is 7.
+//!   1. Bring up SPI3 with the SD's four lines — SCK 14, MOSI 15, MISO 13, and
+//!      its own chip-select (10). This is a *dedicated* bus: the EPD keeps SPI2
+//!      (SCK 12, MOSI 11, CS 7). See ADR-012.
 //!   2. Mount a FAT filesystem on the card at `/sd` via `esp_vfs_fat_sdspi_mount`.
 //!   3. Exercise the exact atomic-save pattern the persistence module specifies
 //!      (ADR-007): write `*.tmp`, fsync, rename over the target, then read back
 //!      and byte-compare. Report the card's negotiated clock and FAT usage.
 //!
-//! Why SD-only (no EPD in the same pass): the EPD driver uses esp-idf-hal's
-//! `SpiBusDriver`, whose constructor calls `spi_device_acquire_bus(BLOCK)` and
-//! holds that *exclusive* bus lock for the driver's whole lifetime (it needs CS
-//! held across a cmd→data sequence while DC toggles). While that lock is held,
-//! any other device on SPI2 — i.e. the SD — blocks. So the EPD and an arbitrated
-//! SD device can't both be live on one host as things stand; proving the SD
-//! stack + wiring first is the useful de-risking step. The shared-bus
-//! arbitration question (release/re-acquire around EPD ops, or give the SD its
-//! own SPI3 — the risk-table fallback) is what this spike hands data to.
+//! Why a dedicated SPI3 (ADR-012, decided 2026-07-11): the EPD driver uses
+//! esp-idf-hal's `SpiBusDriver`, whose constructor calls
+//! `spi_device_acquire_bus(BLOCK)` and holds that *exclusive* bus lock for the
+//! driver's whole lifetime (it needs CS held across a cmd→data sequence while DC
+//! toggles). While that lock is held, no other device on the same host can
+//! transact — so an SD on SPI2 would be locked out for as long as the panel
+//! driver is alive, and persistence runs on its own thread (Spike 7) concurrently
+//! with EPD refreshes. Rather than rewrite the proven EPD SPI layer and add a
+//! cross-thread mutex on the save path, we take the risk-table fallback: the SD
+//! gets SPI3 to itself. This spike still drives SD-only, but now because it *is*
+//! a separate bus, not to dodge contention.
 //!
 //! Two esp-idf notes baked in below:
 //!   - The `SDSPI_HOST_DEFAULT()` / `SDSPI_DEVICE_CONFIG_DEFAULT()` C macros are
@@ -45,20 +47,16 @@ use esp_idf_svc::sys::{self, esp};
 /// Injected by build.rs so serial output identifies the exact build.
 const BUILD_TAG: &str = concat!("build ", env!("BUILD_TIME"), " @", env!("BUILD_GIT"));
 
-// SPI2 wiring. SCK/MOSI are shared with the EPD (epd.rs: SCK 12, MOSI 11); the
-// SD adds MISO 13 (EPD is write-only, never wired it) and its own CS 10.
-const PIN_SCK: i32 = 12;
-const PIN_MOSI: i32 = 11;
+// SD wiring on its own SPI3 host (ADR-012). MISO 13 and CS 10 are unchanged from
+// the original shared-bus spike; only SCK/MOSI move off the EPD-shared 12/11 onto
+// dedicated pins so the two buses are fully independent.
+const PIN_SCK: i32 = 14;
+const PIN_MOSI: i32 = 15;
 const PIN_MISO: i32 = 13;
 const PIN_CS: i32 = 10;
 
-/// The EPD's chip-select (epd.rs). It sits on this same bus; we don't drive the
-/// panel here, so we pin it HIGH (deselected) instead of leaving it floating.
-const EPD_CS: i32 = 7;
-
-/// SD clock. Deliberately conservative: the EPD was validated at 4 MHz on these
-/// bench jumper wires, and SDSPI's 20 MHz default is prone to CRC errors on the
-/// same wiring (stub reflections off the EPD's MOSI/SCK taps) — which would look
+/// SD clock. Deliberately conservative for bench jumper wires: SDSPI's 20 MHz
+/// default is prone to CRC errors on long unterminated jumpers, which would look
 /// like a stack failure when it's really signal integrity. 10 MHz keeps margin
 /// while staying a real speed; raise toward 20 MHz once on a clean PCB.
 const SD_FREQ_KHZ: i32 = 10_000;
@@ -116,16 +114,8 @@ fn run() -> Result<()> {
 /// Init the shared SPI2 bus and mount the card. Returns the card handle (kept
 /// alive for the program's lifetime; the spike never unmounts).
 fn mount_sd() -> Result<*mut sys::sdmmc_card_t> {
-    // 0) Deselect the EPD. It shares SCK/MOSI; its CS is GPIO 7 and the panel is
-    //    write-only (can't contend on MISO), but a floating CS while we clock the
-    //    shared lines is a variable worth removing. Pin it HIGH.
-    esp!(unsafe { sys::gpio_reset_pin(EPD_CS) }).context("reset EPD CS")?;
-    esp!(unsafe { sys::gpio_set_direction(EPD_CS, sys::gpio_mode_t_GPIO_MODE_OUTPUT) })
-        .context("EPD CS as output")?;
-    esp!(unsafe { sys::gpio_set_level(EPD_CS, 1) }).context("EPD CS high")?;
-
-    // 1) Initialize SPI2 with the SD's lines. This is the bus the EPD also uses;
-    //    the difference vs. epd.rs's init is the added MISO line (SD data-out).
+    // 1) Initialize SPI3 with the SD's four lines. Dedicated bus (ADR-012) — no
+    //    EPD deselect needed: the panel is on SPI2 and can't contend here.
     // SAFETY: zeroed spi_bus_config_t is valid (all pins default 0); we then set
     // the used pins and mark the quad lines unused (-1).
     let mut bus: sys::spi_bus_config_t = unsafe { MaybeUninit::zeroed().assume_init() };
@@ -137,12 +127,12 @@ fn mount_sd() -> Result<*mut sys::sdmmc_card_t> {
     bus.max_transfer_sz = 4096;
     esp!(unsafe {
         sys::spi_bus_initialize(
-            sys::spi_host_device_t_SPI2_HOST,
+            sys::spi_host_device_t_SPI3_HOST,
             &bus,
             sys::spi_common_dma_t_SPI_DMA_CH_AUTO as _,
         )
     })
-    .context("spi_bus_initialize(SPI2)")?;
+    .context("spi_bus_initialize(SPI3)")?;
 
     // 1b) Enable internal pull-ups on the SD lines. The SD spec wants ~10 kΩ
     //     pull-ups on the data lines; the bench jumpers have none, so MISO
@@ -165,7 +155,7 @@ fn mount_sd() -> Result<*mut sys::sdmmc_card_t> {
     // we fill exactly the fields the C macro sets.
     let mut host: sys::sdmmc_host_t = unsafe { MaybeUninit::zeroed().assume_init() };
     host.flags = SDMMC_HOST_FLAG_SPI | SDMMC_HOST_FLAG_DEINIT_ARG;
-    host.slot = sys::spi_host_device_t_SPI2_HOST as i32;
+    host.slot = sys::spi_host_device_t_SPI3_HOST as i32;
     host.max_freq_khz = SD_FREQ_KHZ;
     host.io_voltage = 3.3;
     host.driver_strength = sys::sdmmc_driver_strength_t_SDMMC_DRIVER_STRENGTH_B;
@@ -183,7 +173,7 @@ fn mount_sd() -> Result<*mut sys::sdmmc_card_t> {
     // 3) Device (slot) config — CS 10, no card-detect / write-protect / SDIO int.
     // SAFETY: zeroed is valid; we set the host, CS, and mark the rest unused.
     let mut slot: sys::sdspi_device_config_t = unsafe { MaybeUninit::zeroed().assume_init() };
-    slot.host_id = sys::spi_host_device_t_SPI2_HOST;
+    slot.host_id = sys::spi_host_device_t_SPI3_HOST;
     slot.gpio_cs = PIN_CS;
     slot.gpio_cd = -1;
     slot.gpio_wp = -1;
