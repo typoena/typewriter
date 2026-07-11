@@ -76,10 +76,15 @@ esp-idf-hal = { git = "https://github.com/esp-rs/esp-idf-hal.git" }
 esp-idf-svc = { git = "https://github.com/esp-rs/esp-idf-svc.git" }
 
 [features]
-# Pulls the git2 safe API. libgit2 itself is built by the esp-idf component
-# (firmware/components/libgit2/) with mbedTLS; git2/libgit2-sys are used in
-# system mode (LIBGIT2_NO_VENDOR=1) purely for the Rust bindings, so we disable
-# their default features to avoid dragging in openssl-sys/libssh2-sys.
+# OFF by default so the nominal `just build`/`just flash` is a LIGHT editor
+# build. Enabling it (a) pulls the git2 safe API and (b) gates on the firmware's
+# `:sync` publish path in main.rs (see `publish()`), so git code is only ever
+# compiled with `--features git`. libgit2 itself is built by the esp-idf
+# component (firmware/components/libgit2/) with mbedTLS — but ONLY when the
+# justfile also sets LIBGIT2_SRC (the git recipes do; the light recipes don't,
+# so the component is an empty no-op). git2/libgit2-sys run in system mode
+# (LIBGIT2_NO_VENDOR=1) purely for the Rust bindings, with default features off
+# to avoid dragging in openssl-sys/libssh2-sys.
 git = ["dep:git2"]
 
 [dependencies]

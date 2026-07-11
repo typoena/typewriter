@@ -99,21 +99,13 @@ fn main() -> anyhow::Result<()> {
         }
 
         // Carry out any host-side effect a `:` command asked for. The SD save is
-        // wired (fast, inline). The git-push half of `:sync` is not yet: it must
-        // run off this task on a dedicated git thread with on-demand Wi-Fi (see
-        // src/bin/git_sync.rs for the persistent-clone push, git_push.rs for the
-        // TLS trust store), which is its own integration step — for now `:sync`
-        // saves and logs that push is pending.
+        // wired (fast, inline). Publishing (`:sync` → git push) lives behind the
+        // `git` Cargo feature via `publish()`, so the default light build carries
+        // no libgit2 / git2 at all — see the note on `publish`.
         match effect {
             Effect::None => {}
             Effect::Save => save_note(&storage, &ed),
-            Effect::Publish => {
-                save_note(&storage, &ed);
-                log::info!(
-                    ":sync — note saved; git push not wired yet (needs git_sync \
-                     graduated into a module + on-demand Wi-Fi on the git thread)"
-                );
-            }
+            Effect::Publish => publish(&storage, &ed),
         }
 
         // Keyboard attach/detach feeds the panel's disconnect flag.
@@ -260,6 +252,33 @@ fn save_note(storage: &Storage, ed: &Editor) {
     match storage.save(ed.text()) {
         Ok(()) => log::info!(":w — saved {} bytes to {NOTES}", ed.text().len()),
         Err(e) => log::error!(":w — save FAILED ({e:#}); buffer kept in RAM, retry :w"),
+    }
+}
+
+/// `:sync` — persist, then publish. Publishing (git push) is gated behind the
+/// `git` Cargo feature so the default build stays a **light editor build**: no
+/// `git2` crate and, because the justfile only sets `LIBGIT2_SRC` for git
+/// recipes, no libgit2/mbedTLS component either (`just build`/`just flash`).
+/// A full build turns both on together: `just flash-firmware-git`.
+///
+/// This is the seam that keeps the light build light — the git-only code path
+/// is only ever compiled under `--features git`, so an ordinary `:sync` in the
+/// light build simply saves locally.
+fn publish(storage: &Storage, ed: &Editor) {
+    // Publishing an unsaved buffer is meaningless, so save first in both builds.
+    save_note(storage, ed);
+
+    #[cfg(feature = "git")]
+    {
+        // TODO(v0.1): signal the dedicated git thread here (channel, not an
+        // inline blocking push) once `git_sync` is graduated from its spike bin
+        // into a module. The feature is on but that integration hasn't landed,
+        // so for now this still just saves.
+        log::info!(":sync — saved; `git` feature ON, but the publish module isn't wired yet");
+    }
+    #[cfg(not(feature = "git"))]
+    {
+        log::info!(":sync — saved; built without the `git` feature (light build) — push skipped");
     }
 }
 
