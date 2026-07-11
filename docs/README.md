@@ -32,3 +32,4 @@
 | [`spikes.md`](spikes.md) | Rendering & UX spikes — display/UX risks proved outside the hardware stack. |
 | [`postmortems/`](postmortems/README.md) | Bring-up debugging write-ups: what broke, the root cause, and the decisions that came out of it. |
 | [`notes/`](notes/README.md) | Longer-form essays on the thinking behind specific choices. |
+| [`tradeoff-curves/`](tradeoff-curves/README.md) | Cost-vs-knob curves behind chosen defaults — energy, latency, memory. |

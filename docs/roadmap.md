@@ -10,9 +10,10 @@ into are tracked in [`qfd.md`](qfd.md).
 The editor **core** has been built 2–3 versions ahead of the device
 **releases**, and is now **extracted into a host-testable `editor` crate** (plus
 a `display` crate for the panel framebuffer) so `cargo test` exercises it off the
-xtensa target. No release has shipped: with SD storage now verified and the
-mount/save path wired into the app binary, v0.1's remaining gate is the boot
-splash and wiring git publish into that binary — even though v0.2 navigation,
+xtensa target. No release has shipped, but v0.1 is close: SD storage, save, and
+**git publish are all wired into the app binary and hardware-verified
+2026-07-11** (`:sync` commits on the SD `/sd/repo` and pushes to a test repo),
+leaving the **boot splash as the last v0.1 gate** — and v0.2 navigation,
 **v0.2.5 international input (hardware-verified 2026-07-11)**, and most of v0.6
 Markdown already run. Version numbers are unchanged — they track shippable device
 releases, not core progress.
@@ -68,6 +69,7 @@ note = ": command-line mechanism and :fmt done early; Visual mode not started."
 name = "v0.5 palette + multi-file"
 start = 2026-09-07
 original = 2026-09-28
+note = "Also adds the git-tracked .typoena.toml preferences file (save_on_idle, auto_sync cadence) and the palette `>` command mode that edits it live."
 
 [[feature]]
 name = "v0.6 markdown"
@@ -111,9 +113,10 @@ The minimum thing that justifies the hardware existing. Full design:
 
 **Status:** core editing + partial refresh run on device, and **SD mount + save
 are now wired into `main.rs`** (Spike 3 resolved — a genuine ≤32 GB card mounts,
-verified on its own SPI3 host per ADR-012). Remaining v0.1 integration: the boot
-splash (Spike 9) and wiring git **publish** (`Ctrl-G` → push) into the app
-binary — the push still lives in the `git_sync` spike bin, not `main.rs`.
+verified on its own SPI3 host per ADR-012). **Git publish is now wired too**
+(`:sync` → commit + fast-forward push on the SD `/sd/repo`, hardware-verified
+2026-07-11 against a test repo). Remaining v0.1 integration: the boot splash
+(Spike 9).
 
 - [~] ESP32-S3 boots (✓); e-ink shows Typoena splash + boot log — splash pending Spike 9
 - [x] USB host enumerates the Nuphy, key events reach the editor (Spike 4)
@@ -134,11 +137,17 @@ binary — the push still lives in the `git_sync` spike bin, not `main.rs`.
       `just init` for a fresh card) from the same `firmware/.env` the build uses
       (minimum input — rotate the PAT or switch networks without a reflash, no
       card re-copy). Firmware to read it at boot instead of
-      `env!()` — TODO, rides with the git-publish wiring into `main.rs`.
-- [~] `Ctrl-G` runs: `git add .` → commit with an ISO-8601 timestamp message →
-  `git push`; on push failure, `git pull --no-edit` then retry the push
-  (no-op short-circuit when nothing is staged). Proven on device in the
-  `git_sync` spike (✓); not yet wired to the editor.
+      `env!()` — the git-publish wiring landed with baked config (2026-07-11);
+      the `typoena.conf` migration itself is deferred to v0.9 (on-device
+      provisioning).
+- [x] Publish on **`:sync`** (the editor's command; the roadmap originally
+  planned `Ctrl-G`): stage `notes.md` → commit with a timestamp message →
+  fast-forward `push`; on a rejected push, fetch + reconcile then retry once
+  (no-op short-circuit when the tree is unchanged). **Wired into the editor and
+  hardware-verified 2026-07-11** — `firmware::git_sync` opens the SD `/sd/repo`,
+  runs on a dedicated 96 KB git thread with lazy Wi-Fi, and pushes over mbedTLS
+  HTTPS+PAT; the panel snackbar shows `synced <oid>` / `up to date` /
+  `sync failed`. (Interrupted-push auto-retry deferred to v0.9.)
 - [x] Split the display into a **writing column** (60 cols) + a **side panel**
       (~30 cols at FONT_6X10) for metadata — the surface every later panel
       feature writes to. **Built** in the `editor` crate (`draw_panel`): a
@@ -150,9 +159,10 @@ binary — the push still lives in the `git_sync` spike bin, not `main.rs`.
       [product § Screen layout](v0.1-mvp-product.md#screen-layout).
 - [x] **Snackbar** — a transient side-panel notice for host events (added
       2026-07-11). On-device there is no serial log, so boot posts `loaded
-      <name>` (the note's filename without suffix) and `:w`/`:sync` post `saved`
-      / `save FAILED - retry :w`; when git publish is wired it will show the
-      push result. Set via `Editor::set_notice`; cleared on the next keystroke
+      <name>` (the note's filename without suffix), `:w` posts `saved` /
+      `save FAILED - retry :w`, and `:sync` posts `syncing...` then the push
+      result (`synced <oid>` / `up to date` / `sync failed`). Set via
+      `Editor::set_notice`; cleared on the next keystroke
       rather than a timer — a timed auto-dismiss would cost a ~630 ms full-area
       e-ink flash purely to erase text, which the panel deliberately avoids (cf.
       the dropped pending-accent marker in v0.2.5).
@@ -250,6 +260,36 @@ buffer-lifecycle risk first).
 - [ ] The side panel briefly shows file count on `Ctrl-G` when the publish bundles
       more than one dirty Tracked file (e.g. `"publishing 3 files: abc1234"`),
       so workspace-scoped behaviour stays visible to the user
+- [ ] **Preferences file** `/sd/repo/.typoena.toml` — a git-tracked,
+      hand-editable TOML file for editor behaviour, deliberately **distinct from
+      the `/sd/typoena.conf` card secrets** (Wi-Fi / PAT / remote / author,
+      gitignored, never committed — see v0.1). Read at boot; a missing file or
+      key falls back to the defaults below. Keys:
+  - [ ] `save_on_idle` (bool, default `true`) — auto-save the current buffer on
+        the existing idle pause (the ≥ 1 s typing-pause the panel already uses
+        for its refresh), so `:w` becomes optional rather than required.
+  - [ ] `auto_sync` (duration string, default `"10m"`; `"0"` / omitted
+        disables; **min clamp ~`"2m"`** so a palette typo can't drain the
+        battery) — a *max-staleness cap*, not a wall-clock timer:
+        **opportunistic, rate-limited** Publish. Push when already awake + dirty
+        (coalesced into the idle-pause, ≤ once per `auto_sync`) and once on the
+        way into sleep if dirty; **never wake from deep sleep purely to sync**.
+        Wi-Fi energy is a `1/T` curve whose knee sits at 5–10 min, and
+        `save_on_idle` already owns local data safety — so 10 min halves the
+        sync energy of a 5-min default for no real risk. Full derivation:
+        [`tradeoff-curves/wifi-auto-sync.md`](tradeoff-curves/wifi-auto-sync.md).
+        The **schema + defaults live here in v0.5**; the periodic side rides the
+        better-git work (v0.7) and must interact with light / deep sleep (v0.8).
+  - [ ] Open question: because the file is committed, these prefs **sync to
+        every device** that clones the repo — a per-device sync cadence may
+        instead want a card-local override (in `typoena.conf`). Decide before
+        build.
+- [ ] **Palette command mode** — typing `>` at the `Ctrl-P` palette switches it
+      from file search to a command list (VS Code-style). The v0.5 commands edit
+      the `.typoena.toml` prefs above — e.g. `> save on idle: on/off` and
+      `> auto sync: 10m` — writing the value back to the file and applying it
+      live. This command list is the discoverable surface that later actions
+      (`:fmt`, theme, font) also register into.
 
 ## v0.6 — Markdown affordances — [~]
 
