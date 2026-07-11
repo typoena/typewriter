@@ -61,7 +61,7 @@ The deck angle is the one knob worth tuning first — see below.
 The whole design avoids glue on the fragile 1 mm glass and keeps every part
 serviceable.
 
-![The bare body shell — screen recess cut through the deck, FPC slot on the up-slope edge](renders/body.png)
+![The bare body shell — screen recess cut through the deck, FPC slot on the left short edge](renders/body.png)
 
 ### Screen (bezel lip + foam + screwed bracket)
 
@@ -81,14 +81,22 @@ serviceable.
 
 - The through-**aperture** is a hair larger than the active area and stays
   *inside* the glass-minus-lip envelope, so the lip covers only dead border.
-- The recess opens straight into the cavity, and an **FPC slot** on the
-  up-slope edge lets the ribbon fold back to the DESPI-C579 breakout.
+- The recess opens into the cavity, and an **FPC bay** — an open notch in the
+  **left bezel** (the user's left as they face the screen) — lets the flex exit
+  and fold down to the DESPI-C579 breakout below.
 - Foam does three jobs: cushions the glass, takes up print tolerance
   (±0.2–0.5 mm), and removes any need for adhesive. Cut it from a plain EVA/
   PORON sheet — no sticky backing.
 - Alternative if you want no screws: replace the bracket with printed
   cantilever clips. It works, but clips point-load the glass edge; the
   foam+bracket route is gentler and I'd default to it.
+
+The lip alone can't hold the glass — it only stops it falling *out* the front.
+The glass is **trapped at both edges** between the front lip and the rear
+foam+bracket; the bracket is what stops it dropping *into* the cavity
+(`show="section"`):
+
+![Midline section: glass clamped between the front lip and the rear foam + bracket; the FPC bay is the notch in the left bezel, standoffs on the cavity floor](renders/section.png)
 
 ![The screwed bracket — four corner holes, window clears the active area](renders/bracket.png)
 
@@ -100,11 +108,14 @@ from below — far easier than fishing screws inside a shell.
 - ESP32 + DESPI-C579 sit on printed **standoffs** (M2.5 self-tap). Positions in
   `esp_holes` / `brk_holes` are placeholders — set them to your board's holes.
   No mounting holes on your board rev? Switch to slide-in edge rails.
+- The **DESPI-C579 breakout** sits in the cavity on the **left**, right under the
+  FPC exit; short SPI jumpers (MOSI/SCLK/CS/DC/RST/BUSY + 3V3/GND) run across to
+  the ESP32. Keep that left channel clear.
 - The baseplate screws **up into 4 corner posts** in the shell.
 - A **cable relief** notch at the back lets the keyboard's USB-C cable exit and
   route around to the front.
 
-![The baseplate — standoff bosses for the ESP32 + breakout; mount the boards at the bench, then close from below](renders/baseplate.png)
+![The baseplate — four standoffs for the ESP32 (centre) and two for the DESPI-C579 breakout (left, under the FPC exit); mount at the bench, then close from below](renders/baseplate.png)
 
 ### Assembly order
 
@@ -119,7 +130,7 @@ from below — far easier than fishing screws inside a shell.
 - **`Hb` (back height) → deck angle.** 18–22° is typewriter-shallow; raise `Hb`
   toward ~28–35° if the screen reads too edge-on when you're sitting close.
 - **`<< MEASURE >>` items:** `esp_holes`, `brk_holes`, `port_x`, `port_z`,
-  `screen_off` (the real panel's active area is offset toward the FPC edge).
+  `active_off_x/y` (the panel's active area sits off-centre from the glass).
 
 ## Print notes
 
@@ -137,6 +148,8 @@ from below — far easier than fishing screws inside a shell.
   bezel lip is a small overhang. Bracket and baseplate print flat.
 
 ## Nameplate font
+
+![The recessed TYPOENA engrave on the deck, in Monaspace Krypton](renders/nameplate.png)
 
 The `TYPOENA` engrave on the deck (recessed, faces the user) is set via the
 `name_font` parameter. Current pick: **Monaspace Krypton** (GitHub's mechanical
@@ -159,8 +172,8 @@ name —
 
 ## Open questions / TODO
 
-- [ ] Confirm the GDEY0579T93 active-area **offset** and which edge the **FPC**
-      exits; adjust `screen_off` / the FPC slot.
+- [ ] Confirm the GDEY0579T93 active-area **offset** (FPC confirmed on the left
+      edge); adjust `active_off_x/y`.
 - [ ] Real ESP32-S3-DevKitC-1 mounting-hole + port coordinates.
 - [ ] Optional **hinged lid** over the deck (portable-typewriter-case echo,
       protects the glass in a bag) — `docs/hardware.md` calls for one; not yet
