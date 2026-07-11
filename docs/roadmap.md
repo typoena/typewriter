@@ -15,15 +15,13 @@ baseline): SD storage, save, and **git publish are all wired into the app binary
 and hardware-verified** (`:sync` commits on the SD `/sd/repo` and pushes to a
 test repo), and the **boot splash (Spike 9) is confirmed on the panel** — a
 vector `typoena`-in-a-circle shown at startup while the SD mounts, then the
-editor comes up. **Cold boot measured ~5.5 s** (power-on → cursor, instrumented
-2026-07-11 — the 3.5 s eyeball undercounted; `esp_timer` sees only the ~4.1 s
-app-side slice, missing the bootloader + ~0.74 s PSRAM memtest). **Over the ≤ 5 s
-gate**; **fix implemented 2026-07-11** — the first editor render is now a
-full-area partial (~630 ms) rather than a second full refresh (~1.9 s), expected
-~4.2 s, pending a reflash to re-measure + check ghosting (PSRAM memtest kept on).
-The 1-hour soak is attested from real use; boot time joins the
-remaining post-ship acceptance checks (power-pull recovery, 1000-word no-drop,
-and `Ctrl-G`'s not-yet-built pull-then-retry → v0.9). Beyond v0.1, v0.2 navigation, **v0.2.5 international input (hardware-verified
+editor comes up. **Cold boot verified at 4258 ms** (power-on → cursor,
+2026-07-11; 742 ms under the ≤ 5 s gate). It first measured ~5.5 s; the fix was
+to bring the editor up with a full-area partial (~630 ms) instead of a second
+full refresh (~1.9 s) — panel confirmed clean, no ghosting. The 1-hour soak is
+attested from real use; the remaining post-ship acceptance checks are power-pull
+recovery, 1000-word no-drop, and `Ctrl-G`'s not-yet-built pull-then-retry
+(→ v0.9). Beyond v0.1, v0.2 navigation, **v0.2.5 international input (hardware-verified
 2026-07-11)**, and most of v0.6 Markdown already run. Version numbers are
 unchanged — they track shippable device releases, not core progress.
 
@@ -127,14 +125,13 @@ per ADR-012); **git publish is wired** (`:sync` → commit + fast-forward push o
 the SD `/sd/repo`, hardware-verified against a test repo); and the **boot splash
 (Spike 9) is confirmed on the panel** — [`Frame::splash`](../display/src/lib.rs)
 shows a vector `typoena`-in-a-circle at startup while the SD mounts, then the
-editor comes up. Cold boot measured ~5.5 s (power-on → cursor, 2026-07-11) — **over the ≤ 5 s
-gate**: the 3.5 s eyeball undercounted, and `esp_timer` catches only the ~4.1 s
-app-side slice (it starts after the bootloader + the ~0.74 s PSRAM memtest). Fix
-implemented 2026-07-11: first editor render is now a full-area partial (~4.2 s
-expected, pending a reflash to verify); PSRAM memtest kept on. The 1-hour soak
-is attested from real use; boot time joins the remaining post-ship acceptance
-checks (power-pull recovery, 1000-word no-drop, `Ctrl-G` pull-then-retry → v0.9) —
-see [product → acceptance](v0.1-mvp-product.md#acceptance-criteria).
+editor comes up. Cold boot **verified at 4258 ms** (power-on → cursor, 2026-07-11; 742 ms under
+the ≤ 5 s gate). It first measured ~5.5 s; the fix was to bring the editor up
+with a full-area partial (~630 ms) instead of a second full refresh (~1.9 s) —
+panel confirmed clean. The 1-hour soak is attested from real use; the remaining
+post-ship acceptance checks are power-pull recovery, 1000-word no-drop, and
+`Ctrl-G` pull-then-retry (→ v0.9) — see
+[product → acceptance](v0.1-mvp-product.md#acceptance-criteria).
 
 - [x] ESP32-S3 boots (✓); e-ink shows Typoena splash (✓ Spike 9, confirmed on
       panel 2026-07-11); boot status surfaces via the panel snackbar (no serial on device)
@@ -374,7 +371,9 @@ engine remain (snippets are net-new scope, added 2026-07-08).
 
 ## v1.0 — Polish — [ ]
 
-- [ ] Boot time ≤ 3 s to usable cursor
+- [ ] Boot time ≤ 3 s to usable cursor — currently ~4.26 s; the ~1.9 s cold-boot
+      full refresh is a hard e-ink floor, so ≤ 3 s is marginal (see
+      [`notes/boot-time-budget.md`](notes/boot-time-budget.md))
 - [ ] Font selection (at least one serif + one mono) with adjustable font
       size, switchable at runtime and persisted across reboots
 - [ ] Theme: light / dark (inverted e-ink), switchable at runtime and
