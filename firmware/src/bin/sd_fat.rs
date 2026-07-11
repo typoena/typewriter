@@ -1,75 +1,33 @@
-//! Spike 3 — SD card (FAT) on its own SPI3 host.
+//! Spike 3 — SD card (FAT) on its own SPI3 host, now a thin on-device harness
+//! over the real [`firmware::persistence`] module.
 //!
-//! A small standalone bench program (separate binary from the editor firmware)
-//! that proves the storage stack the persistence module will sit on:
+//! The raw storage stack (SPI3 bring-up, hand-rolled SDSPI descriptors, the
+//! atomic write/fsync/unlink/rename dance) was proven here first and has since
+//! graduated into `firmware::persistence` so the editor and this spike share one
+//! implementation. This binary now just drives that module on hardware:
 //!
-//!   1. Bring up SPI3 with the SD's four lines — SCK 14, MOSI 15, MISO 13, and
-//!      its own chip-select (10). This is a *dedicated* bus: the EPD keeps SPI2
-//!      (SCK 12, MOSI 11, CS 7). See ADR-012.
-//!   2. Mount a FAT filesystem on the card at `/sd` via `esp_vfs_fat_sdspi_mount`.
-//!   3. Exercise the exact atomic-save pattern the persistence module specifies
-//!      (ADR-007): write `*.tmp`, fsync, rename over the target, then read back
-//!      and byte-compare. Report the card's negotiated clock and FAT usage.
+//!   1. [`Storage::mount`] — SPI3 (SCK 14, MOSI 15, MISO 13, CS 10; ADR-012) +
+//!      FAT mount at `/sd` + boot crash-recovery. `format_if_mount_failed` is
+//!      false in the module, so the card must already be FAT-formatted (it is —
+//!      Spike 3 formatted it 2026-07-11).
+//!   2. Report the card's negotiated clock and FAT usage.
+//!   3. Load `/sd/repo/notes.md` (non-destructive) and report its size.
+//!   4. Only if there is no notes.md yet (a blank bench card, nothing to lose)
+//!      exercise the real [`Storage::save`] → [`Storage::load`] round-trip and
+//!      byte-compare. On a provisioned card the write test is skipped so the
+//!      user's writing is never clobbered by the bench tool.
 //!
-//! Why a dedicated SPI3 (ADR-012, decided 2026-07-11): the EPD driver uses
-//! esp-idf-hal's `SpiBusDriver`, whose constructor calls
-//! `spi_device_acquire_bus(BLOCK)` and holds that *exclusive* bus lock for the
-//! driver's whole lifetime (it needs CS held across a cmd→data sequence while DC
-//! toggles). While that lock is held, no other device on the same host can
-//! transact — so an SD on SPI2 would be locked out for as long as the panel
-//! driver is alive, and persistence runs on its own thread (Spike 7) concurrently
-//! with EPD refreshes. Rather than rewrite the proven EPD SPI layer and add a
-//! cross-thread mutex on the save path, we take the risk-table fallback: the SD
-//! gets SPI3 to itself. This spike still drives SD-only, but now because it *is*
-//! a separate bus, not to dodge contention.
-//!
-//! Two esp-idf notes baked in below:
-//!   - The `SDSPI_HOST_DEFAULT()` / `SDSPI_DEVICE_CONFIG_DEFAULT()` C macros are
-//!     dropped by bindgen, so the descriptors are filled by hand. The
-//!     `SDMMC_HOST_FLAG_*` values are `BIT(n)` macros bindgen can't fold either,
-//!     so they're inlined with a reference to sd_protocol_types.h.
-//!   - The `.tmp` rename target (`notes.md.tmp`) is not a valid 8.3 name, and
-//!     FatFS defaults to 8.3-only. `CONFIG_FATFS_LFN_HEAP=y` (sdkconfig.defaults)
-//!     turns on long filenames — required here and by the real persistence path.
-//!
-//! Flash with `just flash-sd`. Needs no `.env` (unlike the Wi-Fi spike).
+//! Flash with `just flash-sd`. Needs no `.env`.
 
-use std::ffi::CStr;
 use std::fs;
-use std::io::{Read, Write};
-use std::mem::MaybeUninit;
-use std::ptr;
 
 use anyhow::{bail, Context, Result};
 use esp_idf_svc::hal::delay::FreeRtos;
-use esp_idf_svc::sys::{self, esp};
+
+use firmware::persistence::{Storage, MAX_FILE_BYTES, NOTES, REPO_DIR};
 
 /// Injected by build.rs so serial output identifies the exact build.
 const BUILD_TAG: &str = concat!("build ", env!("BUILD_TIME"), " @", env!("BUILD_GIT"));
-
-// SD wiring on its own SPI3 host (ADR-012). MISO 13 and CS 10 are unchanged from
-// the original shared-bus spike; only SCK/MOSI move off the EPD-shared 12/11 onto
-// dedicated pins so the two buses are fully independent.
-const PIN_SCK: i32 = 14;
-const PIN_MOSI: i32 = 15;
-const PIN_MISO: i32 = 13;
-const PIN_CS: i32 = 10;
-
-/// SD clock. Deliberately conservative for bench jumper wires: SDSPI's 20 MHz
-/// default is prone to CRC errors on long unterminated jumpers, which would look
-/// like a stack failure when it's really signal integrity. 10 MHz keeps margin
-/// while staying a real speed; raise toward 20 MHz once on a clean PCB.
-const SD_FREQ_KHZ: i32 = 10_000;
-
-/// Host flags from sd_protocol_types.h — `BIT(3)` / `BIT(5)`. Inlined because
-/// bindgen doesn't fold the nested `BIT()` macro into a constant.
-const SDMMC_HOST_FLAG_SPI: u32 = 1 << 3;
-const SDMMC_HOST_FLAG_DEINIT_ARG: u32 = 1 << 5;
-
-/// VFS mount point. `MOUNT` is the C string handed to esp-idf; `MOUNT_STR` is
-/// the same path for std::fs.
-const MOUNT: &CStr = c"/sd";
-const MOUNT_STR: &str = "/sd";
 
 fn main() -> Result<()> {
     // Required once before any esp-idf-svc call; some runtime patches only link
@@ -77,12 +35,10 @@ fn main() -> Result<()> {
     esp_idf_svc::sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
 
-    log::info!("Typoena — Spike 3 (SD/FAT on dedicated SPI3), {BUILD_TAG}");
+    log::info!("Typoena — Spike 3 (SD/FAT via firmware::persistence), {BUILD_TAG}");
 
     match run() {
-        Ok(()) => {
-            log::info!("✅ Spike 3 complete — mount + atomic write/fsync/rename/read-back on dedicated SPI3")
-        }
+        Ok(()) => log::info!("✅ Spike 3 complete — persistence::Storage mounts and round-trips"),
         Err(e) => log::error!("❌ Spike 3 failed: {e:?}"),
     }
 
@@ -93,165 +49,54 @@ fn main() -> Result<()> {
 }
 
 fn run() -> Result<()> {
-    let card = mount_sd().context("mounting SD over SPI3")?;
+    let storage = Storage::mount().context("mounting SD via persistence module")?;
 
-    // SAFETY: `card` is a live handle returned by a successful mount.
-    let (max_khz, real_khz) = unsafe { ((*card).max_freq_khz, (*card).real_freq_khz) };
-    log::info!("card mounted at /sd — max {max_khz} kHz, negotiated {real_khz} kHz");
+    let (max_khz, real_khz) = storage.negotiated_khz();
+    log::info!("card clock — max {max_khz} kHz, negotiated {real_khz} kHz");
 
-    let (total, free) = fs_info().context("reading FAT usage")?;
+    let (total, free) = storage.usage().context("reading FAT usage")?;
     log::info!(
         "FAT usage — {} MiB total, {} MiB free",
         total / (1024 * 1024),
         free / (1024 * 1024)
     );
 
-    file_roundtrip().context("atomic write/fsync/rename/read-back")?;
-    list_root(); // best-effort, informational
+    if storage.repo_present() {
+        log::info!("{REPO_DIR} present (card is provisioned)");
+    } else {
+        log::warn!("{REPO_DIR} missing — card not provisioned; run `just init` on the host");
+    }
+
+    // Read-back is always safe. An empty string means "no notes.md yet".
+    let existing = storage.load().context("loading notes.md")?;
+    log::info!("notes.md load OK — {} bytes", existing.len());
+
+    if existing.is_empty() {
+        write_test(&storage).context("save/load round-trip")?;
+    } else {
+        log::info!(
+            "notes.md already has content — skipping the destructive write test to protect it \
+             (v0.1 caps notes at {} KiB)",
+            MAX_FILE_BYTES / 1024
+        );
+    }
     Ok(())
 }
 
-/// Init the dedicated SPI3 bus and mount the card. Returns the card handle (kept
-/// alive for the program's lifetime; the spike never unmounts).
-fn mount_sd() -> Result<*mut sys::sdmmc_card_t> {
-    // 1) Initialize SPI3 with the SD's four lines. Dedicated bus (ADR-012) — no
-    //    EPD deselect needed: the panel is on SPI2 and can't contend here.
-    // SAFETY: zeroed spi_bus_config_t is valid (all pins default 0); we then set
-    // the used pins and mark the quad lines unused (-1).
-    let mut bus: sys::spi_bus_config_t = unsafe { MaybeUninit::zeroed().assume_init() };
-    bus.__bindgen_anon_1.mosi_io_num = PIN_MOSI;
-    bus.__bindgen_anon_2.miso_io_num = PIN_MISO;
-    bus.sclk_io_num = PIN_SCK;
-    bus.__bindgen_anon_3.quadwp_io_num = -1;
-    bus.__bindgen_anon_4.quadhd_io_num = -1;
-    bus.max_transfer_sz = 4096;
-    esp!(unsafe {
-        sys::spi_bus_initialize(
-            sys::spi_host_device_t_SPI3_HOST,
-            &bus,
-            sys::spi_common_dma_t_SPI_DMA_CH_AUTO as _,
-        )
-    })
-    .context("spi_bus_initialize(SPI3)")?;
-
-    // 1b) Enable internal pull-ups on the SD lines. The SD spec wants ~10 kΩ
-    //     pull-ups on the data lines; the bench jumpers have none, so MISO
-    //     floats between response bytes and a stray bit reads back as a spurious
-    //     R1 "illegal command" (ESP_ERR_NOT_SUPPORTED) that fails init. The
-    //     ESP32's internal ~45 kΩ pull-ups are usually enough on short wires;
-    //     an external 10 kΩ MISO→3V3 is the proper fix on a real board. Set
-    //     after bus init so the SPI pin config doesn't clobber it (CS gets
-    //     reconfigured by the mount below — harmless; MISO is the one that
-    //     matters).
-    for pin in [PIN_SCK, PIN_MOSI, PIN_MISO, PIN_CS] {
-        esp!(unsafe { sys::gpio_set_pull_mode(pin, sys::gpio_pull_mode_t_GPIO_PULLUP_ONLY) })
-            .with_context(|| format!("pull-up on GPIO {pin}"))?;
+/// Exercise the module's real atomic save + load, then confirm the bytes match.
+/// Only called when notes.md is empty, so nothing of the user's is at risk.
+fn write_test(storage: &Storage) -> Result<()> {
+    // The module deliberately never creates the repo dir (a missing one means an
+    // unprovisioned card, which the editor treats as fatal). On a blank bench
+    // card there's nothing to protect, so create it here as explicit bench setup
+    // to give `Storage::save` a directory to write into.
+    if !storage.repo_present() {
+        log::info!("{REPO_DIR} missing — creating it (bench setup) so the write test can run");
+        fs::create_dir_all(REPO_DIR).with_context(|| format!("create {REPO_DIR}"))?;
     }
-
-    // 2) SDSPI host descriptor — hand-rolled SDSPI_HOST_DEFAULT(). The function
-    //    pointers are esp-idf's sdspi_host_* ops; the driver calls them to drive
-    //    the card. `slot` picks the SPI host the device attaches to.
-    // SAFETY: zeroed is a valid starting point (all fn-pointer Options = None);
-    // we fill exactly the fields the C macro sets.
-    let mut host: sys::sdmmc_host_t = unsafe { MaybeUninit::zeroed().assume_init() };
-    host.flags = SDMMC_HOST_FLAG_SPI | SDMMC_HOST_FLAG_DEINIT_ARG;
-    host.slot = sys::spi_host_device_t_SPI3_HOST as i32;
-    host.max_freq_khz = SD_FREQ_KHZ;
-    host.io_voltage = 3.3;
-    host.driver_strength = sys::sdmmc_driver_strength_t_SDMMC_DRIVER_STRENGTH_B;
-    host.current_limit = sys::sdmmc_current_limit_t_SDMMC_CURRENT_LIMIT_200MA;
-    host.init = Some(sys::sdspi_host_init);
-    host.set_card_clk = Some(sys::sdspi_host_set_card_clk);
-    host.do_transaction = Some(sys::sdspi_host_do_transaction);
-    host.__bindgen_anon_1.deinit_p = Some(sys::sdspi_host_remove_device);
-    host.io_int_enable = Some(sys::sdspi_host_io_int_enable);
-    host.io_int_wait = Some(sys::sdspi_host_io_int_wait);
-    host.get_real_freq = Some(sys::sdspi_host_get_real_freq);
-    host.input_delay_phase = sys::sdmmc_delay_phase_t_SDMMC_DELAY_PHASE_0;
-    host.check_buffer_alignment = Some(sys::sdspi_host_check_buffer_alignment);
-
-    // 3) Device (slot) config — CS 10, no card-detect / write-protect / SDIO int.
-    // SAFETY: zeroed is valid; we set the host, CS, and mark the rest unused.
-    let mut slot: sys::sdspi_device_config_t = unsafe { MaybeUninit::zeroed().assume_init() };
-    slot.host_id = sys::spi_host_device_t_SPI3_HOST;
-    slot.gpio_cs = PIN_CS;
-    slot.gpio_cd = -1;
-    slot.gpio_wp = -1;
-    slot.gpio_int = -1;
-
-    // 4) Mount config. format_if_mount_failed = true here (spike only): a fresh
-    //    bench card that's exFAT or unformatted gets reformatted to FAT on the
-    //    device instead of failing, so no Mac-side prep is needed. This fires
-    //    only on a *filesystem* mount failure, not on the earlier CMD59 protocol
-    //    rejection (that still bails with the actionable message below).
-    //    The real persistence module MUST keep this false — it must never wipe
-    //    the user's card on a transient mount hiccup. allocation_unit_size is
-    //    used when formatting, so the 16 KiB below now applies.
-    let mount = sys::esp_vfs_fat_mount_config_t {
-        format_if_mount_failed: true,
-        max_files: 4,
-        allocation_unit_size: 16 * 1024,
-        disk_status_check_enable: false,
-        use_one_fat: false,
-    };
-
-    let mut card: *mut sys::sdmmc_card_t = ptr::null_mut();
-    let rc = unsafe {
-        sys::esp_vfs_fat_sdspi_mount(MOUNT.as_ptr(), &host, &slot, &mount, &mut card)
-    };
-
-    // Turn the driver's opaque error into something actionable. The one we hit
-    // in practice is a card that rejects CMD59 (SPI-mode CRC on/off): init gets
-    // through CMD0/CMD8 cleanly, then the CRC-enable step returns NOT_SUPPORTED.
-    // That's a card-firmware limitation (common on large/counterfeit SDXC), not
-    // a wiring fault — and we deliberately keep CRC required rather than run the
-    // user's notes over an unchecked bus, so we reject the card with guidance.
-    if rc == sys::ESP_ERR_NOT_SUPPORTED {
-        bail!(
-            "SD card rejected CMD59 (SPI-mode CRC). CMD0/CMD8 succeeded, so wiring is \
-             fine — this card's firmware just doesn't support CRC in SPI mode (common on \
-             large/counterfeit SDXC). Use a genuine card, ideally ≤32 GB. We keep CRC \
-             required on purpose: a writing device shouldn't run over an unchecked bus."
-        );
-    }
-    esp!(rc).context("esp_vfs_fat_sdspi_mount (card present? inserted? FAT-formatted?)")?;
-    Ok(card)
-}
-
-/// The persistence module's atomic save (ADR-007), proven end to end: write to
-/// a temp file, fsync, rename over the target, then reopen and byte-compare.
-fn file_roundtrip() -> Result<()> {
-    let path = format!("{MOUNT_STR}/spike3.md");
-    let tmp = format!("{path}.tmp"); // two dots → exercises long-filename support
-    let payload =
-        format!("typoena spike 3\n{BUILD_TAG}\ndedicated SPI3: SCK14 MOSI15 MISO13, SD CS10\n");
-
-    {
-        let mut f = fs::File::create(&tmp).context("create tmp")?;
-        f.write_all(payload.as_bytes()).context("write tmp")?;
-        f.sync_all().context("fsync tmp")?; // FatFS f_sync — flush before rename
-    }
-    // FatFS's f_rename — unlike POSIX rename(2) — refuses to overwrite an
-    // existing destination and returns FR_EXIST (EEXIST). So the classic
-    // write-tmp → rename-over-target idiom needs an explicit unlink of the
-    // target first on FAT. That opens a crash window: the target is briefly
-    // gone while `tmp` holds the complete, fsync'd new content. The real
-    // persistence module must pair this with boot recovery — a lingering
-    // `*.tmp` means the last save didn't finish and should be promoted. See
-    // ADR-007. (Tolerate a missing target so the first save works too.)
-    match fs::remove_file(&path) {
-        Ok(()) => {}
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-        Err(e) => return Err(e).context("remove existing target before rename"),
-    }
-    fs::rename(&tmp, &path).context("rename tmp -> final")?;
-
-    let mut back = String::new();
-    fs::File::open(&path)
-        .context("reopen final")?
-        .read_to_string(&mut back)
-        .context("read back")?;
-
+    let payload = format!("typoena spike 3\n{BUILD_TAG}\ndedicated SPI3: SCK14 MOSI15 MISO13 CS10\n");
+    storage.save(&payload).context("Storage::save")?;
+    let back = storage.load().context("Storage::load after save")?;
     if back != payload {
         bail!(
             "read-back mismatch: wrote {} bytes, read {} bytes",
@@ -260,32 +105,8 @@ fn file_roundtrip() -> Result<()> {
         );
     }
     log::info!(
-        "round-trip OK — {} bytes: create {tmp} → fsync → rename {path} → read back identical",
+        "round-trip OK — {} bytes: save {NOTES} (tmp→fsync→unlink→rename) → load identical",
         payload.len()
     );
     Ok(())
-}
-
-/// FAT total/free bytes for the mount.
-fn fs_info() -> Result<(u64, u64)> {
-    let mut total: u64 = 0;
-    let mut free: u64 = 0;
-    esp!(unsafe { sys::esp_vfs_fat_info(MOUNT.as_ptr(), &mut total, &mut free) })
-        .context("esp_vfs_fat_info")?;
-    Ok((total, free))
-}
-
-/// Log the root directory (informational — shows the card's existing content
-/// and confirms our file landed).
-fn list_root() {
-    match fs::read_dir(MOUNT_STR) {
-        Ok(entries) => {
-            log::info!("/sd contents:");
-            for entry in entries.flatten() {
-                let len = entry.metadata().map(|m| m.len()).unwrap_or(0);
-                log::info!("  {} ({len} B)", entry.file_name().to_string_lossy());
-            }
-        }
-        Err(e) => log::warn!("could not list /sd: {e}"),
-    }
 }
