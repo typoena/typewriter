@@ -41,7 +41,8 @@ openscad -o renders/assembled.png --imgsize=1100,825 --colorscheme=Tomorrow \
 openscad -o body.stl -D 'show="body"' typoena-case.scad
 ```
 
-`show` accepts `assembled` · `body` · `bracket` · `baseplate` · `print_plate`.
+`show` accepts `assembled` · `body` · `bracket` · `baseplate` · `print_plate` ·
+`section` (vertical cut) · `plan` (horizontal cut into the cavity).
 
 ## Dimensions
 
@@ -117,6 +118,13 @@ from below — far easier than fishing screws inside a shell.
   route around to the front.
 
 ![The baseplate — four standoffs for the ESP32 (centre) and two for the DESPI-C579 breakout (left, under the FPC exit); mount at the bench, then close from below](renders/baseplate.png)
+
+Exploded horizontal section (`show="plan"`) — the deck/screen half lifts off
+the cavity half so you see both at once: ESP32 standoffs centre, DESPI-C579
+standoffs left under the FPC exit, the two back corner posts, and the three
+port openings in the back wall.
+
+![Exploded plan section: deck/screen half lifted above the cavity half — standoffs, corner posts, back-wall ports](renders/plan.png)
 
 ### Assembly order
 
