@@ -3,6 +3,11 @@
 
 scad := "case/typoena-case.scad"
 
+# shared OpenSCAD flags (everything but the camera + the part to show)
+base    := "--imgsize=1100,825 --colorscheme=Tomorrow --viewall --autocenter"
+# the standard 3/4 camera used by most previews (rotate 62° tilt, 22° azimuth)
+std_cam := "--camera=0,0,0,62,0,22,0"
+
 # list available recipes
 default:
     @just --list
@@ -11,12 +16,20 @@ default:
 open:
     open -a OpenSCAD {{scad}}
 
-# regenerate the preview PNGs in case/renders/
+# regenerate every preview PNG in case/renders/
 render:
-    cd case && openscad -o renders/assembled.png --imgsize=1100,825 --colorscheme=Tomorrow \
-      --camera=0,0,0,62,0,22,0 --viewall --autocenter -D 'show="assembled"' typoena-case.scad
-    cd case && openscad -o renders/body.png --imgsize=1100,825 --colorscheme=Tomorrow \
-      --camera=0,0,0,62,0,22,0 --viewall --autocenter -D 'show="body"' typoena-case.scad
+    cd case && openscad -o renders/assembled.png  {{base}} {{std_cam}} -D 'show="assembled"'   typoena-case.scad
+    cd case && openscad -o renders/body.png       {{base}} {{std_cam}} -D 'show="body"'        typoena-case.scad
+    cd case && openscad -o renders/bracket.png    {{base}} {{std_cam}} -D 'show="bracket"'     typoena-case.scad
+    cd case && openscad -o renders/baseplate.png  {{base}} {{std_cam}} -D 'show="baseplate"'   typoena-case.scad
+    cd case && openscad -o renders/print.png      {{base}} {{std_cam}} -D 'show="print_plate"' typoena-case.scad
+    cd case && openscad -o renders/section.png    {{base}} {{std_cam}} -D 'show="section"'     typoena-case.scad
+    cd case && openscad -o renders/plan.png       {{base}} {{std_cam}} -D 'show="plan"'        typoena-case.scad
+    cd case && openscad -o renders/plan-up.png    {{base}} {{std_cam}} -D 'show="plan_up"'     typoena-case.scad
+    cd case && openscad -o renders/plan-down.png  {{base}} {{std_cam}} -D 'show="plan_down"'   typoena-case.scad
+    # two bespoke cameras: the straight-on nameplate hero, and the low back 3/4
+    cd case && openscad -o renders/nameplate.png  {{base}} --camera=0,0,0,62,0,0,0   -D 'show="body"'      typoena-case.scad
+    cd case && openscad -o renders/front34.png    {{base}} --camera=0,0,0,72,0,200,0 -D 'show="assembled"' typoena-case.scad
 
 # export STLs for the three printable parts
 stl:
