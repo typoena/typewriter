@@ -57,7 +57,11 @@ transport — has an ADR in [`docs/adr.md`](docs/adr.md), including the rejected
 alternatives (Ratatui, Gleam + Shore on AtomVM, C/Arduino — ADR-001/002). How
 each decision is weighted against the user-facing requirements lives in
 [`docs/qfd.md`](docs/qfd.md); the ontology those docs use is defined in
-[`GLOSSARY.md`](GLOSSARY.md). A memory-safety review of the Rust `unsafe`/FFI
+[`GLOSSARY.md`](GLOSSARY.md). Where a default traces to a cost curve rather than
+a discrete pick — energy, latency, or memory bending against an interval or size
+— the curve and its knee live in
+[`docs/tradeoff-curves/README.md`](docs/tradeoff-curves/README.md). A
+memory-safety review of the Rust `unsafe`/FFI
 surface (mostly `usb_kbd.rs`) is in [`MEMORY_AUDIT.md`](MEMORY_AUDIT.md).
 
 | Layer         | Choice                                                                                              | Notes                                                                                                                                                                                                                                                       |
