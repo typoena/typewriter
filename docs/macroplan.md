@@ -40,7 +40,7 @@ name = "v0.3 editing"
 start = 2026-08-03
 original = 2026-08-24
 delivered = 2026-07-11
-learning = "Core complete 44 days early, host-tested. Register + yank/paste (yy/p/P), snapshot undo/redo (u/Ctrl-r, bounded 100 groups in PSRAM), and keystroke-recorded `.` repeat all landed 2026-07-11; the d/c operator grammar + text objects were already done ahead of schedule. Firmware version bumped to 0.3.0. On-device smoke-test still pending — pure editor-core, no new render surface."
+learning = "Core complete 44 days early, host-tested and partially smoke-tested on the panel. Register + yank/paste (yy/p/P), snapshot undo/redo (u/Ctrl-r, bounded 100 groups in PSRAM), and keystroke-recorded `.` repeat all landed 2026-07-11; the d/c operator grammar + text objects were already done ahead of schedule. Firmware bumped to 0.3.0. On device dd/yy/Ctrl-r confirmed; the one bug found was a multi-line paste leaving its later lines below the fold (adjust_scroll only tracked the caret) — fixed with a reveal() that scrolls the block end into view."
 
 [[feature]]
 name = "v0.4 visual + ex"
@@ -108,8 +108,9 @@ recovery, 1000-word no-drop, and `Ctrl-G`'s not-yet-built pull-then-retry
 refresh check passed (single-line edit repaints only rows at/below it, no extra
 full refresh), closing the last gate. **v0.2.5 international input** is
 hardware-verified (2026-07-11), and **v0.3 editing is complete in core** the same
-day (register + yank/paste, snapshot undo/redo, `.` repeat — host-tested,
-on-device smoke-test pending); the firmware crate is bumped to **0.3.0**. Most of
+day (register + yank/paste, snapshot undo/redo, `.` repeat — host-tested, and
+partially smoke-tested on the panel: `dd`/`yy`/`Ctrl-r` good, a multi-line-paste
+scroll bug found + fixed); the firmware crate is bumped to **0.3.0**. Most of
 v0.6 Markdown also already runs. Version numbers track shippable device releases,
 not raw core progress — the 0.3.0 bump reflects the v0.3 feature set being met.
 
@@ -253,15 +254,19 @@ v0.2 UTF-8-correct buffer and the ISO-8859-15 render font. Host-tested.
 
 ## v0.3 — Vim editing — [x]
 
-**Status:** COMPLETE in core 2026-07-11, host-tested (64 editor + 28 keymap
-tests). The three remaining pieces landed together: a single unnamed **register**
-with `y`/`yy`/`p`/`P` (and `x`/`d`/`c` filling it, so `dd`…`p` moves a line),
+**Status:** COMPLETE in core 2026-07-11, host-tested (65 editor + 28 keymap
+tests) and **partially smoke-tested on the panel 2026-07-11**. The three
+remaining pieces landed together: a single unnamed **register** with
+`y`/`yy`/`p`/`P` (and `x`/`d`/`c` filling it, so `dd`…`p` moves a line),
 **undo/redo** (`u`/`Ctrl-r`, snapshot-based, bounded to 100 groups in PSRAM — a
 whole Insert session undoes as one group), and **`.` repeat** (keystroke-recorded,
 so it replays an insert session like `ciwfoo<Esc>`). The `d`/`c` operator grammar
-and text objects had already landed ahead of schedule. Pure editor-core work,
-riding the already-verified draw/refresh path; **on-device smoke-test pending**
-(nothing new to render, so low risk).
+and text objects had already landed ahead of schedule. On device, `dd`, `yy`, and
+`Ctrl-r` confirmed good; the one issue found was that a **multi-line paste near
+the bottom left its later lines below the fold** — `adjust_scroll` only kept the
+caret's (first) pasted line visible. Fixed by a `reveal()` that scrolls the end of
+the pasted block into view while the caret stays on its first line (reflash to
+re-confirm on panel).
 
 - [x] `x dd`, `dw dd d$` (✓); `yy p P` (✓) and `.` repeat (✓) — register + a
       keystroke-recorded last-change both landed 2026-07-11
