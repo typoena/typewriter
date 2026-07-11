@@ -68,10 +68,12 @@ next build.
 
 **Spike 3 — SD card (FAT) on shared SPI2: verified 2026-07-11.** A separate
 binary — [`src/bin/sd_fat.rs`](src/bin/sd_fat.rs), flashed with `just flash-sd` —
-brings up the SD card on the EPD's SPI2 bus, mounts FAT at `/sd`, and exercises
-the persistence module's atomic save (write `*.tmp` → fsync → rename →
-read-back). Wiring: **SCK 12 · MOSI 11** (shared with the EPD) **· MISO 13**
-(new; the write-only EPD never used it) **· SD CS 10** (EPD CS is 7).
+brings up the SD card, mounts FAT at `/sd`, and exercises the persistence
+module's atomic save (write `*.tmp` → fsync → rename → read-back). Per ADR-012
+the SD runs on its **own SPI3 host** — **SCK 14 · MOSI 15 · MISO 13 · SD CS 10**
+— leaving the EPD alone on SPI2. (The 2026-07-11 bench proof below ran on the
+earlier shared-SPI2 wiring; the code is now rewired to SPI3, pending a re-run
+after moving the SCK/MOSI jumpers to 14/15.)
 
 Bench result (genuine 32 GB SDHC card): mounts at 10 MHz, `29806 MiB total`,
 atomic round-trip byte-identical. Two findings baked into the code:
@@ -85,10 +87,13 @@ atomic round-trip byte-identical. Two findings baked into the code:
   the real persistence module must add `*.tmp` boot-recovery. Long filenames
   (`CONFIG_FATFS_LFN_HEAP`) are required for the two-dot `*.md.tmp` name.
 
-Still open before persistence lands in `main.rs`: the **shared-bus arbitration**
-question — the EPD driver holds an exclusive SPI2 lock for its lifetime, so the
-EPD and an arbitrated SD device can't both be live on one host yet (release/
-re-acquire around EPD ops, or give the SD its own SPI3). This spike ran SD-only.
+**Arbitration resolved (ADR-012):** the EPD driver holds an exclusive SPI2 lock
+for its whole lifetime, and persistence runs on its own thread, so a shared bus
+would need an EPD rewrite plus a cross-thread mutex on the save path. Instead the
+SD gets its own SPI3 — the EPD stays untouched, no arbitration. Remaining before
+persistence lands in `main.rs`: re-run the spike on the SPI3 wiring, then wire
+the atomic save (unlink-then-rename + `*.tmp` boot-recovery) into a `persistence`
+module.
 
 **Spike 5 — partial refresh + typing: verified 2026-07-04.** `main.rs` wires
 the keyboard to the panel: [`src/usb_kbd.rs`](src/usb_kbd.rs) feeds decoded

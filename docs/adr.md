@@ -549,6 +549,63 @@ into [ADR-007](#adr-007-storage-split--fat-on-sd-for-working-copy-littlefs-on-fl
 
 ---
 
+## ADR-012: SD on its own SPI3 host (not shared with the EPD on SPI2)
+
+**Status:** Accepted — 2026-07-11
+**Scope:** v0.1 hardware; whole project.
+
+### Context
+
+The EPD (SSD1683) and the SD card both want SPI. The v0.1 plan (the boot
+sequence in [v0.1 technical](v0.1-mvp-technical.md#hardware-bring-up-order) and
+the storage context of
+[ADR-007](#adr-007-storage-split--fat-on-sd-for-working-copy-littlefs-on-flash-for-config))
+assumed **one shared SPI2 bus** with a per-device chip-select. Spike 3 (verified
+2026-07-11, [postmortem](postmortems/2026-07-05-spike3-sd-cmd59.md)) proved the
+SD works on the SPI2 wiring, but surfaced the integration blocker: the EPD driver
+uses esp-idf-hal's `SpiBusDriver`, whose constructor takes an **exclusive
+`spi_device_acquire_bus(BLOCK)` and holds it for the driver's whole lifetime**
+(it must keep CS asserted across a cmd→data sequence while toggling DC). While
+held, no other device on that host can transact — so an SD on SPI2 is locked out
+for as long as the panel driver is alive. Compounding it, persistence/git runs on
+a **dedicated thread** (Spike 7) while the EPD refreshes on the main task, so SD
+and EPD access are genuinely concurrent.
+
+### Options considered
+
+| Option | Pros | Cons |
+| --- | --- | --- |
+| **Shared SPI2, arbitrate** | One bus; ~2 fewer GPIOs. | Rewrite the proven EPD SPI layer to per-transaction device drivers; add a cross-thread mutex around all SPI2 access; residual "corruption on save during render" risk on the highest-value path. |
+| **SD on its own SPI3** | EPD code untouched; no arbitration/mutex; each bus at its own clock; matches the risk-table fallback exactly. | ~2 extra GPIOs + traces. |
+
+### Decision
+
+**SD gets its own SPI3 host.** The EPD keeps SPI2 and its exclusive-lock model,
+unchanged. This is the mitigation the technical-doc risk table already names
+("move SD to a separate SPI peripheral — ESP32-S3 has two"). SPI3 is free (SPI0/1
+are flash + PSRAM; nothing else uses SPI3).
+
+Pins — **SD on SPI3:** SCK 14, MOSI 15, MISO 13, CS 10 (MISO/CS unchanged from
+the spike; only SCK/MOSI move off the EPD-shared 12/11). **EPD stays on SPI2:**
+SCK 12, MOSI 11, CS 7, DC 6, RST 5, BUSY 4.
+
+### Consequences
+
+- No shared-bus arbitration or mutex — the git thread's SD I/O never contends
+  with an EPD refresh. Removes the "corruption on save during render" risk for
+  the device's first value (not losing the user's writing).
+- Each bus runs at its own clock (EPD ~4 MHz on jumpers; SD 10 MHz+).
+- Costs ~2 extra GPIOs + traces; the pin budget has room (avoids flash 26–32,
+  octal PSRAM 33–37, strapping 0/3/45/46, USB 19/20, RGB 38/48, EPD 4–7/11/12).
+- Supersedes the "shared SPI2, different CS" assumption in the boot sequence and
+  ADR-007's storage context; the `sd_fat` spike is rewired to SPI3 and its
+  EPD-CS-deselect step (only meaningful on a shared bus) is removed.
+- The `SpiBusDriver`-holds-the-lock mechanism was read from the constructor, not
+  re-verified on silicon; it doesn't affect this decision (SPI3 sidesteps it),
+  but is the first thing to confirm if a shared bus is ever revisited.
+
+---
+
 ## How to add a new ADR
 
 1. Append a new `## ADR-NNN: <title>` section to this file.
