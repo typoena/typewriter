@@ -236,6 +236,19 @@ fn file_roundtrip() -> Result<()> {
         f.write_all(payload.as_bytes()).context("write tmp")?;
         f.sync_all().context("fsync tmp")?; // FatFS f_sync — flush before rename
     }
+    // FatFS's f_rename — unlike POSIX rename(2) — refuses to overwrite an
+    // existing destination and returns FR_EXIST (EEXIST). So the classic
+    // write-tmp → rename-over-target idiom needs an explicit unlink of the
+    // target first on FAT. That opens a crash window: the target is briefly
+    // gone while `tmp` holds the complete, fsync'd new content. The real
+    // persistence module must pair this with boot recovery — a lingering
+    // `*.tmp` means the last save didn't finish and should be promoted. See
+    // ADR-007. (Tolerate a missing target so the first save works too.)
+    match fs::remove_file(&path) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(e).context("remove existing target before rename"),
+    }
     fs::rename(&tmp, &path).context("rename tmp -> final")?;
 
     let mut back = String::new();
