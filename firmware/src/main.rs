@@ -224,11 +224,21 @@ fn main() -> anyhow::Result<()> {
                         // The outcome returns on `git_rx` and updates the snackbar
                         // (see the idle branch below). The Save that preceded this
                         // in the batch already persisted the buffer, so this is a
-                        // pure git push.
+                        // pure git publish of the recorded dirty paths — the
+                        // outcome decides whether the snapshot is forgotten
+                        // (publish_succeeded) or retried (publish_failed).
                         #[cfg(feature = "git")]
-                        match git_tx.send(firmware::git_sync::PublishRequest) {
-                            Ok(()) => ed.set_notice("syncing..."),
-                            Err(_) => ed.set_notice("sync: git thread down"),
+                        {
+                            let paths = storage.take_dirty();
+                            match git_tx.send(firmware::git_sync::PublishRequest { paths }) {
+                                Ok(()) => ed.set_notice("syncing..."),
+                                Err(_) => {
+                                    // Thread gone — nothing will report back, so
+                                    // return the snapshot to pending ourselves.
+                                    storage.publish_failed();
+                                    ed.set_notice("sync: git thread down");
+                                }
+                            }
                         }
                         #[cfg(not(feature = "git"))]
                         log::info!(":sync — saved; light build (no `git` feature) — push skipped");
@@ -259,6 +269,13 @@ fn main() -> anyhow::Result<()> {
             #[cfg(feature = "git")]
             if let Ok(outcome) = git_rx.try_recv() {
                 use firmware::git_sync::PublishOutcome::*;
+                // Settle the dirty snapshot this publish took: confirmed
+                // published (or up to date) → forget it; failed → back to
+                // pending so the next :sync retries the same paths.
+                match &outcome {
+                    Pushed(_) | UpToDate => storage.publish_succeeded(),
+                    Failed(_) => storage.publish_failed(),
+                }
                 ed.set_notice(match outcome {
                     Pushed(oid) => format!("synced {oid}"),
                     UpToDate => "up to date".to_string(),
@@ -410,7 +427,15 @@ fn main() -> anyhow::Result<()> {
 /// `main`): the note is the whole point of the appliance, so we refuse to run
 /// in a state where the next save could destroy it.
 fn boot_storage(epd: &mut Epd) -> (Storage, String) {
-    let storage = match Storage::mount() {
+    // A git build shares this mount with the git thread, and libgit2 keeps the
+    // pack + idx descriptors open across a publish — that overruns the
+    // editor's tight 4-FD budget, so mount with the 16-FD one (persistence.rs,
+    // MAX_FILES_GIT). The light build keeps the editor's own budget.
+    #[cfg(feature = "git")]
+    let mounted = Storage::mount_for_git();
+    #[cfg(not(feature = "git"))]
+    let mounted = Storage::mount();
+    let storage = match mounted {
         Ok(s) => s,
         Err(e) => boot_halt(epd, "SD card not ready", &format!("{e:#}")),
     };

@@ -34,6 +34,8 @@
 //! sits in the tmp. [`Storage::recover`] closes the loop at boot — see its docs
 //! for the exact case analysis, which is subtler than "promote the tmp."
 
+use std::cell::RefCell;
+use std::collections::BTreeSet;
 use std::fs;
 use std::io::Write as _;
 use std::mem::MaybeUninit;
@@ -79,6 +81,14 @@ pub const MAX_FILE_BYTES: u64 = 256 * 1024;
 /// The C mount point (`/sd\0`) for the esp-idf FFI calls.
 const MOUNT_C: &std::ffi::CStr = c"/sd";
 
+/// Dirty-path journal — one repo-relative path per line, mirroring the in-RAM
+/// dirty set (see [`Storage::take_dirty`]). At the card root, *outside*
+/// `/sd/repo`, so it can never itself be committed. Without it a power pull
+/// would strand every file saved-but-not-yet-published in that session: the
+/// splice commit only visits recorded paths (nothing walks the tree anymore),
+/// so an unrecorded change would never reach the remote.
+const DIRTY_JOURNAL: &str = "/sd/.typoena-dirty";
+
 /// VFS open-file budget for the editor path: it opens only a note and its
 /// `*.tmp`, so a tight budget keeps FatFS's per-file buffers off the heap.
 const MAX_FILES_EDITOR: i32 = 4;
@@ -95,6 +105,23 @@ const MAX_FILES_GIT: i32 = 16;
 /// lock serialises the two, so no extra mutex is needed here.
 pub struct Storage {
     card: *mut sys::sdmmc_card_t,
+    /// Repo-relative paths saved or `:delete`d since the last confirmed
+    /// publish — the editor-side half of the O(depth) splice commit
+    /// (`git_sync::stage_and_commit` visits exactly these paths and nothing
+    /// else). Mirrored to [`DIRTY_JOURNAL`] whenever it changes, so the record
+    /// survives a power pull. `RefCell` because recording happens inside
+    /// `&self` save/delete calls; `Storage` already lives on one task only.
+    dirty: RefCell<Dirty>,
+}
+
+/// The two halves of the dirty record: `pending` accumulates between syncs;
+/// `take_dirty` moves it to `in_flight` for the duration of a publish so a
+/// failure can put it back (and a save landing *during* the publish re-enters
+/// `pending`, riding the next one). The journal always carries the union.
+#[derive(Default)]
+struct Dirty {
+    pending: BTreeSet<String>,
+    in_flight: BTreeSet<String>,
 }
 
 /// What [`Storage::recover`] did with a leftover `*.tmp` at boot.
@@ -223,7 +250,10 @@ impl Storage {
         }
         esp!(rc).context("esp_vfs_fat_sdspi_mount (card present? inserted? FAT-formatted?)")?;
 
-        let storage = Storage { card };
+        let storage = Storage {
+            card,
+            dirty: RefCell::new(Dirty::default()),
+        };
         let (max_khz, real_khz) = storage.negotiated_khz();
         log::info!("SD mounted at {MOUNT} — max {max_khz} kHz, negotiated {real_khz} kHz");
 
@@ -237,6 +267,13 @@ impl Storage {
                 "recovery: found {NOTES_TMP} with no {NOTES} — promoted the tmp (it is the \
                  newest complete copy)"
             ),
+        }
+        let carried = storage.load_dirty_journal();
+        if carried > 0 {
+            log::info!(
+                "dirty journal: {carried} unpublished path(s) carried over from a previous \
+                 session — the next :sync will commit them"
+            );
         }
         Ok(storage)
     }
@@ -314,6 +351,16 @@ impl Storage {
     /// buffers is deferred to the v0.9 crash-safety work — the atomic swap here
     /// already protects each individual save.
     pub fn save_path(&self, path: &str, contents: &str) -> Result<()> {
+        // Record BEFORE writing: a crash in between leaves an over-approximate
+        // journal (the splice of an unchanged path is a no-op), whereas the
+        // reverse order could leave a changed file no record ever points at.
+        self.record_dirty(path);
+        Self::atomic_write(path, contents)
+    }
+
+    /// The atomic write primitive behind [`Storage::save_path`] and the dirty
+    /// journal: write `{path}.tmp`, fsync, unlink the target, rename over it.
+    fn atomic_write(path: &str, contents: &str) -> Result<()> {
         let tmp = format!("{path}.tmp");
         {
             let mut f = fs::File::create(&tmp)
@@ -350,12 +397,97 @@ impl Storage {
     /// file half-present after a delete. For a Tracked file this leaves the
     /// working copy short one file; the next publish's `add --all` stages it.
     pub fn delete_path(&self, path: &str) -> Result<()> {
+        // Same record-first rule as `save_path`: the splice treats a recorded
+        // path with no file behind it as "remove from the tree".
+        self.record_dirty(path);
         let _ = fs::remove_file(format!("{path}.tmp"));
         match fs::remove_file(path) {
             Ok(()) => Ok(()),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
             Err(e) => Err(e).with_context(|| format!("unlink {path}")),
         }
+    }
+
+    /// Note a working-copy file as (possibly) differing from HEAD. Paths
+    /// outside `/sd/repo` (`/sd/local`, `/sd/ca.pem`, the journal itself) are
+    /// not git's business and are skipped. The journal is rewritten only when
+    /// the set actually grows, so re-saving the same note between syncs costs
+    /// no extra card I/O.
+    fn record_dirty(&self, abs_path: &str) {
+        let Some(rel) = abs_path
+            .strip_prefix(REPO_DIR)
+            .and_then(|r| r.strip_prefix('/'))
+        else {
+            return;
+        };
+        if rel.is_empty() {
+            return;
+        }
+        let grew = self.dirty.borrow_mut().pending.insert(rel.to_string());
+        if grew {
+            self.persist_dirty();
+        }
+    }
+
+    /// Snapshot the dirty paths for a publish (repo-relative). The snapshot
+    /// moves to `in_flight` — the journal keeps carrying it — until the UI
+    /// task reports the outcome: [`Storage::publish_succeeded`] forgets it,
+    /// [`Storage::publish_failed`] returns it to pending for the next `:sync`.
+    pub fn take_dirty(&self) -> BTreeSet<String> {
+        let mut d = self.dirty.borrow_mut();
+        let taken = std::mem::take(&mut d.pending);
+        d.in_flight.extend(taken.iter().cloned());
+        taken
+    }
+
+    /// The publish that took the last snapshot committed (or confirmed
+    /// up-to-date): drop its paths and shrink the journal. Anything saved
+    /// while it ran is still in `pending` and rides the next sync.
+    pub fn publish_succeeded(&self) {
+        self.dirty.borrow_mut().in_flight.clear();
+        self.persist_dirty();
+    }
+
+    /// The publish failed: return its snapshot to pending so the next `:sync`
+    /// retries it (the splice is idempotent, so a retry of an already-clean
+    /// path is free). The journal already carries these paths — no rewrite.
+    pub fn publish_failed(&self) {
+        let mut d = self.dirty.borrow_mut();
+        let inflight = std::mem::take(&mut d.in_flight);
+        d.pending.extend(inflight);
+    }
+
+    /// Mirror `pending ∪ in_flight` to [`DIRTY_JOURNAL`], atomically.
+    /// Best-effort: a failed journal write must not fail the save that
+    /// triggered it — the set stays correct in RAM and the journal heals on
+    /// the next change.
+    fn persist_dirty(&self) {
+        let contents = {
+            let d = self.dirty.borrow();
+            let mut out = String::new();
+            for p in d.pending.union(&d.in_flight) {
+                out.push_str(p);
+                out.push('\n');
+            }
+            out
+        };
+        if let Err(e) = Self::atomic_write(DIRTY_JOURNAL, &contents) {
+            log::warn!("dirty journal write FAILED ({e:#}); set kept in RAM only");
+        }
+    }
+
+    /// Seed the dirty set from the journal at mount — the paths a previous
+    /// session saved but never got confirmed as published (power pull, failed
+    /// sync, or simply no `:sync` before shutdown). Returns how many.
+    fn load_dirty_journal(&self) -> usize {
+        let Ok(text) = fs::read_to_string(DIRTY_JOURNAL) else {
+            return 0; // no journal yet — nothing carried over
+        };
+        let mut d = self.dirty.borrow_mut();
+        for line in text.lines().map(str::trim).filter(|l| !l.is_empty()) {
+            d.pending.insert(line.to_string());
+        }
+        d.pending.len()
     }
 
     /// Reconcile a leftover `notes.md.tmp` at boot. The save sequence is

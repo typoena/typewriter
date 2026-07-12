@@ -17,15 +17,23 @@
 //!    notes. A `/sd/repo` that isn't a valid repo is a provisioning error
 //!    (`just init`), surfaced as such, not papered over.
 //! 3. **No synthetic content.** The spike appended a marker line; here the
-//!    editor has already saved the user's `notes.md` before `:sync` signals us,
-//!    so we just stage + commit + push what's on disk.
+//!    editor has already saved the user's buffers before `:sync` signals us,
+//!    so we just commit + push what's on disk.
+//! 4. **The commit is an O(depth) TreeBuilder splice, not an index pass.**
+//!    The request carries the repo-relative paths saved/deleted since the last
+//!    confirmed publish (`Storage`'s journaled dirty set); `stage_and_commit`
+//!    patches exactly those onto HEAD's tree. The index pipeline it replaced
+//!    (`add_all` → `index.write` → `write_tree`) is O(N_tree) and measured up
+//!    to 611 s on the real 1179-file / 570 MB-pack clone — see
+//!    docs/tradeoff-curves/sync-commit-staging.md for the whole trail.
 //!
 //! Runs on a dedicated 96 KB thread (libgit2's init→push chain nests ~67 KB of
 //! `GIT_PATH_MAX` stack buffers — see git_push.rs / postmortem #3). Config is
 //! baked at build time (`TW_*`, ADR-007: v0.1 device config is compiled in).
 
 use std::cell::RefCell;
-use std::path::Path;
+use std::collections::BTreeSet;
+use std::fs;
 use std::rc::Rc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -39,8 +47,8 @@ use esp_idf_svc::sntp::{EspSntp, SyncStatus};
 use esp_idf_svc::sys;
 use esp_idf_svc::wifi::{BlockingWifi, EspWifi};
 use git2::{
-    CertificateCheckStatus, Commit, Cred, CredentialType, FetchOptions, IndexAddOption,
-    PushOptions, RemoteCallbacks, Repository, Signature,
+    CertificateCheckStatus, Commit, Cred, CredentialType, FetchOptions, ObjectType, Oid,
+    PushOptions, RemoteCallbacks, Repository, Signature, Tree,
 };
 
 use crate::net::connect_wifi;
@@ -73,10 +81,15 @@ const SNTP_TIMEOUT: Duration = Duration::from_secs(20);
 /// now also runs here, but it's shallow next to libgit2's path-buffer nesting.
 pub const GIT_STACK: usize = 96 * 1024;
 
-/// A request to publish. The note is already saved to `/sd/repo/notes.md` by the
-/// UI task before this is sent, so the request carries no payload (a future
-/// multi-file publish can grow one).
-pub struct PublishRequest;
+/// A request to publish. The UI task has already saved every dirty buffer to
+/// the card before sending this; `paths` is `Storage::take_dirty`'s snapshot —
+/// the repo-relative paths saved or `:delete`d since the last confirmed
+/// publish. The working tree stays the source of truth: at commit time a path
+/// that exists on the card is spliced into the tree from disk, a missing one
+/// is spliced out. An unchanged path is a no-op, so over-reporting is safe.
+pub struct PublishRequest {
+    pub paths: BTreeSet<String>,
+}
 
 /// Result of a publish attempt, sent back to the UI task for the snackbar. The
 /// detailed error always goes to the serial log; the panel gets a short line.
@@ -103,6 +116,22 @@ pub fn run_git_service(
     rx: Receiver<PublishRequest>,
     tx: Sender<PublishOutcome>,
 ) {
+    // Process-global libgit2 tuning, once, before any repo work. The 32-bit
+    // defaults (32 MB window / 256 MB mapped budget, mwindow.c) would
+    // git__malloc past PSRAM on the first pack access of the real 570 MB-pack
+    // clone; these are the bench-proven values (git_bench), and ~1.9 MB of
+    // windows stays live during git ops — the p_mmap emulation (esp_map.c)
+    // relies on this mapped limit being real.
+    // SAFETY: set on the git thread before any Repository is opened.
+    unsafe {
+        if let Err(e) = git2::opts::set_mwindow_size(256 * 1024) {
+            log::error!("set_mwindow_size failed ({e}); first pack access may OOM");
+        }
+        if let Err(e) = git2::opts::set_mwindow_mapped_limit(4 * 1024 * 1024) {
+            log::error!("set_mwindow_mapped_limit failed ({e}); first pack access may OOM");
+        }
+    }
+
     // Lazily initialised on the first request, then reused across publishes.
     let mut wifi: Option<BlockingWifi<EspWifi<'static>>> = None;
     let mut modem = Some(modem);
@@ -110,7 +139,7 @@ pub fn run_git_service(
     let mut clock_synced = false;
     let mut tls_ready = false;
 
-    while rx.recv().is_ok() {
+    while let Ok(req) = rx.recv() {
         let outcome = publish_cycle(
             &sys_loop,
             &mut wifi,
@@ -118,6 +147,7 @@ pub fn run_git_service(
             &mut nvs,
             &mut clock_synced,
             &mut tls_ready,
+            &req.paths,
         );
         let msg = match outcome {
             Ok(o) => o,
@@ -143,9 +173,20 @@ fn publish_cycle(
     nvs: &mut Option<EspDefaultNvsPartition>,
     clock_synced: &mut bool,
     tls_ready: &mut bool,
+    paths: &BTreeSet<String>,
 ) -> Result<PublishOutcome> {
     if REMOTE_URL.is_empty() || GH_USER.is_empty() || PAT.is_empty() || WIFI_SSID.is_empty() {
         bail!("git config missing — set TW_WIFI_SSID / TW_REMOTE_URL / TW_GH_USER / TW_PAT in firmware/.env and rebuild");
+    }
+
+    // Nothing recorded dirty and origin's tracking ref already has HEAD: this
+    // `:sync` has nothing to do — say so without touching the radio (~150 ms
+    // instead of a Wi-Fi + TLS round). A stranded local commit (committed but
+    // never pushed, e.g. a push that failed mid-air) makes the check false and
+    // takes the full path below, where publish_once pushes it.
+    if paths.is_empty() && remote_current().unwrap_or(false) {
+        log::info!(":sync — no dirty paths and origin has HEAD; up to date, radio untouched");
+        return Ok(PublishOutcome::UpToDate);
     }
 
     // Phases are timed so a cold :sync reports where the seconds go. Wi-Fi, clock
@@ -186,7 +227,7 @@ fn publish_cycle(
     }
 
     let t_publish = Instant::now();
-    let outcome = publish_once()?;
+    let outcome = publish_once(paths)?;
     log::info!(
         ":sync timing — wifi {wifi_ms}ms, clock {clock_ms}ms, tls {tls_ms}ms, publish(commit+push) {}ms, total {}ms",
         t_publish.elapsed().as_millis(),
@@ -205,15 +246,16 @@ fn publish_cycle(
 ///
 /// Never clones or wipes: a `/sd/repo` that isn't a valid repo is a provisioning
 /// error, surfaced as such.
-fn publish_once() -> Result<PublishOutcome> {
-    log::info!("publish started — free heap {}", free_heap());
+fn publish_once(paths: &BTreeSet<String>) -> Result<PublishOutcome> {
+    log::info!(
+        "publish started — {} dirty path(s), free heap {}",
+        paths.len(),
+        free_heap()
+    );
     let repo = Repository::open(REPO_DIR).with_context(|| {
         format!("opening git repo at {REPO_DIR} — provision the card with a clone (just init) whose origin is your remote")
     })?;
 
-    let Some(mut oid) = stage_and_commit(&repo)? else {
-        return Ok(PublishOutcome::UpToDate);
-    };
     let branch = repo
         .head()?
         .shorthand()
@@ -221,17 +263,46 @@ fn publish_once() -> Result<PublishOutcome> {
         .to_string();
     let refspec = format!("refs/heads/{branch}:refs/heads/{branch}");
 
-    // Optimistic push. A non-fast-forward rejection means the remote moved under
-    // us: reconcile onto origin and replay the note on the new tip, then retry
-    // once. reconcile_onto_origin mixed-resets, so the just-saved note survives in
-    // the working tree and stage_and_commit lands it on top of origin.
-    if let Err(first) = try_push(&repo, &refspec) {
-        log::warn!("push rejected ({first}); reconciling onto origin and replaying the note");
+    let mut oid = match stage_and_commit(&repo, paths)? {
+        Some(oid) => oid,
+        None => {
+            // Nothing new to commit. Usually genuinely up to date — but a
+            // previous cycle may have committed and then failed to push,
+            // stranding a local-only commit (the old add_all path silently
+            // never retried those). Push whenever origin's tracking ref
+            // doesn't already have HEAD.
+            let head = repo.head()?.peel_to_commit()?.id();
+            if tracking_tip(&repo, &branch) == Some(head) {
+                return Ok(PublishOutcome::UpToDate);
+            }
+            log::info!(
+                "tree unchanged but origin/{branch} lacks HEAD {} — pushing the stranded commit",
+                short(head)
+            );
+            head
+        }
+    };
+
+    // Optimistic push. A non-fast-forward *rejection* means the remote moved
+    // under us: reconcile onto origin and replay the dirty paths on the new
+    // tip, then retry once (reconcile_onto_origin soft-resets — ref move only —
+    // so the notes stay on the card and stage_and_commit splices them on top of
+    // origin). A transport-level failure is surfaced as-is: its fetch would die
+    // the same way, and the commit is safe locally — the stranded-commit check
+    // above pushes it once the transport works again.
+    if let Err(failure) = try_push(&repo, &refspec) {
+        let rejection = match failure {
+            PushFailure::Rejected(msg) => msg,
+            PushFailure::Other(e) => return Err(e),
+        };
+        log::warn!("push rejected ({rejection}); reconciling onto origin and replaying the note");
         reconcile_onto_origin(&repo, &branch).context("reconciling after a rejected push")?;
-        match stage_and_commit(&repo)? {
+        match stage_and_commit(&repo, paths)? {
             Some(replayed) => {
                 oid = replayed;
-                try_push(&repo, &refspec).context("push after reconcile")?;
+                try_push(&repo, &refspec)
+                    .map_err(PushFailure::into_error)
+                    .context("push after reconcile")?;
             }
             // The note was already on origin (nothing to replay) — treat as done.
             None => {
@@ -249,65 +320,59 @@ fn publish_once() -> Result<PublishOutcome> {
     Ok(PublishOutcome::Pushed(short(oid)))
 }
 
-/// Stage the working tree and commit it on top of the current branch tip.
-/// Returns the new commit id, or `None` when the tree already matches the parent
-/// (nothing to publish). Called on the first attempt and again to replay the note
-/// after a reconcile.
+/// Build the commit for `paths` as an O(depth) TreeBuilder splice onto HEAD's
+/// tree and return the new commit id — or `None` when the result matches the
+/// parent (nothing to publish). Called on the first attempt and again to
+/// replay the dirty paths after a reconcile.
 ///
-/// Staging is `add --all` **plus** `add -u`, which together equal `git add -A`.
-/// `add_all` stages new + modified files; `update_all` re-syncs already-tracked
-/// entries to the working tree, which is what actually removes an index entry
-/// whose file was deleted. Spike 14 found `add_all` alone did **not** stage a
-/// `:delete`d file's removal on this libgit2 build (the tree came back unchanged,
-/// so the publish was a silent no-op), so the `update_all` pass is load-bearing,
-/// not belt-and-braces — do not drop it.
+/// This replaces the index pipeline (`add_all` → `index.write` → `write_tree`),
+/// which is O(N_tree) and cannot run on the real 1179-file / 570 MB-pack clone:
+/// `index.write`'s racy-clean pass re-hashes ~every entry on FAT's 2 s mtimes
+/// (measured up to **611 s**), and even the index-free `read_tree` walk was
+/// 77 s. The splice reads and writes only the dirty paths' ancestor chains —
+/// O(depth × dirty), flat in repo size, **~2–2.8 s measured on the real
+/// clone** — and carries every untouched entry (including the ~150 MB of
+/// images) forward by OID without ever opening it. Trail + bench numbers:
+/// docs/tradeoff-curves/sync-commit-staging.md.
 ///
-/// Both run a per-path filter that drops macOS AppleDouble sidecars (`._name`)
-/// and `.DS_Store` that Finder/Spotlight sprinkle onto the FAT card whenever it's
-/// mounted on a Mac — without it, a blind add --all sweeps them into the commit
-/// (it did once: 07d87772 shipped `._.git`, `._README.md`, `._notes.md`).
-/// Filtering here fixes it for *every* repo at the device level, so no per-repo
-/// `.gitignore` is needed.
-fn stage_and_commit(repo: &Repository) -> Result<Option<git2::Oid>> {
-    let mut index = repo.index().context("opening index")?;
-    let mut skip_macos_cruft = |path: &Path, _matched: &[u8]| -> i32 {
-        match path.file_name().and_then(|n| n.to_str()) {
-            Some(name) if name.starts_with("._") || name == ".DS_Store" => 1, // skip
-            _ => 0,                                                            // add
-        }
-    };
-    // Split the commit window into its sub-phases so we can tell the FAT
-    // working-tree *walk* (`add_all`/`update_all` stat every file over SPI) apart
-    // from the FAT object *writes* (index/tree/commit). This decides whether
-    // explicit-path staging is worth it: the walk is O(tree size) and avoidable
-    // (the editor knows the dirty paths), the writes are O(churn) and a floor.
-    // See docs/tradeoff-curves/sync-commit-staging.md.
-    let t_walk = Instant::now();
-    index
-        .add_all(["*"], IndexAddOption::DEFAULT, Some(&mut skip_macos_cruft))
-        .context("staging new/modified (add --all)")?;
-    // Stage deletions: update_all removes index entries whose working-tree file is
-    // gone. add_all does not do this reliably here (Spike 14), so this is required.
-    index
-        .update_all(["*"], Some(&mut skip_macos_cruft))
-        .context("staging deletions (add -u)")?;
-    let walk_ms = t_walk.elapsed().as_millis();
-
-    let t_index = Instant::now();
-    index.write().context("writing index")?;
-    let index_ms = t_index.elapsed().as_millis();
-
-    let t_tree = Instant::now();
-    let tree = repo.find_tree(index.write_tree().context("writing tree")?)?;
-    let tree_ms = t_tree.elapsed().as_millis();
-
-    // Commit on top of the current branch tip (None on an empty/unborn remote).
-    let t_parent = Instant::now();
+/// The working tree is the source of truth: a recorded path that exists on the
+/// card is spliced in from disk, a missing one is spliced out (a `:delete`).
+/// Unrecorded paths are never visited — so Finder cruft (`._*`, `.DS_Store`)
+/// on the FAT card can no longer ride into a commit the way it once did with
+/// `add_all` (07d87772), and the old cruft filter is gone with the walk.
+fn stage_and_commit(repo: &Repository, paths: &BTreeSet<String>) -> Result<Option<Oid>> {
+    // Commit on top of the current branch tip (None on an empty/unborn remote,
+    // where the splice starts from an empty base and makes a parentless commit).
     let parent = repo.head().ok().and_then(|h| h.peel_to_commit().ok());
-    let parent_ms = t_parent.elapsed().as_millis();
-    log::info!(
-        "commit split — walk(add_all+update_all) {walk_ms}ms, index.write {index_ms}ms, write_tree {tree_ms}ms, parent-load {parent_ms}ms"
-    );
+    let base = match &parent {
+        Some(c) => Some(c.tree().context("loading HEAD tree")?),
+        None => None,
+    };
+
+    let t_splice = Instant::now();
+    let mut tree = base;
+    for path in paths {
+        let parts: Vec<&str> = path.split('/').filter(|p| !p.is_empty()).collect();
+        if parts.is_empty() {
+            continue;
+        }
+        let blob = match fs::read(format!("{REPO_DIR}/{path}")) {
+            Ok(bytes) => Some(
+                repo.blob(&bytes)
+                    .with_context(|| format!("writing blob for {path}"))?,
+            ),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None, // deleted → splice out
+            Err(e) => return Err(e).with_context(|| format!("reading {path}")),
+        };
+        let spliced = splice(repo, tree.as_ref(), &parts, blob)
+            .with_context(|| format!("splicing {path}"))?;
+        tree = Some(repo.find_tree(spliced).context("loading spliced tree")?);
+    }
+    let Some(tree) = tree else {
+        return Ok(None); // unborn branch and nothing dirty — nothing to commit
+    };
+    let splice_ms = t_splice.elapsed().as_millis();
+
     if let Some(p) = &parent {
         if p.tree_id() == tree.id() {
             log::info!("nothing to publish — tree unchanged @ {}", short(p.id()));
@@ -322,20 +387,111 @@ fn stage_and_commit(repo: &Repository) -> Result<Option<git2::Oid>> {
     let oid = repo
         .commit(Some("HEAD"), &sig, &sig, &message, &tree, &parents)
         .context("creating commit")?;
-    let commit_ms = t_commit.elapsed().as_millis();
     log::info!(
-        "commit split — commit-obj {commit_ms}ms; committed {} — free heap {}",
+        "commit split — splice {splice_ms}ms ({} path(s)), commit-obj {}ms; committed {} — free heap {}",
+        paths.len(),
+        t_commit.elapsed().as_millis(),
         short(oid),
         free_heap()
     );
     Ok(Some(oid))
 }
 
+/// Return a new tree = `base` with `path` set to `blob` (`Some` inserts or
+/// replaces, `None` removes). Recurses down the path's subtree chain: reads
+/// ~depth tree objects and writes ~depth new ones, leaving every sibling entry
+/// untouched (carried by OID — never opened). A missing intermediate directory
+/// is synthesized on the way down; a directory emptied by a remove is pruned
+/// on the way up rather than left behind as an empty tree entry.
+fn splice(repo: &Repository, base: Option<&Tree>, path: &[&str], blob: Option<Oid>) -> Result<Oid> {
+    let (head, rest) = path.split_first().context("splice: empty path")?;
+    let mut tb = repo.treebuilder(base).context("treebuilder")?;
+    if rest.is_empty() {
+        match blob {
+            Some(oid) => {
+                tb.insert(*head, oid, 0o100644)
+                    .context("inserting blob entry")?;
+            }
+            // Removing a never-committed path is a no-op, not an error (a note
+            // created and deleted between two syncs).
+            None => {
+                let _ = tb.remove(*head);
+            }
+        }
+    } else {
+        let sub = match base.and_then(|b| b.get_name(head)) {
+            Some(e) if e.kind() == Some(ObjectType::Tree) => {
+                Some(repo.find_tree(e.id()).context("loading subtree")?)
+            }
+            // Absent (a new directory) or a non-tree shadowing the name —
+            // build the subtree from scratch either way.
+            _ => None,
+        };
+        let new_sub = splice(repo, sub.as_ref(), rest, blob)?;
+        if repo.find_tree(new_sub)?.len() == 0 {
+            let _ = tb.remove(*head); // the remove emptied this directory — prune it
+        } else {
+            tb.insert(*head, new_sub, 0o040000)
+                .context("inserting subtree entry")?;
+        }
+    }
+    tb.write().context("writing spliced tree")
+}
+
+/// Origin's remote-tracking tip for `branch`, if the ref exists. libgit2
+/// updates it after a successful push/fetch, so it is "the newest commit we
+/// know origin has" — without touching the network.
+fn tracking_tip(repo: &Repository, branch: &str) -> Option<Oid> {
+    repo.find_reference(&format!("refs/remotes/origin/{branch}"))
+        .ok()?
+        .peel_to_commit()
+        .ok()
+        .map(|c| c.id())
+}
+
+/// Whether origin is known to already have HEAD (local refs only, no network).
+/// Errors read as "not current", so the caller falls through to the full
+/// publish path where the real failure surfaces with context.
+fn remote_current() -> Result<bool> {
+    let repo = Repository::open(REPO_DIR)?;
+    let head = repo.head()?.peel_to_commit()?.id();
+    let branch = repo
+        .head()?
+        .shorthand()
+        .context("HEAD has no branch shorthand")?
+        .to_string();
+    Ok(tracking_tip(&repo, &branch) == Some(head))
+}
+
+/// How a push attempt failed — this decides whether reconciling can help.
+enum PushFailure {
+    /// The server processed the push but refused the ref update (arrives via
+    /// the `push_update_reference` callback — e.g. non-fast-forward): the
+    /// remote moved under us, and reconcile + replay is the right response.
+    Rejected(String),
+    /// Transport / TLS / auth / URL — the push never reached a ref decision,
+    /// so a reconcile (whose fetch needs the same transport) cannot help.
+    /// Surfaced directly; the 2026-07-13 on-device run burned a doomed
+    /// reconcile on an "unsupported URL protocol" because this wasn't split.
+    Other(anyhow::Error),
+}
+
+impl PushFailure {
+    fn into_error(self) -> anyhow::Error {
+        match self {
+            Self::Rejected(msg) => anyhow::anyhow!("remote rejected ref: {msg}"),
+            Self::Other(e) => e,
+        }
+    }
+}
+
 /// One push attempt over HTTPS. Binds the PAT credential + the cert-verify
-/// callback, and surfaces a server-side ref rejection (e.g. non-fast-forward) as
-/// an error (it arrives via `push_update_reference`, not as a `push()` error).
-fn try_push(repo: &Repository, refspec: &str) -> Result<()> {
-    let mut remote = repo.find_remote("origin")?;
+/// callback, and separates a server-side ref rejection (reconcilable) from a
+/// transport-level failure (not).
+fn try_push(repo: &Repository, refspec: &str) -> Result<(), PushFailure> {
+    let mut remote = repo
+        .find_remote("origin")
+        .map_err(|e| PushFailure::Other(anyhow::Error::new(e).context("finding remote origin")))?;
     let rejection: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
 
     let mut cbs = auth_callbacks();
@@ -353,27 +509,30 @@ fn try_push(repo: &Repository, refspec: &str) -> Result<()> {
     opts.remote_callbacks(cbs);
     remote
         .push(&[refspec], Some(&mut opts))
-        .context("push transport")?;
+        .map_err(|e| PushFailure::Other(anyhow::Error::new(e).context("push transport")))?;
 
     if let Some(msg) = rejection.borrow().clone() {
-        bail!("remote rejected ref: {msg}");
+        return Err(PushFailure::Rejected(msg));
     }
     log::info!("push accepted by remote");
     Ok(())
 }
 
-/// Fetch origin and mixed-reset the local branch onto it, so our just-made commit
-/// can be replayed on the current tip. Only runs after a non-fast-forward push
+/// Fetch origin and *soft*-reset the local branch onto it, so our changes can
+/// be replayed on the current tip. Only runs after a non-fast-forward push
 /// rejection — i.e. the remote moved under us.
 ///
-/// **MIXED**, deliberately not a force checkout: the note we're publishing lives
-/// in the working tree, and a force checkout would clobber it. Mixed moves the
-/// branch ref + index onto origin but leaves the working tree, so the note
-/// survives and `stage_and_commit` replays it on top. For a single-writer
-/// appliance this resolves last-writer-wins — a concurrent remote *edit* to the
-/// same note loses to ours, and a remote-only *added* file the card doesn't have
-/// is dropped by the replay's add --all. Both need a real merge (increment B) and
-/// don't arise from this device's own use.
+/// **SOFT**, deliberately: it moves only the branch ref. The previous Mixed
+/// reset also rewrote the index — pure waste now that the splice commit never
+/// reads the index, and on the real repo an index write is exactly the
+/// racy-clean wall the splice exists to avoid. Neither flavor touches the
+/// working tree, so the notes being published survive on the card and the
+/// replay splices them onto the new tip. For a single-writer appliance this
+/// resolves last-writer-wins: a concurrent remote *edit* to a note we're
+/// publishing loses to ours, while a remote-only added/changed file is simply
+/// carried forward — origin's tree is now the splice base, so the replay
+/// keeps it (an improvement over the old `add --all` replay, which dropped
+/// files the card didn't have). A real merge stays increment-B work.
 fn reconcile_onto_origin(repo: &Repository, branch: &str) -> Result<()> {
     let mut remote = repo.find_remote("origin")?;
     let mut fo = FetchOptions::new();
@@ -387,12 +546,12 @@ fn reconcile_onto_origin(repo: &Repository, branch: &str) -> Result<()> {
         .context("no FETCH_HEAD after fetch")?;
     let theirs = repo.reference_to_annotated_commit(&fetch_head)?;
     log::info!(
-        "reconcile: resetting local {branch} onto origin @ {} (mixed, keeps the note)",
+        "reconcile: resetting local {branch} onto origin @ {} (soft — ref move only, notes stay on the card)",
         short(theirs.id())
     );
     let their_obj = repo.find_object(theirs.id(), None)?;
-    repo.reset(&their_obj, git2::ResetType::Mixed, None)
-        .context("mixed reset onto origin")?;
+    repo.reset(&their_obj, git2::ResetType::Soft, None)
+        .context("soft reset onto origin")?;
     Ok(())
 }
 
