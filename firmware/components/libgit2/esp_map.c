@@ -15,14 +15,30 @@
  * docs/tradeoff-curves/sync-commit-staging.md). We cache the read buffers so a
  * given file region is read from the card once and reused.
  *
- * Correctness: cache ONLY read-only mappings >= ESP_MAP_CACHE_MIN. libgit2 maps
- * pack idx/data, the commit-graph, midx and packed-refs — all immutable on this
- * device (only loose objects/refs/index are written, none via mmap). The one
- * mutable mmap is diff_file.c on small working-tree files (notes.md), which the
- * size floor excludes, so a mutable file is never served stale. The writable
- * mapping the pack indexer uses (fetch/clone) is excluded by the prot check.
- * Identity is (dev, ino, size, mtime, offset, len); for an immutable pack any of
- * size/mtime already differs if the file is ever replaced.
+ * Correctness: cache ONLY read-only mappings of files >= ESP_MAP_CACHE_MIN_FILE
+ * (the FILE size, not the map length — 2026-07-12b). The hot set turned out to
+ * be the SMALL maps: pack trailer probes, idx fanout reads and delta-base
+ * windows repeat at the same offsets on every freshen/refresh, and a map-length
+ * floor excluded exactly those (0 cache hits over three full real-repo bench
+ * runs). Keying on file size caches them while still excluding the small
+ * mutable working-tree files diff_file.c maps (notes.md etc.) — only the pack,
+ * its idx, a midx and the commit-graph are ever that large, and all are
+ * immutable on this device (only loose objects/refs/index are written, none
+ * via mmap). The writable mapping the pack indexer uses (fetch/clone) is
+ * excluded by the prot check. Identity is (dev, ino, size, mtime, offset, len);
+ * for an immutable pack any of size/mtime already differs if the file is ever
+ * replaced. NOTE: on esp-idf's FAT VFS st_dev/st_ino are constant and mtime has
+ * 2 s granularity, so identity is effectively (size, mtime₂ₛ, offset, len) —
+ * fine for packs (a replaced pack changes size), weak for small mutable files,
+ * which is exactly why those must never be cacheable.
+ *
+ * Memory discipline (2026-07-12b): the first version freed released buffers
+ * only lazily on the next p_mmap, so a burst (read_tree of 158 trees) pinned
+ * 7.4 MB and starved zlib's git__malloc (crash at 508 KB heap) — it defeated
+ * GIT_OPT_SET_MWINDOW_MAPPED_LIMIT because libgit2 believed the memory was
+ * returned. Now p_munmap evicts unreferenced entries down to
+ * ESP_MAP_CACHE_LOW_WATER, so a released window's memory really is returned
+ * under pressure while a warm working set stays resident.
  *
  * Limitation: writable/shared mappings are not written back (and not cached).
  */
@@ -48,13 +64,21 @@ int git__mmap_alignment(size_t *alignment)
 	return 0;
 }
 
-/* Only cache mappings at least this large: covers pack idx/windows, excludes the
- * small mutable working-tree files diff_file.c maps. */
-#define ESP_MAP_CACHE_MIN (64 * 1024)
+/* Only cache mappings of files at least this large (FILE size, not map length):
+ * covers the pack, its idx, midx and commit-graph — and thus the hot small
+ * windows within them — while excluding the small mutable working-tree files
+ * diff_file.c maps. */
+#define ESP_MAP_CACHE_MIN_FILE (1024 * 1024)
 /* Cached-buffer budget in PSRAM. Entries with no live ref are LRU-evicted to
  * stay under this; pinned entries may exceed it transiently. */
 #define ESP_MAP_CACHE_CAP (4 * 1024 * 1024)
-#define ESP_MAP_CACHE_SLOTS 24
+/* On p_munmap, unreferenced entries are evicted down to this — the resident
+ * working set a burst leaves behind. Must leave git__malloc (zlib, mwindow)
+ * ample heap; the 2026-07-12 OOM run crashed with 7.4 MB resident. */
+#define ESP_MAP_CACHE_LOW_WATER (2 * 1024 * 1024)
+/* Small maps are numerous (trailer/fanout/delta-base probes), so more slots
+ * than the window-only design needed; a slot is ~40 B. */
+#define ESP_MAP_CACHE_SLOTS 48
 
 struct map_entry {
 	unsigned char *data;
@@ -109,11 +133,12 @@ static int read_range(int fd, off64_t offset, size_t len, unsigned char *data)
 	return 0;
 }
 
-/* Best-effort: evict unreferenced LRU entries until `need` more bytes fit the
- * cap. Pinned entries (refcount > 0) can't be evicted, so the cap is soft. */
-static void evict_for(size_t need)
+/* Best-effort: evict unreferenced LRU entries until total cached bytes fit
+ * `budget`. Pinned entries (refcount > 0) can't be evicted, so budgets are
+ * soft. */
+static void evict_to(size_t budget)
 {
-	while (g_cached_bytes + need > ESP_MAP_CACHE_CAP) {
+	while (g_cached_bytes > budget) {
 		int victim = -1;
 		uint32_t oldest = 0xFFFFFFFFu;
 		int i;
@@ -145,9 +170,11 @@ int p_mmap(git_map *out, size_t len, int prot, int flags, int fd, off64_t offset
 	out->data = NULL;
 	out->len = 0;
 
-	/* Cache only large, read-only mappings whose file we can identify. */
-	cacheable = (len >= ESP_MAP_CACHE_MIN) && !(prot & GIT_PROT_WRITE);
-	if (cacheable && fstat(fd, &st) != 0)
+	/* Cache only read-only mappings of large files (pack/idx/...) that we can
+	 * identify. The map itself may be small — small repeated maps ARE the hot
+	 * set (see header comment). */
+	cacheable = !(prot & GIT_PROT_WRITE);
+	if (cacheable && (fstat(fd, &st) != 0 || st.st_size < ESP_MAP_CACHE_MIN_FILE))
 		cacheable = 0;
 
 	if (cacheable) {
@@ -176,7 +203,8 @@ int p_mmap(git_map *out, size_t len, int prot, int flags, int fd, off64_t offset
 	g_read_bytes += len;
 
 	if (cacheable) {
-		evict_for(len);
+		if (len < ESP_MAP_CACHE_CAP)
+			evict_to(ESP_MAP_CACHE_CAP - len);
 		for (i = 0; i < ESP_MAP_CACHE_SLOTS; i++) {
 			if (!g_cache[i].used) {
 				g_cache[i].data = data;
@@ -208,11 +236,16 @@ int p_munmap(git_map *map)
 
 	GIT_ASSERT_ARG(map);
 
-	/* Cached buffer: drop a ref, keep it for reuse. Otherwise free it. */
+	/* Cached buffer: drop a ref and keep it for reuse — but return memory to
+	 * git__malloc under pressure (down to the low-water mark), so a released
+	 * window is really released and MWINDOW_MAPPED_LIMIT stays honest. */
 	for (i = 0; i < ESP_MAP_CACHE_SLOTS; i++) {
 		if (g_cache[i].used && g_cache[i].data == map->data) {
 			if (g_cache[i].refcount > 0)
 				g_cache[i].refcount--;
+			if (g_cache[i].refcount == 0 &&
+			    g_cached_bytes > ESP_MAP_CACHE_LOW_WATER)
+				evict_to(ESP_MAP_CACHE_LOW_WATER);
 			map->data = NULL;
 			map->len = 0;
 			return 0;
