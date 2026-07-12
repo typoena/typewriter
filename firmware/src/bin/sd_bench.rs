@@ -15,13 +15,14 @@
 //! i.e. **two directory-mutating writes** (temp create + rename) per object. This
 //! bench times each FAT primitive in isolation, then a composite that mirrors the
 //! sequence above, so we can attribute the ~700 ms to specific ops and get a
-//! baseline to compare an A1/A2 card or a 20 MHz bus against. It never touches
-//! `/sd/repo` — all work is in `/sd/sdbench`, cleaned up at the end.
+//! baseline to compare an A1/A2 card or a 20 MHz bus against. All writes go to
+//! `/sd/sdbench` (cleaned up at the end); the pack-seek op additionally opens
+//! `/sd/repo`'s packfile READ-ONLY — it never writes there.
 //!
 //! Flash with `just flash-bench`. Needs no `.env`, no `git` feature (pure SD).
 
 use std::fs::{self, File};
-use std::io::Write;
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::time::Instant;
 
 use anyhow::{Context, Result};
@@ -118,7 +119,70 @@ fn run() -> Result<()> {
 
     // Clean up so the card is left as we found it.
     fs::remove_dir_all(BENCH_DIR).with_context(|| format!("removing {BENCH_DIR}"))?;
+
+    // 7) THE ~1.5 s LOOSE-WRITE SUSPECT (git_bench, 2026-07-12 second real-repo
+    //    run): lseek inside a huge file. Without CONFIG_FATFS_USE_FASTSEEK,
+    //    FatFS resolves lseek by walking the file's FAT cluster chain — forward
+    //    from the current position, from the CHAIN HEAD on any backward seek.
+    //    The 570 MB pack is ~36k clusters ≈ ~146 KB of FAT reads over SPI per
+    //    long walk. `p_mmap` (esp_map.c) does lseek+read per window, and
+    //    libgit2's freshen path probes the pack TRAILER (near the end) while
+    //    tree windows sit at low offsets — so each loose write pays ~one full
+    //    walk. Prediction: "@start" stays ~ms; "@end" costs ~1.5 s per iter.
+    //    If so, the fix is CONFIG_FATFS_USE_FASTSEEK=y (fast-seek applies to
+    //    read-mode files only — exactly how the pack is opened).
+    match find_pack()? {
+        Some(pack) => {
+            let len = fs::metadata(&pack)?.len();
+            log::info!("pack seek bench: {pack} ({} MB)", len / (1024 * 1024));
+            if len < 1024 * 1024 {
+                log::info!("pack too small to show chain-walk cost — skipping (toy card?)");
+            } else {
+                let mut f = File::open(&pack).with_context(|| format!("opening {pack}"))?;
+                let mut buf = vec![0u8; 4096];
+                // Baseline: rewind + read at the chain head — no walk to resolve.
+                summarize("pack seek+read 4KB @start", time_each(|_| {
+                    f.seek(SeekFrom::Start(0))?;
+                    f.read_exact(&mut buf)?;
+                    Ok(())
+                })?);
+                // Rewind (cheap, measured above), then seek near the end — pays
+                // one full cluster-chain walk per iteration if fast-seek is off.
+                let high = len - 4096;
+                summarize("pack seek+read 4KB @end", time_each(|_| {
+                    f.seek(SeekFrom::Start(0))?;
+                    f.read_exact(&mut buf)?;
+                    f.seek(SeekFrom::Start(high))?;
+                    f.read_exact(&mut buf)?;
+                    Ok(())
+                })?);
+            }
+        }
+        None => log::info!("no packfile under /sd/repo/.git/objects/pack — skipping seek bench"),
+    }
     Ok(())
+}
+
+/// Largest `*.pack` under the repo's pack dir, if the card carries a clone.
+/// Skips macOS AppleDouble sidecars (`._pack-*.pack`, 4 KB of Finder metadata) —
+/// the Spike-14 cruft in its latest disguise.
+fn find_pack() -> Result<Option<String>> {
+    let Ok(entries) = fs::read_dir("/sd/repo/.git/objects/pack") else {
+        return Ok(None);
+    };
+    let mut best: Option<(u64, String)> = None;
+    for e in entries.flatten() {
+        let p = e.path();
+        let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if name.starts_with("._") || !name.ends_with(".pack") {
+            continue;
+        }
+        let len = fs::metadata(&p).map(|m| m.len()).unwrap_or(0);
+        if best.as_ref().is_none_or(|(l, _)| len > *l) {
+            best = Some((len, p.to_string_lossy().into_owned()));
+        }
+    }
+    Ok(best.map(|(_, p)| p))
 }
 
 /// Run `op(i)` for `i in 0..N`, returning each call's wall time in microseconds.
