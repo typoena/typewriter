@@ -6,7 +6,7 @@
 //!
 //! HEADLINE OP (since the 2026-07-12 real-repo run): `splice stage→tree` — the
 //! O(depth) TreeBuilder walk that replaces the index-based commit entirely
-//! (docs/notes/sync-commit-handoff.md). It runs FIRST so its first iteration is
+//! (docs/tradeoff-curves/sync-commit-staging.md). It runs FIRST so its first iteration is
 //! the cold number; acceptance bar: **sub-second cold on the real 570 MB-pack
 //! clone, heap staying healthy**. The index paths it supersedes run LAST, for
 //! regression tracking — they previously OOM'd, and a late crash can't cost the
@@ -81,7 +81,7 @@ fn run() -> Result<()> {
     log_map_stats("open");
 
     // 1) THE FIX — `splice stage→tree`, the O(depth) TreeBuilder walk
-    //    (docs/notes/sync-commit-handoff.md): patch the edited file's ancestor
+    //    (docs/tradeoff-curves/sync-commit-staging.md): patch the edited file's ancestor
     //    subtree chain onto HEAD's tree; never materialise the 1179-entry index,
     //    never index.write(), never read_tree the whole tree. Runs FIRST so
     //    iteration #1 is genuinely cold (only `open` has touched the pack).
