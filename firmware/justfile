@@ -270,7 +270,10 @@ _card sd_volume="":
 # .gitignore ignores is excluded (node_modules is 3.9 GB, gitignored, never in
 # .git) — the device needs .git + the checkout (~720 MB), not the JS deps or
 # secrets like firmware/.env. Copying (not a fresh `git clone` of the local
-# path) preserves origin → GitHub so on-device fetch/push still work.
+# path) preserves origin → GitHub so on-device fetch/push still work — except
+# the URL scheme: the card copy's origin is rewritten to HTTPS at the end,
+# because the device's libgit2 has no SSH transport (HTTPS+PAT over mbedTLS
+# only). The source clone is never touched.
 _load-repo repo_src vol:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -331,6 +334,40 @@ _load-repo repo_src vol:
     # FAT's 2 s timestamp granularity, --delete to mirror (re-runs stay clean),
     # -P for progress on the ~700 MB copy. Scoped to repo/, never the card root.
     rsync -rtP --delete --modify-window=1 --exclude-from="$ignore_list" "$src/" "$dest/"
+
+    # The device's libgit2 speaks HTTPS+PAT only (mbedTLS — no SSH transport),
+    # so an SSH origin copied verbatim fails every on-device push/fetch with
+    # "unsupported URL protocol" (found the hard way, 2026-07-13). Rewrite the
+    # CARD copy's origin to the HTTPS equivalent; the source clone keeps its
+    # own URL. Its embedded trust store carries GitHub's roots, hence the
+    # non-github warning.
+    case "$origin" in
+        git@*:*)
+            host="${origin#git@}"; host="${host%%:*}"
+            card_origin="https://$host/${origin#git@*:}"
+            ;;
+        ssh://git@*)
+            rest="${origin#ssh://git@}"
+            card_origin="https://${rest%%[:/]*}/${rest#*/}"
+            ;;
+        https://*) card_origin="$origin" ;;
+        *) card_origin="" ;;
+    esac
+    if [ -n "$card_origin" ]; then
+        if [ "$card_origin" != "$origin" ]; then
+            echo "rewriting card origin for the device: $origin -> $card_origin"
+        fi
+        git -C "$dest" remote set-url origin "$card_origin"
+        case "$card_origin" in
+            https://github.com/*) ;;
+            *) echo "warning: origin host isn't github.com — the device's embedded trust store" \
+                    "only carries GitHub roots, so on-device TLS will fail without its CA" ;;
+        esac
+    elif [ -n "$origin" ]; then
+        echo "warning: origin '$origin' has no HTTPS equivalent I can derive —"
+        echo "         on-device push/fetch will fail; set it by hand:"
+        echo "         git -C '$dest' remote set-url origin https://github.com/<owner>/<repo>.git"
+    fi
 
 # First-time setup: seed the two git-tracked config files into the card's repo/
 # so they commit + sync on the device's first `:sync`. Writes ONLY a file that is
