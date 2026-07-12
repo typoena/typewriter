@@ -10,7 +10,10 @@ use esp_idf_svc::hal::spi::{Dma, SpiBusDriver, SpiDriver};
 use esp_idf_svc::hal::units::FromValueType;
 
 use display::Frame;
-use editor::{Editor, Effect, Mode, Prefs, Scope, CH, LOCAL_DIR, PREFS_PATH, REPO_DIR};
+use editor::{
+    Editor, Effect, Mode, Prefs, Scope, Snippets, CH, LOCAL_DIR, PREFS_PATH, REPO_DIR,
+    SNIPPETS_PATH,
+};
 use firmware::epd::{self, Epd};
 use firmware::persistence::{Storage, NOTES};
 
@@ -130,6 +133,21 @@ fn main() -> anyhow::Result<()> {
     };
     log::info!("prefs: {prefs:?}");
     ed.set_prefs(prefs);
+    // Snippet library (.typoena.snippets.json, git-tracked). Parsed with
+    // serde_json in the editor crate; a missing / unreadable / malformed file is
+    // non-fatal — the editor simply has no snippets and runs unchanged.
+    let snippets = match storage.load_path(SNIPPETS_PATH) {
+        Ok(src) => match Snippets::parse(&src) {
+            Ok(s) => s,
+            Err(e) => {
+                log::warn!("snippets parse FAILED ({e}); none loaded");
+                Snippets::default()
+            }
+        },
+        Err(_) => Snippets::default(),
+    };
+    log::info!("snippets: {} loaded", snippets.0.len());
+    ed.set_snippets(snippets);
     let mut updates: u32 = 0;
     let mut cursor_shown = true; // the initial render includes the caret
     let mut last_activity = Instant::now();
