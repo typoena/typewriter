@@ -61,8 +61,8 @@ learning = "Delivered 2026-07-12, well ahead of the 2026-09-28 baseline, and ful
 name = "v0.6 markdown"
 start = 2026-09-28
 original = 2026-10-12
-status = "on-track"
-note = "Render affordances done early; snippet engine (added 2026-07-08) remains."
+delivered = 2026-07-12
+learning = "Core complete 2026-07-12, ~92 days ahead of the 2026-10-12 baseline, host-tested (187 editor tests). The snippet feature was reshaped 2026-07-08→07-12 from a hard-coded table into a git-synced, Zed-compatible .typoena.snippets.json library: a forward-only tab-stop session ($1..$n/$0, ${n:label} stripped to $n) driven by two surfaces — inline Tab-expansion in Insert and a $ palette launcher — plus a quiet pause hint in the side panel. The Cmd-P palette generalised into a verb split: bare = files, > = a real command registry (toggles stay open, one-shots format/publish close, the parameterised `new file` two-step), $ = snippets — retiring :e. Firmware bumped 0.5.0→0.6.0; the boot-read of the library was confirmed to build for xtensa (serde_json, the one new dep — cargo check passes). `just init` now seeds a curated 17-snippet catalog (three opt-in groups). On-device smoke-test still pending (pure editor-core + a mirror of the proven prefs boot-read, low risk). Known caveat: two symbols the catalog inserts (arrow →, neq ≠) are outside ISO-8859-15, so they store/sync correctly but need a display-layer glyph overlay (in flight) to draw on the panel; the other 15 render on the stock font."
 
 [[feature]]
 name = "v0.7 search + git"
@@ -125,6 +125,18 @@ on-device confirmed: the Cmd-P fuzzy palette, `:e`/`:enew`/delete across the
 (boot-read plus a stay-open palette `>` command mode + `:settings` that edits them
 live and syncs the change). Descoped to later: explicit buffer close, the
 grey-Publish-in-Local panel cue, and the multi-file publish count.
+**v0.6 Markdown is COMPLETE in core 2026-07-12** (firmware **0.6.0**), host-tested
+(187 editor tests), on-device smoke-test pending. The render affordances (heading
+bold, list continuation, soft-wrap) were done early; the headline is the
+**snippet engine** — a forward-only tab-stop session reached both inline (type a
+prefix + Tab in Insert) and from a **`$` palette** launcher, fed by a git-synced,
+Zed-compatible `.typoena.snippets.json` read at boot (serde_json, confirmed to
+build for xtensa). The `Cmd-P` palette **generalised** into a verb split — bare =
+files, `>` = a command registry (toggles stay open, `format`/`publish` one-shots
+close, a two-step `new file`), `$` = snippets — which **retired `:e`**. `just init`
+seeds a curated 17-snippet catalog (Symbols · Structure · Prose, opt-in). One
+caveat: `→`/`≠` sit outside ISO-8859-15 and need a display-layer glyph overlay
+(in flight) to render on the panel; the other 15 draw on the stock font.
 
 Marks: `[x]` done in core · `[~]` partially done · `[ ]` not started. An
 inline `(✓)` marks the done half of a split item.
@@ -176,11 +188,15 @@ with a palette `>` command mode + `:settings`.
 **DELIVERED 2026-07-12** (firmware 0.5.0), fully on-device confirmed.
 Detail: [v0.5-palette-and-multi-file.md](v0.5-palette-and-multi-file.md).
 
-## v0.6 — Markdown affordances — [~]
+## v0.6 — Markdown affordances — [x]
 
-Heading bolding, list continuation, and soft-wrap are done; the trigger-driven
-snippet engine (net-new scope, added 2026-07-08) remains.
-Detail: [v0.6-markdown.md](v0.6-markdown.md).
+Heading bolding, list continuation, and soft-wrap, plus the trigger-driven
+snippet engine (net-new scope, added 2026-07-08): a tab-stop session reached
+inline (prefix + Tab) and from the `$` palette, fed by a git-synced,
+Zed-compatible `.typoena.snippets.json`; the `Cmd-P` palette generalised into a
+`files`/`>` commands/`$` snippets split (retiring `:e`); and a `just init`
+catalog. **COMPLETE in core 2026-07-12** (firmware 0.6.0), on-device smoke-test
+pending. Detail: [v0.6-markdown.md](v0.6-markdown.md).
 
 ## v0.7 — Search + better git — [~]
 
