@@ -239,10 +239,9 @@ impl Prefs {
     }
 
     /// Serialize back to the [`PREFS_PATH`] form, with a header comment pointing at
-    /// both edit paths. Round-trips with [`parse`](Prefs::parse). Emitted *without*
-    /// a trailing newline: like the editor buffer, this is content without its
-    /// terminator — the persistence layer appends the single POSIX newline on write
-    /// (and strips it back on read), so returning one here would double it.
+    /// both edit paths. Round-trips with [`parse`](Prefs::parse). Ends in a newline
+    /// like a normal text file; `save_path`'s guarded final-newline write leaves it
+    /// as exactly one.
     pub fn to_toml(&self) -> String {
         format!(
             "# Typoena editor preferences — hand-editable, git-tracked.\n\
@@ -250,7 +249,7 @@ impl Prefs {
              save_on_idle = {}\n\
              format_on_save = {}\n\
              line_numbers = {}\n\
-             auto_sync = \"{}\"",
+             auto_sync = \"{}\"\n",
             self.save_on_idle, self.format_on_save, self.line_numbers, self.auto_sync,
         )
     }

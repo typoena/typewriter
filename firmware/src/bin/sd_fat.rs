@@ -94,11 +94,12 @@ fn write_test(storage: &Storage) -> Result<()> {
         log::info!("{REPO_DIR} missing — creating it (bench setup) so the write test can run");
         fs::create_dir_all(REPO_DIR).with_context(|| format!("create {REPO_DIR}"))?;
     }
-    // Newline-free, matching a real editor buffer: `save` appends one POSIX
-    // terminator and `load` strips one back, so the round-trip is byte-for-byte
-    // identical for any payload (one ending in '\n' would too — it's just cleaner
-    // to keep the fixture terminator-free, mirroring the buffer convention).
-    let payload = format!("typoena spike 3\n{BUILD_TAG}\ndedicated SPI3: SCK14 MOSI15 MISO13 CS10");
+    // End the payload with '\n', like a real editor buffer (whose visible trailing
+    // blank line is exactly that terminating newline). `save` inserts a final
+    // newline only when one is missing and `load` reads verbatim, so a payload that
+    // already ends in '\n' round-trips byte-for-byte — which this exact-equality
+    // check relies on.
+    let payload = format!("typoena spike 3\n{BUILD_TAG}\ndedicated SPI3: SCK14 MOSI15 MISO13 CS10\n");
     storage.save(&payload).context("Storage::save")?;
     let back = storage.load().context("Storage::load after save")?;
     if back != payload {

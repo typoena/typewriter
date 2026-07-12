@@ -269,21 +269,13 @@ impl Storage {
                 m.len() / 1024,
                 MAX_FILE_BYTES / 1024
             ),
-            Ok(_) => {
-                let mut s =
-                    fs::read_to_string(path).with_context(|| format!("reading {path}"))?;
-                // Drop the single POSIX line terminator that `save_path` adds so the
-                // editor buffer stays newline-free (it counts rows as `#\n + 1`, so a
-                // trailing '\n' would render a phantom blank last line). Also handles a
-                // file authored elsewhere: it loads without that phantom line.
-                if s.ends_with('\n') {
-                    s.pop();
-                    if s.ends_with('\r') {
-                        s.pop(); // tolerate a CRLF terminator
-                    }
-                }
-                Ok(s)
-            }
+            // Read the file verbatim. The editor's `rows = #\n + 1` model renders a
+            // trailing '\n' as an empty last line, and we *want* that: a note ends
+            // with a visible blank line that reflects its POSIX terminator. Since
+            // `save_path` guarantees that terminator, this load and that save form an
+            // identity round-trip for any device-written file (which always ends in
+            // '\n') — no strip needed, and none wanted.
+            Ok(_) => fs::read_to_string(path).with_context(|| format!("reading {path}")),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
             Err(e) => Err(e).with_context(|| format!("stat {path}")),
         }
@@ -308,17 +300,16 @@ impl Storage {
                 .with_context(|| format!("create {tmp} (does its directory exist?)"))?;
             f.write_all(contents.as_bytes())
                 .with_context(|| format!("write {tmp}"))?;
-            // Append exactly one POSIX terminator, unconditionally — the symmetric
-            // inverse of `load_path`, which always strips one back off. This keeps
-            // git from flagging "No newline at end of file" and makes the buffer
-            // round-trip byte-for-byte: a buffer that ends in '\n' (a trailing blank
-            // line the writer left) becomes "…\n\n" on disk, so that blank line
-            // survives the next load instead of being swallowed. Everything handed
-            // to `save_path` is content *without* its terminator by convention (the
-            // editor buffer is newline-free, and `Prefs::to_toml` omits its trailing
-            // newline for the same reason), so this never double-terminates.
-            f.write_all(b"\n")
-                .with_context(|| format!("write final newline to {tmp}"))?;
+            // Insert a final newline only if the buffer lacks one (POSIX text
+            // convention; keeps git from flagging "No newline at end of file").
+            // `load_path` reads verbatim, so this is the sole place the terminator is
+            // guaranteed — and because it's guarded, the file mirrors the buffer's
+            // trailing newlines exactly: one visible trailing blank line stays one,
+            // never doubled. A buffer that already ends in '\n' passes through as-is.
+            if !contents.ends_with('\n') {
+                f.write_all(b"\n")
+                    .with_context(|| format!("write final newline to {tmp}"))?;
+            }
             // FatFS f_sync — flush the tmp fully before it can replace the target.
             f.sync_all().with_context(|| format!("fsync {tmp}"))?;
         }
