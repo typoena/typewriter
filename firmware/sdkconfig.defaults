@@ -44,6 +44,21 @@ CONFIG_SPIRAM=y
 CONFIG_SPIRAM_MODE_OCT=y
 CONFIG_SPIRAM_USE_MALLOC=y
 
+# FatFS fast seek (sync-latency root cause, 2026-07-12). Without it, lseek
+# resolves by walking the file's FAT cluster chain over SPI — forward from the
+# current position, from the CHAIN HEAD on any backward seek. sd_bench measured
+# ~190 ms per long seek into the 263 MB packfile (5.8 ms at offset 0), and
+# libgit2 pays ~8 such seeks per loose-object write via p_mmap's lseek+read →
+# the ~1.5 s/object commit cost (docs/tradeoff-curves/sync-commit-staging.md).
+# Fast seek builds an in-memory cluster-link map (CLMT) per READ-mode file,
+# making lseek O(1); write-mode files transparently fall back to the walk. The
+# buffer is per-open-file, 4 B × size: 256 words = 1 KB, covering ~127 fragments
+# (the default 64 covers ~31 — a freshly-provisioned pack is near-contiguous,
+# but don't let card aging silently disable the fix; vfs_fat falls back to slow
+# seeks when the map doesn't fit).
+CONFIG_FATFS_USE_FASTSEEK=y
+CONFIG_FATFS_FAST_SEEK_BUFFER_SIZE=256
+
 # Silence the legacy-I2C boot warning. esp-idf-hal's i2c.rs is always compiled
 # and binds the old `driver/i2c.h` API, so the legacy driver's TU (and its
 # `__attribute__((constructor))` deprecation warning) gets linked into every
