@@ -1,8 +1,9 @@
 # `.typoena.toml` — editor preferences
 
 > The git-tracked file that controls how the editor behaves — auto-save,
-> format-on-save, and the line-number gutter. Hand-editable, or toggled live
-> from the `Cmd-P` palette. Landed in **v0.5** (see
+> format-on-save, the line-number gutter, and the panel theme. Hand-editable, or
+> changed live from the `Cmd-P` palette (booleans flip; the theme and auto-sync
+> interval rotate through preset options on **Enter**). Landed in **v0.5** (see
 > [`macroplan.md`](macroplan.md)).
 >
 > **Not to be confused with `/sd/typoena.conf`** — that holds the device
@@ -20,8 +21,8 @@ It lives inside the Tracked repo (`/sd/repo`), so it is **committed and pushed**
 like any note — which means the preferences **sync to every device** that clones
 the repo. That is deliberate: your editor behaviour follows you. (A per-device
 override for the one genuinely device-specific key, `auto_sync`, may layer on top
-later via `typoena.conf` — deferred until `auto_sync` actually does something in
-v0.7. See the [auto_sync](#auto_sync) note.)
+later via `typoena.conf` — worth it only once `auto_sync` actually does something
+in v0.7. See the [auto_sync](#auto_sync) note.)
 
 The file is read **once at boot**, before the first screen is drawn (so
 `line_numbers` shapes the opening frame). A **missing, empty, or partial file is
@@ -30,21 +31,27 @@ works with no config present.
 
 ## Keys
 
-| Key | Type | Default | Effect |
-| --- | --- | --- | --- |
-| `save_on_idle` | bool | `true` | Auto-save the current buffer on the idle typing-pause, so `:w` is optional. |
-| `format_on_save` | bool | `true` | Run `:fmt` on the buffer before an explicit `:w`/`:sync`. |
-| `line_numbers` | bool | `true` | Show the absolute line-number gutter. Off reclaims its columns for text. |
-| `auto_sync` | string | `"10m"` | Max-staleness cap for opportunistic auto-publish. **Schema only in v0.5 — no behaviour yet.** |
+| Key | Type | Default | Options | Effect |
+| --- | --- | --- | --- | --- |
+| `save_on_idle` | bool | `true` | `true` / `false` | Auto-save the current buffer on the idle typing-pause, so `:w` is optional. |
+| `format_on_save` | bool | `true` | `true` / `false` | Run `:fmt` on the buffer before an explicit `:w`/`:sync`. |
+| `line_numbers` | bool | `true` | `true` / `false` | Show the absolute line-number gutter. Off reclaims its columns for text. |
+| `theme` | string | `"light"` | `light` / `dark` | Panel colour polarity. `dark` inverts the whole frame to white-on-black. |
+| `auto_sync` | string | `"10m"` | `2m` / `5m` / `10m` / `15m` / `30m` | Max-staleness cap for opportunistic auto-publish. **Value only — no behaviour yet** (rides v0.7). |
+
+The **Options** column is what the palette rotates through on **Enter**; a
+boolean is just the two-option case. Hand-editing a string key can still set any
+value — the palette only cycles the presets.
 
 ### Example
 
 ```toml
 # Typoena editor preferences — hand-editable, git-tracked.
-# Edit here, or toggle live from the Cmd-P palette (type `>`).
+# Edit here, or change live from the Cmd-P palette (type `>`).
 save_on_idle = true
 format_on_save = true
 line_numbers = true
+theme = "light"
 auto_sync = "10m"
 ```
 
@@ -82,14 +89,29 @@ returns the gutter's columns to the text, so prose gets the full writing width.
 Applied **live** — toggling it from the palette redraws immediately with (or
 without) the gutter.
 
+### `theme`
+
+Panel colour polarity: `light` (the native black-ink-on-white-paper) or `dark`
+(white-on-black). On the 1-bit e-paper panel this is not a palette swap but a
+**whole-frame invert** applied at the very end of the render, so text, selection,
+caret, side panel and command palette all flip together and each stays legible.
+Any value other than `dark` reads as light. Applied **live** — cycling it from
+the palette repaints inverted at once.
+
+> **On e-paper, `dark` is not free.** Partial refreshes over a mostly-black field
+> ghost more than over white, and the panel is tuned for white-background reading.
+> It works, but expect a slightly muddier refresh than `light` — verify on-device.
+
 ### `auto_sync`
 
-A duration string (`"10m"`, `"2m"`, `"0"`/empty to disable) that will one day cap
-how stale the published copy is allowed to get — an *opportunistic, rate-limited*
-push, not a wall-clock timer. **In v0.5 this is schema + default only:** the value
-is parsed, preserved through a round-trip, and shown nowhere editable — **nothing
-reads it yet.** The periodic push itself rides the better-git work in v0.7 and
-must interact with sleep in v0.8. Rationale for the `"10m"` default:
+A duration string that will one day cap how stale the published copy is allowed
+to get — an *opportunistic, rate-limited* push, not a wall-clock timer. The
+palette rotates it through the presets `2m` / `5m` / `10m` / `15m` / `30m`
+(hand-editing can still set any string, e.g. `"0"`/empty to disable). **The value
+is only stored and displayed in v0.5 — nothing reads it yet:** the periodic push
+rides the better-git work in v0.7 and must interact with sleep in v0.8, so
+cycling the interval today changes what will be honoured *then*, not now.
+Rationale for the `"10m"` default:
 [`tradeoff-curves/wifi-auto-sync.md`](tradeoff-curves/wifi-auto-sync.md).
 
 ## Editing it
@@ -104,22 +126,27 @@ Two ways, both landing in the same file:
    - **`Cmd-P`** then type **`>`** — switches the file palette to the command
      list (VS Code semantics).
 
-   The three boolean prefs appear as toggles carrying their current state:
+   Every pref appears carrying its current state:
 
    ```
    > save on idle: on
      format on save: on
      line numbers: on
+     theme: light
+     auto sync: 10m
    ```
 
-   `Ctrl-N`/`Ctrl-P` move the selection; **Enter** flips the selected pref,
-   applies it at once, writes the change back to `.typoena.toml`, and confirms
-   the new state on the snackbar (e.g. `line numbers: off - saved`). **The list
-   stays open** so you can flip several prefs in a row; **Esc** (or `Cmd-P`)
-   closes it. Each change rides the next `:sync` to your other devices.
+   `Ctrl-N`/`Ctrl-P` move the selection; **Enter** advances the selected pref to
+   its next value, applies it at once, writes the change back to `.typoena.toml`,
+   and confirms the new state on the snackbar (e.g. `theme: dark - saved`). A
+   boolean flips; the theme and auto-sync interval **rotate through their preset
+   options and wrap** — same key, so the palette is uniformly "press Enter to
+   change". **The list stays open** so you can change several prefs in a row;
+   **Esc** (or `Cmd-P`) closes it. Each change rides the next `:sync` to your
+   other devices.
 
-   `auto_sync` is **not** a palette command in v0.5 (it has no behaviour to
-   drive yet); it returns as a value command in v0.7.
+   `auto_sync` is a value command now, but has no behaviour to drive until v0.7 —
+   cycling it sets the interval that the future periodic push will honour.
 
 ## Parsing
 
