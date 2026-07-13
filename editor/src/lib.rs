@@ -679,6 +679,13 @@ pub struct Editor {
     visual_anchor: Option<usize>,
     /// The `:` command line being typed (valid only in `Mode::Command`).
     cmdline: String,
+    /// Which prompt opened the command line — `':'` (ex command) or `'/'`
+    /// (search). Both share `Mode::Command`'s line editing (vim models them as
+    /// one command-line mode); Enter dispatches on this.
+    cmd_prompt: char,
+    /// The last `/` pattern, kept for `n`/`N` and a bare `/`+Enter repeat.
+    /// Editor-global (not per-buffer), like vim's search register.
+    last_search: String,
     /// Word count as of the last stats refresh. The panel shows this snapshot,
     /// not a live count, so ordinary typing never repaints the panel row — it is
     /// refreshed on a typing pause / non-Insert action via `refresh_stats`.
@@ -842,6 +849,8 @@ impl Editor {
             pending_g: false,
             visual_anchor: None,
             cmdline: String::new(),
+            cmd_prompt: ':',
+            last_search: String::new(),
             shown_words: 0,
             keyboard_present: false,
             notice: None,
@@ -1392,6 +1401,18 @@ impl Editor {
             ':' => {
                 self.reset_pending();
                 self.cmdline.clear();
+                self.cmd_prompt = ':';
+                self.mode = Mode::Command;
+                return;
+            }
+            // `/` opens the same command line with a search prompt. The jump
+            // happens on Enter only — no incremental caret-chasing; the e-ink
+            // refresh cost rules that out (same call as the no-completion-popup
+            // snippet decision).
+            '/' => {
+                self.reset_pending();
+                self.cmdline.clear();
+                self.cmd_prompt = '/';
                 self.mode = Mode::Command;
                 return;
             }
@@ -1420,6 +1441,11 @@ impl Editor {
             '0' => self.caret = self.line_start(self.caret),
             '$' => self.caret = self.line_end(self.caret),
             'G' => self.caret = self.line_start(self.text.len()),
+            // Repeat the last `/` search; a motion here so Visual extends over
+            // it for free. Deliberately not an operator target (`dn` is not in
+            // scope) — operators resolve their own motion table in `normal_key`.
+            'n' => self.search_repeat(n, true),
+            'N' => self.search_repeat(n, false),
             _ => return false,
         }
         true
@@ -1437,7 +1463,11 @@ impl Editor {
                 }
             }
             Key::Enter => {
-                self.execute_command();
+                if self.cmd_prompt == '/' {
+                    self.execute_search();
+                } else {
+                    self.execute_command();
+                }
                 self.cmdline.clear();
                 // Most commands return to Normal; one that opened another mode
                 // (`:settings` → the palette) set it during `execute_command`, so
@@ -1495,6 +1525,60 @@ impl Editor {
             "sync" => self.run_publish(),
             "gl" => self.requests.push(Effect::Pull),
             _ => {}
+        }
+    }
+
+    /// Run the typed `/` search: remember the pattern (a bare `/`+Enter repeats
+    /// the last one, like vim) and jump forward once. Literal, case-sensitive
+    /// substring — no regex on a writing appliance, and no smartcase surprises.
+    fn execute_search(&mut self) {
+        if !self.cmdline.is_empty() {
+            self.last_search = self.cmdline.clone();
+        }
+        self.search_repeat(1, true);
+    }
+
+    /// Jump `n` matches of [`last_search`](Self::last_search) forward
+    /// (`fwd`, the `/`-Enter and `n` step) or backward (`N`), wrapping around
+    /// the buffer with a "wrapped" notice. A missing pattern or an absent
+    /// match posts a notice and leaves the caret alone.
+    fn search_repeat(&mut self, n: usize, fwd: bool) {
+        if self.last_search.is_empty() {
+            self.set_notice("no previous search");
+            return;
+        }
+        let pat = self.last_search.clone();
+        for _ in 0..n {
+            // Start strictly past (or before) the caret so a caret already on a
+            // match moves to the next one, per vim.
+            let hit = if fwd {
+                let start = if self.caret >= self.text.len() {
+                    self.text.len()
+                } else {
+                    self.next_char(self.caret)
+                };
+                match self.text[start..].find(&pat) {
+                    Some(i) => Some((start + i, false)),
+                    None => self.text.find(&pat).map(|i| (i, true)),
+                }
+            } else {
+                match self.text[..self.caret].rfind(&pat) {
+                    Some(i) => Some((i, false)),
+                    None => self.text.rfind(&pat).map(|i| (i, true)),
+                }
+            };
+            match hit {
+                Some((pos, wrapped)) => {
+                    self.caret = pos;
+                    if wrapped {
+                        self.set_notice("wrapped");
+                    }
+                }
+                None => {
+                    self.set_notice(format!("not found: {pat}"));
+                    return; // absent now, absent on every repeat
+                }
+            }
         }
     }
 
@@ -3484,7 +3568,7 @@ impl Editor {
         .draw(f)
         .unwrap();
 
-        let s = format!(":{}", self.cmdline);
+        let s = format!("{}{}", self.cmd_prompt, self.cmdline);
         let style = MonoTextStyle::new(&FONT_10X20, BinaryColor::On);
         Text::with_baseline(&s, Point::new(2, HEIGHT as i32 - CH), style, Baseline::Top)
             .draw(f)
@@ -6182,5 +6266,165 @@ mod tests {
         e.refresh_stats();
         assert!(e.snippet_hint.is_some());
         let _ = e.draw(true); // the `» name` panel row must render cleanly
+    }
+
+    // --- `/` search (v0.7) --------------------------------------------------
+
+    /// A fresh Normal-mode editor over `text`, caret normalized to 0 with `gg`
+    /// (a loaded file resumes at its end).
+    fn over(text: &str) -> Editor {
+        let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, text.into());
+        e.handle(Key::Char('g'));
+        e.handle(Key::Char('g'));
+        e
+    }
+
+    /// Run `/{pat}<Enter>` on `e`.
+    fn search(e: &mut Editor, pat: &str) {
+        e.handle(Key::Char('/'));
+        for c in pat.chars() {
+            e.handle(Key::Char(c));
+        }
+        e.handle(Key::Enter);
+    }
+
+    #[test]
+    fn slash_opens_the_search_prompt_and_esc_cancels() {
+        let mut e = over("alpha beta");
+        e.handle(Key::Char('/'));
+        assert_eq!(e.mode(), Mode::Command); // command-line mode, `/` prompt
+        e.handle(Key::Char('b'));
+        e.handle(Key::Escape);
+        assert_eq!(e.mode(), Mode::Normal);
+        assert_eq!(e.caret, 0); // cancelled search never moves the caret
+    }
+
+    #[test]
+    fn search_jumps_past_the_caret_to_the_next_match() {
+        let mut e = over("alpha beta alpha");
+        search(&mut e, "alpha");
+        // The caret sits on the first "alpha"; search starts *after* it.
+        assert_eq!(e.caret, 11);
+        assert_eq!(e.mode(), Mode::Normal);
+    }
+
+    #[test]
+    fn search_wraps_to_the_top_with_a_notice() {
+        let mut e = over("alpha beta");
+        search(&mut e, "beta"); // caret → 6
+        search(&mut e, "alpha"); // no match after 6 → wraps to 0
+        assert_eq!(e.caret, 0);
+        assert_eq!(e.notice.as_deref(), Some("wrapped"));
+    }
+
+    #[test]
+    fn search_not_found_keeps_the_caret_and_says_so() {
+        let mut e = over("alpha beta");
+        search(&mut e, "gamma");
+        assert_eq!(e.caret, 0);
+        assert_eq!(e.notice.as_deref(), Some("not found: gamma"));
+    }
+
+    #[test]
+    fn n_repeats_forward_and_wraps() {
+        let mut e = over("ab x ab x ab");
+        search(&mut e, "ab"); // → 5
+        assert_eq!(e.caret, 5);
+        e.handle(Key::Char('n')); // → 10
+        assert_eq!(e.caret, 10);
+        e.handle(Key::Char('n')); // wraps → 0
+        assert_eq!(e.caret, 0);
+        assert_eq!(e.notice.as_deref(), Some("wrapped"));
+    }
+
+    #[test]
+    fn capital_n_repeats_backward_and_wraps() {
+        let mut e = over("ab x ab x ab");
+        search(&mut e, "ab"); // → 5
+        e.handle(Key::Char('N')); // back → 0
+        assert_eq!(e.caret, 0);
+        e.handle(Key::Char('N')); // wraps to the last match → 10
+        assert_eq!(e.caret, 10);
+        assert_eq!(e.notice.as_deref(), Some("wrapped"));
+    }
+
+    #[test]
+    fn count_applies_to_n() {
+        let mut e = over("ab ab ab ab");
+        search(&mut e, "ab"); // → 3
+        e.handle(Key::Char('2'));
+        e.handle(Key::Char('n')); // 2 matches forward → 9
+        assert_eq!(e.caret, 9);
+    }
+
+    #[test]
+    fn n_without_a_previous_search_says_so() {
+        let mut e = over("alpha");
+        e.handle(Key::Char('n'));
+        assert_eq!(e.caret, 0);
+        assert_eq!(e.notice.as_deref(), Some("no previous search"));
+    }
+
+    #[test]
+    fn empty_slash_repeats_the_last_search() {
+        let mut e = over("ab x ab x ab");
+        search(&mut e, "ab"); // → 5
+        search(&mut e, ""); // bare `/` Enter reuses "ab" → 10
+        assert_eq!(e.caret, 10);
+    }
+
+    #[test]
+    fn search_is_case_sensitive_and_literal() {
+        let mut e = over("Alpha alpha");
+        search(&mut e, "alpha");
+        assert_eq!(e.caret, 6); // "Alpha" does not match
+    }
+
+    #[test]
+    fn search_lands_on_char_boundaries_in_multibyte_text() {
+        let mut e = over("héé ém"); // 'é' is 2 bytes
+        search(&mut e, "ém");
+        assert_eq!(e.caret, 6); // byte offset of the standalone "ém"
+        assert_eq!(&e.text[e.caret..e.caret + 3], "ém");
+    }
+
+    #[test]
+    fn n_extends_a_visual_selection() {
+        let mut e = over("ab x ab");
+        search(&mut e, "ab"); // → 5
+        e.handle(Key::Char('N')); // back → 0
+        e.handle(Key::Char('v')); // Visual, anchor at 0
+        e.handle(Key::Char('n')); // extend to the next match
+        assert_eq!(e.mode(), Mode::Visual);
+        assert_eq!(e.caret, 5);
+        e.handle(Key::Char('y')); // yank the span (inclusive of the caret char)
+        assert_eq!(e.register, "ab x a");
+    }
+
+    #[test]
+    fn last_search_survives_a_buffer_switch() {
+        let mut e = over("ab x ab");
+        search(&mut e, "ab"); // → 5
+        e.handle(Key::Char(':'));
+        for c in "enew /sd/repo/other.md".chars() {
+            e.handle(Key::Char(c));
+        }
+        e.handle(Key::Enter);
+        e.handle(Key::Char('i'));
+        for c in "ab cd ab".chars() {
+            e.handle(Key::Char(c));
+        }
+        e.handle(Key::Escape);
+        e.handle(Key::Char('0'));
+        e.handle(Key::Char('n')); // the pattern is editor-global, like vim
+        assert_eq!(e.caret, 6);
+    }
+
+    #[test]
+    fn slash_prompt_draws_without_panic() {
+        let mut e = over("alpha");
+        e.handle(Key::Char('/'));
+        e.handle(Key::Char('a'));
+        let _ = e.draw(true);
     }
 }
