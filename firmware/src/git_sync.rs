@@ -35,9 +35,7 @@ use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::fs;
 use std::rc::Rc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender};
-use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::{bail, Context, Result};
@@ -563,33 +561,6 @@ fn try_push(repo: &Repository, refspec: &str) -> Result<(), PushFailure> {
     opts.remote_callbacks(cbs);
     log_push_heap("pre-push");
 
-    // Heartbeat: the push blocks this thread, and its longest phase (run 6:
-    // ~65 s marking origin's tree uninteresting, one SD read per object) fires
-    // no callbacks at all — pack_progress only ticks once objects are being
-    // inserted into the packbuilder. A sibling thread is the only way to see
-    // the heap slope through it. 8 KB stack comes out of internal RAM, freed
-    // at join.
-    let hb_stop = Arc::new(AtomicBool::new(false));
-    let heartbeat = {
-        let stop = hb_stop.clone();
-        std::thread::Builder::new()
-            .name("push-heartbeat".into())
-            .stack_size(8 * 1024)
-            .spawn(move || {
-                let mut secs = 0u32;
-                while !stop.load(Ordering::Relaxed) {
-                    std::thread::sleep(Duration::from_secs(1));
-                    secs += 1;
-                    if secs % 5 == 0 {
-                        log_push_heap(&format!("heartbeat {secs}s"));
-                    }
-                }
-            })
-    };
-    if let Err(e) = &heartbeat {
-        log::warn!("push heartbeat thread failed to start: {e}");
-    }
-
     // A non-fast-forward can also surface here, not just via the callback:
     // libgit2 compares against origin's advertised tips during negotiation and
     // errors out of push() with ErrorCode::NotFastForward before sending
@@ -597,12 +568,7 @@ fn try_push(repo: &Repository, refspec: &str) -> Result<(), PushFailure> {
     // remote-moved-under-us case — reconcilable, not a transport failure
     // (bit the 2026-07-13 run 3: the real-repo rejection surfaced as "push
     // transport" and skipped the reconcile built for it).
-    let pushed = remote.push(&[refspec], Some(&mut opts));
-    hb_stop.store(true, Ordering::Relaxed);
-    if let Ok(h) = heartbeat {
-        let _ = h.join();
-    }
-    pushed.map_err(|e| {
+    remote.push(&[refspec], Some(&mut opts)).map_err(|e| {
         // Heap post-mortem: runs 5–6 died on a ~7 KB inflateInit inside the
         // pack build ("failed to init zlib stream on unpack") — the min-ever
         // lines here say which pool zeroed and whether it was exhaustion or
