@@ -59,7 +59,10 @@ fn main() -> Result<()> {
 fn run() -> Result<()> {
     let sd = Storage::mount().context("mounting SD")?;
     let (max_khz, real_khz) = sd.negotiated_khz();
-    log::info!("bus: max {max_khz} kHz, negotiated {real_khz} kHz — {N} iters, {}-byte payload", PAYLOAD.len());
+    log::info!(
+        "bus: max {max_khz} kHz, negotiated {real_khz} kHz — {N} iters, {}-byte payload",
+        PAYLOAD.len()
+    );
 
     // Fresh scratch dir.
     let _ = fs::remove_dir_all(BENCH_DIR);
@@ -73,49 +76,66 @@ fn run() -> Result<()> {
 
     // 1) create + write(200B) + close, a fresh unique file each time. The drop at
     //    the block's end is the close (FatFS f_close flushes dir entry + data).
-    summarize("create+write(200B)+close", time_each(|i| {
-        let mut f = File::create(format!("{BENCH_DIR}/c{i}"))?;
-        f.write_all(&PAYLOAD)?;
-        Ok(())
-    })?);
+    summarize(
+        "create+write(200B)+close",
+        time_each(|i| {
+            let mut f = File::create(format!("{BENCH_DIR}/c{i}"))?;
+            f.write_all(&PAYLOAD)?;
+            Ok(())
+        })?,
+    );
 
     // 2) rename c{i} -> o{i}. Sources exist from step 1 (untimed setup).
-    summarize("rename", time_each(|i| {
-        fs::rename(format!("{BENCH_DIR}/c{i}"), format!("{BENCH_DIR}/o{i}"))
-            .map_err(Into::into)
-    })?);
+    summarize(
+        "rename",
+        time_each(|i| {
+            fs::rename(format!("{BENCH_DIR}/c{i}"), format!("{BENCH_DIR}/o{i}")).map_err(Into::into)
+        })?,
+    );
 
     // 3) stat, hit.
-    summarize("stat (hit)", time_each(|i| {
-        fs::metadata(format!("{BENCH_DIR}/o{i}")).map(|_| ()).map_err(Into::into)
-    })?);
+    summarize(
+        "stat (hit)",
+        time_each(|i| {
+            fs::metadata(format!("{BENCH_DIR}/o{i}"))
+                .map(|_| ())
+                .map_err(Into::into)
+        })?,
+    );
 
     // 4) stat, miss (ENOENT) — the freshen-probe analogue. A read, expected cheap.
-    summarize("stat (miss/ENOENT)", time_each(|i| {
-        let _ = fs::metadata(format!("{BENCH_DIR}/nope{i}"));
-        Ok(())
-    })?);
+    summarize(
+        "stat (miss/ENOENT)",
+        time_each(|i| {
+            let _ = fs::metadata(format!("{BENCH_DIR}/nope{i}"));
+            Ok(())
+        })?,
+    );
 
     // 5) remove o{i}.
-    summarize("remove", time_each(|i| {
-        fs::remove_file(format!("{BENCH_DIR}/o{i}")).map_err(Into::into)
-    })?);
+    summarize(
+        "remove",
+        time_each(|i| fs::remove_file(format!("{BENCH_DIR}/o{i}")).map_err(Into::into))?,
+    );
 
     // 6) Composite: the exact loose-object write sequence libgit2 performs, with a
     //    git-length (38-hex) final name so LFN directory-entry cost is included.
     //    If the model is right this lands near the ~700 ms/object from the split.
-    summarize("loose-object composite", time_each(|i| {
-        let tmp = format!("{BENCH_DIR}/tmp_obj{i}");
-        let fin = format!("{BENCH_DIR}/{i:038x}");
-        let _ = fs::metadata(&fin); // freshen probe, misses
-        {
-            let mut f = File::create(&tmp)?; // temp create + write + close
-            f.write_all(&PAYLOAD)?;
-        }
-        let _ = fs::remove_file(&fin); // p_rename's remove(to) — ENOENT
-        fs::rename(&tmp, &fin)?; // temp -> final
-        Ok(())
-    })?);
+    summarize(
+        "loose-object composite",
+        time_each(|i| {
+            let tmp = format!("{BENCH_DIR}/tmp_obj{i}");
+            let fin = format!("{BENCH_DIR}/{i:038x}");
+            let _ = fs::metadata(&fin); // freshen probe, misses
+            {
+                let mut f = File::create(&tmp)?; // temp create + write + close
+                f.write_all(&PAYLOAD)?;
+            }
+            let _ = fs::remove_file(&fin); // p_rename's remove(to) — ENOENT
+            fs::rename(&tmp, &fin)?; // temp -> final
+            Ok(())
+        })?,
+    );
 
     // 6b) Directory-entry scaling — the ~360 ms/loose-write residual suspect
     //     (2026-07-13, post-FASTSEEK; see sync-commit-staging.md). FAT has no
@@ -132,25 +152,36 @@ fn run() -> Result<()> {
         for j in 0..n {
             File::create(format!("{dir}/e{j:04}"))?; // sibling entries (untimed setup)
         }
-        summarize(&format!("stat hit, {n:>3} siblings"), time_each(|i| {
-            fs::metadata(format!("{dir}/e{:04}", i % n)).map(|_| ()).map_err(Into::into)
-        })?);
-        summarize(&format!("stat miss, {n:>3} siblings"), time_each(|i| {
-            let _ = fs::metadata(format!("{dir}/nope{i}"));
-            Ok(())
-        })?);
-        summarize(&format!("loose composite, {n:>3} sib"), time_each(|i| {
-            let tmp = format!("{dir}/tmp_obj{i}");
-            let fin = format!("{dir}/{i:038x}");
-            let _ = fs::metadata(&fin); // freshen probe, misses
-            {
-                let mut f = File::create(&tmp)?;
-                f.write_all(&PAYLOAD)?;
-            }
-            let _ = fs::remove_file(&fin); // p_rename's remove(to) — ENOENT
-            fs::rename(&tmp, &fin)?;
-            Ok(())
-        })?);
+        summarize(
+            &format!("stat hit, {n:>3} siblings"),
+            time_each(|i| {
+                fs::metadata(format!("{dir}/e{:04}", i % n))
+                    .map(|_| ())
+                    .map_err(Into::into)
+            })?,
+        );
+        summarize(
+            &format!("stat miss, {n:>3} siblings"),
+            time_each(|i| {
+                let _ = fs::metadata(format!("{dir}/nope{i}"));
+                Ok(())
+            })?,
+        );
+        summarize(
+            &format!("loose composite, {n:>3} sib"),
+            time_each(|i| {
+                let tmp = format!("{dir}/tmp_obj{i}");
+                let fin = format!("{dir}/{i:038x}");
+                let _ = fs::metadata(&fin); // freshen probe, misses
+                {
+                    let mut f = File::create(&tmp)?;
+                    f.write_all(&PAYLOAD)?;
+                }
+                let _ = fs::remove_file(&fin); // p_rename's remove(to) — ENOENT
+                fs::rename(&tmp, &fin)?;
+                Ok(())
+            })?,
+        );
     }
 
     // Clean up so the card is left as we found it.
@@ -177,21 +208,27 @@ fn run() -> Result<()> {
                 let mut f = File::open(&pack).with_context(|| format!("opening {pack}"))?;
                 let mut buf = vec![0u8; 4096];
                 // Baseline: rewind + read at the chain head — no walk to resolve.
-                summarize("pack seek+read 4KB @start", time_each(|_| {
-                    f.seek(SeekFrom::Start(0))?;
-                    f.read_exact(&mut buf)?;
-                    Ok(())
-                })?);
+                summarize(
+                    "pack seek+read 4KB @start",
+                    time_each(|_| {
+                        f.seek(SeekFrom::Start(0))?;
+                        f.read_exact(&mut buf)?;
+                        Ok(())
+                    })?,
+                );
                 // Rewind (cheap, measured above), then seek near the end — pays
                 // one full cluster-chain walk per iteration if fast-seek is off.
                 let high = len - 4096;
-                summarize("pack seek+read 4KB @end", time_each(|_| {
-                    f.seek(SeekFrom::Start(0))?;
-                    f.read_exact(&mut buf)?;
-                    f.seek(SeekFrom::Start(high))?;
-                    f.read_exact(&mut buf)?;
-                    Ok(())
-                })?);
+                summarize(
+                    "pack seek+read 4KB @end",
+                    time_each(|_| {
+                        f.seek(SeekFrom::Start(0))?;
+                        f.read_exact(&mut buf)?;
+                        f.seek(SeekFrom::Start(high))?;
+                        f.read_exact(&mut buf)?;
+                        Ok(())
+                    })?,
+                );
             }
         }
         None => log::info!("no packfile under /sd/repo/.git/objects/pack — skipping seek bench"),

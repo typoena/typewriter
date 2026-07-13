@@ -37,6 +37,10 @@ pub struct Epd<'d> {
     rst: PinDriver<'d, Output>,
     cs: PinDriver<'d, Output>,
     busy: PinDriver<'d, Input>,
+    /// A refresh kicked off by `display_frame_async` whose waveform may still
+    /// be running. Every public display call waits it out (`wait_ready`)
+    /// before sending further controller traffic.
+    refresh_pending: bool,
 }
 
 impl<'d> Epd<'d> {
@@ -47,7 +51,17 @@ impl<'d> Epd<'d> {
         cs: PinDriver<'d, Output>,
         busy: PinDriver<'d, Input>,
     ) -> Self {
-        Self { spi, dc, rst, cs, busy }
+        Self { spi, dc, rst, cs, busy, refresh_pending: false }
+    }
+
+    /// Wait out a refresh started by `display_frame_async`, if one is still
+    /// running. Safe to call anytime; a no-op when nothing is pending.
+    pub fn wait_ready(&mut self) -> Result<(), EspError> {
+        if self.refresh_pending {
+            self.wait_while_busy(2500)?; // full_refresh_time ≈ 2200 ms
+            self.refresh_pending = false;
+        }
+        Ok(())
     }
 
     // ---- low-level SPI framing (DC low = command, DC high = data) ----
@@ -205,6 +219,15 @@ impl<'d> Epd<'d> {
 
     /// Port of GxEPD2 `refresh(false)` → `_Update_Full` (fast full update).
     fn update_full(&mut self) -> Result<(), EspError> {
+        self.kick_update_full()?;
+        self.wait_while_busy(2500)?; // full_refresh_time ≈ 2200 ms
+        Ok(())
+    }
+
+    /// The command half of `update_full`: starts the full-refresh waveform
+    /// (~2.2 s) and returns while it runs. The caller owns the eventual BUSY
+    /// wait before any further controller traffic.
+    fn kick_update_full(&mut self) -> Result<(), EspError> {
         self.set_ram_area(0, 0, WIDTH / 2, HEIGHT, 0x03, 0x80)?; // slave
         self.set_ram_area(0, 0, WIDTH / 2, HEIGHT, 0x03, 0x00)?; // master
         self.cmd(0x21)?; // display update control 1
@@ -214,7 +237,6 @@ impl<'d> Epd<'d> {
         self.cmd(0x22)?;
         self.data(&[0xD7])?; // fast full update
         self.cmd(0x20)?; // master activation
-        self.wait_while_busy(2500)?; // full_refresh_time ≈ 2200 ms
         Ok(())
     }
 
@@ -247,6 +269,7 @@ impl<'d> Epd<'d> {
     /// Fill the whole panel with one value and full-refresh.
     /// `0xFF` = white, `0x00` = black. Port of GxEPD2 `clearScreen`.
     pub fn clear_screen(&mut self, value: u8) -> Result<(), EspError> {
+        self.wait_ready()?;
         self.write_buffer(0x26, value)?; // previous
         self.write_buffer(0x24, value)?; // current
         self.update_full()?;
@@ -288,9 +311,25 @@ impl<'d> Epd<'d> {
     /// consistent "previous" image.
     pub fn display_frame(&mut self, fb: &[u8]) -> Result<(), EspError> {
         assert_eq!(fb.len(), FB_BYTES, "framebuffer must be 99 x 272 bytes");
+        self.wait_ready()?;
         self.write_frame_bank(0x26, fb, 0, HEIGHT)?; // previous
         self.write_frame_bank(0x24, fb, 0, HEIGHT)?; // current
         self.update_full()?;
+        Ok(())
+    }
+
+    /// `display_frame` minus the wait: writes both RAM banks, starts the
+    /// full-refresh waveform (~2.2 s), and returns immediately so the caller
+    /// can do other work (SD mount, note load) while the panel paints itself.
+    /// Every public display call waits out the pending refresh (`wait_ready`)
+    /// before its own controller traffic, so nothing can collide with it.
+    pub fn display_frame_async(&mut self, fb: &[u8]) -> Result<(), EspError> {
+        assert_eq!(fb.len(), FB_BYTES, "framebuffer must be 99 x 272 bytes");
+        self.wait_ready()?;
+        self.write_frame_bank(0x26, fb, 0, HEIGHT)?; // previous
+        self.write_frame_bank(0x24, fb, 0, HEIGHT)?; // current
+        self.kick_update_full()?;
+        self.refresh_pending = true;
         Ok(())
     }
 
@@ -310,6 +349,7 @@ impl<'d> Epd<'d> {
     ) -> Result<(), EspError> {
         assert_eq!(fb.len(), FB_BYTES, "framebuffer must be 99 x 272 bytes");
         assert!(h > 0 && y0 + h <= HEIGHT, "row window out of range");
+        self.wait_ready()?;
         self.write_frame_bank(0x24, fb, y0, h)?; // current = new
         self.update_part(y0, h)?; // transition previous (0x26) -> current (0x24)
         self.write_frame_bank(0x26, fb, y0, h)?; // previous = new, for next time

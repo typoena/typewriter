@@ -65,11 +65,14 @@ fn main() -> anyhow::Result<()> {
     log::info!("EPD reset + init…");
     epd.reset()?;
     epd.init()?;
-    // Boot splash (Spike 9): the Typoena mark, shown while the SD mounts and the
-    // note loads below. Its full refresh doubles as the baseline the old white
-    // clear used to establish (writes both RAM banks); the editor's first render
-    // further down cleanly replaces it with a second full refresh.
-    epd.display_frame(Frame::splash().bytes())?;
+    // Boot splash (Spike 9): the Typoena mark, kicked off *async* — the ~2.2 s
+    // full-refresh waveform runs while the SD mounts and the note loads below,
+    // so the splash starts painting as early as the app can drive it and its
+    // wait overlaps the mandatory boot work instead of preceding it. Its full
+    // refresh doubles as the baseline the old white clear used to establish
+    // (writes both RAM banks); the first editor render further down implicitly
+    // waits it out (`wait_ready`) and then replaces it.
+    epd.display_frame_async(Frame::splash().bytes())?;
 
     // Mount the SD and load the saved note. We bring the SD up *after* the EPD —
     // the doc's boot order is SD-first, but a dead panel can't explain a missing
@@ -77,6 +80,15 @@ fn main() -> anyhow::Result<()> {
     // writing appliance that silently started empty would clobber the note on
     // the next `:w`. See docs/v0.1-mvp-technical.md, boot sequence.
     let (storage, saved) = boot_storage(&mut epd);
+
+    // Feed the file palette (Ctrl-P) from a background walk. Enumerating
+    // /sd/repo + /sd/local takes seconds on a big tree (4.3 s at 1098 files,
+    // readdir-over-SPI bound) and the palette is not needed to type, so it
+    // must not hold up the first editor frame. The list lands on `walk_rx` and
+    // the idle branch of the main loop feeds it to the editor; until then the
+    // palette shows recents only. A pull re-feeds it the same way.
+    let (walk_tx, walk_rx) = std::sync::mpsc::channel::<Vec<String>>();
+    spawn_file_walk(walk_tx.clone());
 
     // Bring up the USB keyboard in the background; keys arrive via next_key().
     usb_kbd::start()?;
@@ -121,20 +133,6 @@ fn main() -> anyhow::Result<()> {
         .and_then(|s| s.to_str())
         .unwrap_or("notes");
     ed.set_notice(format!("loaded {name}"));
-    // Feed the file palette (Ctrl-P). Enumerated once at boot — the v0.5 slices
-    // that create/delete files (`:enew`, delete) will re-feed it then.
-    // Bracketed with internal-DRAM readings: each path is a small String, kept
-    // internal by the SPIRAM malloc threshold (16 KB), so the list competes
-    // with Wi-Fi/TLS for DRAM. Estimate to confirm: ~60-70 KB at 1098 files —
-    // this number decides whether interning the paths into one shared buffer
-    // (a single >16 KB alloc, which lands in PSRAM) is worth the refactor.
-    let dram_before = internal_free_heap();
-    ed.set_file_list(enumerate_files());
-    let dram_after = internal_free_heap();
-    log::info!(
-        "file list: internal heap {dram_before} -> {dram_after} ({} KB consumed)",
-        dram_before.saturating_sub(dram_after) / 1024
-    );
     // Editor preferences (.typoena.toml, git-tracked). Read before the first
     // render so `line_numbers` shapes the opening frame. A missing / unreadable /
     // partial file falls back to defaults, so a fresh card just works.
@@ -177,8 +175,12 @@ fn main() -> anyhow::Result<()> {
     ed.set_keyboard_present(last_kbd);
     ed.refresh_stats();
 
-    // First editor render. The splash's full refresh above already seeded both
-    // RAM banks (its image is the `0x26` "previous" baseline), so the editor
+    // First editor render — the moment the splash disappears. Everything
+    // mandatory is ready here: SD mounted, note loaded, prefs applied, input
+    // running (the palette walk continues in the background). The splash's
+    // full refresh already seeded both RAM banks (its image is the `0x26`
+    // "previous" baseline) — the partial below first waits out its waveform
+    // (`wait_ready`), which the boot work above overlapped — so the editor
     // comes up with a full-area *partial* (~630 ms) instead of a second full
     // refresh (~1.9 s): the splash→editor swap rides the partial waveform,
     // shaving ~1.3 s off cold boot. This large-area partial is the one boot
@@ -328,7 +330,9 @@ fn main() -> anyhow::Result<()> {
                         // clean active buffer is re-read now, and a RAM-dirty
                         // buffer is left alone — its edits win, last-writer-
                         // wins like the publish reconcile. The palette list is
-                        // re-walked for files the pull added or removed.
+                        // re-walked in the background for files the pull added
+                        // or removed (it lands on `walk_rx` a few seconds
+                        // later, instead of stalling the UI for the walk).
                         PullOutcome::Pulled(oid) => {
                             ed.drop_clean_parked();
                             if ed.dirty() {
@@ -345,7 +349,7 @@ fn main() -> anyhow::Result<()> {
                                     ),
                                 }
                             }
-                            ed.set_file_list(enumerate_files());
+                            spawn_file_walk(walk_tx.clone());
                             format!("pulled {oid}")
                         }
                         PullOutcome::UpToDate => "up to date".to_string(),
@@ -363,6 +367,25 @@ fn main() -> anyhow::Result<()> {
                 }
                 std::mem::swap(&mut shown, &mut back);
                 cursor_shown = true;
+                continue;
+            }
+            // A finished background file walk (boot or post-pull) feeds the
+            // palette. Repaint only if the visible frame changed — the list
+            // is only visible through the palette overlay, which is usually
+            // closed, and a no-op full-area partial would be a pointless
+            // ~630 ms panel drive. Caret visibility is passed through
+            // unchanged so this can't reveal a debounced Insert caret early.
+            if let Ok(files) = walk_rx.try_recv() {
+                ed.set_file_list(files);
+                ed.draw_into(&mut back, cursor_shown);
+                if changed_rows(shown.bytes(), back.bytes()).is_some() {
+                    if let Err(e) = epd.display_frame_partial_window(back.bytes(), 0, epd::HEIGHT) {
+                        log::warn!("palette repaint FAILED ({e}); full refresh next");
+                        force_full = true;
+                        continue;
+                    }
+                    std::mem::swap(&mut shown, &mut back);
+                }
                 continue;
             }
             // A connect/disconnect while idle must still repaint the panel flag —
@@ -629,8 +652,9 @@ fn delete_buffer(storage: &Storage, ed: &mut Editor, path: String, scope: Scope)
 /// level (so `.git` and its thousands of object files, `.typoena.toml`, and the
 /// like never show or get walked). Best-effort: an unreadable directory (e.g.
 /// no `/sd/local` yet) contributes nothing rather than failing. The editor
-/// sorts and dedupes. Runs once at boot, so the walk time is logged — on a big
-/// repo the FAT directory IO is the cost to watch.
+/// sorts and dedupes. Runs on the `walk` thread (`spawn_file_walk`), so the
+/// walk time is logged — on a big repo the FAT directory IO is the cost to
+/// watch (~4 ms/file over SPI).
 fn enumerate_files() -> Vec<String> {
     let start = std::time::Instant::now();
     let mut out = Vec::new();
@@ -639,6 +663,37 @@ fn enumerate_files() -> Vec<String> {
     }
     log::info!("file walk: {} files in {}ms", out.len(), start.elapsed().as_millis());
     out
+}
+
+/// Run [`enumerate_files`] on its own short-lived thread and send the result
+/// over `tx`; the main loop's idle branch feeds it to the editor. Off the boot
+/// path (and off the UI loop on a post-pull re-walk) because the walk takes
+/// seconds on a big tree and the palette is not mandatory for typing. The
+/// walk is pure directory reads, serialized against the editor's and the git
+/// thread's SD traffic by the FatFS volume lock. Bracketed with internal-DRAM
+/// readings: each path is a small String, kept internal by the SPIRAM malloc
+/// threshold (16 KB), so the list competes with Wi-Fi/TLS for DRAM — the
+/// logged number decides whether interning the paths into one shared buffer
+/// (a single >16 KB alloc, which lands in PSRAM) is worth the refactor.
+fn spawn_file_walk(tx: std::sync::mpsc::Sender<Vec<String>>) {
+    // Explicit stack: the default pthread stack (4 KB) is tight for 8 levels
+    // of readdir recursion plus FatFS underneath.
+    let spawned = std::thread::Builder::new()
+        .name("walk".into())
+        .stack_size(16 * 1024)
+        .spawn(move || {
+            let dram_before = internal_free_heap();
+            let files = enumerate_files();
+            let dram_after = internal_free_heap();
+            log::info!(
+                "file list: internal heap {dram_before} -> {dram_after} ({} KB consumed)",
+                dram_before.saturating_sub(dram_after) / 1024
+            );
+            let _ = tx.send(files); // receiver gone = shutting down; nothing to do
+        });
+    if let Err(e) = spawned {
+        log::warn!("file-walk thread spawn FAILED ({e}); palette list not refreshed");
+    }
 }
 
 /// Depth bound for [`walk_files`] — belt-and-braces against pathological

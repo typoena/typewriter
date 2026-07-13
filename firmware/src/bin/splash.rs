@@ -63,7 +63,6 @@ fn main() -> anyhow::Result<()> {
 
     log::info!("painting splash…");
     epd.display_frame(Frame::splash().bytes())?;
-    log::info!("✅ Spike 9 complete — splash on panel");
 
     // Idle so the splash stays up and the result stays on the monitor.
     loop {
