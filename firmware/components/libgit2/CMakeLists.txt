@@ -41,6 +41,12 @@ file(GLOB LG2_SRCS
     "${LG2}/deps/pcre/*.c"
     "${LG2}/deps/zlib/*.c"
 )
+# streams/mbedtls.c is replaced by our patched copy: its wrap() error path
+# double-freed the socket stream (tlsf abort on device when ssl_setup failed
+# under memory pressure). See esp_mbedtls_stream.c's header for the one-hunk
+# delta; keep the copy in lockstep on submodule bumps.
+list(REMOVE_ITEM LG2_SRCS "${LG2}/src/libgit2/streams/mbedtls.c")
+
 list(APPEND LG2_SRCS
     "${LG2}/src/util/allocators/failalloc.c"
     "${LG2}/src/util/allocators/stdalloc.c"
@@ -48,6 +54,7 @@ list(APPEND LG2_SRCS
     "${LG2}/src/util/hash/mbedtls.c"   # SHA1 + SHA256 via mbedtls
     "${CMAKE_CURRENT_LIST_DIR}/esp_map.c"    # p_mmap via malloc+read (no <sys/mman.h>)
     "${CMAKE_CURRENT_LIST_DIR}/esp_stubs.c"  # getuid/readlink/utimes/... stubs
+    "${CMAKE_CURRENT_LIST_DIR}/esp_mbedtls_stream.c"  # streams/mbedtls.c + double-free fix
     # NOTE: unix/map.c replaced by esp_map.c — picolibc has no <sys/mman.h>.
     # NOTE: unix/process.c deliberately excluded — needs fork()/sys/wait.h,
     # only used by the SSH-exec transport we don't enable.
