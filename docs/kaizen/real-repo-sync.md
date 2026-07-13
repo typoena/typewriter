@@ -30,12 +30,13 @@ xychart-beta
     title "Improvement potential — :sync → snackbar"
     x-axis ["Before kaizen (~611 s, never completes)", "After kaizen (target ≤ ~10 s)"]
     y-axis "seconds" 0 --> 650
-    bar [611, 10]
+    bar [611, 0]
     line [10, 10]
 ```
 
 The before bar understates the reality: a reset re-enters the freeze, so the
-true value is ∞ — 0 successful syncs ever. The line is the ≤ ~10 s target.
+true value is ∞ — 0 successful syncs ever. The line is the ≤ ~10 s target; the
+after column has no bar until the step-6 measurement lands.
 
 ## 2) Current method analysis
 
