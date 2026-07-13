@@ -35,7 +35,9 @@ use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::fs;
 use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender};
+use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::{bail, Context, Result};
@@ -128,15 +130,22 @@ pub fn run_git_service(
     // Process-global libgit2 tuning, once, before any repo work. The 32-bit
     // defaults (32 MB window / 256 MB mapped budget, mwindow.c) would
     // git__malloc past PSRAM on the first pack access of the real 570 MB-pack
-    // clone; these are the bench-proven values (git_bench), and ~1.9 MB of
-    // windows stays live during git ops — the p_mmap emulation (esp_map.c)
-    // relies on this mapped limit being real.
+    // clone — the p_mmap emulation (esp_map.c) makes every window a real
+    // PSRAM malloc, so this budget is the knob that decides whether a push
+    // survives. Run 7 (2026-07-13) heartbeat data with 256 KB / 4 MB: mmap
+    // live plateaued at 7.15 MB (windows at the limit PLUS ~3.4 MB of
+    // whole-file .idx + multi-pack-index maps, which live OUTSIDE the mwindow
+    // budget) and a ~7 KB zlib alloc died. 64 KB / 1.5 MB leaves ~2 MB
+    // headroom even with the 5-pack card, and shrinks read amplification:
+    // a window miss costs a 64 KB SPI read (~65 ms) instead of 256 KB
+    // (~250 ms) to fetch a few-KB tree object (run 7 read 19.9 MB off the
+    // card to push two commits).
     // SAFETY: set on the git thread before any Repository is opened.
     unsafe {
-        if let Err(e) = git2::opts::set_mwindow_size(256 * 1024) {
+        if let Err(e) = git2::opts::set_mwindow_size(64 * 1024) {
             log::error!("set_mwindow_size failed ({e}); first pack access may OOM");
         }
-        if let Err(e) = git2::opts::set_mwindow_mapped_limit(4 * 1024 * 1024) {
+        if let Err(e) = git2::opts::set_mwindow_mapped_limit(1536 * 1024) {
             log::error!("set_mwindow_mapped_limit failed ({e}); first pack access may OOM");
         }
         // Odb cache cap (see ODB_CACHE_MAX_BYTES). git2 0.20 wraps only the
@@ -553,6 +562,34 @@ fn try_push(repo: &Repository, refspec: &str) -> Result<(), PushFailure> {
     let mut opts = PushOptions::new();
     opts.remote_callbacks(cbs);
     log_push_heap("pre-push");
+
+    // Heartbeat: the push blocks this thread, and its longest phase (run 6:
+    // ~65 s marking origin's tree uninteresting, one SD read per object) fires
+    // no callbacks at all — pack_progress only ticks once objects are being
+    // inserted into the packbuilder. A sibling thread is the only way to see
+    // the heap slope through it. 8 KB stack comes out of internal RAM, freed
+    // at join.
+    let hb_stop = Arc::new(AtomicBool::new(false));
+    let heartbeat = {
+        let stop = hb_stop.clone();
+        std::thread::Builder::new()
+            .name("push-heartbeat".into())
+            .stack_size(8 * 1024)
+            .spawn(move || {
+                let mut secs = 0u32;
+                while !stop.load(Ordering::Relaxed) {
+                    std::thread::sleep(Duration::from_secs(1));
+                    secs += 1;
+                    if secs % 5 == 0 {
+                        log_push_heap(&format!("heartbeat {secs}s"));
+                    }
+                }
+            })
+    };
+    if let Err(e) = &heartbeat {
+        log::warn!("push heartbeat thread failed to start: {e}");
+    }
+
     // A non-fast-forward can also surface here, not just via the callback:
     // libgit2 compares against origin's advertised tips during negotiation and
     // errors out of push() with ErrorCode::NotFastForward before sending
@@ -560,10 +597,15 @@ fn try_push(repo: &Repository, refspec: &str) -> Result<(), PushFailure> {
     // remote-moved-under-us case — reconcilable, not a transport failure
     // (bit the 2026-07-13 run 3: the real-repo rejection surfaced as "push
     // transport" and skipped the reconcile built for it).
-    remote.push(&[refspec], Some(&mut opts)).map_err(|e| {
-        // Heap post-mortem: run 5 died on a ~7 KB inflateInit inside the pack
-        // build ("failed to init zlib stream on unpack") — the min-ever lines
-        // here say which pool zeroed and whether it was exhaustion or
+    let pushed = remote.push(&[refspec], Some(&mut opts));
+    hb_stop.store(true, Ordering::Relaxed);
+    if let Ok(h) = heartbeat {
+        let _ = h.join();
+    }
+    pushed.map_err(|e| {
+        // Heap post-mortem: runs 5–6 died on a ~7 KB inflateInit inside the
+        // pack build ("failed to init zlib stream on unpack") — the min-ever
+        // lines here say which pool zeroed and whether it was exhaustion or
         // fragmentation, even when no progress callback got a chance to fire.
         log_push_heap("push failed");
         if e.code() == git2::ErrorCode::NotFastForward {
@@ -711,13 +753,25 @@ fn min_free_heap() -> u32 {
     unsafe { sys::esp_get_minimum_free_heap_size() }
 }
 
-/// One-line heap + odb-cache snapshot for the push path. Runs 4 and 5
+unsafe extern "C" {
+    /// Counters from the p_mmap emulation in `components/libgit2/esp_map.c`.
+    /// Post cache-removal: `hits` is always 0, `misses` counts every mapping,
+    /// `cached_kb` reports the LIVE mapped bytes — every libgit2 "mmap"
+    /// (mwindow windows AND whole-file pack .idx maps) is a real PSRAM malloc
+    /// there, so this splits map memory from everything else git allocates.
+    fn esp_map_stats(hits: *mut u32, misses: *mut u32, read_kb: *mut u32, cached_kb: *mut u32);
+}
+
+/// One-line heap + odb-cache + mmap snapshot for the push path. Runs 4–6
 /// (2026-07-13) each spent ~65 s inside `remote.push()` while something
 /// consumed ~6 MB of PSRAM (run 4: the UI aborted on a framebuffer alloc;
-/// run 5: a ~7 KB inflateInit failed inside the pack build). These lines
-/// exist to name the consumer: `largest PSRAM` distinguishes exhaustion from
-/// fragmentation, and the per-pool min-evers survive to the failure log even
-/// when the spike itself fell between two callbacks.
+/// runs 5–6: a ~7 KB inflateInit failed inside the pack build; run 6 pinned
+/// min-ever PSRAM at 684 B with the odb cache at 59 KB — exonerated). These
+/// lines exist to name the consumer: if `mmap live` tracks the PSRAM drop the
+/// eater is mwindow windows / idx maps, otherwise it's non-map allocations
+/// (parsed objects, delta chains). `largest PSRAM` distinguishes exhaustion
+/// from fragmentation, and the min-evers survive to the failure log even when
+/// the spike itself fell between two callbacks.
 fn log_push_heap(stage: &str) {
     let (mut cached, mut allowed): (isize, isize) = (0, 0);
     // SAFETY: GET_CACHED_MEMORY only writes the two out-params.
@@ -735,8 +789,11 @@ fn log_push_heap(stage: &str) {
             sys::heap_caps_get_minimum_free_size(sys::MALLOC_CAP_INTERNAL),
         )
     };
+    let (mut maps, mut read_kb, mut live_kb) = (0u32, 0u32, 0u32);
+    // SAFETY: esp_map_stats only writes the non-null out-params.
+    unsafe { esp_map_stats(std::ptr::null_mut(), &mut maps, &mut read_kb, &mut live_kb) };
     log::info!(
-        "push heap [{stage}]: free {} ({} internal), largest PSRAM {}, min-ever PSRAM {} / internal {}, odb cache {}/{} KB",
+        "push heap [{stage}]: free {} ({} internal), largest PSRAM {}, min-ever PSRAM {} / internal {}, mmap live {live_kb} KB ({maps} maps, {read_kb} KB read), odb cache {}/{} KB",
         free_heap(),
         internal_free_heap(),
         largest_psram,
