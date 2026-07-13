@@ -429,6 +429,15 @@ impl Storage {
         }
     }
 
+    /// Whether any saved-but-unpublished paths are recorded (pending or riding
+    /// an in-flight publish). `:gl` refuses to pull while this is true: a
+    /// fast-forward checkout would fight those files, and `:sync` first is the
+    /// single-writer appliance's natural order anyway.
+    pub fn has_dirty(&self) -> bool {
+        let d = self.dirty.borrow();
+        !d.pending.is_empty() || !d.in_flight.is_empty()
+    }
+
     /// Snapshot the dirty paths for a publish (repo-relative). The snapshot
     /// moves to `in_flight` — the journal keeps carrying it — until the UI
     /// task reports the outcome: [`Storage::publish_succeeded`] forgets it,

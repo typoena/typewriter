@@ -90,13 +90,13 @@ fn main() -> anyhow::Result<()> {
     let (git_tx, git_rx) = {
         use esp_idf_svc::eventloop::EspSystemEventLoop;
         use esp_idf_svc::nvs::EspDefaultNvsPartition;
-        use firmware::git_sync::{run_git_service, PublishOutcome, PublishRequest, GIT_STACK};
+        use firmware::git_sync::{run_git_service, GitOutcome, GitRequest, GIT_STACK};
 
         let sys_loop = EspSystemEventLoop::take()?;
         let nvs = EspDefaultNvsPartition::take()?;
         let modem = peripherals.modem;
-        let (req_tx, req_rx) = std::sync::mpsc::channel::<PublishRequest>();
-        let (res_tx, res_rx) = std::sync::mpsc::channel::<PublishOutcome>();
+        let (req_tx, req_rx) = std::sync::mpsc::channel::<GitRequest>();
+        let (res_tx, res_rx) = std::sync::mpsc::channel::<GitOutcome>();
         std::thread::Builder::new()
             .name("git".into())
             .stack_size(GIT_STACK)
@@ -247,8 +247,9 @@ fn main() -> anyhow::Result<()> {
                         // (publish_succeeded) or retried (publish_failed).
                         #[cfg(feature = "git")]
                         {
+                            use firmware::git_sync::{GitRequest, PublishRequest};
                             let paths = storage.take_dirty();
-                            match git_tx.send(firmware::git_sync::PublishRequest { paths }) {
+                            match git_tx.send(GitRequest::Publish(PublishRequest { paths })) {
                                 Ok(()) => ed.set_notice("syncing..."),
                                 Err(_) => {
                                     // Thread gone — nothing will report back, so
@@ -262,11 +263,27 @@ fn main() -> anyhow::Result<()> {
                         log::info!(":sync — saved; light build (no `git` feature) — push skipped");
                     }
                     Effect::Pull => {
-                        // `:gl` — fetch + fast-forward from the remote. The
-                        // on-device fetch/fast-forward on the git thread is v0.7
-                        // work (git_sync only exposes push today), so acknowledge
-                        // and no-op for now.
-                        ed.set_notice("pull: not wired yet (v0.7)");
+                        // `:gl` — fetch + fast-forward, on the git thread like a
+                        // publish. Gated on an empty dirty journal: unpublished
+                        // saves would fight the checkout, and `:sync` first is
+                        // the appliance's natural order anyway. (A RAM-dirty
+                        // buffer that was never saved doesn't gate — its edits
+                        // simply win over the pulled state, see the outcome
+                        // handler below.)
+                        #[cfg(feature = "git")]
+                        {
+                            use firmware::git_sync::GitRequest;
+                            if storage.has_dirty() {
+                                ed.set_notice("pull: unsynced changes - :sync first");
+                            } else {
+                                match git_tx.send(GitRequest::Pull) {
+                                    Ok(()) => ed.set_notice("pulling..."),
+                                    Err(_) => ed.set_notice("pull: git thread down"),
+                                }
+                            }
+                        }
+                        #[cfg(not(feature = "git"))]
+                        log::info!(":gl — light build (no `git` feature) — pull skipped");
                     }
                     Effect::Delete { path, scope } => delete_buffer(&storage, &mut ed, path, scope),
                     Effect::SavePrefs { contents } => save_prefs(&storage, &mut ed, &contents),
@@ -281,24 +298,63 @@ fn main() -> anyhow::Result<()> {
         last_kbd = kbd;
 
         if keys == 0 {
-            // A finished publish reports its outcome here (the push ran on the
+            // A finished git operation reports its outcome here (it ran on the
             // git thread while we idled). Show it in the snackbar with a silent
             // full-area partial — no keystroke will arrive to trigger a repaint.
             #[cfg(feature = "git")]
             if let Ok(outcome) = git_rx.try_recv() {
-                use firmware::git_sync::PublishOutcome::*;
-                // Settle the dirty snapshot this publish took: confirmed
-                // published (or up to date) → forget it; failed → back to
-                // pending so the next :sync retries the same paths.
-                match &outcome {
-                    Pushed(_) | UpToDate => storage.publish_succeeded(),
-                    Failed(_) => storage.publish_failed(),
-                }
-                ed.set_notice(match outcome {
-                    Pushed(oid) => format!("synced {oid}"),
-                    UpToDate => "up to date".to_string(),
-                    Failed(reason) => reason,
-                });
+                use firmware::git_sync::{GitOutcome, PublishOutcome, PullOutcome};
+                let notice = match outcome {
+                    GitOutcome::Publish(outcome) => {
+                        // Settle the dirty snapshot this publish took: confirmed
+                        // published (or up to date) → forget it; failed → back to
+                        // pending so the next :sync retries the same paths.
+                        match &outcome {
+                            PublishOutcome::Pushed(_) | PublishOutcome::UpToDate => {
+                                storage.publish_succeeded()
+                            }
+                            PublishOutcome::Failed(_) => storage.publish_failed(),
+                        }
+                        match outcome {
+                            PublishOutcome::Pushed(oid) => format!("synced {oid}"),
+                            PublishOutcome::UpToDate => "up to date".to_string(),
+                            PublishOutcome::Failed(reason) => reason,
+                        }
+                    }
+                    GitOutcome::Pull(outcome) => match outcome {
+                        // The working copy moved under us: stale resident
+                        // buffers must re-read the disk. Clean parked buffers
+                        // are dropped (they reload on the next switch), the
+                        // clean active buffer is re-read now, and a RAM-dirty
+                        // buffer is left alone — its edits win, last-writer-
+                        // wins like the publish reconcile. The palette list is
+                        // re-walked for files the pull added or removed.
+                        PullOutcome::Pulled(oid) => {
+                            ed.drop_clean_parked();
+                            if ed.dirty() {
+                                log::info!(
+                                    "post-pull: {} is RAM-dirty — kept (its edits win)",
+                                    ed.path()
+                                );
+                            } else if !ed.path().is_empty() {
+                                match storage.load_path(ed.path()) {
+                                    Ok(text) => ed.refresh_active(text),
+                                    Err(e) => log::warn!(
+                                        "post-pull reload of {} FAILED ({e:#}); buffer kept",
+                                        ed.path()
+                                    ),
+                                }
+                            }
+                            ed.set_file_list(enumerate_files());
+                            format!("pulled {oid}")
+                        }
+                        PullOutcome::UpToDate => "up to date".to_string(),
+                        PullOutcome::LocalAhead => "ahead - :sync to publish".to_string(),
+                        PullOutcome::Diverged => "diverged - resolve on a computer".to_string(),
+                        PullOutcome::Failed(reason) => reason,
+                    },
+                };
+                ed.set_notice(notice);
                 ed.draw_into(&mut back, true);
                 if let Err(e) = epd.display_frame_partial_window(back.bytes(), 0, epd::HEIGHT) {
                     log::warn!("sync-notice repaint FAILED ({e}); full refresh next");

@@ -960,6 +960,26 @@ impl Editor {
         self.set_active(path, scope, contents);
     }
 
+    /// Replace the active buffer's contents after the file changed on disk
+    /// underneath us — a `:gl` pull fast-forwarded the working copy. Same boot
+    /// posture as a fresh load (Normal, caret on the last char, clean, no undo
+    /// history — the old snapshots reference the replaced text). The host only
+    /// calls this when the buffer is clean; a dirty buffer's RAM edits win
+    /// (last-writer-wins, like the reconcile path).
+    pub fn refresh_active(&mut self, contents: String) {
+        let (path, scope) = (self.path.clone(), self.scope);
+        self.set_active(path, scope, contents);
+    }
+
+    /// Drop every *clean* parked buffer, so the next switch to one re-reads the
+    /// disk ([`Effect::Load`]) instead of resurrecting a stale resident copy —
+    /// a `:gl` pull may have rewritten any tracked file. Dirty parked buffers
+    /// are kept: their unsaved edits win over the pulled state, exactly like
+    /// the active buffer's.
+    pub fn drop_clean_parked(&mut self) {
+        self.parked.retain(|b| b.dirty);
+    }
+
     pub fn scroll_top(&self) -> usize {
         self.scroll_top
     }
@@ -6426,5 +6446,39 @@ mod tests {
         e.handle(Key::Char('/'));
         e.handle(Key::Char('a'));
         let _ = e.draw(true);
+    }
+
+    // --- `:gl` pull support (v0.7) ------------------------------------------
+
+    #[test]
+    fn refresh_active_replaces_text_and_resets_state() {
+        let mut e = over("old text");
+        e.handle(Key::Char('v')); // some transient state to reset
+        e.refresh_active("pulled text".into());
+        assert_eq!(e.text, "pulled text");
+        assert_eq!(e.mode(), Mode::Normal);
+        assert!(!e.dirty());
+        assert!(e.undo.is_empty()); // old snapshots reference the old text
+        assert_eq!(e.path(), "/sd/repo/notes.md"); // same file, new contents
+        assert_eq!(e.caret, 10); // boot posture: caret on the last char
+    }
+
+    #[test]
+    fn drop_clean_parked_keeps_only_dirty_buffers() {
+        let mut e = over("one"); // active: notes.md, clean
+        e.handle(Key::Char(':'));
+        for c in "enew /sd/repo/b.md".chars() {
+            e.handle(Key::Char(c));
+        }
+        e.handle(Key::Enter); // notes.md parked (clean); b.md active (dirty by design)
+        e.handle(Key::Char(':'));
+        for c in "enew /sd/repo/c.md".chars() {
+            e.handle(Key::Char(c));
+        }
+        e.handle(Key::Enter); // b.md parked (dirty); c.md active
+        assert_eq!(e.parked.len(), 2);
+        e.drop_clean_parked();
+        let kept: Vec<&str> = e.parked.iter().map(|b| b.path.as_str()).collect();
+        assert_eq!(kept, ["/sd/repo/b.md"]); // clean notes.md dropped, dirty b.md kept
     }
 }

@@ -90,6 +90,16 @@ pub const GIT_STACK: usize = 96 * 1024;
 /// over ours — near-identical trees), so the second walk stays off the SD card.
 const ODB_CACHE_MAX_BYTES: isize = 1024 * 1024;
 
+/// What the UI task asks the git thread to do.
+pub enum GitRequest {
+    /// `:sync` — commit the dirty paths and push (the upload half).
+    Publish(PublishRequest),
+    /// `:gl` — fetch + fast-forward only (the download half). The UI only
+    /// sends this when the dirty journal is empty, so the checkout can't
+    /// fight an unpublished save.
+    Pull,
+}
+
 /// A request to publish. The UI task has already saved every dirty buffer to
 /// the card before sending this; `paths` is `Storage::take_dirty`'s snapshot —
 /// the repo-relative paths saved or `:delete`d since the last confirmed
@@ -98,6 +108,13 @@ const ODB_CACHE_MAX_BYTES: isize = 1024 * 1024;
 /// is spliced out. An unchanged path is a no-op, so over-reporting is safe.
 pub struct PublishRequest {
     pub paths: BTreeSet<String>,
+}
+
+/// What the git thread reports back, tagged by the request kind so the UI can
+/// settle the dirty snapshot for a publish and refresh buffers for a pull.
+pub enum GitOutcome {
+    Publish(PublishOutcome),
+    Pull(PullOutcome),
 }
 
 /// Result of a publish attempt, sent back to the UI task for the snackbar. The
@@ -112,6 +129,25 @@ pub enum PublishOutcome {
     Failed(String),
 }
 
+/// Result of a `:gl` pull attempt. Fast-forward only, by design: this device
+/// never merges — a divergence is surfaced and left for a machine with a real
+/// git to resolve.
+pub enum PullOutcome {
+    /// Fast-forwarded onto origin's tip. Carries the short commit id; the UI
+    /// must treat every tracked file as possibly rewritten (reload buffers,
+    /// re-walk the palette list).
+    Pulled(String),
+    /// Origin's tip is our HEAD — nothing to pull.
+    UpToDate,
+    /// We are strictly ahead of origin (e.g. a stranded commit whose push
+    /// failed) — nothing to pull; the next `:sync` publishes it.
+    LocalAhead,
+    /// Local and remote histories diverged. Refused — no merge on the device.
+    Diverged,
+    /// Something failed; short reason for the panel (full error is logged).
+    Failed(String),
+}
+
 /// The git service loop, run on the dedicated git thread. Owns the Wi-Fi stack,
 /// bringing it up lazily on the first request and keeping it up afterwards.
 /// Blocks on `rx`; for each request it ensures connectivity + clock + trust
@@ -122,8 +158,8 @@ pub fn run_git_service(
     modem: Modem<'static>,
     sys_loop: EspSystemEventLoop,
     nvs: EspDefaultNvsPartition,
-    rx: Receiver<PublishRequest>,
-    tx: Sender<PublishOutcome>,
+    rx: Receiver<GitRequest>,
+    tx: Sender<GitOutcome>,
 ) {
     // Process-global libgit2 tuning, once, before any repo work. The 32-bit
     // defaults (32 MB window / 256 MB mapped budget, mwindow.c) would
@@ -165,21 +201,40 @@ pub fn run_git_service(
     let mut tls_ready = false;
 
     while let Ok(req) = rx.recv() {
-        let outcome = publish_cycle(
-            &sys_loop,
-            &mut wifi,
-            &mut modem,
-            &mut nvs,
-            &mut clock_synced,
-            &mut tls_ready,
-            &req.paths,
-        );
-        let msg = match outcome {
-            Ok(o) => o,
-            Err(e) => {
-                log::error!("❌ :sync failed: {e:?}");
-                PublishOutcome::Failed(short_reason(&e))
-            }
+        let msg = match req {
+            GitRequest::Publish(req) => GitOutcome::Publish(
+                match publish_cycle(
+                    &sys_loop,
+                    &mut wifi,
+                    &mut modem,
+                    &mut nvs,
+                    &mut clock_synced,
+                    &mut tls_ready,
+                    &req.paths,
+                ) {
+                    Ok(o) => o,
+                    Err(e) => {
+                        log::error!("❌ :sync failed: {e:?}");
+                        PublishOutcome::Failed(short_reason("sync", &e))
+                    }
+                },
+            ),
+            GitRequest::Pull => GitOutcome::Pull(
+                match pull_cycle(
+                    &sys_loop,
+                    &mut wifi,
+                    &mut modem,
+                    &mut nvs,
+                    &mut clock_synced,
+                    &mut tls_ready,
+                ) {
+                    Ok(o) => o,
+                    Err(e) => {
+                        log::error!("❌ :gl failed: {e:?}");
+                        PullOutcome::Failed(short_reason("pull", &e))
+                    }
+                },
+            ),
         };
         // If the UI task has gone away there's nothing to report to; exit.
         if tx.send(msg).is_err() {
@@ -218,12 +273,62 @@ fn publish_cycle(
     // and TLS run only on the first sync of a session; a warm sync skips them, so
     // they read 0 ms and the total collapses to just publish(fetch+commit+push).
     let t_total = Instant::now();
+    ensure_online(sys_loop, wifi, modem, nvs, clock_synced, tls_ready)?;
 
-    // Bring Wi-Fi up once (on-demand: the radio stays off until the first :sync).
+    let t_publish = Instant::now();
+    let outcome = publish_once(paths)?;
+    log::info!(
+        ":sync timing — publish(commit+push) {}ms, total {}ms",
+        t_publish.elapsed().as_millis(),
+        t_total.elapsed().as_millis(),
+    );
+    Ok(outcome)
+}
+
+/// One full pull (`:gl`): ensure connectivity, then fetch + fast-forward only.
+/// Always needs the network — there is no radio-free shortcut like publish's
+/// up-to-date check, because the whole point is asking origin what's new.
+fn pull_cycle(
+    sys_loop: &EspSystemEventLoop,
+    wifi: &mut Option<BlockingWifi<EspWifi<'static>>>,
+    modem: &mut Option<Modem<'static>>,
+    nvs: &mut Option<EspDefaultNvsPartition>,
+    clock_synced: &mut bool,
+    tls_ready: &mut bool,
+) -> Result<PullOutcome> {
+    if REMOTE_URL.is_empty() || GH_USER.is_empty() || PAT.is_empty() || WIFI_SSID.is_empty() {
+        bail!("git config missing — set TW_WIFI_SSID / TW_REMOTE_URL / TW_GH_USER / TW_PAT in firmware/.env and rebuild");
+    }
+    let t_total = Instant::now();
+    ensure_online(sys_loop, wifi, modem, nvs, clock_synced, tls_ready)?;
+
+    let t_pull = Instant::now();
+    let outcome = pull_once()?;
+    log::info!(
+        ":gl timing — fetch+ff {}ms, total {}ms",
+        t_pull.elapsed().as_millis(),
+        t_total.elapsed().as_millis(),
+    );
+    Ok(outcome)
+}
+
+/// Bring Wi-Fi + wall clock + TLS trust store up, each once per session; a
+/// warm call is a no-op. Shared by publish and pull, on the git thread. Logs
+/// one timing line whenever any step actually ran (the session's first
+/// operation pays them all; every later one skips straight to git).
+fn ensure_online(
+    sys_loop: &EspSystemEventLoop,
+    wifi: &mut Option<BlockingWifi<EspWifi<'static>>>,
+    modem: &mut Option<Modem<'static>>,
+    nvs: &mut Option<EspDefaultNvsPartition>,
+    clock_synced: &mut bool,
+    tls_ready: &mut bool,
+) -> Result<()> {
+    // Bring Wi-Fi up once (on-demand: the radio stays off until the first use).
     let mut wifi_ms = 0u128;
     if wifi.is_none() {
         let t = Instant::now();
-        log::info!("first :sync — bringing Wi-Fi up; free heap {}", free_heap());
+        log::info!("first git op — bringing Wi-Fi up; free heap {}", free_heap());
         let m = modem.take().expect("modem taken once");
         let n = nvs.take().expect("nvs taken once");
         let mut w = BlockingWifi::wrap(
@@ -250,15 +355,10 @@ fn publish_cycle(
         *tls_ready = true;
         tls_ms = t.elapsed().as_millis();
     }
-
-    let t_publish = Instant::now();
-    let outcome = publish_once(paths)?;
-    log::info!(
-        ":sync timing — wifi {wifi_ms}ms, clock {clock_ms}ms, tls {tls_ms}ms, publish(commit+push) {}ms, total {}ms",
-        t_publish.elapsed().as_millis(),
-        t_total.elapsed().as_millis(),
-    );
-    Ok(outcome)
+    if wifi_ms + clock_ms + tls_ms > 0 {
+        log::info!("online — wifi {wifi_ms}ms, clock {clock_ms}ms, tls {tls_ms}ms");
+    }
+    Ok(())
 }
 
 /// Open `/sd/repo`, commit the working tree on the current branch, and push.
@@ -605,25 +705,127 @@ fn try_push(repo: &Repository, refspec: &str) -> Result<(), PushFailure> {
 /// keeps it (an improvement over the old `add --all` replay, which dropped
 /// files the card didn't have). A real merge stays increment-B work.
 fn reconcile_onto_origin(repo: &Repository, branch: &str) -> Result<()> {
+    let theirs = fetch_origin(repo, branch)?;
+    log::info!(
+        "reconcile: resetting local {branch} onto origin @ {} (soft — ref move only, notes stay on the card)",
+        short(theirs)
+    );
+    let their_obj = repo.find_object(theirs, None)?;
+    repo.reset(&their_obj, git2::ResetType::Soft, None)
+        .context("soft reset onto origin")?;
+    Ok(())
+}
+
+/// Fetch `branch` from origin and return the fetched tip's commit id. Shared
+/// by the pull and the post-rejection reconcile. Also refreshes the
+/// remote-tracking ref, keeping [`tracking_tip`] (and with it publish's
+/// radio-free up-to-date check) honest about what origin has.
+fn fetch_origin(repo: &Repository, branch: &str) -> Result<Oid> {
     let mut remote = repo.find_remote("origin")?;
     let mut fo = FetchOptions::new();
     fo.remote_callbacks(auth_callbacks());
     remote
         .fetch(&[branch], Some(&mut fo), None)
         .context("fetch origin")?;
-
-    let fetch_head = repo
+    let theirs = repo
         .find_reference("FETCH_HEAD")
-        .context("no FETCH_HEAD after fetch")?;
-    let theirs = repo.reference_to_annotated_commit(&fetch_head)?;
+        .context("no FETCH_HEAD after fetch")?
+        .peel_to_commit()
+        .context("FETCH_HEAD is not a commit")?
+        .id();
+    repo.reference(
+        &format!("refs/remotes/origin/{branch}"),
+        theirs,
+        true,
+        "typoena fetch",
+    )
+    .context("updating remote-tracking ref")?;
+    Ok(theirs)
+}
+
+/// Open `/sd/repo`, fetch origin, and **fast-forward only** — never a merge.
+/// The four non-failure shapes map to [`PullOutcome`]: already current, we're
+/// strictly ahead (a stranded commit — `:sync`'s job), a clean fast-forward,
+/// or a divergence (refused; a machine with a real git resolves it).
+///
+/// The fast-forward is checkout-then-ref-move, with a **SAFE** checkout: it
+/// refuses to overwrite a working-copy file whose content differs from HEAD's.
+/// The UI already gates `:gl` on an empty dirty journal, so in normal use
+/// nothing conflicts; the belt catches files edited behind git's back (e.g.
+/// desktop edits made directly on the card — deliberately never committed by
+/// the device since the splice landed). One FAT caveat, matching publish's
+/// index-avoidance: the splice never updates the index, so its stat cache is
+/// stale and SAFE re-hashes each file the pull wants to change — fine for a
+/// few notes, and still O(changed), never O(tree).
+fn pull_once() -> Result<PullOutcome> {
     log::info!(
-        "reconcile: resetting local {branch} onto origin @ {} (soft — ref move only, notes stay on the card)",
-        short(theirs.id())
+        "pull started — free heap {} ({} internal)",
+        free_heap(),
+        internal_free_heap()
     );
-    let their_obj = repo.find_object(theirs.id(), None)?;
-    repo.reset(&their_obj, git2::ResetType::Soft, None)
-        .context("soft reset onto origin")?;
-    Ok(())
+    let repo = Repository::open(REPO_DIR).with_context(|| {
+        format!("opening git repo at {REPO_DIR} — provision the card with a clone (just init) whose origin is your remote")
+    })?;
+    let branch = repo
+        .head()?
+        .shorthand()
+        .context("HEAD has no branch shorthand")?
+        .to_string();
+
+    let t_fetch = Instant::now();
+    let theirs = fetch_origin(&repo, &branch)?;
+    let fetch_ms = t_fetch.elapsed().as_millis();
+
+    let head = repo.head()?.peel_to_commit()?.id();
+    if theirs == head {
+        log::info!("pull: origin @ {} == HEAD — up to date (fetch {fetch_ms}ms)", short(head));
+        return Ok(PullOutcome::UpToDate);
+    }
+    if repo
+        .graph_descendant_of(head, theirs)
+        .context("descendant check (local ahead)")?
+    {
+        log::info!(
+            "pull: HEAD {} is ahead of origin {} — nothing to pull, :sync publishes it",
+            short(head),
+            short(theirs)
+        );
+        return Ok(PullOutcome::LocalAhead);
+    }
+    if !repo
+        .graph_descendant_of(theirs, head)
+        .context("descendant check (fast-forward)")?
+    {
+        log::warn!(
+            "pull: origin {} and HEAD {} diverged — refusing (ff-only, no merge on the device)",
+            short(theirs),
+            short(head)
+        );
+        return Ok(PullOutcome::Diverged);
+    }
+
+    let t_co = Instant::now();
+    let target = repo.find_object(theirs, None)?;
+    let mut co = git2::build::CheckoutBuilder::new();
+    co.safe();
+    repo.checkout_tree(&target, Some(&mut co))
+        .context("checkout of origin's tree")?;
+    repo.reference(
+        &format!("refs/heads/{branch}"),
+        theirs,
+        true,
+        "typoena pull: fast-forward",
+    )
+    .context("fast-forwarding the branch ref")?;
+    log::info!(
+        "pull: fast-forwarded {branch} {} -> {} — fetch {fetch_ms}ms, checkout {}ms, free heap {} ({} internal)",
+        short(head),
+        short(theirs),
+        t_co.elapsed().as_millis(),
+        free_heap(),
+        internal_free_heap()
+    );
+    Ok(PullOutcome::Pulled(short(theirs)))
 }
 
 /// Auth + cert callbacks shared by fetch and push. Captures only the baked
@@ -682,12 +884,13 @@ fn install_tls_trust_store() -> Result<()> {
     Ok(())
 }
 
-/// A short, panel-friendly reason from an error chain (first line, clamped). The
-/// full chain is logged separately; the editor clamps this to the panel width.
-fn short_reason(e: &anyhow::Error) -> String {
+/// A short, panel-friendly reason from an error chain (first line, clamped),
+/// prefixed with the operation ("sync" / "pull"). The full chain is logged
+/// separately; the editor clamps this to the panel width.
+fn short_reason(op: &str, e: &anyhow::Error) -> String {
     let full = format!("{e}");
-    let first = full.lines().next().unwrap_or("sync failed");
-    format!("sync: {}", first.chars().take(24).collect::<String>())
+    let first = full.lines().next().unwrap_or("failed");
+    format!("{op}: {}", first.chars().take(24).collect::<String>())
 }
 
 /// First 8 hex chars of an OID, for readable logs and the panel.
