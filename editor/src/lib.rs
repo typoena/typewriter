@@ -1855,12 +1855,19 @@ impl Editor {
                 self.palette_sel = 0;
             }
             // Ctrl-n/Ctrl-p move the selection (fzf-style); Ctrl-d/Ctrl-u do too.
-            // Clamped to the current result list (files, `>` commands, `$` snippets).
+            // Wraps around the current result list (files, `>` commands, `$` snippets).
             Key::Down | Key::HalfPageDown => {
                 let n = self.palette_len();
-                self.palette_sel = (self.palette_sel + 1).min(n.saturating_sub(1));
+                if n > 0 {
+                    self.palette_sel = (self.palette_sel + 1) % n;
+                }
             }
-            Key::Up | Key::HalfPageUp => self.palette_sel = self.palette_sel.saturating_sub(1),
+            Key::Up | Key::HalfPageUp => {
+                let n = self.palette_len();
+                if n > 0 {
+                    self.palette_sel = self.palette_sel.checked_sub(1).unwrap_or(n - 1);
+                }
+            }
             // Enter acts on the selection by mode: insert a `$` snippet, run a `>`
             // command, or open the selected file.
             Key::Enter => {
@@ -5292,7 +5299,7 @@ mod tests {
     }
 
     #[test]
-    fn half_page_keys_move_the_selection_clamped() {
+    fn half_page_keys_move_the_selection_wrapping() {
         let mut e = palette_editor(&["/sd/repo/a.md", "/sd/repo/b.md", "/sd/repo/c.md"]);
         e.handle(Key::Palette);
         for ch in "md".chars() {
@@ -5302,10 +5309,10 @@ mod tests {
         e.handle(Key::HalfPageDown);
         assert_eq!(e.palette_sel, 1);
         e.handle(Key::HalfPageDown);
-        e.handle(Key::HalfPageDown); // clamps at the last row
+        e.handle(Key::HalfPageDown); // wraps past the last row to the top
+        assert_eq!(e.palette_sel, 0);
+        e.handle(Key::HalfPageUp); // wraps back to the last row
         assert_eq!(e.palette_sel, 2);
-        e.handle(Key::HalfPageUp);
-        assert_eq!(e.palette_sel, 1);
     }
 
     #[test]
@@ -5318,10 +5325,10 @@ mod tests {
         e.handle(Key::Down); // Ctrl-n
         assert_eq!(e.palette_sel, 1);
         e.handle(Key::Down);
-        e.handle(Key::Down); // clamps at the last row
+        e.handle(Key::Down); // wraps past the last row to the top
+        assert_eq!(e.palette_sel, 0);
+        e.handle(Key::Up); // Ctrl-p wraps back to the last row
         assert_eq!(e.palette_sel, 2);
-        e.handle(Key::Up); // Ctrl-p
-        assert_eq!(e.palette_sel, 1);
     }
 
     #[test]
@@ -5703,11 +5710,15 @@ mod tests {
     }
 
     #[test]
-    fn ctrl_n_moves_the_command_selection_within_bounds() {
+    fn ctrl_n_moves_the_command_selection_wrapping() {
         let mut e = palette_type(&["/sd/repo/notes.md"], ">");
-        for _ in 0..10 {
-            e.handle(Key::Down); // Ctrl-N; clamps at the last command
+        for _ in 0..PALETTE_CMDS.len() - 1 {
+            e.handle(Key::Down); // Ctrl-N down to the last command
         }
+        assert_eq!(e.palette_sel, PALETTE_CMDS.len() - 1);
+        e.handle(Key::Down); // wraps back to the top
+        assert_eq!(e.palette_sel, 0);
+        e.handle(Key::Up); // and Ctrl-P wraps back to the bottom
         assert_eq!(e.palette_sel, PALETTE_CMDS.len() - 1);
     }
 
@@ -6069,12 +6080,14 @@ mod tests {
     }
 
     #[test]
-    fn ctrl_n_clamps_to_the_snippet_result_list() {
+    fn ctrl_n_wraps_around_the_snippet_result_list() {
         let mut e = snippet_palette(TWO_SNIPPETS, "$");
         e.handle(Key::Down);
-        e.handle(Key::Down);
-        e.handle(Key::Down); // past the end — clamps
         assert_eq!(e.palette_sel, 1); // two snippets → last index is 1
+        e.handle(Key::Down); // past the end — wraps to the top
+        assert_eq!(e.palette_sel, 0);
+        e.handle(Key::Up); // before the top — wraps to the bottom
+        assert_eq!(e.palette_sel, 1);
     }
 
     #[test]

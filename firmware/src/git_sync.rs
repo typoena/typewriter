@@ -510,9 +510,20 @@ fn try_push(repo: &Repository, refspec: &str) -> Result<(), PushFailure> {
 
     let mut opts = PushOptions::new();
     opts.remote_callbacks(cbs);
-    remote
-        .push(&[refspec], Some(&mut opts))
-        .map_err(|e| PushFailure::Other(anyhow::Error::new(e).context("push transport")))?;
+    // A non-fast-forward can also surface here, not just via the callback:
+    // libgit2 compares against origin's advertised tips during negotiation and
+    // errors out of push() with ErrorCode::NotFastForward before sending
+    // anything, so `push_update_reference` never fires. It's still the
+    // remote-moved-under-us case — reconcilable, not a transport failure
+    // (bit the 2026-07-13 run 3: the real-repo rejection surfaced as "push
+    // transport" and skipped the reconcile built for it).
+    remote.push(&[refspec], Some(&mut opts)).map_err(|e| {
+        if e.code() == git2::ErrorCode::NotFastForward {
+            PushFailure::Rejected(format!("{refspec}: {}", e.message()))
+        } else {
+            PushFailure::Other(anyhow::Error::new(e).context("push transport"))
+        }
+    })?;
 
     if let Some(msg) = rejection.borrow().clone() {
         return Err(PushFailure::Rejected(msg));

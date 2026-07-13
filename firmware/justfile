@@ -52,6 +52,12 @@ build-light:
 flash-light:
     {{esp_env}} cargo run --release --bin firmware
 
+# flash + monitor the ALREADY-BUILT firmware — no cargo, no rebuild. Flashes
+# whatever `build`/`build-light` last produced (both write the same ELF).
+# Same espflash flags as the cargo runner in .cargo/config.toml.
+flash-only:
+    espflash flash --monitor --baud 921600 {{elf}}
+
 # serial monitor only, with decoded backtraces
 monitor:
     espflash monitor --elf {{elf}}
@@ -202,11 +208,27 @@ init repo_src sd_volume="":
 # (Re)copy just the notes repo to /sd/repo: fast-forward the source clone from
 # its remote first, then rsync it across (full clone, gitignored paths excluded)
 # and eject — e.g. to refresh the card after the device pushed new notes.
-load repo_src sd_volume="":
+# Refuses if the card's .typoena-dirty journal lists unpublished device edits
+# (:sync from the device first, or TW_DISCARD_UNPUBLISHED=1 to back up+discard).
+# --force wipes the card's repo/ + dirty journal first for a from-scratch copy
+# (recovers a corrupt or half-written card clone; journaled files still get the
+# rescue backup). Scoped to repo/: typoena.conf and /sd/local notes survive.
+#   just load ~/code/notes --force
+#   just load ~/code/notes SDCARD --force
+[positional-arguments]
+load repo_src *rest:
     #!/usr/bin/env bash
     set -euo pipefail
-    vol="$(just _card "{{sd_volume}}" | tail -n1)"
-    just _load-repo "{{repo_src}}" "$vol"
+    repo_src="$1"; shift
+    force=""; volname=""
+    for a in "$@"; do
+        case "$a" in
+            --force) force=1 ;;
+            *) volname="$a" ;;
+        esac
+    done
+    vol="$(just _card "$volname" | tail -n1)"
+    just _load-repo "$repo_src" "$vol" "$force"
     just _eject "$vol"
 
 # (Re)write just the config (Wi-Fi + PAT + git identity), then eject — e.g. to
@@ -274,11 +296,47 @@ _card sd_volume="":
 # the URL scheme: the card copy's origin is rewritten to HTTPS at the end,
 # because the device's libgit2 has no SSH transport (HTTPS+PAT over mbedTLS
 # only). The source clone is never touched.
-_load-repo repo_src vol:
+_load-repo repo_src vol wipe="":
     #!/usr/bin/env bash
     set -euo pipefail
     src="{{repo_src}}"; src="${src%/}"   # strip trailing slash
+    wipe="{{wipe}}"
     [ -d "$src/.git" ] || { echo "error: '$src' is not a git repo (no .git/)"; exit 1; }
+
+    # ── unpublished-work guard ───────────────────────────────────────────────
+    # /sd/.typoena-dirty (card root — outside the repo/ rsync scope) lists the
+    # repo-relative paths the device saved or `:delete`d but never confirmed
+    # published; the device clears it only on a confirmed push, so it also
+    # covers any stranded splice commit in repo/.git. Mirroring repo/ over
+    # those edits while the journal survives is worse than losing them: the
+    # device's next :sync splices the journaled paths from the mirrored tree,
+    # committing Mac-state — or a *deletion* for a path the Mac clone lacks.
+    # So refuse by default; TW_DISCARD_UNPUBLISHED=1 backs the files up to a
+    # temp dir, clears the journal, then mirrors. Either way a completed load
+    # leaves no stale journal behind.
+    journal="{{vol}}/.typoena-dirty"
+    if [ -s "$journal" ]; then
+        echo "card carries unpublished device edits (.typoena-dirty):" >&2
+        sed 's/^/    /' "$journal" >&2
+        if [ -z "${TW_DISCARD_UNPUBLISHED:-}" ] && [ -z "$wipe" ]; then
+            echo "error: loading would overwrite these with the Mac clone and strand the journal." >&2
+            echo "       Put the card back in Typoena and :sync first (the normal path), or re-run" >&2
+            echo "       with TW_DISCARD_UNPUBLISHED=1 to back them up to a temp dir and discard." >&2
+            exit 1
+        fi
+        rescue="$(mktemp -d)/typoena-rescue"
+        while IFS= read -r p; do
+            p="$(echo "$p" | xargs)"; [ -n "$p" ] || continue
+            if [ -f "{{vol}}/{{sd_repo_dir}}/$p" ]; then
+                mkdir -p "$rescue/$(dirname "$p")"
+                cp "{{vol}}/{{sd_repo_dir}}/$p" "$rescue/$p"
+            else
+                echo "  (no file on card for '$p' — was a device :delete, nothing to back up)" >&2
+            fi
+        done < "$journal"
+        rm -f "$journal"
+        echo "journal cleared; unpublished files backed up to $rescue" >&2
+    fi
 
     origin="$(git -C "$src" remote get-url origin 2>/dev/null || true)"
     case "$origin" in
@@ -315,6 +373,18 @@ _load-repo repo_src vol:
     esac
 
     dest="{{vol}}/{{sd_repo_dir}}"
+    # --force: delete the card's repo/ outright so rsync copies from scratch —
+    # unlike the mirror, this also clears paths the exclude list protects from
+    # `--delete` (a stray .env, build junk) and any corrupt .git state. Scoped
+    # to repo/ + the journal (already cleared above if present): typoena.conf,
+    # ca.pem and /sd/local never touched. Sanity-check vol first — with an
+    # empty vol this rm would aim at "/repo".
+    if [ -n "$wipe" ]; then
+        [ -n "{{vol}}" ] && [ -d "{{vol}}" ] || { echo "error: bad volume '{{vol}}'" >&2; exit 1; }
+        echo "--force: wiping $dest for a from-scratch copy"
+        rm -rf "$dest"
+        rm -f "$journal"
+    fi
     echo "copying repo: $src  ->  $dest"
     mkdir -p "$dest"
 
@@ -531,10 +601,16 @@ _write-conf vol repo_src="":
     echo "  git:  remote=$(mask "$remote") gh_user=$(mask "$gh_user") pat=$(mask "$pat")"
     echo "  author: name=$(mask "$a_name") email=$(mask "$a_email")"
 
-# Flush + eject so the card can go straight into Typoena.
+# Flush + eject so the card can go straight into Typoena. Also strips the
+# AppleDouble `._*` companions macOS writes on FAT for any file it decorates
+# with xattrs: on a real card they reached .git/objects/pack/._pack-*.idx,
+# which git's pack scan (Mac git AND the device's libgit2) picks up via its
+# *.idx glob and tries to parse ("non-monotonic index" spam; 2045 of them
+# found 2026-07-13). Best-effort — a missing dot_clean never blocks the eject.
 _eject vol:
     #!/usr/bin/env bash
     set -euo pipefail
+    dot_clean -m "{{vol}}" 2>/dev/null || true
     sync
     echo "ejecting {{vol}}"
     if diskutil eject "{{vol}}" >/dev/null 2>&1; then

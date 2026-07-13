@@ -596,11 +596,20 @@ fn walk_files(dir: &std::path::Path, depth: usize, out: &mut Vec<String>) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
     };
-    // Keep the dirent's own file type: esp-idf's FAT VFS always fills d_type
-    // (DT_DIR/DT_REG, straight from the FILINFO readdir already holds), so
-    // `file_type()` is free. A per-entry `metadata()` stat instead re-walks
-    // the directory by path every time — measured at ~32ms/file on the SD
-    // card, it turned a 1098-file walk into 35s.
+    // Keep the dirent's own file type — a per-entry `metadata()` stat re-walks
+    // the directory by path every time (~32ms/file on the SD card; it turned a
+    // 1098-file walk into 35s). But the type needs decoding: esp-idf's
+    // dirent.h says DT_REG=1 / DT_DIR=2, and std was built against libc
+    // 0.2.178, which had no espidf overrides (they arrived in 0.2.186) and
+    // falls back to the generic unix table — DT_FIFO=1, DT_CHR=2, DT_DIR=4,
+    // DT_REG=8. Through std's eyes every card file is a "fifo" and every
+    // directory a "char device": is_file()/is_dir() never matched, and the
+    // 2026-07-13 walk dropped all 1157 files in 49ms. FAT can't hold fifos or
+    // device nodes, so reading fifo-as-file / chardev-as-dir is unambiguous
+    // here, and the is_file()/is_dir() arms take over the day the toolchain's
+    // libc catches up. A type matching neither pair pays the one stat rather
+    // than being silently dropped.
+    use std::os::unix::fs::FileTypeExt;
     let children: Vec<_> = entries
         .flatten()
         .filter_map(|e| e.file_type().ok().map(|t| (e.path(), t)))
@@ -612,11 +621,21 @@ fn walk_files(dir: &std::path::Path, depth: usize, out: &mut Vec<String>) {
         if name.starts_with('.') {
             continue;
         }
-        if ftype.is_file() {
+        let (is_file, is_dir) = if ftype.is_file() || ftype.is_fifo() {
+            (true, false)
+        } else if ftype.is_dir() || ftype.is_char_device() {
+            (false, true)
+        } else {
+            match std::fs::metadata(&path) {
+                Ok(m) => (m.is_file(), m.is_dir()),
+                Err(_) => continue,
+            }
+        };
+        if is_file {
             if let Some(p) = path.to_str() {
                 out.push(p.to_string());
             }
-        } else if ftype.is_dir() {
+        } else if is_dir {
             walk_files(&path, depth + 1, out);
         }
     }
