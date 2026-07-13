@@ -352,9 +352,13 @@ impl Snippets {
     /// display name, each value `{ prefix, body, description? }` where `body` is a
     /// string or an array of lines. Labels in `${n:label}` stops are stripped to
     /// `$n`. Entries come back sorted by name (a `BTreeMap` parse — deterministic,
-    /// and the empty-`$` palette order; a query re-ranks by fuzzy score anyway). A
-    /// malformed file is an `Err` the host logs before booting with no snippets.
+    /// and the empty-`$` palette order; a query re-ranks by fuzzy score anyway). An
+    /// empty (or whitespace-only) file means "no snippets", same as a missing one —
+    /// only a malformed file is an `Err` the host logs before booting with none.
     pub fn parse(src: &str) -> Result<Self, serde_json::Error> {
+        if src.trim().is_empty() {
+            return Ok(Self::default());
+        }
         let raw: std::collections::BTreeMap<String, RawSnippet> = serde_json::from_str(src)?;
         let snippets = raw
             .into_iter()
@@ -3166,11 +3170,25 @@ impl Editor {
     /// text (e.g. a boot message). View never draws a caret. In the main loop
     /// Normal always passes `true`, so its block caret is unaffected.
     pub fn draw(&mut self, cursor_on: bool) -> Frame {
+        let mut f = Frame::empty();
+        self.draw_into(&mut f, cursor_on);
+        f
+    }
+
+    /// [`draw`](Self::draw) into a caller-owned frame, reusing its allocation.
+    /// Firmware keeps two boot-time frames and round-trips them through here so
+    /// a repaint never allocates: the editor must stay drawable even when a
+    /// background `:sync` push has taken the heap to the floor — a failed
+    /// framebuffer alloc aborts the whole app (the 2026-07-13 OOM).
+    pub fn draw_into(&mut self, out: &mut Frame, cursor_on: bool) {
         let lay = self.layout();
         let (crow, ccol) = self.caret_rc(&lay);
         self.adjust_scroll(crow, lay.len());
 
-        let mut f = Frame::new_white();
+        // Take the caller's buffer (no copy, no alloc), render into it as an
+        // owned frame — the body predates this signature — and hand it back.
+        let mut f = std::mem::replace(out, Frame::empty());
+        f.clear_white();
         let text_style = MonoTextStyle::new(&FONT_10X20, BinaryColor::On);
         let gutter = self.gutter_cols();
         let cols = WRITE_COLS - gutter; // text columns after the gutter
@@ -3335,7 +3353,7 @@ impl Editor {
         if self.prefs.theme == "dark" {
             f.invert();
         }
-        f
+        *out = f;
     }
 
     /// Draw the side panel: a full-height rule, word count at the top, and the
@@ -5910,6 +5928,8 @@ mod tests {
     #[test]
     fn parse_snippets_empty_and_malformed() {
         assert!(Snippets::parse("{}").unwrap().0.is_empty());
+        assert!(Snippets::parse("").unwrap().0.is_empty()); // empty file = no snippets
+        assert!(Snippets::parse(" \n\t").unwrap().0.is_empty()); // whitespace-only too
         assert!(Snippets::parse("{ not json").is_err()); // host logs, boots with none
     }
 

@@ -186,6 +186,13 @@ fn main() -> anyhow::Result<()> {
     // (every FULL_REFRESH_EVERY updates) clears any residue.
     let mut shown = ed.draw(true);
     epd.display_frame_partial_window(shown.bytes(), 0, epd::HEIGHT)?;
+    // The only two framebuffers the loop ever uses, both allocated here at
+    // boot: every repaint below renders into `back` (`draw_into` reuses its
+    // allocation) and swaps it with `shown` on success. A repaint must never
+    // allocate — a background `:sync` push can take the heap to the floor, and
+    // a failed `Vec` alloc aborts the whole app (the 2026-07-13 OOM: 66 s into
+    // the push, one HalfPageUp repaint died on a 27 KB framebuffer).
+    let mut back = Frame::new_white();
 
     // Boot-time measurement (the ≤ 5 s v0.1 / ≤ 3 s v1.0 target). Two clocks, and
     // they disagree by ~1.4 s here, so report both. `esp_log_timestamp()` counts
@@ -292,26 +299,26 @@ fn main() -> anyhow::Result<()> {
                     UpToDate => "up to date".to_string(),
                     Failed(reason) => reason,
                 });
-                let f = ed.draw(true);
-                if let Err(e) = epd.display_frame_partial_window(f.bytes(), 0, epd::HEIGHT) {
+                ed.draw_into(&mut back, true);
+                if let Err(e) = epd.display_frame_partial_window(back.bytes(), 0, epd::HEIGHT) {
                     log::warn!("sync-notice repaint FAILED ({e}); full refresh next");
                     force_full = true;
                     continue;
                 }
-                shown = f;
+                std::mem::swap(&mut shown, &mut back);
                 cursor_shown = true;
                 continue;
             }
             // A connect/disconnect while idle must still repaint the panel flag —
             // no keystroke will arrive to trigger it otherwise.
             if kbd_changed {
-                let f = ed.draw(true);
-                if let Err(e) = epd.display_frame_partial_window(f.bytes(), 0, epd::HEIGHT) {
+                ed.draw_into(&mut back, true);
+                if let Err(e) = epd.display_frame_partial_window(back.bytes(), 0, epd::HEIGHT) {
                     log::warn!("kbd-flag repaint FAILED ({e}); full refresh next");
                     force_full = true;
                     continue;
                 }
-                shown = f;
+                std::mem::swap(&mut shown, &mut back);
                 cursor_shown = true;
                 log::info!("keyboard {}", if kbd { "connected" } else { "disconnected" });
                 continue;
@@ -348,12 +355,12 @@ fn main() -> anyhow::Result<()> {
                 && last_activity.elapsed().as_millis() >= CURSOR_DEBOUNCE_MS
             {
                 ed.refresh_stats();
-                let f = ed.draw(true);
-                if let Err(e) = epd.display_frame_partial_window(f.bytes(), 0, epd::HEIGHT) {
+                ed.draw_into(&mut back, true);
+                if let Err(e) = epd.display_frame_partial_window(back.bytes(), 0, epd::HEIGHT) {
                     log::warn!("caret repaint FAILED ({e}); full refresh next");
                     force_full = true;
                 } else {
-                    shown = f;
+                    std::mem::swap(&mut shown, &mut back);
                     cursor_shown = true;
                     log::info!("caret shown");
                 }
@@ -375,14 +382,13 @@ fn main() -> anyhow::Result<()> {
         // and View render their caret regardless of this flag.
         let insert_cursor_on = ed.mode() != Mode::Insert;
         let prev_scroll = ed.scroll_top();
-        let frame = ed.draw(insert_cursor_on);
+        ed.draw_into(&mut back, insert_cursor_on);
         let scrolled = ed.scroll_top() != prev_scroll;
 
         // Only the rows that changed since the last shown frame need updating.
-        let Some((y0, y1)) = changed_rows(shown.bytes(), frame.bytes()) else {
-            shown = frame;
+        let Some((y0, y1)) = changed_rows(shown.bytes(), back.bytes()) else {
             cursor_shown = ed.mode() != Mode::Insert;
-            continue; // no visible change
+            continue; // no visible change (the frames are identical — no swap needed)
         };
         // Snap the band to whole text lines so a partial-window boundary never
         // lands mid-glyph — otherwise the boundary gate crops tall characters.
@@ -398,18 +404,18 @@ fn main() -> anyhow::Result<()> {
         let periodic = updates % FULL_REFRESH_EVERY == 0;
         let additive = ed.mode() == Mode::Insert
             && !scrolled
-            && only_adds_ink(shown.bytes(), frame.bytes(), y0, y1);
+            && only_adds_ink(shown.bytes(), back.bytes(), y0, y1);
 
         let t0 = Instant::now();
         // `force_full` promotes to a full refresh after a failed paint: it
         // rewrites both RAM banks, recovering from a partial that may have died
         // mid-transfer and desynced them.
         let (result, refresh) = if periodic || force_full {
-            (epd.display_frame(frame.bytes()), "FULL")
+            (epd.display_frame(back.bytes()), "FULL")
         } else if additive {
-            (epd.display_frame_partial_window(frame.bytes(), y0, y1 - y0 + 1), "windowed")
+            (epd.display_frame_partial_window(back.bytes(), y0, y1 - y0 + 1), "windowed")
         } else {
-            (epd.display_frame_partial_window(frame.bytes(), 0, epd::HEIGHT), "full-area")
+            (epd.display_frame_partial_window(back.bytes(), 0, epd::HEIGHT), "full-area")
         };
         let ms = t0.elapsed().as_millis();
         if let Err(e) = result {
@@ -428,7 +434,7 @@ fn main() -> anyhow::Result<()> {
             "{refresh} refresh #{updates} [{:?}]: {ms} ms (rows {y0}..={y1}, {keys} key(s))",
             ed.mode()
         );
-        shown = frame;
+        std::mem::swap(&mut shown, &mut back);
         cursor_shown = ed.mode() != Mode::Insert;
     }
 }

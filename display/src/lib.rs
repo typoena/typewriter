@@ -35,6 +35,25 @@ impl Frame {
         Self { buf: vec![0xFF; FB_BYTES] }
     }
 
+    /// A zero-capacity placeholder, for the buffer-swap pattern:
+    /// `Editor::draw_into` takes the caller's buffer out through one of these
+    /// and puts it back when done. Not drawable until [`clear_white`]
+    /// (or a `draw_into`) gives it its buffer.
+    ///
+    /// [`clear_white`]: Frame::clear_white
+    pub fn empty() -> Self {
+        Self { buf: Vec::new() }
+    }
+
+    /// Reset to all-white paper, reusing the existing allocation when the
+    /// buffer is already full-size. This is what lets firmware repaint without
+    /// allocating: a background `:sync` push can take the heap to the floor,
+    /// and a failed framebuffer alloc aborts the whole app (2026-07-13).
+    pub fn clear_white(&mut self) {
+        self.buf.clear();
+        self.buf.resize(FB_BYTES, 0xFF);
+    }
+
     pub fn new_black() -> Self {
         Self { buf: vec![0x00; FB_BYTES] }
     }

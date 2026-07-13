@@ -110,7 +110,7 @@ esp-idf-svc = { git = "https://github.com/esp-rs/esp-idf-svc.git" }
 # do; `build-light` doesn't, so the component is an empty no-op). git2/libgit2-sys
 # run in system mode (LIBGIT2_NO_VENDOR=1) purely for the Rust bindings, with
 # default features off to avoid dragging in openssl-sys/libssh2-sys.
-git = ["dep:git2"]
+git = ["dep:git2", "dep:libgit2-sys"]
 
 [dependencies]
 anyhow = "1"
@@ -124,6 +124,11 @@ keymap = { path = "../keymap" }
 editor = { path = "../editor" }
 display = { path = "../display" }
 git2 = { version = "0.20", default-features = false, optional = true }
+# Already in the tree under git2 (same system-mode build); named directly for
+# the raw `git_libgit2_opts` calls git2 doesn't wrap — the odb-cache cap
+# (GIT_OPT_SET_CACHE_MAX_SIZE) and cache telemetry (GIT_OPT_GET_CACHED_MEMORY)
+# that git_sync sets against the run-4 push OOM (2026-07-13).
+libgit2-sys = { version = "0.18", default-features = false, optional = true }
 esp-idf-svc = { version = "0.52.1", features = ["critical-section", "embassy-time-driver", "embassy-sync"] }
 # Remove `generic-queue-8` if you plan to use `embassy-time` WITH `embassy-executor`
 embassy-time = { version = "0.5", features = ["generic-queue-8"] }

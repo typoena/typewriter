@@ -81,6 +81,15 @@ const SNTP_TIMEOUT: Duration = Duration::from_secs(20);
 /// now also runs here, but it's shallow next to libgit2's path-buffer nesting.
 pub const GIT_STACK: usize = 96 * 1024;
 
+/// Cap on libgit2's odb object cache (default max: 256 MB — unbounded on this
+/// device). Run 4 (2026-07-13): the real-repo push ground through pack-building
+/// for 66 s and PSRAM hit the floor — the UI aborted on a 27 KB framebuffer
+/// alloc. Every tree/commit the push's walks read lands in this cache, and
+/// nothing bounded it. 1 MB still holds the whole tree set the push's two
+/// full-tree walks share (mark-uninteresting over origin's tip, then the insert
+/// over ours — near-identical trees), so the second walk stays off the SD card.
+const ODB_CACHE_MAX_BYTES: isize = 1024 * 1024;
+
 /// A request to publish. The UI task has already saved every dirty buffer to
 /// the card before sending this; `paths` is `Storage::take_dirty`'s snapshot —
 /// the repo-relative paths saved or `:delete`d since the last confirmed
@@ -129,6 +138,15 @@ pub fn run_git_service(
         }
         if let Err(e) = git2::opts::set_mwindow_mapped_limit(4 * 1024 * 1024) {
             log::error!("set_mwindow_mapped_limit failed ({e}); first pack access may OOM");
+        }
+        // Odb cache cap (see ODB_CACHE_MAX_BYTES). git2 0.20 wraps only the
+        // per-object-type limit, not the total, so this one is a raw call.
+        let rc = libgit2_sys::git_libgit2_opts(
+            libgit2_sys::GIT_OPT_SET_CACHE_MAX_SIZE as i32,
+            ODB_CACHE_MAX_BYTES,
+        );
+        if rc < 0 {
+            log::error!("set cache_max_size failed (rc {rc}); a push may exhaust the heap");
         }
     }
 
@@ -507,9 +525,34 @@ fn try_push(repo: &Repository, refspec: &str) -> Result<(), PushFailure> {
             Ok(())
         });
     }
+    // Progress + heap tracing through the otherwise-silent stretch between the
+    // TLS verify and the first byte sent (66 s in runs 4 and 5, OOM both times).
+    {
+        // Time-gated, NOT count-gated: during AddingObjects libgit2 reports
+        // `total` = 0 and `current` = objects inserted so far, and a two-commit
+        // push only inserts a few dozen objects — run 5's `current >= last+256`
+        // gate swallowed every callback and the grind stayed silent. libgit2
+        // already rate-limits to ~2/s (MIN_PROGRESS_UPDATE_INTERVAL); gate to
+        // ~1 line per 2 s on top of that.
+        let mut last: Option<Instant> = None;
+        cbs.pack_progress(move |stage, current, total| {
+            if last.is_none_or(|t| t.elapsed() >= Duration::from_secs(2)) {
+                last = Some(Instant::now());
+                log_push_heap(&format!("pack {stage:?} {current}/{total}"));
+            }
+        });
+        let mut next_bytes: usize = 0;
+        cbs.push_transfer_progress(move |current, total, bytes| {
+            if bytes >= next_bytes || (total > 0 && current == total) {
+                next_bytes = bytes + 64 * 1024;
+                log_push_heap(&format!("send {current}/{total} objects, {bytes} B"));
+            }
+        });
+    }
 
     let mut opts = PushOptions::new();
     opts.remote_callbacks(cbs);
+    log_push_heap("pre-push");
     // A non-fast-forward can also surface here, not just via the callback:
     // libgit2 compares against origin's advertised tips during negotiation and
     // errors out of push() with ErrorCode::NotFastForward before sending
@@ -518,6 +561,11 @@ fn try_push(repo: &Repository, refspec: &str) -> Result<(), PushFailure> {
     // (bit the 2026-07-13 run 3: the real-repo rejection surfaced as "push
     // transport" and skipped the reconcile built for it).
     remote.push(&[refspec], Some(&mut opts)).map_err(|e| {
+        // Heap post-mortem: run 5 died on a ~7 KB inflateInit inside the pack
+        // build ("failed to init zlib stream on unpack") — the min-ever lines
+        // here say which pool zeroed and whether it was exhaustion or
+        // fragmentation, even when no progress callback got a chance to fire.
+        log_push_heap("push failed");
         if e.code() == git2::ErrorCode::NotFastForward {
             PushFailure::Rejected(format!("{refspec}: {}", e.message()))
         } else {
@@ -528,6 +576,7 @@ fn try_push(repo: &Repository, refspec: &str) -> Result<(), PushFailure> {
     if let Some(msg) = rejection.borrow().clone() {
         return Err(PushFailure::Rejected(msg));
     }
+    log_push_heap("post-push");
     log::info!("push accepted by remote");
     Ok(())
 }
@@ -660,4 +709,40 @@ fn internal_free_heap() -> u32 {
 
 fn min_free_heap() -> u32 {
     unsafe { sys::esp_get_minimum_free_heap_size() }
+}
+
+/// One-line heap + odb-cache snapshot for the push path. Runs 4 and 5
+/// (2026-07-13) each spent ~65 s inside `remote.push()` while something
+/// consumed ~6 MB of PSRAM (run 4: the UI aborted on a framebuffer alloc;
+/// run 5: a ~7 KB inflateInit failed inside the pack build). These lines
+/// exist to name the consumer: `largest PSRAM` distinguishes exhaustion from
+/// fragmentation, and the per-pool min-evers survive to the failure log even
+/// when the spike itself fell between two callbacks.
+fn log_push_heap(stage: &str) {
+    let (mut cached, mut allowed): (isize, isize) = (0, 0);
+    // SAFETY: GET_CACHED_MEMORY only writes the two out-params.
+    unsafe {
+        libgit2_sys::git_libgit2_opts(
+            libgit2_sys::GIT_OPT_GET_CACHED_MEMORY as i32,
+            &mut cached as *mut isize,
+            &mut allowed as *mut isize,
+        );
+    }
+    let (largest_psram, min_psram, min_internal) = unsafe {
+        (
+            sys::heap_caps_get_largest_free_block(sys::MALLOC_CAP_SPIRAM),
+            sys::heap_caps_get_minimum_free_size(sys::MALLOC_CAP_SPIRAM),
+            sys::heap_caps_get_minimum_free_size(sys::MALLOC_CAP_INTERNAL),
+        )
+    };
+    log::info!(
+        "push heap [{stage}]: free {} ({} internal), largest PSRAM {}, min-ever PSRAM {} / internal {}, odb cache {}/{} KB",
+        free_heap(),
+        internal_free_heap(),
+        largest_psram,
+        min_psram,
+        min_internal,
+        cached / 1024,
+        allowed / 1024
+    );
 }

@@ -47,6 +47,30 @@ fn main() {
         println!("cargo:rerun-if-env-changed={var}");
     }
 
+    // A git-feature build with an empty publish config can only ever fail at
+    // runtime (git_sync's publish_cycle guard), so refuse it here instead.
+    // env!() bakes the values at compile time and only `just` dotenv-loads
+    // firmware/.env — a plain `cargo build --features git` in a bare shell
+    // silently produced a firmware whose `:sync` could never work (bit the
+    // 2026-07-13 flash). TW_WIFI_PASS may be legitimately empty (open network)
+    // and TW_AUTHOR_* have runtime defaults, so only the four required vars
+    // are checked.
+    if std::env::var("CARGO_FEATURE_GIT").is_ok() {
+        let missing: Vec<&str> = ["TW_WIFI_SSID", "TW_REMOTE_URL", "TW_GH_USER", "TW_PAT"]
+            .into_iter()
+            .filter(|v| std::env::var(v).map_or(true, |val| val.is_empty()))
+            .collect();
+        if !missing.is_empty() {
+            panic!(
+                "git-feature build without publish config: {} unset/empty. \
+                 Build through `just build` (dotenv-loads firmware/.env), or \
+                 source firmware/.env into this shell. For a no-git editor \
+                 build use `just build-light` (drops --features git).",
+                missing.join(", ")
+            );
+        }
+    }
+
     // Pointing rerun-if-changed at a file that never exists forces this
     // script to rerun on every build, keeping BUILD_TIME fresh.
     println!("cargo:rerun-if-changed=.force-build-stamp");
