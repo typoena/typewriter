@@ -35,3 +35,8 @@ config.local.*
 # Node tooling
 node_modules/
 
+# Typoena website — its own git repo (git.apoena.dev/julien/typoena-site),
+# nested here for co-location but deployed independently. Keep it out of the
+# firmware tree.
+/typoena-site/
+
