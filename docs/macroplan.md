@@ -237,4 +237,22 @@ reconnect, and on-device provisioning (the first release usable by a non-author)
 ## v1.x — Stretch / nice-to-have
 
 Post-1.0 ideas, not committed to any release (10.3" panel, multiple remotes,
-writing stats, BLE-HID fallback). Detail: [v1.x-stretch.md](v1.x-stretch.md).
+writing stats, BLE-HID fallback, firmware auto-update). Detail:
+[v1.x-stretch.md](v1.x-stretch.md).
+
+**Firmware auto-update (open question, added 2026-07-14).** Devices now ship
+**pre-flashed** from manufacturing, and the [installer](../installer/DESIGN.md)
+only provisions the SD card — so field updates can't lean on a USB reflash. How
+a device pulls a new firmware build is unresolved; candidates:
+
+- **OTA over Wi-Fi** — the device fetches a signed image and self-flashes via
+  esp-idf OTA. Needs a dual-app partition layout (`ota_0`/`ota_1` + `otadata` —
+  a change from today's single-app + `storage` table), image signing/trust, a
+  version manifest with rollback, and somewhere to host images.
+- **SD-drop update** — a `firmware.bin` placed on the card (by a future
+  installer action) is verified + applied on boot. No OTA server, fits the
+  SD-centric model, but still needs signing + a safe apply/rollback path.
+
+Either way it's a **device-side** concern, not the installer's job. The
+mechanism should be settled **before v1.0 hardware is mass-flashed**: OTA needs
+two app slots, so the partition layout is locked in at flash time.

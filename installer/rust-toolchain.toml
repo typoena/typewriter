@@ -1,0 +1,3 @@
+# Host binary — build with stable, never the `esp` channel (that's firmware/).
+[toolchain]
+channel = "stable"
