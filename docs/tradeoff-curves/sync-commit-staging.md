@@ -433,6 +433,38 @@ walk FAT directories linearly; consistent with the orphan-creep signal) — is
 one instrumentation pass for later (log each `p_mmap` miss + bench dir ops in
 `sd_bench`), not a prerequisite for the plumbing.
 
+**Run 6 (2026-07-14, `sd_bench` directory-entry scaling): the residual is
+CONVICTED — FAT linear directory scans.** Two independent signals, both from
+the real card at 10 MHz:
+
+1. `stat` on a **missing** name (the freshen probe's shape — no early exit,
+   the whole parent is scanned) is linear in sibling count: 4.7 ms at 8
+   siblings → 12.8 ms at 64 → 28.9 ms at 256 ≈ **~0.1 ms per directory entry
+   per scan**. (`stat` on a *present* name plateaued at ~8 ms, but that's the
+   bench's shape — 20 iterations only ever touch the first 20 entries, which
+   sit early in the scan.)
+2. The **loose-object composite** (freshen stat-miss + temp create + write +
+   remove + rename, libgit2's exact sequence) scales the same way and lands
+   exactly on the field number: mean 95.5 ms at 8 siblings → 163.6 at 64 →
+   **366.8 ms (p50 402.9) at 256** — the observed ~360–400 ms/loose-write,
+   reproduced from primitives. The multiplier over a single scan is the
+   sequence's ~5–6 full parent scans (every miss probe, free-slot search, and
+   rename-target check walks all N entries; 38-hex LFN names burn several
+   entries each, steepening the slope).
+
+The real repo's `.git/objects/` holds up to 256 two-hex fan-out dirs plus
+`pack/`/`info/`, so every path resolution under it pays the ~256-entry scan —
+that's the whole residual. It composes with the earlier finding that the
+splice does **0 pack reads** during these writes (run-1 `p_mmap` counters):
+nothing here is data I/O. Consequences: (a) the cost is *bounded* — ~0.4 s ×
+loose objects per commit (typically ≤ 5) ≈ ≤ 2 s, already inside the shipped
+splice numbers, so nothing burns; (b) the only real levers are *fewer
+path-resolutions per object* (libgit2 surgery) or *not writing loose objects
+at all* (commit straight into a small pack) — both out of scope until a
+future perf pass; (c) orphan-creep is now mechanically explained: each
+leftover loose object adds entries to a fan-out dir and slows every later
+scan of it.
+
 ### The walk is ~1.4 s even at N ≈ 2
 
 Mostly fixed cost — the worktree-diff setup and the second (`update_all`) pass —
@@ -613,10 +645,12 @@ toy — the toy pack understates everything by ~2 orders of magnitude.
 
 ### Still open (none block the plumbing)
 
-- The residual ~360 ms/loose-write ≈ 8 unique small SD round-trips; next
-  suspect is FAT **directory-op** cost in the freshen/refresh path. One
-  instrumentation pass for later (log each `p_mmap` miss + bench dir ops in
-  `sd_bench`).
+- ~~The residual ~360 ms/loose-write~~ **CLOSED 2026-07-14** — convicted as
+  FAT linear directory scans of the ~256-entry `.git/objects/` fan-out (run 6
+  above): `sd_bench`'s dir-entry-scaling section reproduced the field number
+  from primitives (loose composite p50 402.9 ms at 256 siblings). Bounded and
+  accepted; the levers (fewer path resolutions, or pack-not-loose commits)
+  are a future perf pass.
 - Ref/reflog-update cost on the real repo — the bench's `commit(None)` writes
   no ref, so the shipping commit's last leg is unmeasured.
 - The push's ~6.5 s network floor
