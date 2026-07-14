@@ -1,11 +1,23 @@
-# Sync latency — where the ~16 s cold `:sync` goes
+# Sync latency — where the ~16 s cold `:gp` goes
 
-> **Measured 2026-07-11** on hardware, via the `:sync timing —` log line in
-> [`firmware::git_sync`](../../firmware/src/git_sync.rs) (`publish_cycle`). A
-> **cold** `:sync` (first of a power cycle) is **~16.0 s** power-on of Wi-Fi →
-> `push done`; a **warm** one skips the one-time setup and is just the ~10 s
-> publish. This note breaks the number down and records why most of it is a
-> floor, not a bug.
+> **Measured 2026-07-11** on hardware, via the timing log line in
+> [`firmware::git_sync`](../../firmware/src/git_sync.rs) (`publish_cycle`;
+> the command was `:sync` then, renamed `:gp` 2026-07-14). A **cold** publish
+> (first of a power cycle) is **~16.0 s** power-on of Wi-Fi → `push done`; a
+> **warm** one skips the one-time setup and is just the ~10 s publish. This
+> note breaks the number down and records why most of it is a floor, not a
+> bug.
+>
+> **Update (2026-07-13/14) — the publish half below is superseded.** The
+> `add_all` index staging was replaced by the O(depth) splice over the
+> journaled dirty set ([kaizen](../kaizen/real-repo-sync.md) · [measurement
+> trail](../tradeoff-curves/sync-commit-staging.md)), reconcile became fetch +
+> **soft** reset + journal replay, and TLS session resumption reuses the
+> handshake on reconnects. On the **real notes repo** — which the method below
+> could never complete at all — a cold `:gp` is **24.1 s**, a warm one ≈ 19 s
+> (splice depth × loose-write cost dominates), and an up-to-date `:gl` is
+> ≈ 4.7 s git-side. The waterfall below stands as the dev-repo record of
+> 2026-07-11.
 >
 > Notes index: [`README.md`](README.md). Docs index:
 > [`../README.md`](../README.md). Why the raw number matters less than it looks:
@@ -60,9 +72,13 @@ and retries. For this **single-writer appliance** that resolves last-writer-wins
 a concurrent remote _edit_ to the same note loses to ours, and a remote-only
 _added_ file the card doesn't have would be dropped by the replay's `add --all`.
 Both need a real merge (increment B) and don't arise from the device's own use.
-This path is **hardware-verified for the happy case** (`9b635c42` fast-forwarded
-clean); the reconcile branch itself is compile-verified but not yet exercised on
-device.
+
+**Update 2026-07-14:** the full rejected-push → reconcile → replay → push
+cycle is now hardware-verified (24.0 s end-to-end with TLS session
+resumption). The mechanics also changed with the splice: the reset is
+**soft** (there is no index anymore) and the replay splices only the
+journaled dirty paths, so a remote-only added file now _survives_ — it is
+carried forward by OID instead of being dropped by an `add --all`.
 
 ## Can cold sync go lower?
 
@@ -75,16 +91,18 @@ The big rocks are physics or protocol, not slack:
 - **TLS handshake ~2.4 s** and **push negotiate/upload ~4.4 s** are inherent to
   libgit2-over-mbedTLS on this part; the payload is tiny, so there's little to
   shave.
-- **stage + commit ~3.1 s** is the one soft spot: staging over the editor's dirty
-  set (`add_path`) instead of `add_all(["*"])` would skip the SD/FAT tree walk
-  (likely → sub-second) _without_ losing multi-file — the dirty set is the file
-  list. Whether the walk actually dominates the ~4 s commit is now being measured
-  by the `commit split —` log line; the cost model and the rule it decides live in
-  [`../tradeoff-curves/sync-commit-staging.md`](../tradeoff-curves/sync-commit-staging.md).
+- **stage + commit ~3.1 s** was the one soft spot — and the one that got
+  attacked. **Resolved 2026-07-13:** the index path was replaced outright by
+  the O(depth) TreeBuilder splice over the journaled dirty set (the `add_path`
+  staging this note originally proposed still hits the index's racy-clean
+  wall). The cost
+  model and how each hypothesis died live in
+  [`../tradeoff-curves/sync-commit-staging.md`](../tradeoff-curves/sync-commit-staging.md);
+  the residual is FAT directory-op cost per loose write, bounded and accepted.
 
 **Conclusion:** ~16 s cold / ~10 s warm is close to the floor for "commit to FAT +
 one TLS push over Wi-Fi with a fresh clock." It reads as slow only if you wait on
-it — and by design you don't: `:sync` is a deliberate action with a snackbar, and
+it — and by design you don't: `:gp` is a deliberate action with a snackbar, and
 [`ctrl-g-perceived-latency.md`](ctrl-g-perceived-latency.md) argues the perceived
 cost is set by _when durability is surfaced_, not by wall-clock. Recorded here so
 the number is scoped against the protocol, not treated as a regression.
