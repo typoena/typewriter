@@ -552,6 +552,10 @@ fn wrap_text(text: &str, width: usize) -> Vec<String> {
 /// though both contain the letters. There are no penalties, so a score is always
 /// ≥ the query length; ties are broken by the caller (recency, then list order).
 /// An empty query matches everything with score 0.
+///
+/// A **space** in the query matches any separator (`/ _ - . space`), so typing
+/// `la conv` finds `la-convergence.md` — filenames use `-` where the typist
+/// thinks "space".
 fn fuzzy_score(query: &str, text: &str) -> Option<i32> {
     let q: Vec<char> = query.chars().collect();
     if q.is_empty() {
@@ -562,7 +566,10 @@ fn fuzzy_score(query: &str, text: &str) -> Option<i32> {
     let mut prev_matched = false;
     let mut prev: Option<char> = None;
     for (i, tc) in text.chars().enumerate() {
-        if qi < q.len() && tc.eq_ignore_ascii_case(&q[qi]) {
+        let hit = qi < q.len()
+            && (tc.eq_ignore_ascii_case(&q[qi])
+                || (q[qi] == ' ' && matches!(tc, '/' | '_' | '-' | '.' | ' ')));
+        if hit {
             score += 1;
             let boundary =
                 i == 0 || matches!(prev, Some('/') | Some('_') | Some('-') | Some('.') | Some(' '));
@@ -5517,6 +5524,14 @@ mod tests {
         assert!(fuzzy_score("rpnm", "repo/notes.md").is_some()); // scattered subsequence
         assert!(fuzzy_score("xyz", "repo/notes.md").is_none()); // not a subsequence
         assert_eq!(fuzzy_score("", "anything"), Some(0)); // empty query matches all
+    }
+
+    #[test]
+    fn fuzzy_score_space_matches_any_separator() {
+        assert!(fuzzy_score("la conv", "repo/la-convergence.md").is_some()); // space finds '-'
+        assert!(fuzzy_score("notes md", "repo/notes.md").is_some()); // space finds '.'
+        assert!(fuzzy_score("repo notes", "repo/notes.md").is_some()); // space finds '/'
+        assert!(fuzzy_score("la conv", "repo/laconvergence.md").is_none()); // still needs a separator
     }
 
     #[test]
