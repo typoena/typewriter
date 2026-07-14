@@ -910,6 +910,17 @@ fn pull_once() -> Result<PullOutcome> {
 /// power-pull mid-apply leaves at worst a `.gltmp` orphan and a half-applied
 /// working copy with the ref NOT yet moved — the next `:gl` re-applies
 /// idempotently on the same diff.
+///
+/// Media paths are invisible to both passes (skip-media-in-apply, 2026-07-14;
+/// see docs/notes/git-sync-images-and-repo-size.md). The device never renders
+/// them, and writing one means materializing the whole blob in RAM — history
+/// holds 16 MB PNGs and a 38 MB mp3 against 8 MB of PSRAM, so a pulled image
+/// was the one OOM path left in `:gl`. The blobs still arrive in `.git` via
+/// the fetch (streamed, cheap); only the working-tree copy is skipped, so the
+/// card's media files go stale/absent relative to HEAD. That's safe on the
+/// commit side because the splice stages explicit journal paths — a missing
+/// image can never be committed as a deletion. The belt hash skips them too:
+/// hashing a stale 16 MB image would be the same OOM by another door.
 fn apply_tree_diff(repo: &Repository, head: Oid, theirs: Oid) -> Result<usize> {
     use git2::Delta;
 
@@ -933,6 +944,9 @@ fn apply_tree_diff(repo: &Repository, head: Oid, theirs: Oid) -> Result<usize> {
         let Some(rel) = path.and_then(|p| p.to_str()) else {
             continue;
         };
+        if is_media_path(rel) {
+            continue;
+        }
         let abs = format!("{REPO_DIR}/{rel}");
         match fs::read(&abs) {
             Ok(bytes) => {
@@ -949,12 +963,17 @@ fn apply_tree_diff(repo: &Repository, head: Oid, theirs: Oid) -> Result<usize> {
 
     // Pass 2 — apply.
     let mut changed = 0usize;
+    let mut media_skipped = 0usize;
     for d in diff.deltas() {
         match d.status() {
             Delta::Added | Delta::Modified | Delta::Typechange => {
                 let Some(rel) = d.new_file().path().and_then(|p| p.to_str()) else {
                     continue;
                 };
+                if is_media_path(rel) {
+                    media_skipped += 1;
+                    continue;
+                }
                 let abs = format!("{REPO_DIR}/{rel}");
                 if let Some(dir) = std::path::Path::new(&abs).parent() {
                     fs::create_dir_all(dir).with_context(|| format!("mkdir for {rel}"))?;
@@ -972,6 +991,10 @@ fn apply_tree_diff(repo: &Repository, head: Oid, theirs: Oid) -> Result<usize> {
                 let Some(rel) = d.old_file().path().and_then(|p| p.to_str()) else {
                     continue;
                 };
+                if is_media_path(rel) {
+                    media_skipped += 1;
+                    continue;
+                }
                 match fs::remove_file(format!("{REPO_DIR}/{rel}")) {
                     Ok(()) => changed += 1,
                     Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
@@ -981,7 +1004,27 @@ fn apply_tree_diff(repo: &Repository, head: Oid, theirs: Oid) -> Result<usize> {
             _ => {}
         }
     }
+    if media_skipped > 0 {
+        log::info!(
+            "pull: skipped {media_skipped} media file(s) — blobs live in .git, the card's working copy stays text-only"
+        );
+    }
     Ok(changed)
+}
+
+/// Paths [`apply_tree_diff`] never writes, deletes, or belt-hashes: binary
+/// media the device can't render and can't afford to hold in RAM. Matched by
+/// extension, case-insensitive. Text-ish assets (svg, csv…) stay eligible —
+/// the criterion is blob size risk, not "is it a note".
+fn is_media_path(rel: &str) -> bool {
+    const MEDIA_EXT: &[&str] = &[
+        "png", "jpg", "jpeg", "gif", "bmp", "webp", "heic", "tiff", "ico", "pdf", "mp3", "mp4",
+        "m4a", "wav", "mov", "avi", "mkv", "zip",
+    ];
+    std::path::Path::new(rel)
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| MEDIA_EXT.iter().any(|m| e.eq_ignore_ascii_case(m)))
 }
 
 /// Auth + cert callbacks shared by fetch and push. Captures only the baked
