@@ -743,14 +743,22 @@ fn fetch_origin(repo: &Repository, branch: &str) -> Result<Oid> {
         .peel_to_commit()
         .context("FETCH_HEAD is not a commit")?
         .id();
+    update_tracking(repo, branch, theirs)?;
+    Ok(theirs)
+}
+
+/// Point the remote-tracking ref at `tip` (which must already be in the local
+/// odb). Keeps [`tracking_tip`] — and with it publish's radio-free up-to-date
+/// check — honest about what origin has.
+fn update_tracking(repo: &Repository, branch: &str, tip: Oid) -> Result<()> {
     repo.reference(
         &format!("refs/remotes/origin/{branch}"),
-        theirs,
+        tip,
         true,
         "typoena fetch",
     )
     .context("updating remote-tracking ref")?;
-    Ok(theirs)
+    Ok(())
 }
 
 /// Open `/sd/repo`, fetch origin, and **fast-forward only** — never a merge.
@@ -781,33 +789,69 @@ fn pull_once() -> Result<PullOutcome> {
         .shorthand()
         .context("HEAD has no branch shorthand")?
         .to_string();
-
-    let t_fetch = Instant::now();
-    let theirs = fetch_origin(&repo, &branch)?;
-    let fetch_ms = t_fetch.elapsed().as_millis();
-    log::info!(
-        "pull: fetched origin @ {} in {fetch_ms}ms — free heap {} ({} internal)",
-        short(theirs),
-        free_heap(),
-        internal_free_heap()
-    );
-
     let head = repo.head()?.peel_to_commit()?.id();
+
+    // ls-refs first, download only if needed: the ref advertisement alone
+    // answers "anything new?", so the common shapes (up to date, local ahead)
+    // never enter pack negotiation — the first on-device pull paid a 9.7 s
+    // fetch just to learn it was up to date. When a download IS needed it
+    // rides the same open connection (no second TLS handshake).
+    let mut remote = repo.find_remote("origin")?;
+    let t_ls = Instant::now();
+    remote
+        .connect_auth(git2::Direction::Fetch, Some(auth_callbacks()), None)
+        .context("connecting to origin")?;
+    let refname = format!("refs/heads/{branch}");
+    let theirs = remote
+        .list()
+        .context("listing origin refs")?
+        .iter()
+        .find(|h| h.name() == refname)
+        .map(|h| h.oid())
+        .with_context(|| format!("origin does not advertise {refname}"))?;
+    let ls_ms = t_ls.elapsed().as_millis();
+
     if theirs == head {
-        log::info!("pull: origin @ {} == HEAD — up to date (fetch {fetch_ms}ms)", short(head));
+        let _ = remote.disconnect();
+        update_tracking(&repo, &branch, theirs)?;
+        log::info!("pull: origin @ {} == HEAD — up to date (ls-refs {ls_ms}ms, no fetch)", short(head));
         return Ok(PullOutcome::UpToDate);
     }
-    if repo
-        .graph_descendant_of(head, theirs)
-        .context("descendant check (local ahead)")?
+    // `theirs` an ancestor of HEAD ⇒ it is already in the local odb (all
+    // ancestors of a local commit are local) — no download needed either.
+    if repo.odb()?.exists(theirs)
+        && repo
+            .graph_descendant_of(head, theirs)
+            .context("descendant check (local ahead)")?
     {
+        let _ = remote.disconnect();
+        update_tracking(&repo, &branch, theirs)?;
         log::info!(
-            "pull: HEAD {} is ahead of origin {} — nothing to pull, :sync publishes it",
+            "pull: HEAD {} is ahead of origin {} — nothing to pull, :sync publishes it (ls-refs {ls_ms}ms, no fetch)",
             short(head),
             short(theirs)
         );
         return Ok(PullOutcome::LocalAhead);
     }
+
+    // Origin has commits we lack: download them over the already-open
+    // connection (callbacks were bound at connect_auth).
+    let t_fetch = Instant::now();
+    let mut fo = FetchOptions::new();
+    fo.remote_callbacks(auth_callbacks());
+    remote
+        .download(&[branch.as_str()], Some(&mut fo))
+        .context("downloading from origin")?;
+    let _ = remote.disconnect();
+    update_tracking(&repo, &branch, theirs)?;
+    let fetch_ms = t_fetch.elapsed().as_millis();
+    log::info!(
+        "pull: downloaded origin @ {} — ls-refs {ls_ms}ms, download {fetch_ms}ms, free heap {} ({} internal)",
+        short(theirs),
+        free_heap(),
+        internal_free_heap()
+    );
+
     if !repo
         .graph_descendant_of(theirs, head)
         .context("descendant check (fast-forward)")?

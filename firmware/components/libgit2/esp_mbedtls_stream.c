@@ -22,8 +22,19 @@
  * stays with the caller, consistently — and it frees the git__malloc'd
  * st->ssl struct the vendored path leaked.
  *
+ * SECOND DELTA (2026-07-14): TLS session resumption. Every git operation
+ * (push, fetch, ls-refs — and a rejected push's reconcile+retry runs three)
+ * opens a fresh HTTPS connection, and a full handshake on this 160 MHz core
+ * costs seconds each time. libgit2 gives the stream no connection reuse, but
+ * mbedTLS can resume: cache the session after a successful handshake
+ * (mbedtls_ssl_get_session at stream close) and offer it on the next connect
+ * to the same host (mbedtls_ssl_set_session before the handshake) — the
+ * server then skips the certificate exchange and most of the key exchange.
+ * Single git thread, so plain statics like the rest of this file. Best
+ * effort: any failure just falls back to a full handshake.
+ *
  * Keep this file in lockstep with the vendored one on submodule bumps (diff
- * against it; the delta must stay this one hunk).
+ * against it; the deltas must stay these two hunks).
  */
 
 #include "streams/mbedtls.h"
@@ -73,12 +84,24 @@ static mbedtls_entropy_context mbedtls_entropy;
 static bool has_ca_chain = false;
 static mbedtls_x509_crt mbedtls_ca_chain;
 
+/* TLS session cache for resumption (see SECOND DELTA in the header).
+ * Valid only on the git thread; keyed by host so a config change can't
+ * resume against the wrong server. */
+static bool session_valid = false;
+static char session_host[64];
+static mbedtls_ssl_session saved_session;
+
 /**
  * This function aims to clean-up the SSL context which
  * we allocated.
  */
 static void shutdown_ssl(void)
 {
+	if (session_valid) {
+		mbedtls_ssl_session_free(&saved_session);
+		session_valid = false;
+	}
+
 	if (has_ca_chain) {
 		mbedtls_x509_crt_free(&mbedtls_ca_chain);
 		has_ca_chain = false;
@@ -270,10 +293,38 @@ static int mbedtls_connect(git_stream *stream)
 
 	mbedtls_ssl_set_bio(st->ssl, st->io, bio_write, bio_read, NULL);
 
+	/* Offer the cached session for an abbreviated handshake (best effort —
+	 * a refusal by either side just runs the full handshake). */
+	if (session_valid && st->host && strcmp(session_host, st->host) == 0)
+		(void)mbedtls_ssl_set_session(st->ssl, &saved_session);
+
 	if ((ret = mbedtls_ssl_handshake(st->ssl)) != 0)
 		return ssl_set_error(st->ssl, ret);
 
 	return verify_server_cert(st->ssl);
+}
+
+/* Snapshot the (possibly ticket-refreshed) session for the next connect.
+ * Called at stream close — by then any TLS 1.3 NewSessionTicket sent after
+ * the handshake has been processed by the reads. */
+static void save_session(mbedtls_stream *st)
+{
+	mbedtls_ssl_session fresh;
+
+	if (!st->connected || !st->host || strlen(st->host) >= sizeof(session_host))
+		return;
+
+	mbedtls_ssl_session_init(&fresh);
+	if (mbedtls_ssl_get_session(st->ssl, &fresh) != 0) {
+		mbedtls_ssl_session_free(&fresh);
+		return;
+	}
+
+	if (session_valid)
+		mbedtls_ssl_session_free(&saved_session);
+	saved_session = fresh; /* shallow move — ownership transfers */
+	session_valid = true;
+	strcpy(session_host, st->host);
 }
 
 static int mbedtls_certificate(git_cert **out, git_stream *stream)
@@ -348,6 +399,8 @@ static int mbedtls_stream_close(git_stream *stream)
 {
 	mbedtls_stream *st = (mbedtls_stream *) stream;
 	int ret = 0;
+
+	save_session(st);
 
 	if (st->connected && (ret = ssl_teardown(st->ssl)) != 0)
 		return -1;
