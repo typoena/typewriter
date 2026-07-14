@@ -16,7 +16,8 @@ surface, expressed in this vocabulary.
 [`docs/v0.1-mvp-technical.md`](docs/v0.1-mvp-technical.md) — how v0.1 is
 built.
 [`docs/macroplan.md`](docs/macroplan.md) — per-version scope, where new terms
-(e.g. multi-file **Buffer** concepts at v0.5) will enter this glossary.
+enter this glossary as versions land (the v0.5 multi-file **Buffer** terms
+are in).
 
 ## Language
 
@@ -48,30 +49,34 @@ _Avoid_: tab, window, document (a buffer is not a UI chrome element); "the file"
 when you mean the in-memory copy rather than the bytes on the card.
 
 **Open**:
-Bringing a **File** into the **active buffer**, via `Cmd-P` (the file palette)
-or `:e`. Scope is read from where the file lives (`/sd/repo` → **Tracked**,
-`/sd/local` → **Local**), never chosen at open time.
+Bringing a **File** into the **active buffer**, via `Cmd-P` (the file
+palette); new files are created with `:enew <file>` or the palette's
+`> new file` (`:e` was retired in v0.6). Scope is read from where the file
+lives (`/sd/repo` → **Tracked**, `/sd/local` → **Local**), never chosen at
+open time.
 _Avoid_: load (implementation talk for the disk read behind an Open).
 
 ### User-facing actions
 
 **Save**:
 The act of durably writing the current buffer to the SD card. Triggered by
-`Ctrl-S`. Applies to both **Tracked** and **Local** files.
+`:w` (and by the idle auto-save when `save_on_idle` is on). Applies to both
+**Tracked** and **Local** files.
 _Avoid_: write, flush, persist (use them only in implementation talk).
 
 **Publish**:
 The atomic act of pushing the current state of the entire **Tracked** working
 copy to the git remote. Workspace-scoped, not buffer-scoped: a **Publish**
 ships every dirty **Tracked** file on the device, not just the one the user is
-viewing. Triggered by `Ctrl-G`. Internally: stage all → commit with a
-timestamp message → push → on push failure, pull (merge, no-edit) → push
+viewing. Triggered by `:gp`. Internally: splice the journaled dirty paths
+onto HEAD's tree → commit with a timestamped message → push → on a rejected
+push, fetch and replay the commit onto the remote tip (no merge) → push
 again. Unavailable in **Local**.
 _Avoid_: push, commit, sync, upload, git-push (these leak transport details
 into user-facing language).
 
 > **Commit** is deliberately _not_ a user-facing term. The device authors all
-> commit messages itself (ISO-8601 timestamp); the user never sees a commit
+> commit messages itself (a timestamped message); the user never sees a commit
 > prompt. A **Publish** is the only user-observable unit of "shipping work";
 > internal commits are an implementation detail of that.
 
@@ -112,7 +117,7 @@ _side panel_ vs _transient panel_.
 
 ## Example dialogue
 
-> **Dev:** "If I'm in a **Local** file and I press `Ctrl-G`, what happens?"
+> **Dev:** "If I'm in a **Local** file and I run `:gp`, what happens?"
 > **Domain expert:** "Nothing — **Publish** is unavailable in **Local**. The
 > side panel says so. There is no path from **Local** to the remote."
 > **Dev:** "So if I want to publish something that started as a journal entry,
@@ -121,13 +126,14 @@ _side panel_ vs _transient panel_.
 > built-in operation."
 > **Dev:** "And if the remote has changed since I last pulled — does
 > **Publish** fail?"
-> **Domain expert:** "It pulls (merge, no edit) and pushes again. From the
-> user's view it's one action with one outcome — success or retry."
+> **Domain expert:** "It fetches, replays the device's commit onto the remote
+> tip — no merge commit — and pushes again. From the user's view it's one
+> action with one outcome — success or retry."
 
 ## Principles
 
 - **The device is a writing tool, not a sync engine.** Every git operation is
-  the direct, in-session consequence of a `Ctrl-G` the user pressed. The
+  the direct, in-session consequence of a `:gp` (or `:gl` pull) the user ran. The
   device does not auto-publish, auto-pull, retry-on-boot, or otherwise
   reconcile remote state in the background. If a previous **Publish** ended
   mid-flight and left a local commit unpushed, the next user-initiated
@@ -139,14 +145,15 @@ _side panel_ vs _transient panel_.
   reason — the device tracks one linear stream of work on whichever branch
   the remote was cloned on, and never switches.
 - **Durability before delivery.** A **Publish**'s user-meaningful moment is
-  when the local commit lands (~0.2 s), not when the push completes
-  (~5–10 s). The side panel surfaces the commit-landed state as soon as
+  when the local commit lands (a few seconds — the splice), not when the push
+  completes (the rest of a ~12–24 s `:gp` on the real notes repo). The side
+  panel surfaces the commit-landed state as soon as
   it exists; the remaining push time is the transport of an already-safe
   thing. Long-form rationale:
   [`docs/notes/ctrl-g-perceived-latency.md`](docs/notes/ctrl-g-perceived-latency.md).
 - **No state the user didn't ask for.** No banners about pending work, no
-  prompts about divergence, no "did you mean to publish" warnings. The status
-  line reflects the _current_ action's outcome, nothing else.
+  prompts about divergence, no "did you mean to publish" warnings. The side
+  panel reflects the _current_ action's outcome, nothing else.
 
 ## Flagged ambiguities
 
