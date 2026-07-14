@@ -2,14 +2,15 @@
 
 use super::*;
 
-/// Parse a Markdown list marker at the start of `line`. Returns
+/// Parse an auto-continued Markdown line prefix at the start of `line` — a list
+/// item (`- `/`* `/`+ ` or `N. `) or a blockquote (`> `, possibly nested). Returns
 /// `(next_marker, current_marker_len, content_empty)` where `next_marker` is what
-/// the following item should start with (same bullet, or the incremented number,
-/// preserving indentation), `current_marker_len` is the byte length of this
-/// line's marker prefix, and `content_empty` is whether anything follows it.
-/// Returns `None` when the line isn't a list item. ASCII throughout (leading
-/// spaces, bullets, digits, `. ` are all single-byte).
-pub(crate) fn list_marker(line: &str) -> Option<(String, usize, bool)> {
+/// the following line should start with (same bullet, the incremented number, or
+/// the same quote depth, preserving indentation), `current_marker_len` is the byte
+/// length of this line's marker prefix, and `content_empty` is whether anything
+/// follows it. Returns `None` when the line has no such prefix. ASCII throughout
+/// (leading spaces, bullets, digits, `. `, `> ` are all single-byte).
+pub(crate) fn continuation_marker(line: &str) -> Option<(String, usize, bool)> {
     let indent = line.len() - line.trim_start_matches(' ').len();
     let rest = &line[indent..];
     for bullet in ["- ", "* ", "+ "] {
@@ -26,6 +27,25 @@ pub(crate) fn list_marker(line: &str) -> Option<(String, usize, bool)> {
         let content_empty = line[cur_len..].trim().is_empty();
         let n: usize = rest[..digits].parse().unwrap_or(0);
         return Some((format!("{}{}. ", &line[..indent], n + 1), cur_len, content_empty));
+    }
+    // Blockquote: a run of `>` markers, each with an optional trailing space,
+    // continued at the same depth (`> > text` → `> > `). A bare `>` normalizes to
+    // `> `. A nested list inside the quote isn't preserved — it degrades to `> `.
+    if rest.starts_with('>') {
+        let bytes = rest.as_bytes();
+        let mut j = 0;
+        let mut depth = 0;
+        while j < bytes.len() && bytes[j] == b'>' {
+            depth += 1;
+            j += 1;
+            if j < bytes.len() && bytes[j] == b' ' {
+                j += 1;
+            }
+        }
+        let cur_len = indent + j;
+        let content_empty = line[cur_len..].trim().is_empty();
+        let next = format!("{}{}", &line[..indent], "> ".repeat(depth));
+        return Some((next, cur_len, content_empty));
     }
     None
 }

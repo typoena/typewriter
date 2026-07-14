@@ -101,18 +101,19 @@ impl Editor {
         true
     }
 
-    /// Enter in Insert mode, with Markdown list continuation. At the END of a
-    /// list line (`- `/`* `/`+ ` or `N. `), start the next item automatically —
-    /// same bullet, or the next number — preserving indentation. Enter on an
-    /// otherwise-empty item strips the marker instead (exits the list). Anywhere
-    /// else (mid-line, or a non-list line) it's a plain newline.
+    /// Enter in Insert mode, with Markdown list and blockquote continuation. At the
+    /// END of a list line (`- `/`* `/`+ ` or `N. `) or a blockquote (`> `, nested
+    /// depth preserved), start the next line automatically — same bullet, the next
+    /// number, or the same quote depth — preserving indentation. Enter on an
+    /// otherwise-empty item/quote strips the marker instead (exits it). Anywhere
+    /// else (mid-line, or a plain line) it's a plain newline.
     pub(crate) fn insert_newline(&mut self) {
         let le = self.line_end(self.caret);
         if self.caret == le {
             let ls = self.line_start(self.caret);
-            if let Some((next, cur_len, content_empty)) = list_marker(&self.text[ls..le]) {
+            if let Some((next, cur_len, content_empty)) = continuation_marker(&self.text[ls..le]) {
                 if content_empty {
-                    // Empty item: drop the marker, leaving a blank line.
+                    // Empty item/quote: drop the marker, leaving a blank line.
                     self.text.replace_range(ls..ls + cur_len, "");
                     self.caret = ls;
                 } else {

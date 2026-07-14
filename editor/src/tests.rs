@@ -76,6 +76,32 @@ fn enter_splits_the_line() {
 }
 
 #[test]
+fn enter_in_a_blockquote_continues_the_marker() {
+    let mut e = typed("> quote");
+    e.handle(Key::Enter);
+    e.handle(Key::Char('m'));
+    assert_eq!(e.text, "> quote\n> m");
+    assert_eq!(e.caret, 11);
+}
+
+#[test]
+fn enter_on_an_empty_blockquote_exits_the_quote() {
+    let mut e = typed("> quote");
+    e.handle(Key::Enter); // -> "> quote\n> "
+    e.handle(Key::Enter); // empty quote: drop the "> ", leaving a blank line
+    assert_eq!(e.text, "> quote\n");
+    assert_eq!(e.caret, 8);
+}
+
+#[test]
+fn enter_in_a_nested_blockquote_keeps_the_depth() {
+    let mut e = typed("> > deep");
+    e.handle(Key::Enter);
+    e.handle(Key::Char('x'));
+    assert_eq!(e.text, "> > deep\n> > x");
+}
+
+#[test]
 fn escape_enters_normal_and_steps_onto_last_char() {
     let mut e = typed("abc");
     e.handle(Key::Escape);
