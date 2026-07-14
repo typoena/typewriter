@@ -182,6 +182,14 @@ pub struct Prefs {
     /// Show the absolute line-number gutter (built always-on in v0.2). Off
     /// reclaims the gutter's columns for text — applied live by [`gutter_cols`].
     pub line_numbers: bool,
+    /// Boot into the file that was active when the device powered off, instead
+    /// of the default note. Only the *choice* lives here; the last-active path
+    /// itself is device state, kept in a device-local marker beside the dirty
+    /// journal — never in this git-tracked file, where every buffer switch
+    /// would dirty the repo and devices would fight over one "last file".
+    /// Honoured by the host at boot (falling back to the default note when the
+    /// marker is missing or stale), not the core.
+    pub open_last_on_boot: bool,
     /// Panel colour polarity: `"light"` (native black-ink-on-white-paper) or
     /// `"dark"` (white-on-black). On the 1-bit panel this is a whole-frame invert
     /// applied at the end of [`draw`](Editor::draw) via [`Frame::invert`], so any
@@ -202,6 +210,7 @@ impl Default for Prefs {
             save_on_idle: true,
             format_on_save: true,
             line_numbers: true,
+            open_last_on_boot: true,
             theme: "light".into(),
             auto_sync: "10m".into(),
         }
@@ -240,6 +249,11 @@ impl Prefs {
                         p.line_numbers = b;
                     }
                 }
+                "open_last_on_boot" => {
+                    if let Some(b) = parse_bool(val) {
+                        p.open_last_on_boot = b;
+                    }
+                }
                 "theme" => p.theme = val.trim_matches('"').to_string(),
                 "auto_sync" => p.auto_sync = val.trim_matches('"').to_string(),
                 _ => {}
@@ -259,11 +273,13 @@ impl Prefs {
              save_on_idle = {}\n\
              format_on_save = {}\n\
              line_numbers = {}\n\
+             open_last_on_boot = {}\n\
              theme = \"{}\"\n\
              auto_sync = \"{}\"\n",
             self.save_on_idle,
             self.format_on_save,
             self.line_numbers,
+            self.open_last_on_boot,
             self.theme,
             self.auto_sync,
         )
@@ -596,6 +612,7 @@ enum PaletteCmd {
     SaveOnIdle,
     FormatOnSave,
     LineNumbers,
+    OpenLastOnBoot,
     Theme,
     AutoSync,
 }
@@ -625,13 +642,14 @@ impl PaletteCmd {
 
 /// The palette command list, in display order (empty `>` query shows them all):
 /// the actions first, the settings after.
-const PALETTE_CMDS: [PaletteCmd; 8] = [
+const PALETTE_CMDS: [PaletteCmd; 9] = [
     PaletteCmd::NewFile,
     PaletteCmd::Format,
     PaletteCmd::Publish,
     PaletteCmd::SaveOnIdle,
     PaletteCmd::FormatOnSave,
     PaletteCmd::LineNumbers,
+    PaletteCmd::OpenLastOnBoot,
     PaletteCmd::Theme,
     PaletteCmd::AutoSync,
 ];
@@ -2198,6 +2216,9 @@ impl Editor {
             PaletteCmd::SaveOnIdle => format!("save on idle: {}", on(self.prefs.save_on_idle)),
             PaletteCmd::FormatOnSave => format!("format on save: {}", on(self.prefs.format_on_save)),
             PaletteCmd::LineNumbers => format!("line numbers: {}", on(self.prefs.line_numbers)),
+            PaletteCmd::OpenLastOnBoot => {
+                format!("open last on boot: {}", on(self.prefs.open_last_on_boot))
+            }
             PaletteCmd::Theme => format!("theme: {}", self.prefs.theme),
             PaletteCmd::AutoSync => format!("auto sync: {}", self.prefs.auto_sync),
         }
@@ -2289,6 +2310,9 @@ impl Editor {
             PaletteCmd::SaveOnIdle => self.prefs.save_on_idle = !self.prefs.save_on_idle,
             PaletteCmd::FormatOnSave => self.prefs.format_on_save = !self.prefs.format_on_save,
             PaletteCmd::LineNumbers => self.prefs.line_numbers = !self.prefs.line_numbers,
+            PaletteCmd::OpenLastOnBoot => {
+                self.prefs.open_last_on_boot = !self.prefs.open_last_on_boot
+            }
             PaletteCmd::Theme => {
                 self.prefs.theme = next_option(&self.prefs.theme, &THEME_OPTIONS).to_string()
             }
@@ -5829,6 +5853,7 @@ mod tests {
         assert!(p.save_on_idle);
         assert!(p.format_on_save);
         assert!(p.line_numbers);
+        assert!(p.open_last_on_boot);
         assert_eq!(p.theme, "light");
         assert_eq!(p.auto_sync, "10m");
     }
@@ -5850,6 +5875,7 @@ mod tests {
             save_on_idle = false   # trailing comment\n\
             format_on_save = false\n\
             line_numbers = false\n\
+            open_last_on_boot = false\n\
             auto_sync = \"2m\"\n\
             bogus_key = whatever\n\
             not a pair\n";
@@ -5857,6 +5883,7 @@ mod tests {
         assert!(!p.save_on_idle);
         assert!(!p.format_on_save);
         assert!(!p.line_numbers);
+        assert!(!p.open_last_on_boot);
         assert_eq!(p.auto_sync, "2m");
     }
 
@@ -5873,6 +5900,7 @@ mod tests {
             save_on_idle: false,
             format_on_save: true,
             line_numbers: false,
+            open_last_on_boot: false,
             theme: "dark".into(),
             auto_sync: "5m".into(),
         };
