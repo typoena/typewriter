@@ -43,6 +43,14 @@ CONFIG_FATFS_LFN_HEAP=y
 CONFIG_SPIRAM=y
 CONFIG_SPIRAM_MODE_OCT=y
 CONFIG_SPIRAM_USE_MALLOC=y
+# Internal reserve for DMA/internal-only allocations (default 32 KB). The
+# first on-device `:gl` fast-forward (2026-07-14) exhausted internal DRAM
+# mid-checkout and an SD-SPI DMA bounce-buffer alloc failed — esp-idf's
+# spi_master then NULL-derefs on its own error path (LoadProhibited in
+# setup/uninstall_priv_desc) instead of returning, so the DMA floor must be
+# generous enough that the driver never sees a failed alloc. 64 KB, paired
+# with the file-list interning that returns ~180 KB to internal.
+CONFIG_SPIRAM_MALLOC_RESERVE_INTERNAL=65536
 
 # FatFS fast seek (sync-latency root cause, 2026-07-12). Without it, lseek
 # resolves by walking the file's FAT cluster chain over SPI — forward from the

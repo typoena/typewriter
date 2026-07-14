@@ -785,6 +785,12 @@ fn pull_once() -> Result<PullOutcome> {
     let t_fetch = Instant::now();
     let theirs = fetch_origin(&repo, &branch)?;
     let fetch_ms = t_fetch.elapsed().as_millis();
+    log::info!(
+        "pull: fetched origin @ {} in {fetch_ms}ms — free heap {} ({} internal)",
+        short(theirs),
+        free_heap(),
+        internal_free_heap()
+    );
 
     let head = repo.head()?.peel_to_commit()?.id();
     if theirs == head {
@@ -815,11 +821,7 @@ fn pull_once() -> Result<PullOutcome> {
     }
 
     let t_co = Instant::now();
-    let target = repo.find_object(theirs, None)?;
-    let mut co = git2::build::CheckoutBuilder::new();
-    co.safe();
-    repo.checkout_tree(&target, Some(&mut co))
-        .context("checkout of origin's tree")?;
+    let changed = apply_tree_diff(&repo, head, theirs)?;
     repo.reference(
         &format!("refs/heads/{branch}"),
         theirs,
@@ -828,7 +830,7 @@ fn pull_once() -> Result<PullOutcome> {
     )
     .context("fast-forwarding the branch ref")?;
     log::info!(
-        "pull: fast-forwarded {branch} {} -> {} — fetch {fetch_ms}ms, checkout {}ms, free heap {} ({} internal)",
+        "pull: fast-forwarded {branch} {} -> {} — fetch {fetch_ms}ms, apply {}ms ({changed} file(s)), free heap {} ({} internal)",
         short(head),
         short(theirs),
         t_co.elapsed().as_millis(),
@@ -836,6 +838,106 @@ fn pull_once() -> Result<PullOutcome> {
         internal_free_heap()
     );
     Ok(PullOutcome::Pulled(short(theirs)))
+}
+
+/// Bring the working copy from `head`'s tree to `theirs`' tree by applying the
+/// tree-to-tree diff directly: write each added/modified blob, unlink each
+/// deleted path, and touch nothing else. Returns the number of files changed.
+///
+/// This is `checkout_tree`'s job, done the splice way. libgit2's SAFE checkout
+/// iterates the whole **working directory** (readdir over SPI on every one of
+/// ~1100 files) to decide what's dirty — the same O(tree) wall the splice
+/// commit exists to avoid, and what actually killed the first on-device ff
+/// attempt (2026-07-14): the walk ran with fetch memory still resident,
+/// internal DRAM hit zero, and esp-idf's spi_master null-derefs on its own
+/// failed-DMA-alloc path. The tree-to-tree diff never touches the workdir:
+/// identical subtree OIDs are skipped wholesale, so both the diff and the
+/// apply are O(changed).
+///
+/// Safety belt (what SAFE's rehash gave us, kept O(changed)): before touching
+/// anything, every to-be-overwritten/deleted file whose disk content no longer
+/// hashes to the OLD tree's blob aborts the pull — those are edits made behind
+/// git's back (e.g. desktop edits directly on the card), and clobbering them
+/// silently is worse than refusing. The check reads only the files the pull
+/// wants to change; the UI's empty-dirty-journal gate covers device-side
+/// saves.
+///
+/// Writes are unlink + tmp + rename (FAT f_rename won't overwrite), so a
+/// power-pull mid-apply leaves at worst a `.gltmp` orphan and a half-applied
+/// working copy with the ref NOT yet moved — the next `:gl` re-applies
+/// idempotently on the same diff.
+fn apply_tree_diff(repo: &Repository, head: Oid, theirs: Oid) -> Result<usize> {
+    use git2::Delta;
+
+    let head_tree = repo.find_commit(head)?.tree().context("HEAD tree")?;
+    let their_tree = repo.find_commit(theirs)?.tree().context("target tree")?;
+    let diff = repo
+        .diff_tree_to_tree(Some(&head_tree), Some(&their_tree), None)
+        .context("diffing HEAD..origin trees")?;
+
+    // Pass 1 — verify: refuse before the first write if any file we are about
+    // to replace or remove was hand-edited (content no longer matches the old
+    // blob). A missing file is fine (nothing to clobber).
+    for d in diff.deltas() {
+        let (old, path) = match d.status() {
+            Delta::Modified | Delta::Typechange => {
+                (d.old_file().id(), d.old_file().path())
+            }
+            Delta::Deleted => (d.old_file().id(), d.old_file().path()),
+            _ => continue, // Added: nothing on disk to protect
+        };
+        let Some(rel) = path.and_then(|p| p.to_str()) else {
+            continue;
+        };
+        let abs = format!("{REPO_DIR}/{rel}");
+        match fs::read(&abs) {
+            Ok(bytes) => {
+                let disk = Oid::hash_object(ObjectType::Blob, &bytes)
+                    .with_context(|| format!("hashing {rel}"))?;
+                if disk != old {
+                    bail!("local change in {rel} — pull refused (edit made behind git; resolve on a computer)");
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(e).with_context(|| format!("reading {rel}")),
+        }
+    }
+
+    // Pass 2 — apply.
+    let mut changed = 0usize;
+    for d in diff.deltas() {
+        match d.status() {
+            Delta::Added | Delta::Modified | Delta::Typechange => {
+                let Some(rel) = d.new_file().path().and_then(|p| p.to_str()) else {
+                    continue;
+                };
+                let abs = format!("{REPO_DIR}/{rel}");
+                if let Some(dir) = std::path::Path::new(&abs).parent() {
+                    fs::create_dir_all(dir).with_context(|| format!("mkdir for {rel}"))?;
+                }
+                let blob = repo
+                    .find_blob(d.new_file().id())
+                    .with_context(|| format!("reading blob for {rel}"))?;
+                let tmp = format!("{abs}.gltmp");
+                fs::write(&tmp, blob.content()).with_context(|| format!("writing {rel}"))?;
+                let _ = fs::remove_file(&abs); // FAT rename won't overwrite
+                fs::rename(&tmp, &abs).with_context(|| format!("landing {rel}"))?;
+                changed += 1;
+            }
+            Delta::Deleted => {
+                let Some(rel) = d.old_file().path().and_then(|p| p.to_str()) else {
+                    continue;
+                };
+                match fs::remove_file(format!("{REPO_DIR}/{rel}")) {
+                    Ok(()) => changed += 1,
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(e) => return Err(e).with_context(|| format!("deleting {rel}")),
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(changed)
 }
 
 /// Auth + cert callbacks shared by fetch and push. Captures only the baked
