@@ -79,7 +79,18 @@ fn main() -> anyhow::Result<()> {
     // card — and treat a missing card / repo / unreadable note as fatal: a
     // writing appliance that silently started empty would clobber the note on
     // the next `:w`. See docs/v0.1-mvp-technical.md, boot sequence.
-    let (storage, saved) = boot_storage(&mut epd);
+    let storage = boot_storage(&mut epd);
+    // Editor preferences (.typoena.toml, git-tracked). Read before the boot
+    // buffer is chosen (`open_last_on_boot` decides which file that is) and
+    // before the first render (`line_numbers` shapes the opening frame). A
+    // missing / unreadable / partial file falls back to defaults, so a fresh
+    // card just works.
+    let prefs = match storage.load_path(PREFS_PATH) {
+        Ok(src) => Prefs::parse(&src),
+        Err(_) => Prefs::default(),
+    };
+    log::info!("prefs: {prefs:?}");
+    let (boot_path, boot_scope, saved) = boot_note(&mut epd, &storage, &prefs);
 
     // Feed the file palette (Ctrl-P) from a background walk. Enumerating
     // /sd/repo + /sd/local takes seconds on a big tree (4.3 s at 1098 files,
@@ -120,27 +131,15 @@ fn main() -> anyhow::Result<()> {
         (req_tx, res_rx)
     };
 
-    // Seed the editor from the saved note. Boots in Normal mode with the caret
-    // on the last character (the resume point) — press `i`/`a`/`o` to write.
-    // The boot note is Tracked (`/sd/repo/notes.md`); `:e` / the palette (v0.5)
-    // open others, Tracked or Local.
-    let mut ed = Editor::with_file(NOTES.to_string(), Scope::Tracked, saved);
+    // Seed the editor from the boot note (`boot_note` above: the default
+    // `/sd/repo/notes.md`, or the resumed last file when `open_last_on_boot`
+    // is set). Boots in Normal mode with the caret on the last character (the
+    // resume point) — press `i`/`a`/`o` to write.
+    let mut ed = Editor::with_file(boot_path.clone(), boot_scope, saved);
     // Confirm the boot-load on the panel (no serial console in normal use):
     // "loaded <name>" using the note's filename without its suffix (notes.md ->
     // notes). Cleared by the first keystroke, like any snackbar.
-    let name = std::path::Path::new(NOTES)
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("notes");
-    ed.set_notice(format!("loaded {name}"));
-    // Editor preferences (.typoena.toml, git-tracked). Read before the first
-    // render so `line_numbers` shapes the opening frame. A missing / unreadable /
-    // partial file falls back to defaults, so a fresh card just works.
-    let prefs = match storage.load_path(PREFS_PATH) {
-        Ok(src) => Prefs::parse(&src),
-        Err(_) => Prefs::default(),
-    };
-    log::info!("prefs: {prefs:?}");
+    ed.set_notice(format!("loaded {}", file_stem(&boot_path)));
     ed.set_prefs(prefs);
     // Snippet library (.typoena.snippets.json, git-tracked). Parsed with
     // serde_json in the editor crate; a missing / unreadable / malformed file is
@@ -164,6 +163,11 @@ fn main() -> anyhow::Result<()> {
     // fires once per typing burst (and doesn't retry-storm if a save fails).
     // Reset on the next activity.
     let mut idle_saved = false;
+    // What the last-file marker was last written with. Starts empty so the
+    // first loop pass records the boot buffer — the marker then always names
+    // the active file, whether `open_last_on_boot` currently reads it or not
+    // (flipping the pref on works from the very next boot).
+    let mut last_file = String::new();
     // Set when a paint fails (see the refresh block below): the next paint then
     // does a full refresh to re-establish both RAM banks, since a partial that
     // died mid-transfer may have left them inconsistent.
@@ -295,6 +299,15 @@ fn main() -> anyhow::Result<()> {
                     Effect::SavePrefs { contents } => save_prefs(&storage, &mut ed, &contents),
                 }
             }
+        }
+
+        // Keep the last-file marker on the active named buffer: any switch
+        // (`:e`, palette pick, `:delete`'s fallback) lands here once its
+        // effects have drained. An unnamed `:enew` scratch (empty path) keeps
+        // the previous marker — there is nothing to resume into.
+        if !ed.path().is_empty() && ed.path() != last_file {
+            last_file = ed.path().to_string();
+            storage.record_last_file(&last_file);
         }
 
         // Keyboard attach/detach feeds the panel's disconnect flag.
@@ -522,11 +535,11 @@ fn main() -> anyhow::Result<()> {
     }
 }
 
-/// Mount the SD card and load the saved note, or halt with the reason on the
-/// panel. Everything here is fatal by design (see the boot-sequence comment in
-/// `main`): the note is the whole point of the appliance, so we refuse to run
-/// in a state where the next save could destroy it.
-fn boot_storage(epd: &mut Epd) -> (Storage, String) {
+/// Mount the SD card, or halt with the reason on the panel. Everything here is
+/// fatal by design (see the boot-sequence comment in `main`): the note is the
+/// whole point of the appliance, so we refuse to run in a state where the next
+/// save could destroy it.
+fn boot_storage(epd: &mut Epd) -> Storage {
     // A git build shares this mount with the git thread, and libgit2 keeps the
     // pack + idx descriptors open across a publish — that overruns the
     // editor's tight 4-FD budget, so mount with the 16-FD one (persistence.rs,
@@ -546,12 +559,34 @@ fn boot_storage(epd: &mut Epd) -> (Storage, String) {
             "Provision it on your computer (just init) and reboot.",
         );
     }
+    storage
+}
+
+/// Choose and load the boot buffer. With `open_last_on_boot` set and a marker
+/// naming a still-existing file (`Storage::last_file`), resume that file;
+/// otherwise the default note. Only the default note is fatal (`boot_halt`) —
+/// a stale or unreadable last file falls back rather than refusing to boot.
+fn boot_note(epd: &mut Epd, storage: &Storage, prefs: &Prefs) -> (String, Scope, String) {
+    if prefs.open_last_on_boot {
+        if let Some(path) = storage.last_file() {
+            match storage.load_path(&path) {
+                Ok(text) => {
+                    log::info!("boot: resumed {path} ({} bytes)", text.len());
+                    let scope = if path.starts_with(LOCAL_DIR) { Scope::Local } else { Scope::Tracked };
+                    return (path, scope, text);
+                }
+                // Unreadable (e.g. grown past MAX_FILE_BYTES on a computer) —
+                // the default note still boots.
+                Err(e) => log::warn!("boot: can't resume {path} ({e:#}); falling back to {NOTES}"),
+            }
+        }
+    }
     let note = match storage.load() {
         Ok(text) => text,
         Err(e) => boot_halt(epd, "Could not read your note", &format!("{e:#}")),
     };
     log::info!("boot: loaded {} bytes from {NOTES}", note.len());
-    (storage, note)
+    (NOTES.to_string(), Scope::Tracked, note)
 }
 
 /// Show a terminal boot error on the panel and idle forever. Rebooting into the

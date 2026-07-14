@@ -89,6 +89,19 @@ const MOUNT_C: &std::ffi::CStr = c"/sd";
 /// so an unrecorded change would never reach the remote.
 const DIRTY_JOURNAL: &str = "/sd/.typoena-dirty";
 
+/// Last-active-file marker — the absolute path of the buffer that was active
+/// when the device powered off, one line. Read at boot when the
+/// `open_last_on_boot` pref is set; rewritten by the main loop on every buffer
+/// switch. Device *state*, not shared behaviour, so like the dirty journal it
+/// lives at the card root, outside `/sd/repo` — never committed, and two
+/// devices never fight over one "last file".
+const LAST_FILE: &str = "/sd/.typoena-last";
+
+/// Local scratch — [`REPO_DIR`]'s never-published sibling (mirrors the editor
+/// crate's `LOCAL_DIR`). Here it bounds what [`Storage::last_file`] will
+/// resume.
+const LOCAL_DIR: &str = "/sd/local";
+
 /// VFS open-file budget for the editor path: it opens only a note and its
 /// `*.tmp`, so a tight budget keeps FatFS's per-file buffers off the heap.
 const MAX_FILES_EDITOR: i32 = 4;
@@ -406,6 +419,36 @@ impl Storage {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
             Err(e) => Err(e).with_context(|| format!("unlink {path}")),
         }
+    }
+
+    /// Record `path` as the last-active buffer ([`LAST_FILE`]), so
+    /// `open_last_on_boot` can resume it. Best-effort: a failed marker write
+    /// costs "boot where you left off", not data, so it logs instead of
+    /// erroring the main loop.
+    pub fn record_last_file(&self, path: &str) {
+        if let Err(e) = Self::atomic_write(LAST_FILE, path) {
+            log::warn!("last-file marker not written ({e:#})");
+        }
+    }
+
+    /// The recorded last-active file, if it still names a real note: a path
+    /// under [`REPO_DIR`] or [`LOCAL_DIR`] whose file exists. Anything else —
+    /// no marker yet, garbage from an interrupted write, or a file deleted
+    /// since (here, or on another device via `:gl`) — is `None`, and boot
+    /// falls back to the default note.
+    pub fn last_file(&self) -> Option<String> {
+        let raw = fs::read_to_string(LAST_FILE).ok()?;
+        let path = raw.trim();
+        let in_scope = path
+            .strip_prefix(REPO_DIR)
+            .or_else(|| path.strip_prefix(LOCAL_DIR))
+            .and_then(|r| r.strip_prefix('/'))
+            .is_some_and(|r| !r.is_empty());
+        if !in_scope {
+            return None;
+        }
+        let is_file = fs::metadata(path).map(|m| m.is_file()).unwrap_or(false);
+        is_file.then(|| path.to_string())
     }
 
     /// Note a working-copy file as (possibly) differing from HEAD. Paths
