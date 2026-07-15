@@ -19,6 +19,10 @@ permissions:
 
 jobs:
   release:
+    # `origin` pushes to both GitHub and a Gitea mirror, and Gitea Actions scans
+    # `.github/workflows` too — so skip there (it has no macOS runner anyway).
+    # Gitea sets `server_url` to its own host; only github.com should build.
+    if: ${{ github.server_url == 'https://github.com' }}
     runs-on: macos-latest
     defaults:
       run:
