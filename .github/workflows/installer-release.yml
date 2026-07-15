@@ -1,0 +1,64 @@
+name: Installer release
+
+# Cut a public macOS release of the Typoena installer when an `installer-v*`
+# tag is pushed. Builds a UNIVERSAL binary (arm64 + x86_64) so both Apple
+# Silicon and Intel Macs can run the `curl … | sh` one-liner, then publishes
+# the binary alongside its `.sha256` sidecar (the checksum install.sh verifies).
+#
+# Releasing from a clean CI checkout of the tagged commit is the whole point:
+# the published binary provably matches the tag, so we can't ship a stale build
+# or uncommitted WIP by accident. To release:  git tag installer-vX.Y.Z && git push --tags
+
+on:
+  push:
+    tags:
+      - 'installer-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: installer
+    steps:
+      - uses: actions/checkout@v4
+
+      # rust-toolchain.toml pins `stable`; add the non-host target so we can
+      # cross-compile the second slice of the universal binary.
+      - name: Add both macOS targets
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - name: Build universal binary
+        run: |
+          cargo build --release --target aarch64-apple-darwin
+          cargo build --release --target x86_64-apple-darwin
+          lipo -create \
+            target/aarch64-apple-darwin/release/typoena-installer \
+            target/x86_64-apple-darwin/release/typoena-installer \
+            -output typoena-installer-macos
+          file typoena-installer-macos
+
+      # Bare filename in the sidecar: install.sh runs `shasum -c` from the
+      # download dir, so the recorded name must be the asset, not a path.
+      - name: Checksum sidecar
+        run: shasum -a 256 typoena-installer-macos > typoena-installer-macos.sha256
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#installer-}"
+          gh release create "${GITHUB_REF_NAME}" \
+            typoena-installer-macos \
+            typoena-installer-macos.sha256 \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "Typoena installer ${version}" \
+            --notes "Universal macOS build (arm64 + x86_64).
+
+          Install:
+          \`\`\`
+          curl -fsSL https://typoena.dev/install.sh | sh
+          \`\`\`"
