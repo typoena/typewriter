@@ -305,18 +305,35 @@ fn seed_prefs(repo_dir: &Path) -> anyhow::Result<()> {
 fn dot_clean(vol: &Path) {
     // Best-effort: strip the AppleDouble `._` companions macOS writes on FAT,
     // which otherwise corrupt the pack scan (`._pack-*.idx`). Failure never blocks.
-    let _ = Command::new("dot_clean").arg("-m").arg(vol).status();
+    // Capture (don't inherit) output: dot_clean prints permission errors for the
+    // SIP dirs it can't enter (`.Spotlight-V100`, `.fseventsd`) to stderr, which
+    // would otherwise smear straight across the ratatui alternate screen.
+    let _ = Command::new("dot_clean")
+        .arg("-m")
+        .arg(vol)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
 }
 
 fn eject(vol: &Path) -> anyhow::Result<()> {
-    let _ = Command::new("sync").status();
-    let status = Command::new("diskutil")
+    let _ = Command::new("sync")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+    // Capture, don't inherit: diskutil prints "Disk … ejected" to stdout, which
+    // would otherwise land on the TUI. We surface our own log line instead.
+    let out = Command::new("diskutil")
         .arg("eject")
         .arg(vol)
-        .status()
+        .output()
         .context("running diskutil eject")?;
-    if !status.success() {
-        bail!("diskutil eject exited {:?}", status.code());
+    if !out.status.success() {
+        bail!(
+            "diskutil eject exited {:?}: {}",
+            out.status.code(),
+            String::from_utf8_lossy(&out.stderr).trim()
+        );
     }
     Ok(())
 }
