@@ -59,10 +59,15 @@ fn main() -> anyhow::Result<()> {
 
 fn run(terminal: &mut ratatui::DefaultTerminal) -> anyhow::Result<()> {
     let mut app = App::new();
+    // Kick the first environment scan off the UI thread so the window paints
+    // immediately instead of blocking on the diskutil scan.
+    app.begin_startup();
     while !app.should_quit {
-        app.drain_worker();
+        app.poll_background();
+        // Bump the frame counter so the spinner animates while work runs.
+        app.tick = app.tick.wrapping_add(1);
         terminal.draw(|frame| ui::render(frame, &app))?;
-        // Poll so worker progress can repaint even without a keypress.
+        // Poll so worker progress / spinner can repaint even without a keypress.
         if event::poll(Duration::from_millis(100))?
             && let Event::Key(key) = event::read()?
             && key.kind == KeyEventKind::Press

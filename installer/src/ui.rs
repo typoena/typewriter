@@ -10,9 +10,23 @@ use ratatui::{
     widgets::{Block, Gauge, List, ListItem, Paragraph, Wrap},
 };
 
-use crate::app::{App, SdState, Step};
+use crate::app::{App, Busy, SdState, Step};
 use crate::config::Field;
 use crate::preflight::Status;
+
+/// One frame of the braille spinner for the given tick.
+fn spinner(tick: u64) -> char {
+    const FRAMES: [char; 10] = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+    FRAMES[(tick as usize) % FRAMES.len()]
+}
+
+/// A spinner + caption line, shown while a background computation runs.
+fn busy_line(app: &App, label: &str) -> Line<'static> {
+    Line::styled(
+        format!("{} {label}", spinner(app.tick)),
+        Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+    )
+}
 
 pub fn render(frame: &mut Frame, app: &App) {
     let [header, body, footer] = Layout::vertical([
@@ -116,6 +130,20 @@ fn render_main(frame: &mut Frame, area: Rect, app: &App) {
 }
 
 fn render_preflight(frame: &mut Frame, area: Rect, app: &App, block: Block) {
+    // Startup / re-check: the diskutil scan runs off-thread — show the spinner
+    // rather than an empty (or stale) check list.
+    if app.busy == Busy::Preflight {
+        let lines = vec![
+            busy_line(app, app.busy.label().unwrap_or("Working…")),
+            Line::from(""),
+            Line::styled(
+                "Scanning removable disks and checking git.",
+                Style::new().fg(Color::DarkGray),
+            ),
+        ];
+        frame.render_widget(paragraph(lines, block), area);
+        return;
+    }
     let mut lines = vec![
         Line::styled(
             "Checking your Mac and the card.",
@@ -205,7 +233,9 @@ fn render_configure(frame: &mut Frame, area: Rect, app: &App, block: Block) {
     }
 
     lines.push(Line::from(""));
-    if let Some(msg) = &app.status {
+    if app.busy == Busy::Keychain {
+        lines.push(busy_line(app, app.busy.label().unwrap_or("Working…")));
+    } else if let Some(msg) = &app.status {
         lines.push(Line::styled(msg.clone(), Style::new().fg(Color::Cyan)));
     } else {
         let missing = app.config.missing_required();
@@ -274,6 +304,9 @@ fn render_sdcard(frame: &mut Frame, area: Rect, app: &App, block: Block) {
                 "Press y to wipe and continue · n to cancel.",
                 Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),
             ));
+        }
+        SdState::Idle if app.busy == Busy::DetectingCards || app.busy == Busy::PreparingCard => {
+            lines.push(busy_line(app, app.busy.label().unwrap_or("Working…")));
         }
         SdState::Idle => {
             if app.cards.is_empty() {
@@ -549,6 +582,18 @@ mod tests {
         assert!(
             screen(&app).contains("Best guess"),
             "a guessed SSID must be flagged so the user confirms it"
+        );
+    }
+
+    #[test]
+    fn detecting_cards_shows_a_loading_caption() {
+        let mut app = App::new();
+        app.step = Step::SdCard;
+        app.busy = Busy::DetectingCards;
+        let s = screen(&app);
+        assert!(
+            s.contains("Scanning"),
+            "the SD step should show a loading caption while detecting cards:\n{s}"
         );
     }
 

@@ -52,6 +52,46 @@ pub enum SdState {
     Failed(String),
 }
 
+/// A background computation currently owning the UI. Each variant carries the
+/// caption shown next to the spinner while the work runs off the UI thread; the
+/// point is that a shell-out (diskutil, git, the Keychain prompt) never freezes
+/// the render loop mid-wizard.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Busy {
+    None,
+    Preflight,
+    DetectingCards,
+    PreparingCard,
+    Keychain,
+}
+
+impl Busy {
+    /// Spinner caption, or None when idle.
+    pub fn label(self) -> Option<&'static str> {
+        match self {
+            Busy::None => None,
+            Busy::Preflight => Some("Checking your Mac…"),
+            Busy::DetectingCards => Some("Scanning for SD cards…"),
+            Busy::PreparingCard => Some("Reading the card…"),
+            Busy::Keychain => Some("Asking Keychain…"),
+        }
+    }
+}
+
+/// The output of a background task, applied on the UI thread when it lands.
+enum TaskResult {
+    Preflight(Preflight),
+    Cards(Vec<Card>),
+    Prepared {
+        has_repo: bool,
+        inspect: Option<CardInspect>,
+    },
+    Keychain {
+        ssid: String,
+        pw: Option<String>,
+    },
+}
+
 pub struct App {
     pub step: Step,
     pub preflight: Preflight,
@@ -68,6 +108,12 @@ pub struct App {
     /// Latest git-progress tick (phase, 0..=100), driving the SD-step gauge.
     pub sd_progress: Option<(String, u16)>,
     sd_rx: Option<Receiver<SdEvent>>,
+    // ── background computation ──
+    /// The off-thread work currently running (spinner + locked input), if any.
+    pub busy: Busy,
+    /// Frame counter, bumped once per render loop, animating the spinner.
+    pub tick: u64,
+    task_rx: Option<Receiver<TaskResult>>,
     pub should_quit: bool,
 }
 
@@ -75,7 +121,9 @@ impl App {
     pub fn new() -> Self {
         App {
             step: Step::Preflight,
-            preflight: Preflight::run(),
+            // Filled by the startup task (see `begin_startup`) so launch paints
+            // immediately instead of blocking on the diskutil scan.
+            preflight: Preflight { checks: Vec::new() },
             config: Config::derived(),
             focus: 0,
             status: None,
@@ -85,14 +133,29 @@ impl App {
             sd_log: Vec::new(),
             sd_progress: None,
             sd_rx: None,
+            busy: Busy::Preflight,
+            tick: 0,
+            task_rx: None,
             should_quit: false,
         }
+    }
+
+    /// Kick the first environment scan off the UI thread. Call once, right after
+    /// construction — `new()` leaves `busy = Preflight` so the first frame already
+    /// shows the spinner. (Kept out of `new()` so tests stay thread-free.)
+    pub fn begin_startup(&mut self) {
+        self.begin_preflight();
     }
 
     pub fn on_key(&mut self, key: KeyEvent) {
         // Ctrl-C always quits, on any step (even mid-typing / mid-run).
         if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
             self.should_quit = true;
+            return;
+        }
+        // A background computation owns the UI — ignore input until it lands
+        // (Ctrl-C above is the one escape). Tasks are short shell-outs.
+        if self.busy != Busy::None {
             return;
         }
         self.status = None;
@@ -108,9 +171,7 @@ impl App {
     fn on_key_nav(&mut self, key: KeyEvent) {
         match key.code {
             KeyCode::Char('q') | KeyCode::Esc => self.should_quit = true,
-            KeyCode::Char('r') if self.step == Step::Preflight => {
-                self.preflight = Preflight::run();
-            }
+            KeyCode::Char('r') if self.step == Step::Preflight => self.begin_preflight(),
             KeyCode::Enter
             | KeyCode::Tab
             | KeyCode::Down
@@ -205,7 +266,7 @@ impl App {
                 self.sd = SdState::Idle;
                 self.sd_log.clear();
                 self.sd_progress = None;
-                self.refresh_cards();
+                self.begin_detect_cards();
             }
             KeyCode::Enter => self.attempt_provision(),
             _ => {}
@@ -234,18 +295,41 @@ impl App {
 
     fn fill_wifi_from_keychain(&mut self) {
         let ssid = self.config.wifi_ssid.clone();
-        self.status = Some(match keychain_wifi_password(&ssid) {
-            Some(pw) => {
-                self.config.wifi_pass = pw;
-                format!("filled Wi-Fi password for “{ssid}” from Keychain")
-            }
-            None => "no Keychain password found (or the lookup was cancelled)".into(),
+        if ssid.trim().is_empty() {
+            self.status = Some("set the Wi-Fi SSID first, then ^K".into());
+            return;
+        }
+        // The `security` lookup pops a macOS auth dialog and blocks until it's
+        // dismissed — run it off-thread so the wizard doesn't freeze behind it.
+        self.spawn(Busy::Keychain, move || {
+            let pw = keychain_wifi_password(&ssid);
+            TaskResult::Keychain { ssid, pw }
         });
     }
 
-    fn refresh_cards(&mut self) {
-        self.cards = sdcard::detect_cards();
-        self.card_sel = 0;
+    fn begin_preflight(&mut self) {
+        self.spawn(Busy::Preflight, || TaskResult::Preflight(Preflight::run()));
+    }
+
+    fn begin_detect_cards(&mut self) {
+        self.spawn(Busy::DetectingCards, || {
+            TaskResult::Cards(sdcard::detect_cards())
+        });
+    }
+
+    /// Spawn `f` on a worker thread, showing `busy`'s spinner until it lands.
+    /// Only one task runs at a time — input is locked while `busy` is set, so a
+    /// second can't start before the first is drained.
+    fn spawn<F>(&mut self, busy: Busy, f: F)
+    where
+        F: FnOnce() -> TaskResult + Send + 'static,
+    {
+        let (tx, rx) = std::sync::mpsc::channel();
+        self.task_rx = Some(rx);
+        self.busy = busy;
+        std::thread::spawn(move || {
+            let _ = tx.send(f());
+        });
     }
 
     fn selected_volume(&self) -> Option<std::path::PathBuf> {
@@ -268,11 +352,14 @@ impl App {
         let Some(vol) = self.selected_volume() else {
             return;
         };
-        if sdcard::card_has_repo(&vol) {
-            self.sd = SdState::ConfirmWipe(sdcard::inspect_card(&vol));
-        } else {
-            self.start_provision(false);
-        }
+        // `card_has_repo` + `inspect_card` read git over the SD bus — run them
+        // off-thread; `apply_task` then routes to wipe-confirm or straight to the
+        // provision.
+        self.spawn(Busy::PreparingCard, move || {
+            let has_repo = sdcard::card_has_repo(&vol);
+            let inspect = has_repo.then(|| sdcard::inspect_card(&vol));
+            TaskResult::Prepared { has_repo, inspect }
+        });
     }
 
     fn start_provision(&mut self, wipe: bool) {
@@ -325,6 +412,60 @@ impl App {
         }
     }
 
+    /// Called once per render loop: pull in any finished background work (the
+    /// clone worker and the general task worker).
+    pub fn poll_background(&mut self) {
+        self.drain_worker();
+        self.drain_task();
+    }
+
+    fn drain_task(&mut self) {
+        let Some(rx) = self.task_rx.take() else {
+            return;
+        };
+        match rx.try_recv() {
+            Ok(result) => {
+                self.busy = Busy::None;
+                self.apply_task(result);
+            }
+            Err(TryRecvError::Empty) => self.task_rx = Some(rx),
+            // The worker panicked (dropped the sender): clear busy so the UI
+            // unlocks rather than spinning forever.
+            Err(TryRecvError::Disconnected) => self.busy = Busy::None,
+        }
+    }
+
+    fn apply_task(&mut self, result: TaskResult) {
+        match result {
+            TaskResult::Preflight(pf) => self.preflight = pf,
+            TaskResult::Cards(cards) => {
+                self.cards = cards;
+                self.card_sel = 0;
+            }
+            TaskResult::Prepared { has_repo, inspect } => {
+                if has_repo {
+                    // `inspect` is Some whenever `has_repo` (see attempt_provision).
+                    self.sd = SdState::ConfirmWipe(inspect.unwrap_or(CardInspect {
+                        origin: None,
+                        head: None,
+                        dirty: 0,
+                    }));
+                } else {
+                    self.start_provision(false);
+                }
+            }
+            TaskResult::Keychain { ssid, pw } => {
+                self.status = Some(match pw {
+                    Some(p) => {
+                        self.config.wifi_pass = p;
+                        format!("filled Wi-Fi password for “{ssid}” from Keychain")
+                    }
+                    None => "no Keychain password found (or the lookup was cancelled)".into(),
+                });
+            }
+        }
+    }
+
     fn next(&mut self) {
         self.step = self.step.next();
         self.on_enter();
@@ -337,7 +478,7 @@ impl App {
 
     fn on_enter(&mut self) {
         if self.step == Step::SdCard && matches!(self.sd, SdState::Idle) {
-            self.refresh_cards();
+            self.begin_detect_cards();
         }
     }
 }
