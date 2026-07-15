@@ -7,7 +7,7 @@ use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, List, ListItem, Paragraph, Wrap},
+    widgets::{Block, Gauge, List, ListItem, Paragraph, Wrap},
 };
 
 use crate::app::{App, SdState, Step};
@@ -39,25 +39,68 @@ fn render_header(frame: &mut Frame, area: Rect) {
 }
 
 fn render_steps(frame: &mut Frame, area: Rect, app: &App) {
+    // The list needs 4 rows + a border; the rest goes to the movement legend.
+    let [list_area, legend_area] =
+        Layout::vertical([Constraint::Length(6), Constraint::Min(0)]).areas(area);
+
+    let cur = app.step.index();
     let items: Vec<ListItem> = Step::ALL
         .iter()
         .enumerate()
         .map(|(i, &s)| {
-            let active = s == app.step;
-            let marker = if active { "▸ " } else { "  " };
-            let style = if active {
-                Style::new().add_modifier(Modifier::BOLD | Modifier::REVERSED)
+            // ✓ done (revisitable) · ▸ current · dim = not yet reached.
+            let (marker, style) = if s == app.step {
+                (
+                    "▸",
+                    Style::new().add_modifier(Modifier::BOLD | Modifier::REVERSED),
+                )
+            } else if i < cur {
+                ("✓", Style::new().fg(Color::Green))
             } else {
-                Style::new().fg(Color::DarkGray)
+                (" ", Style::new().fg(Color::DarkGray))
             };
             ListItem::new(Line::styled(
-                format!("{marker}{}. {}", i + 1, s.title()),
+                format!("{marker} {}. {}", i + 1, s.title()),
                 style,
             ))
         })
         .collect();
     frame.render_widget(
         List::new(items).block(Block::bordered().title(" steps ")),
+        list_area,
+    );
+
+    render_steps_legend(frame, legend_area, app);
+}
+
+/// The left-column legend: how to move, and whether the current step lets you
+/// advance yet. Answers "how do I go back / when can I go on / which is next".
+fn render_steps_legend(frame: &mut Frame, area: Rect, app: &App) {
+    let dim = Style::new().fg(Color::DarkGray);
+    let mut lines = vec![
+        Line::styled("Tab   next", dim),
+        Line::styled("⇧Tab  back", dim),
+        Line::from(""),
+    ];
+    match (app.forward_open(), app.next_step()) {
+        (true, Some(next)) => lines.push(Line::styled(
+            format!("→ {}", next.title()),
+            Style::new().fg(Color::Green).add_modifier(Modifier::BOLD),
+        )),
+        (false, Some(_)) => {
+            let why = match app.step {
+                Step::Configure => "fill required",
+                Step::SdCard => "write card first",
+                _ => "finish this step",
+            };
+            lines.push(Line::styled(why, Style::new().fg(Color::Yellow)));
+        }
+        (_, None) => lines.push(Line::styled("all done", Style::new().fg(Color::Green))),
+    }
+    frame.render_widget(
+        Paragraph::new(Text::from(lines))
+            .block(Block::bordered().title(" move "))
+            .wrap(Wrap { trim: false }),
         area,
     );
 }
@@ -112,7 +155,7 @@ fn render_preflight(frame: &mut Frame, area: Rect, app: &App, block: Block) {
 fn render_configure(frame: &mut Frame, area: Rect, app: &App, block: Block) {
     let mut lines: Vec<Line> = vec![
         Line::styled(
-            "Pre-filled from this Mac where possible. Type to edit · ↑/↓ move · Enter next field.",
+            "Pre-filled from this Mac where possible. Type to edit · Tab / ↑↓ move · Enter next.",
             Style::new().fg(Color::DarkGray),
         ),
         Line::from(""),
@@ -179,7 +222,12 @@ fn render_configure(frame: &mut Frame, area: Rect, app: &App, block: Block) {
             ));
         }
     }
-    if let Some(hint) = field_hint(app.focused_field()) {
+    if app.focused_field() == Field::WifiSsid && app.config.wifi_ssid_guessed {
+        lines.push(Line::styled(
+            "Best guess — macOS hides the active network; confirm it's the one Typoena will use.",
+            Style::new().fg(Color::Yellow),
+        ));
+    } else if let Some(hint) = field_hint(app.focused_field()) {
         lines.push(Line::styled(hint, Style::new().fg(Color::DarkGray)));
     }
 
@@ -274,28 +322,73 @@ fn render_sdcard(frame: &mut Frame, area: Rect, app: &App, block: Block) {
                 lines.push(Line::styled(msg.clone(), Style::new().fg(Color::Cyan)));
             }
         }
-        rest => {
-            lines.push(match rest {
-                SdState::Running => Line::styled(
-                    "Provisioning the card…  (Ctrl-C aborts)",
-                    Style::new().fg(Color::Yellow),
-                ),
-                SdState::Failed(e) => {
-                    Line::styled(format!("Failed: {e}"), Style::new().fg(Color::Red))
-                }
-                _ => Line::styled(
-                    "Card ready ✓ — remove it and insert into Typoena.",
-                    Style::new().fg(Color::Green),
-                ),
-            });
-            lines.push(Line::from(""));
-            let start = app.sd_log.len().saturating_sub(12);
-            for l in &app.sd_log[start..] {
-                lines.push(dim(l.clone()));
-            }
+        // Running / Done / Failed render with a live progress gauge, so they
+        // take their own path rather than the plain-paragraph one below.
+        _ => {
+            render_sd_progress(frame, area, app, block);
+            return;
         }
     }
     frame.render_widget(paragraph(lines, block), area);
+}
+
+/// The provision view: a status line, a git-progress gauge while cloning, and a
+/// tail of the worker log.
+fn render_sd_progress(frame: &mut Frame, area: Rect, app: &App, block: Block) {
+    let status = match &app.sd {
+        SdState::Failed(e) => Line::styled(format!("Failed: {e}"), Style::new().fg(Color::Red)),
+        SdState::Done => Line::styled(
+            "Card ready ✓ — remove it and insert into Typoena.",
+            Style::new().fg(Color::Green),
+        ),
+        _ => Line::styled(
+            "Provisioning the card…  (Ctrl-C aborts)",
+            Style::new().fg(Color::Yellow),
+        ),
+    };
+
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+
+    // The gauge only appears while cloning (the one phase with real percentages);
+    // seed/conf/eject are near-instant and just scroll past in the log.
+    match (&app.sd, &app.sd_progress) {
+        (SdState::Running, Some((phase, pct))) => {
+            let [top, gauge, log] = Layout::vertical([
+                Constraint::Length(2),
+                Constraint::Length(1),
+                Constraint::Min(0),
+            ])
+            .areas(inner);
+            frame.render_widget(Paragraph::new(status), top);
+            frame.render_widget(
+                Gauge::default()
+                    .gauge_style(Style::new().fg(Color::Green))
+                    .ratio((*pct as f64 / 100.0).clamp(0.0, 1.0))
+                    .label(format!("{phase}  {pct}%")),
+                gauge,
+            );
+            render_sd_log(frame, log, app);
+        }
+        _ => {
+            let [top, log] =
+                Layout::vertical([Constraint::Length(2), Constraint::Min(0)]).areas(inner);
+            frame.render_widget(Paragraph::new(status), top);
+            render_sd_log(frame, log, app);
+        }
+    }
+}
+
+fn render_sd_log(frame: &mut Frame, area: Rect, app: &App) {
+    let start = app.sd_log.len().saturating_sub(area.height as usize);
+    let lines: Vec<Line> = app.sd_log[start..]
+        .iter()
+        .map(|l| Line::styled(l.clone(), Style::new().fg(Color::DarkGray)))
+        .collect();
+    frame.render_widget(
+        Paragraph::new(Text::from(lines)).wrap(Wrap { trim: false }),
+        area,
+    );
 }
 
 fn render_done(frame: &mut Frame, area: Rect, block: Block) {
@@ -367,11 +460,8 @@ fn render_footer(frame: &mut Frame, area: Rect, app: &App) {
     } else {
         match app.step {
             Step::Configure => vec![
-                key("↑/↓"),
-                lbl(" field"),
-                sep(),
-                key("Enter"),
-                lbl(" next"),
+                key("Tab"),
+                lbl(" field / next"),
                 sep(),
                 key("^K"),
                 lbl(" wifi pw"),
@@ -383,7 +473,7 @@ fn render_footer(frame: &mut Frame, area: Rect, app: &App) {
                 lbl(" quit"),
             ],
             Step::SdCard => vec![
-                key("↑/↓"),
+                key("↑↓ / j k"),
                 lbl(" card"),
                 sep(),
                 key("r"),
@@ -396,11 +486,11 @@ fn render_footer(frame: &mut Frame, area: Rect, app: &App) {
                 lbl(" quit"),
             ],
             _ => vec![
-                key("↑/↓ Tab"),
-                lbl(" step"),
-                sep(),
-                key("Enter"),
+                key("Tab"),
                 lbl(" next"),
+                sep(),
+                key("⇧Tab"),
+                lbl(" back"),
                 sep(),
                 key("r"),
                 lbl(" re-check"),
@@ -411,4 +501,94 @@ fn render_footer(frame: &mut Frame, area: Rect, app: &App) {
         }
     };
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::SdState;
+    use crate::sdcard::{Card, CardInspect};
+    use ratatui::{Terminal, backend::TestBackend};
+
+    /// Render `app` to an off-screen terminal and return the visible text.
+    fn screen(app: &App) -> String {
+        let mut terminal = Terminal::new(TestBackend::new(90, 30)).unwrap();
+        terminal.draw(|f| render(f, app)).unwrap();
+        terminal.backend().to_string()
+    }
+
+    #[test]
+    fn every_step_renders_without_panicking() {
+        let mut app = App::new();
+        for step in Step::ALL {
+            app.step = step;
+            let _ = screen(&app); // a layout-array or index panic would fail here
+        }
+    }
+
+    #[test]
+    fn sidebar_shows_progress_and_movement() {
+        let mut app = App::new();
+        app.step = Step::SdCard; // Preflight + Configure are now behind us
+        let s = screen(&app);
+        assert!(s.contains('✓'), "completed steps should be ticked:\n{s}");
+        assert!(s.contains("Tab"), "movement legend should name Tab:\n{s}");
+        assert!(
+            s.contains("back"),
+            "legend should show how to go back:\n{s}"
+        );
+    }
+
+    #[test]
+    fn guessed_ssid_is_flagged_on_the_wifi_field() {
+        let mut app = App::new();
+        app.step = Step::Configure;
+        app.focus = 0; // Wi-Fi SSID
+        app.config.wifi_ssid = "SomeNet".into();
+        app.config.wifi_ssid_guessed = true;
+        assert!(
+            screen(&app).contains("Best guess"),
+            "a guessed SSID must be flagged so the user confirms it"
+        );
+    }
+
+    #[test]
+    fn clone_progress_drives_a_gauge() {
+        let mut app = App::new();
+        app.step = Step::SdCard;
+        app.sd = SdState::Running;
+        app.sd_progress = Some(("Receiving objects".into(), 42));
+        let s = screen(&app);
+        assert!(
+            s.contains("42%"),
+            "the gauge should show the clone percent:\n{s}"
+        );
+    }
+
+    #[test]
+    fn wipe_confirmation_warns_before_erasing() {
+        let mut app = App::new();
+        app.step = Step::SdCard;
+        app.cards = vec![Card {
+            volume: "/Volumes/TYPOENA".into(),
+            name: "TYPOENA".into(),
+            fs: "MS-DOS FAT32".into(),
+            fat: true,
+        }];
+        app.card_sel = 0;
+        app.sd = SdState::ConfirmWipe(CardInspect {
+            origin: Some("https://github.com/you/notes.git".into()),
+            head: Some("abc1234".into()),
+            dirty: 2,
+        });
+        let s = screen(&app);
+        assert!(
+            s.contains("already holds"),
+            "must warn the card is in use:\n{s}"
+        );
+        assert!(
+            s.contains("unpublished"),
+            "must flag unpublished edits:\n{s}"
+        );
+    }
 }

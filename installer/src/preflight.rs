@@ -37,32 +37,32 @@ impl Preflight {
 
 fn detect_sd_card() -> Check {
     let label = "SD card";
-    let vols: Vec<String> = std::fs::read_dir("/Volumes")
-        .map(|rd| {
-            rd.filter_map(|e| e.ok())
-                .map(|e| e.file_name().to_string_lossy().into_owned())
-                .filter(|n| !n.starts_with('.'))
-                .collect()
-        })
-        .unwrap_or_default();
-    // Slice-level detection only reports what's mounted; true removable/FAT
-    // identification (diskutil) — and the ambiguity refusal — land with the
-    // SD-card step.
-    match vols.len() {
-        0 => Check {
-            label,
-            status: Status::Missing,
-            detail: "no volumes under /Volumes — insert a card".into(),
-        },
-        _ => Check {
+    // Only report genuinely removable cards (via the SD step's diskutil-backed
+    // detection). The Mac's own internal volumes — "Macintosh HD" and friends —
+    // are deliberately never named here: surfacing the machine's own storage
+    // reads as "this tool can touch my Mac's disk" and needlessly alarms people.
+    let cards = crate::sdcard::detect_cards();
+    if cards.is_empty() {
+        return Check {
             label,
             status: Status::Warn,
-            detail: format!(
-                "{} volume(s): {} — the card is chosen in the SD-card step",
-                vols.len(),
-                vols.join(", ")
-            ),
-        },
+            detail: "no card yet — insert your SD card (you'll pick it in the SD-card step)".into(),
+        };
+    }
+    let names: Vec<String> = cards
+        .iter()
+        .map(|c| {
+            if c.fat {
+                c.name.clone()
+            } else {
+                format!("{} (not FAT32)", c.name)
+            }
+        })
+        .collect();
+    Check {
+        label,
+        status: Status::Ok,
+        detail: format!("{} — chosen in the SD-card step", names.join(", ")),
     }
 }
 

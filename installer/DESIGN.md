@@ -56,8 +56,20 @@ mirror, `--ff-only` source refresh, `.gitignore` exclude list, `git repack -ad`.
 
 Each value: explicit input → derived from this Mac → prompt.
 `author` ← `git config user.{name,email}` · `gh_user` ← `gh api user` ·
-`ssid` ← active Wi-Fi (`networksetup`) · `wifi_pass` ← Keychain (on ^K, may
-prompt macOS) · `remote`, `pat` ← typed (PAT never derived).
+`ssid` ← live SSID if it can be read, else the top preferred network as a
+**flagged guess** · `wifi_pass` ← Keychain (on ^K, may prompt macOS) ·
+`remote`, `pat` ← typed (PAT never derived).
+
+**Wi-Fi SSID is best-effort, not authoritative.** On macOS 15+ (incl. Tahoe
+26) `networksetup -getairportnetwork` reports "not associated" even when
+connected, and `ipconfig`/`system_profiler` return `<redacted>` unless the
+process holds Location Services permission — which a `curl | sh` binary won't.
+So `config.rs` tries the real current SSID (dynamic Wi-Fi device via
+`-listallhardwareports`, then `getairportnetwork`, then `ipconfig getsummary`),
+and when all are blocked, falls back to the top of
+`-listpreferredwirelessnetworks` as a guess. A guess sets `wifi_ssid_guessed`,
+and the Configure step flags the field so the user confirms rather than trusts
+it.
 
 ## Architecture / crates
 
@@ -92,6 +104,22 @@ prompt macOS) · `remote`, `pat` ← typed (PAT never derived).
    runs on a worker thread streaming progress. Verified: card detection on real
    hardware and clone + seed + conf via `--list-cards` / `--dry-run-sd`. Full
    interactive run + real write/eject await a blank card + a TTY.
+**UX pass (2026-07-15).** Applied across the wizard, no new slices:
+- **Full keyboard nav, no arrows required** — `Tab`/`Shift-Tab` move forward/back
+  through fields *and* steps (spilling at the ends), vim `h/j/k/l` on the
+  non-form steps. Arrows still work.
+- **Progress affordances in the sidebar** — steps show `✓` done / `▸` current /
+  dim pending, plus a `move` box (`Tab next` · `⇧Tab back`) and a live gate hint
+  (`fill required` / `write card first` / `→ <next>`), so "when/where can I go"
+  is always visible.
+- **Preflight hides the Mac's own storage** — the SD-card check reports only
+  genuinely removable cards (via `diskutil`), never names `Macintosh HD`; a
+  machine's own disk showing as "available" alarmed users.
+- **Live clone progress bar** — `git clone --progress` is streamed by splitting
+  on `\r`/`\n` (line-buffered reading swallows the in-place ticks) and parsed
+  into a gauge (`Receiving objects  42%`); the scrolling log keeps only the
+  phase-final `done.` lines.
+
 4. **install.sh + release/hosting** — DONE 2026-07-14. Universal macOS binary
    (lipo arm64+x86_64, stripped) published as a public GitHub release on
    `jcalixte/typewriter`, tag `installer-v0.1.0`, with a `.sha256` sidecar.

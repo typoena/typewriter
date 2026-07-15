@@ -30,7 +30,7 @@ impl Step {
         }
     }
 
-    fn index(self) -> usize {
+    pub fn index(self) -> usize {
         Step::ALL.iter().position(|&s| s == self).unwrap_or(0)
     }
 
@@ -65,6 +65,8 @@ pub struct App {
     pub card_sel: usize,
     pub sd: SdState,
     pub sd_log: Vec<String>,
+    /// Latest git-progress tick (phase, 0..=100), driving the SD-step gauge.
+    pub sd_progress: Option<(String, u16)>,
     sd_rx: Option<Receiver<SdEvent>>,
     pub should_quit: bool,
 }
@@ -81,6 +83,7 @@ impl App {
             card_sel: 0,
             sd: SdState::Idle,
             sd_log: Vec::new(),
+            sd_progress: None,
             sd_rx: None,
             should_quit: false,
         }
@@ -100,15 +103,25 @@ impl App {
         }
     }
 
-    /// Non-form steps: single-key navigation.
+    /// Non-form steps: single-key navigation. Arrows, Tab/Shift-Tab, and vim
+    /// h/j/k/l all move between steps so no pointer or arrow key is required.
     fn on_key_nav(&mut self, key: KeyEvent) {
         match key.code {
             KeyCode::Char('q') | KeyCode::Esc => self.should_quit = true,
-            KeyCode::Enter | KeyCode::Tab | KeyCode::Down => self.next(),
-            KeyCode::Up | KeyCode::BackTab => self.prev(),
             KeyCode::Char('r') if self.step == Step::Preflight => {
                 self.preflight = Preflight::run();
             }
+            KeyCode::Enter
+            | KeyCode::Tab
+            | KeyCode::Down
+            | KeyCode::Right
+            | KeyCode::Char('j')
+            | KeyCode::Char('l') => self.next(),
+            KeyCode::Up
+            | KeyCode::BackTab
+            | KeyCode::Left
+            | KeyCode::Char('k')
+            | KeyCode::Char('h') => self.prev(),
             _ => {}
         }
     }
@@ -120,6 +133,7 @@ impl App {
         let last = Field::ALL.len() - 1;
         match key.code {
             KeyCode::Esc => self.should_quit = true,
+            // Shift-Tab / ↑ walk fields up; past the first, back a step.
             KeyCode::Up | KeyCode::BackTab => {
                 if self.focus > 0 {
                     self.focus -= 1;
@@ -127,7 +141,16 @@ impl App {
                     self.prev();
                 }
             }
-            KeyCode::Down | KeyCode::Tab if self.focus < last => self.focus += 1,
+            KeyCode::Down if self.focus < last => self.focus += 1,
+            // Tab walks fields down; past the last, on to the next step — so a
+            // pure Tab/Shift-Tab rhythm carries you through the whole wizard.
+            KeyCode::Tab => {
+                if self.focus < last {
+                    self.focus += 1;
+                } else {
+                    self.next();
+                }
+            }
             KeyCode::Enter => {
                 if self.focus < last {
                     self.focus += 1;
@@ -164,19 +187,24 @@ impl App {
         }
         match key.code {
             KeyCode::Char('q') | KeyCode::Esc => self.should_quit = true,
-            KeyCode::Up | KeyCode::BackTab => {
+            // ↑/k/Shift-Tab walk the card list up; past the top, back a step.
+            KeyCode::Up | KeyCode::BackTab | KeyCode::Char('k') => {
                 if self.card_sel > 0 {
                     self.card_sel -= 1;
                 } else {
                     self.prev();
                 }
             }
-            KeyCode::Down | KeyCode::Tab if self.card_sel + 1 < self.cards.len() => {
+            KeyCode::Down | KeyCode::Char('j') if self.card_sel + 1 < self.cards.len() => {
                 self.card_sel += 1;
             }
+            KeyCode::Tab if self.card_sel + 1 < self.cards.len() => self.card_sel += 1,
+            // ←/h steps back; forward is deliberately gated behind writing a card.
+            KeyCode::Left | KeyCode::Char('h') => self.prev(),
             KeyCode::Char('r') => {
                 self.sd = SdState::Idle;
                 self.sd_log.clear();
+                self.sd_progress = None;
                 self.refresh_cards();
             }
             KeyCode::Enter => self.attempt_provision(),
@@ -186,6 +214,22 @@ impl App {
 
     pub fn focused_field(&self) -> Field {
         Field::ALL[self.focus.min(Field::ALL.len() - 1)]
+    }
+
+    /// Whether the current step's forward gate is satisfied, so Enter/Tab may
+    /// advance. Drives the sidebar's "ready / finish this step" affordance.
+    pub fn forward_open(&self) -> bool {
+        match self.step {
+            Step::Preflight => true, // advisory — never blocks
+            Step::Configure => self.config.missing_required().is_empty(),
+            Step::SdCard => matches!(self.sd, SdState::Done),
+            Step::Done => false,
+        }
+    }
+
+    /// The step a forward move would land on, if any (None on the last step).
+    pub fn next_step(&self) -> Option<Step> {
+        (self.step != Step::Done).then(|| self.step.next())
     }
 
     fn fill_wifi_from_keychain(&mut self) {
@@ -246,6 +290,7 @@ impl App {
         self.sd_rx = Some(rx);
         self.sd = SdState::Running;
         self.sd_log.clear();
+        self.sd_progress = None;
         std::thread::spawn(move || sdcard::run_provision(plan, tx));
     }
 
@@ -258,6 +303,7 @@ impl App {
         loop {
             match rx.try_recv() {
                 Ok(SdEvent::Log(l)) => self.sd_log.push(l),
+                Ok(SdEvent::Progress { phase, pct }) => self.sd_progress = Some((phase, pct)),
                 Ok(SdEvent::Done(r)) => {
                     done = Some(r);
                     break;

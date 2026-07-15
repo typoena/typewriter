@@ -71,14 +71,24 @@ pub struct Config {
     pub pat: String,
     pub author_name: String,
     pub author_email: String,
+    /// The SSID couldn't be read from the live connection (macOS 15+ redacts it
+    /// without Location Services) and was guessed from the preferred-network
+    /// list — the UI flags it so the user confirms rather than trusts it.
+    pub wifi_ssid_guessed: bool,
 }
 
 impl Config {
     /// Pre-fill from this Mac (the derive ladder). The PAT is never derived —
     /// a broad token on plaintext removable media defeats the scoped-token model.
     pub fn derived() -> Self {
+        let dev = wifi_device().unwrap_or_else(|| "en0".to_string());
+        let (wifi_ssid, wifi_ssid_guessed) = match active_wifi_ssid(&dev) {
+            Some(s) => (s, false),
+            None => (preferred_wifi_ssid(&dev).unwrap_or_default(), true),
+        };
         Config {
-            wifi_ssid: active_wifi_ssid().unwrap_or_default(),
+            wifi_ssid_guessed: wifi_ssid_guessed && !wifi_ssid.is_empty(),
+            wifi_ssid,
             wifi_pass: String::new(),
             remote_url: String::new(),
             gh_user: gh_login().unwrap_or_default(),
@@ -150,12 +160,42 @@ fn gh_login() -> Option<String> {
     )
 }
 
-fn active_wifi_ssid() -> Option<String> {
-    // The Wi-Fi device on a Mac is usually en0; ask networksetup for its SSID.
-    // Didn't work, but this command did for me:
-    // networksetup -listpreferredwirelessnetworks en0 | grep -v '^Preferred networks on' | head -1 | xargs
+/// The BSD device (enX) of the Wi-Fi hardware port. Don't assume en0 — Ethernet
+/// Macs, Studios/Pros, and USB dongles put Wi-Fi elsewhere. Falls back to en0.
+fn wifi_device() -> Option<String> {
     let out = Command::new("networksetup")
-        .args(["-getairportnetwork", "en0"])
+        .arg("-listallhardwareports")
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&out.stdout);
+    let mut in_wifi = false;
+    for line in text.lines() {
+        let l = line.trim();
+        if let Some(port) = l.strip_prefix("Hardware Port:") {
+            in_wifi = port.trim().eq_ignore_ascii_case("Wi-Fi");
+        } else if in_wifi && let Some(dev) = l.strip_prefix("Device:") {
+            return Some(dev.trim().to_string());
+        }
+    }
+    None
+}
+
+/// The SSID of the network we're actually joined to, if it can be read. On
+/// macOS 15+ the live SSID is redacted (returns "<redacted>") unless the caller
+/// holds Location Services permission — which a `curl | sh` binary won't — so
+/// this often yields nothing on newer systems; the caller then guesses.
+fn active_wifi_ssid(dev: &str) -> Option<String> {
+    // Pre-Sequoia: networksetup names the joined SSID directly. (On 15+ it just
+    // reports "You are not associated with an AirPort network", parsed as None.)
+    ns_current_ssid(dev).or_else(|| ipconfig_ssid(dev))
+}
+
+fn ns_current_ssid(dev: &str) -> Option<String> {
+    let out = Command::new("networksetup")
+        .args(["-getairportnetwork", dev])
         .output()
         .ok()?;
     if !out.status.success() {
@@ -165,7 +205,50 @@ fn active_wifi_ssid() -> Option<String> {
         .lines()
         .find_map(|l| l.strip_prefix("Current Wi-Fi Network: "))
         .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
+        .filter(|s| is_real_ssid(s))
+}
+
+fn ipconfig_ssid(dev: &str) -> Option<String> {
+    let out = Command::new("ipconfig")
+        .args(["getsummary", dev])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .find_map(|l| {
+            let l = l.trim();
+            let rest = l
+                .strip_prefix("SSID :")
+                .or_else(|| l.strip_prefix("SSID:"))?;
+            Some(rest.trim().to_string())
+        })
+        .filter(|s| is_real_ssid(s))
+}
+
+/// Best-effort GUESS when the live SSID is unreadable. The top of the
+/// preferred-network list is the most-preferred network — usually, but not
+/// always, the one you're on. Never trusted silently: the UI marks it.
+fn preferred_wifi_ssid(dev: &str) -> Option<String> {
+    let out = Command::new("networksetup")
+        .args(["-listpreferredwirelessnetworks", dev])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .map(str::trim)
+        .find(|l| !l.is_empty() && !l.starts_with("Preferred networks on"))
+        .map(str::to_string)
+        .filter(|s| is_real_ssid(s))
+}
+
+fn is_real_ssid(s: &str) -> bool {
+    !s.is_empty() && s != "<redacted>"
 }
 
 /// Look up a saved Wi-Fi password in the System keychain. Pops a macOS auth

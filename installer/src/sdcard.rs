@@ -3,7 +3,7 @@
 //! behaviours of the `just init`/`load` recipes; the repo copy is a fresh clone
 //! from the remote (no rsync / .gitignore excludes / repack — see DESIGN.md).
 
-use std::io::{BufRead, BufReader};
+use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::mpsc::Sender;
@@ -47,6 +47,11 @@ impl Plan {
 
 pub enum SdEvent {
     Log(String),
+    /// A parsed git-progress tick (phase name + 0..=100 percent) driving the gauge.
+    Progress {
+        phase: String,
+        pct: u16,
+    },
     Done(Result<(), String>),
 }
 
@@ -133,32 +138,37 @@ pub fn inspect_card(vol: &Path) -> CardInspect {
     }
 }
 
-/// Run the full provision on a worker thread, streaming progress to `tx`.
+/// Run the full provision on a worker thread, streaming events to `tx`.
 pub fn run_provision(plan: Plan, tx: Sender<SdEvent>) {
-    let mut log = |m: String| {
-        let _ = tx.send(SdEvent::Log(m));
+    let mut emit = |e: SdEvent| {
+        let _ = tx.send(e);
     };
-    let res = provision(&plan, &mut log).map_err(|e| format!("{e:#}"));
+    let res = provision(&plan, &mut emit).map_err(|e| format!("{e:#}"));
     let _ = tx.send(SdEvent::Done(res));
 }
 
-fn provision(plan: &Plan, log: &mut dyn FnMut(String)) -> anyhow::Result<()> {
+fn provision(plan: &Plan, emit: &mut dyn FnMut(SdEvent)) -> anyhow::Result<()> {
     if plan.wipe {
-        wipe_card(&plan.card_volume, log)?;
+        wipe_card(&plan.card_volume, emit)?;
     }
-    clone(&plan.remote, &plan.repo_dir(), &plan.pat, log)?;
-    log("seeding .typoena.toml (if absent)…".into());
+    clone(&plan.remote, &plan.repo_dir(), &plan.pat, emit)?;
+    emit(SdEvent::Log("seeding .typoena.toml (if absent)…".into()));
     seed_prefs(&plan.repo_dir())?;
-    log(format!("writing {}", plan.conf_path().display()));
+    emit(SdEvent::Log(format!(
+        "writing {}",
+        plan.conf_path().display()
+    )));
     std::fs::write(plan.conf_path(), &plan.conf_body).context("writing typoena.conf")?;
-    log("stripping AppleDouble ._ files…".into());
+    emit(SdEvent::Log("stripping AppleDouble ._ files…".into()));
     dot_clean(&plan.card_volume);
-    log("ejecting…".into());
+    emit(SdEvent::Log("ejecting…".into()));
     match eject(&plan.card_volume) {
-        Ok(()) => log("card ejected — remove it and insert into Typoena.".into()),
-        Err(e) => log(format!(
-            "⚠ could not eject ({e}); eject from Finder before removing."
+        Ok(()) => emit(SdEvent::Log(
+            "card ejected — remove it and insert into Typoena.".into(),
         )),
+        Err(e) => emit(SdEvent::Log(format!(
+            "⚠ could not eject ({e}); eject from Finder before removing."
+        ))),
     }
     Ok(())
 }
@@ -166,7 +176,7 @@ fn provision(plan: &Plan, log: &mut dyn FnMut(String)) -> anyhow::Result<()> {
 /// Erase an existing working copy before a re-provision. Only ever removes
 /// `repo/` and the `.typoena-dirty` journal — never the volume itself, `ca.pem`,
 /// or `/local`. The path guard rejects a bogus (root/empty) volume.
-fn wipe_card(vol: &Path, log: &mut dyn FnMut(String)) -> anyhow::Result<()> {
+fn wipe_card(vol: &Path, emit: &mut dyn FnMut(SdEvent)) -> anyhow::Result<()> {
     if !vol.is_dir() || vol.parent().is_none() {
         bail!(
             "refusing to wipe: '{}' is not a mounted volume",
@@ -174,7 +184,7 @@ fn wipe_card(vol: &Path, log: &mut dyn FnMut(String)) -> anyhow::Result<()> {
         );
     }
     let repo = vol.join("repo");
-    log(format!("wiping {} …", repo.display()));
+    emit(SdEvent::Log(format!("wiping {} …", repo.display())));
     if repo.exists() {
         std::fs::remove_dir_all(&repo).with_context(|| format!("removing {}", repo.display()))?;
     }
@@ -185,14 +195,22 @@ fn wipe_card(vol: &Path, log: &mut dyn FnMut(String)) -> anyhow::Result<()> {
 /// Clone `remote` into `dest` with the system git. The PAT (if any) rides in an
 /// HTTP Authorization header, so it never lands in the cloned repo's origin URL
 /// — origin stays the clean HTTPS URL the device authenticates against.
-fn clone(remote: &str, dest: &Path, pat: &str, log: &mut dyn FnMut(String)) -> anyhow::Result<()> {
+fn clone(
+    remote: &str,
+    dest: &Path,
+    pat: &str,
+    emit: &mut dyn FnMut(SdEvent),
+) -> anyhow::Result<()> {
     if dest.exists() {
         bail!(
             "{} already exists — wipe the card first, or use a fresh one",
             dest.display()
         );
     }
-    log(format!("cloning {remote} → {}", dest.display()));
+    emit(SdEvent::Log(format!(
+        "cloning {remote} → {}",
+        dest.display()
+    )));
     let mut cmd = Command::new("git");
     if !pat.is_empty() {
         let token = STANDARD.encode(format!("x-access-token:{pat}"));
@@ -206,19 +224,62 @@ fn clone(remote: &str, dest: &Path, pat: &str, log: &mut dyn FnMut(String)) -> a
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     let mut child = cmd.spawn().context("spawning git (is it installed?)")?;
+    // git writes progress to stderr, updating a line in place with `\r`; only
+    // phase transitions get a `\n`. Splitting on both carriage return and
+    // newline surfaces the live "Receiving objects: 45%" ticks that a
+    // line-buffered reader would swallow until the phase ends.
     if let Some(err) = child.stderr.take() {
-        for line in BufReader::new(err).lines().map_while(Result::ok) {
-            let line = line.trim_end();
-            if !line.is_empty() {
-                log(line.to_string());
+        split_cr_lf(err, &mut |seg: &str| {
+            let seg = seg.trim();
+            if seg.is_empty() {
+                return;
             }
-        }
+            match parse_progress(seg) {
+                Some((phase, pct)) => {
+                    emit(SdEvent::Progress { phase, pct });
+                    // Keep the scrolling log readable: only the phase-final
+                    // "…, done." lines land there; the gauge shows the rest.
+                    if seg.ends_with("done.") {
+                        emit(SdEvent::Log(seg.to_string()));
+                    }
+                }
+                None => emit(SdEvent::Log(seg.to_string())),
+            }
+        });
     }
     let status = child.wait().context("waiting for git clone")?;
     if !status.success() {
         bail!("git clone failed (exit {:?})", status.code());
     }
     Ok(())
+}
+
+/// Feed each `\r`- or `\n`-delimited segment of `reader` to `on_segment`.
+/// git's progress volume is small (kilobytes of text), so byte-wise is fine.
+fn split_cr_lf(reader: impl Read, mut on_segment: impl FnMut(&str)) {
+    let mut buf: Vec<u8> = Vec::new();
+    for b in BufReader::new(reader).bytes().map_while(Result::ok) {
+        if b == b'\r' || b == b'\n' {
+            if !buf.is_empty() {
+                on_segment(&String::from_utf8_lossy(&buf));
+                buf.clear();
+            }
+        } else {
+            buf.push(b);
+        }
+    }
+    if !buf.is_empty() {
+        on_segment(&String::from_utf8_lossy(&buf));
+    }
+}
+
+/// Parse a git progress segment like `Receiving objects:  45% (2345/5210), …`
+/// (optionally `remote: `-prefixed) into its phase name and 0..=100 percent.
+fn parse_progress(seg: &str) -> Option<(String, u16)> {
+    let seg = seg.strip_prefix("remote: ").unwrap_or(seg);
+    let (phase, rest) = seg.split_once(": ")?;
+    let pct: u16 = rest.split('%').next()?.trim().parse().ok()?;
+    (pct <= 100).then(|| (phase.trim().to_string(), pct))
 }
 
 const PREFS_TEMPLATE: &str = "\
@@ -270,15 +331,24 @@ pub fn dry_run(remote: &str, dest: &Path, wipe: bool) -> anyhow::Result<()> {
         conf_body: "# sample typoena.conf (dry run)\nTW_WIFI_SSID=example\n".to_string(),
         wipe,
     };
-    let mut log = |m: String| println!("  {m}");
+    let mut emit = |e: SdEvent| match e {
+        SdEvent::Log(m) => println!("  {m}"),
+        SdEvent::Progress { phase, pct } => println!("  {phase}: {pct}%"),
+        SdEvent::Done(_) => {}
+    };
     if plan.wipe {
-        wipe_card(&plan.card_volume, &mut log)?;
+        wipe_card(&plan.card_volume, &mut emit)?;
     }
-    clone(&plan.remote, &plan.repo_dir(), &plan.pat, &mut log)?;
-    log("seeding .typoena.toml (if absent)…".into());
+    clone(&plan.remote, &plan.repo_dir(), &plan.pat, &mut emit)?;
+    emit(SdEvent::Log("seeding .typoena.toml (if absent)…".into()));
     seed_prefs(&plan.repo_dir())?;
-    log(format!("writing {}", plan.conf_path().display()));
+    emit(SdEvent::Log(format!(
+        "writing {}",
+        plan.conf_path().display()
+    )));
     std::fs::write(plan.conf_path(), &plan.conf_body).context("writing typoena.conf")?;
-    log("dry run complete (no card write, no eject).".into());
+    emit(SdEvent::Log(
+        "dry run complete (no card write, no eject).".into(),
+    ));
     Ok(())
 }
