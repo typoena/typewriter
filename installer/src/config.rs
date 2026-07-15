@@ -49,7 +49,7 @@ impl Field {
             Field::WifiPass => "TW_WIFI_PASS",
             Field::RemoteUrl => "TW_REMOTE_URL",
             Field::GhUser => "TW_GH_USER",
-            Field::Pat => "TW_PAT",
+            Field::Pat => "TW_TOKEN",
             Field::AuthorName => "TW_AUTHOR_NAME",
             Field::AuthorEmail => "TW_AUTHOR_EMAIL",
         }

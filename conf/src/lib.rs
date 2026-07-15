@@ -42,10 +42,7 @@ impl Field {
             Field::WifiPass => "TW_WIFI_PASS",
             Field::RemoteUrl => "TW_REMOTE_URL",
             Field::GhUser => "TW_GH_USER",
-            // Historic spelling, kept for card compatibility (the installer
-            // and firmware/.env both use it). The VALUE is a GitHub App user
-            // token from the device flow; a fine-grained PAT also still works.
-            Field::Token => "TW_PAT",
+            Field::Token => "TW_TOKEN",
             Field::AuthorName => "TW_AUTHOR_NAME",
             Field::AuthorEmail => "TW_AUTHOR_EMAIL",
         }
@@ -133,6 +130,7 @@ impl Conf {
     /// CRLF-edited card still parses.
     pub fn parse(body: &str) -> Conf {
         let mut c = Conf::default();
+        let mut legacy_token = None;
         for line in body.lines() {
             let line = line.strip_suffix('\r').unwrap_or(line);
             if line.trim_start().starts_with('#') {
@@ -142,10 +140,20 @@ impl Conf {
                 continue;
             };
             let key = key.trim();
+            // Legacy alias: pre-rename cards (installer <= 0.3.x, old .env)
+            // wrote the token as TW_PAT. TW_TOKEN wins when both exist.
+            if key == "TW_PAT" {
+                legacy_token = Some(value.to_string());
+            }
             for f in Field::ALL {
                 if f.conf_key() == key {
                     *c.get_mut(f) = value.to_string();
                 }
+            }
+        }
+        if c.token.is_empty() {
+            if let Some(t) = legacy_token {
+                c.token = t;
             }
         }
         c
@@ -157,9 +165,9 @@ impl Conf {
     pub fn render(&self) -> String {
         let mut s = String::new();
         s.push_str("# Typoena runtime config.\n");
-        s.push_str("# Plaintext secrets on removable media: keep the card safe. TW_PAT is a\n");
-        s.push_str("# GitHub-App user token (Sign in with GitHub) or a fine-grained PAT scoped\n");
-        s.push_str("# to contents:write on just the notes repo.\n");
+        s.push_str("# Plaintext secrets on removable media: keep the card safe. TW_TOKEN is\n");
+        s.push_str("# a GitHub-App user token (Sign in with GitHub) or a fine-grained PAT\n");
+        s.push_str("# scoped to contents:write on just the notes repo.\n");
         for f in Field::ALL {
             s.push_str(f.conf_key());
             s.push('=');
@@ -257,6 +265,15 @@ mod tests {
     fn parse_value_verbatim_after_first_equals() {
         let c = Conf::parse("TW_WIFI_PASS= pass=with=equals \n");
         assert_eq!(c.wifi_pass, " pass=with=equals ");
+    }
+
+    #[test]
+    fn parse_reads_legacy_tw_pat_alias() {
+        // Pre-rename cards (installer <= 0.3.x, old .env) wrote TW_PAT.
+        assert_eq!(Conf::parse("TW_PAT=old_tok\n").token, "old_tok");
+        // TW_TOKEN wins when both exist, whatever the order.
+        assert_eq!(Conf::parse("TW_PAT=old\nTW_TOKEN=new\n").token, "new");
+        assert_eq!(Conf::parse("TW_TOKEN=new\nTW_PAT=old\n").token, "new");
     }
 
     #[test]

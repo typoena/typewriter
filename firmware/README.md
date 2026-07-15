@@ -265,11 +265,11 @@ else an interactive prompt with the derived value as the default:
 | `TW_GH_USER`                         | `gh api user`                                             |
 | `TW_WIFI_SSID`                       | the Mac's active Wi-Fi network                            |
 | `TW_WIFI_PASS`                       | the System keychain for that SSID (else prompt)           |
-| `TW_PAT`                             | **never derived** — always typed by hand                  |
+| `TW_TOKEN`                           | **never derived** — sign in with GitHub, or type a token  |
 
 So a first run is usually: `just init ~/code/notes`, press Enter through the
 auto-filled defaults, approve the macOS Keychain dialog for the Wi-Fi password
-(or type it), and paste a fine-grained PAT once. Reading a saved Wi-Fi password
+(or type it), and sign in with GitHub (or paste a fine-grained PAT) once. Reading a saved Wi-Fi password
 triggers a macOS authorization dialog (login password / Touch ID → Allow) —
 that's macOS guarding a System-keychain secret, not something the recipe can
 suppress. Keeping [`.env`](.env.example) populated stays a valid override and
@@ -278,9 +278,10 @@ skips all prompts.
 ### Secrets on the card
 
 FAT has no file permissions, so **physical custody of the card is the only
-control** over the plaintext `TW_PAT`. Scope it to a fine-grained token with
+control** over the plaintext `TW_TOKEN`. The device-flow user token carries
+only the Typoena app's grants; a pasted fine-grained PAT should be scoped with
 `contents:write` on just the notes repo, so a lost card is a one-token revoke.
-The PAT is never derived from `gh auth token` (a broad token on removable media
+The token is never derived from `gh auth token` (a broad token on removable media
 would defeat the point) and never echoed — the recipes report each value only as
 `set` / `MISSING`.
 

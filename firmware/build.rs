@@ -38,13 +38,21 @@ fn main() {
         "TW_WIFI_PASS",
         "TW_REMOTE_URL",
         "TW_GH_USER",
-        "TW_PAT",
+        "TW_TOKEN",
+        "TW_PAT", // legacy spelling — kept so the spike bins still compile
         "TW_AUTHOR_NAME",
         "TW_AUTHOR_EMAIL",
     ] {
         let val = std::env::var(var).unwrap_or_default();
         println!("cargo:rustc-env={var}={val}");
         println!("cargo:rerun-if-env-changed={var}");
+    }
+    // The product firmware reads TW_TOKEN; honor a legacy TW_PAT-only .env by
+    // re-emitting it under the new name (an explicit TW_TOKEN wins above).
+    if std::env::var("TW_TOKEN").map_or(true, |v| v.is_empty()) {
+        if let Ok(legacy) = std::env::var("TW_PAT") {
+            println!("cargo:rustc-env=TW_TOKEN={legacy}");
+        }
     }
 
     // A git-feature build with an empty publish config used to be refused here
@@ -56,9 +64,12 @@ fn main() {
     // needs a provisioned card. Warn instead of panic: the dev-flash foot-gun
     // stays visible, the card-provisioned path stays buildable.
     if std::env::var("CARGO_FEATURE_GIT").is_ok() {
-        let missing: Vec<&str> = ["TW_WIFI_SSID", "TW_REMOTE_URL", "TW_GH_USER", "TW_PAT"]
+        let missing: Vec<&str> = ["TW_WIFI_SSID", "TW_REMOTE_URL", "TW_GH_USER", "TW_TOKEN"]
             .into_iter()
-            .filter(|v| std::env::var(v).map_or(true, |val| val.is_empty()))
+            .filter(|v| {
+                let set = |k: &str| std::env::var(k).is_ok_and(|val| !val.is_empty());
+                !set(v) && !(*v == "TW_TOKEN" && set("TW_PAT"))
+            })
             .collect();
         if !missing.is_empty() {
             println!(

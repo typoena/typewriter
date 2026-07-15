@@ -65,8 +65,7 @@ const BAKED_WIFI_SSID: &str = env!("TW_WIFI_SSID");
 const BAKED_WIFI_PASS: &str = env!("TW_WIFI_PASS");
 const BAKED_REMOTE_URL: &str = env!("TW_REMOTE_URL");
 const BAKED_GH_USER: &str = env!("TW_GH_USER");
-// TW_PAT: historic env/key spelling; the value is a GitHub App user token.
-const BAKED_TOKEN: &str = env!("TW_PAT");
+const BAKED_TOKEN: &str = env!("TW_TOKEN");
 const BAKED_AUTHOR_NAME: &str = env!("TW_AUTHOR_NAME");
 const BAKED_AUTHOR_EMAIL: &str = env!("TW_AUTHOR_EMAIL");
 
@@ -410,8 +409,7 @@ fn ensure_online(
     tls_ready: &mut bool,
 ) -> Result<()> {
     // Bring Wi-Fi up once (on-demand: the radio stays off until the first use).
-    let mut wifi_ms = 0u128;
-    if wifi.is_none() {
+    let wifi_ms = if wifi.is_none() {
         let t = Instant::now();
         log::info!("first git op — bringing Wi-Fi up; free heap {}", free_heap());
         let m = modem.take().expect("modem taken once");
@@ -424,22 +422,26 @@ fn ensure_online(
         let ip = w.wifi().sta_netif().get_ip_info()?;
         log::info!("Wi-Fi up — IP {}", ip.ip);
         *wifi = Some(w);
-        wifi_ms = t.elapsed().as_millis();
-    }
-    let mut clock_ms = 0u128;
-    if !*clock_synced {
+        t.elapsed().as_millis()
+    } else {
+        0u128
+    };
+    let clock_ms = if !*clock_synced {
         let t = Instant::now();
         sync_clock()?;
         *clock_synced = true;
-        clock_ms = t.elapsed().as_millis();
-    }
-    let mut tls_ms = 0u128;
-    if !*tls_ready {
+        t.elapsed().as_millis()
+    } else {
+        0
+    };
+    let tls_ms = if !*tls_ready {
         let t = Instant::now();
         install_tls_trust_store()?;
         *tls_ready = true;
-        tls_ms = t.elapsed().as_millis();
-    }
+        t.elapsed().as_millis()
+    } else {
+        0
+    };
     if wifi_ms + clock_ms + tls_ms > 0 {
         log::info!("online — wifi {wifi_ms}ms, clock {clock_ms}ms, tls {tls_ms}ms");
     }
@@ -1187,17 +1189,16 @@ fn rebase_local_onto(repo: &Repository, head: Oid, theirs: Oid) -> Result<Oid> {
     let diff = repo
         .diff_tree_to_tree(Some(&base_tree), Some(&head_tree), None)
         .context("diffing merge-base..HEAD for the replay set")?;
-    let mut paths: BTreeSet<String> = BTreeSet::new();
-    for d in diff.deltas() {
-        if let Some(rel) = d
-            .new_file()
-            .path()
-            .or_else(|| d.old_file().path())
-            .and_then(|p| p.to_str())
-        {
-            paths.insert(rel.to_string());
-        }
-    }
+    let paths: BTreeSet<String> = diff
+        .deltas()
+        .filter_map(|d| {
+            d.new_file()
+                .path()
+                .or_else(|| d.old_file().path())
+                .and_then(|p| p.to_str())
+                .map(str::to_string)
+        })
+        .collect();
 
     let mut tree = their_tree;
     for path in &paths {
