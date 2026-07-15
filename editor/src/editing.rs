@@ -389,16 +389,18 @@ impl Editor {
         let ls = self.line_start(self.caret);
         let le = self.line_end(self.caret);
         let quotes: Vec<usize> = (ls..le).filter(|&i| b[i] == q).collect();
-        // Pair them left-to-right; take the first pair closing at/after the caret.
-        let mut k = 0;
-        while k + 1 < quotes.len() {
-            let (a, z) = (quotes[k], quotes[k + 1]);
-            if self.caret <= z {
-                return Some(if around { (a, z + 1) } else { (a + 1, z) });
-            }
-            k += 2;
-        }
-        None
+        // Pair them left-to-right; take the first pair closing at/after the
+        // caret (a trailing unpaired quote falls off `chunks_exact`).
+        quotes
+            .chunks_exact(2)
+            .find(|pair| self.caret <= pair[1])
+            .map(|pair| {
+                if around {
+                    (pair[0], pair[1] + 1)
+                } else {
+                    (pair[0] + 1, pair[1])
+                }
+            })
     }
 
     /// Insert-mode Ctrl+W / Ctrl+Backspace: delete the word before the caret.

@@ -178,14 +178,9 @@ impl Editor {
     /// (display cells) from the row's start, not a byte offset, so it is correct
     /// for multi-byte characters and indexes `Line.text` via `chars().nth`.
     pub(crate) fn caret_rc(&self, lay: &[Line]) -> (usize, usize) {
-        let mut row = 0;
-        for (i, l) in lay.iter().enumerate() {
-            if l.start <= self.caret {
-                row = i;
-            } else {
-                break;
-            }
-        }
+        // `lay` is sorted by `start`: the caret's row is the last line at or
+        // before it.
+        let row = lay.iter().rposition(|l| l.start <= self.caret).unwrap_or(0);
         let col = self.text[lay[row].start..self.caret].chars().count();
         (row, col)
     }
@@ -203,14 +198,7 @@ impl Editor {
             return;
         }
         let pos = pos.min(self.text.len());
-        let mut row = 0;
-        for (i, l) in lay.iter().enumerate() {
-            if l.start <= pos {
-                row = i;
-            } else {
-                break;
-            }
-        }
+        let row = lay.iter().rposition(|l| l.start <= pos).unwrap_or(0);
         if row >= self.scroll_top + ROWS {
             self.scroll_top = row + 1 - ROWS;
         }

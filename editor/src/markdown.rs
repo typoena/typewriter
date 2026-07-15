@@ -168,26 +168,27 @@ pub(crate) fn format_table(block: &[String]) -> Vec<String> {
     }
     let align_of = |ci: usize| aligns.get(ci).copied().unwrap_or(Align::None);
 
-    let mut out = Vec::with_capacity(rows.len());
-    for (ri, row) in rows.iter().enumerate() {
-        let cells: Vec<String> = (0..ncols)
-            .map(|ci| {
-                let w = width[ci];
-                if ri == 1 {
-                    match align_of(ci) {
-                        Align::Left => format!(":{}", "-".repeat(w - 1)),
-                        Align::Right => format!("{}:", "-".repeat(w - 1)),
-                        Align::Center => format!(":{}:", "-".repeat(w - 2)),
-                        Align::None => "-".repeat(w),
+    rows.iter()
+        .enumerate()
+        .map(|(ri, row)| {
+            let cells: Vec<String> = (0..ncols)
+                .map(|ci| {
+                    let w = width[ci];
+                    if ri == 1 {
+                        match align_of(ci) {
+                            Align::Left => format!(":{}", "-".repeat(w - 1)),
+                            Align::Right => format!("{}:", "-".repeat(w - 1)),
+                            Align::Center => format!(":{}:", "-".repeat(w - 2)),
+                            Align::None => "-".repeat(w),
+                        }
+                    } else {
+                        pad_cell(row.get(ci).map(String::as_str).unwrap_or(""), w, align_of(ci))
                     }
-                } else {
-                    pad_cell(row.get(ci).map(String::as_str).unwrap_or(""), w, align_of(ci))
-                }
-            })
-            .collect();
-        out.push(format!("| {} |", cells.join(" | ")));
-    }
-    out
+                })
+                .collect();
+            format!("| {} |", cells.join(" | "))
+        })
+        .collect()
 }
 
 /// Pad `cell` to `w` columns per `align` (left/none pad right, right pads left,
@@ -223,18 +224,15 @@ impl Editor {
         self.caret = if target == 0 {
             0
         } else {
-            let mut seen = 0;
-            let mut off = self.text.len();
-            for (i, b) in self.text.bytes().enumerate() {
-                if b == b'\n' {
-                    seen += 1;
-                    if seen == target {
-                        off = i + 1;
-                        break;
-                    }
-                }
-            }
-            off
+            // Byte after the `target`-th newline; end of buffer if there are
+            // fewer newlines than that.
+            self.text
+                .bytes()
+                .enumerate()
+                .filter(|&(_, b)| b == b'\n')
+                .nth(target - 1)
+                .map(|(i, _)| i + 1)
+                .unwrap_or(self.text.len())
         };
     }
 

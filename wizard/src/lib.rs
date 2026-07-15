@@ -301,9 +301,9 @@ impl Wizard {
                 } else {
                     Screen::RepoLoading
                 };
-                let mut fx = vec![Effect::WriteConf(self.conf.clone())];
-                fx.extend(self.pending());
-                fx
+                std::iter::once(Effect::WriteConf(self.conf.clone()))
+                    .chain(self.pending())
+                    .collect()
             }
             Event::WifiFailed(reason) => {
                 self.notice = Some(format!("could not join: {reason}"));
@@ -339,9 +339,9 @@ impl Wizard {
                     email
                 };
                 self.screen = Screen::RepoLoading;
-                let mut fx = vec![Effect::WriteConf(self.conf.clone())];
-                fx.extend(self.pending());
-                fx
+                std::iter::once(Effect::WriteConf(self.conf.clone()))
+                    .chain(self.pending())
+                    .collect()
             }
             Event::AuthFailed(reason) => {
                 self.notice = Some(format!("sign-in failed: {reason}"));

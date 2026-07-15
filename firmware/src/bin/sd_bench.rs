@@ -244,19 +244,15 @@ fn find_pack() -> Result<Option<String>> {
     let Ok(entries) = fs::read_dir("/sd/repo/.git/objects/pack") else {
         return Ok(None);
     };
-    let mut best: Option<(u64, String)> = None;
-    for e in entries.flatten() {
-        let p = e.path();
-        let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
-        if name.starts_with("._") || !name.ends_with(".pack") {
-            continue;
-        }
-        let len = fs::metadata(&p).map(|m| m.len()).unwrap_or(0);
-        if best.as_ref().is_none_or(|(l, _)| len > *l) {
-            best = Some((len, p.to_string_lossy().into_owned()));
-        }
-    }
-    Ok(best.map(|(_, p)| p))
+    Ok(entries
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| {
+            let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            !name.starts_with("._") && name.ends_with(".pack")
+        })
+        .max_by_key(|p| fs::metadata(p).map(|m| m.len()).unwrap_or(0))
+        .map(|p| p.to_string_lossy().into_owned()))
 }
 
 /// `fs::remove_dir_all` replacement: std's version trusts the dirent file

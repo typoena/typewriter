@@ -639,11 +639,13 @@ impl App {
                 Ok(AuthEvent::Done(result)) => {
                     self.auth = AuthState::Idle;
                     self.auth_cancel = None;
-                    let mut signed_in = false;
                     self.status = Some(match result {
                         Ok(t) => {
-                            signed_in = true;
                             self.config.pat = t.access_token;
+                            // Probe access right away (no-op until the remote is
+                            // set) so the not-installed case flags at Configure
+                            // instead of 403ing at the clone.
+                            self.spawn_repo_check(false);
                             match t.expires_in {
                                 // Expiry ON in the app settings: still works, but
                                 // worth flagging — the device's push dies with it.
@@ -656,12 +658,6 @@ impl App {
                         }
                         Err(e) => format!("sign-in failed: {e}"),
                     });
-                    if signed_in {
-                        // Probe access right away (no-op until the remote is
-                        // set) so the not-installed case flags at Configure
-                        // instead of 403ing at the clone.
-                        self.spawn_repo_check(false);
-                    }
                     return; // auth rx drops: the flow is over
                 }
                 Err(TryRecvError::Empty) => break,

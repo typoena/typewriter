@@ -130,11 +130,7 @@ impl Decoder {
             self.caps_used = false;
         }
 
-        let mut next = [0u8; 6];
-        for (slot, &k) in next.iter_mut().zip(current.iter()) {
-            *slot = k;
-        }
-        self.prev = next;
+        self.prev = core::array::from_fn(|i| current.get(i).copied().unwrap_or(0));
     }
 }
 

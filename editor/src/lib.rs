@@ -707,18 +707,15 @@ impl Editor {
                 'c' if op == Op::Change => self.change_current_line(),
                 'y' if op == Op::Yank => self.register_lines(n), // `yy` — caret stays put
                 'w' => {
-                    let mut t = self.caret;
-                    (0..n).for_each(|_| t = self.word_forward_pos(t));
+                    let t = (0..n).fold(self.caret, |t, _| self.word_forward_pos(t));
                     self.apply_op(op, self.caret, t);
                 }
                 'b' => {
-                    let mut t = self.caret;
-                    (0..n).for_each(|_| t = self.word_back_pos(t));
+                    let t = (0..n).fold(self.caret, |t, _| self.word_back_pos(t));
                     self.apply_op(op, self.caret, t);
                 }
                 'e' => {
-                    let mut t = self.caret;
-                    (0..n).for_each(|_| t = self.word_end_pos(t));
+                    let t = (0..n).fold(self.caret, |t, _| self.word_end_pos(t));
                     // Inclusive of the last char: end the range past it.
                     self.apply_op(op, self.caret, self.next_char(t));
                 }

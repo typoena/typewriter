@@ -58,35 +58,35 @@ pub enum SdEvent {
 /// Detect removable/SD volumes under /Volumes (via diskutil). Mirrors the
 /// justfile `_card` heuristics; the internal boot disk never matches.
 pub fn detect_cards() -> Vec<Card> {
-    let mut out = Vec::new();
     let Ok(rd) = std::fs::read_dir("/Volumes") else {
-        return out;
+        return Vec::new();
     };
-    for entry in rd.flatten() {
-        let vol = entry.path();
-        if !vol.is_dir() {
-            continue;
-        }
-        let info = match Command::new("diskutil").arg("info").arg(&vol).output() {
-            Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).into_owned(),
-            _ => continue,
-        };
-        if !is_removable(&info) {
-            continue;
-        }
-        let fs = field(&info, "File System Personality").unwrap_or_default();
-        let up = fs.to_uppercase();
-        out.push(Card {
-            name: vol
-                .file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-                .unwrap_or_default(),
-            fat: up.contains("FAT") || up.contains("MS-DOS"),
-            fs,
-            volume: vol,
-        });
-    }
-    out
+    rd.flatten()
+        .filter_map(|entry| {
+            let vol = entry.path();
+            if !vol.is_dir() {
+                return None;
+            }
+            let info = match Command::new("diskutil").arg("info").arg(&vol).output() {
+                Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).into_owned(),
+                _ => return None,
+            };
+            if !is_removable(&info) {
+                return None;
+            }
+            let fs = field(&info, "File System Personality").unwrap_or_default();
+            let up = fs.to_uppercase();
+            Some(Card {
+                name: vol
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default(),
+                fat: up.contains("FAT") || up.contains("MS-DOS"),
+                fs,
+                volume: vol,
+            })
+        })
+        .collect()
 }
 
 fn is_removable(info: &str) -> bool {
