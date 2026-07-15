@@ -9,3 +9,7 @@ conf = { path = "../conf" }
 keymap = { path = "../keymap" }
 display = { path = "../display" }
 embedded-graphics = "0.8"
+# QR modules for the device-flow verification URI (pure Rust, zero deps).
+qrcodegen = "1.8"
+# GET /user is the one JSON reply in the flow (already in the tree via editor).
+serde_json = "1"

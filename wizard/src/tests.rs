@@ -170,10 +170,10 @@ fn auth_failure_restarts_flow_and_esc_requests_fresh_code() {
         c
     });
     assert_eq!(w.pending(), Some(Effect::StartAuth));
-    assert_eq!(
-        w.event(Event::AuthFailed("expired".into())),
-        vec![Effect::StartAuth]
-    );
+    // A failure parks on the retry screen (no auto-retry loop) until Enter.
+    assert_eq!(w.event(Event::AuthFailed("expired".into())), vec![]);
+    assert!(w.key(Key::Char('x')).is_empty()); // random keys don't retry
+    assert_eq!(w.key(Key::Enter), vec![Effect::StartAuth]);
     w.event(Event::AuthCode {
         verification_uri: "https://github.com/login/device".into(),
         user_code: "ABCD-1234".into(),
@@ -216,6 +216,24 @@ fn backspace_past_empty_password_returns_to_ssid() {
 }
 
 #[test]
+fn repos_failure_parks_then_enter_retries_and_backspace_edits_wifi() {
+    let mut w = Wizard::resume({
+        let mut c = conf::Conf::default();
+        c.wifi_ssid = "MyNet".into();
+        c.token = "ghu_tok".into();
+        c
+    });
+    assert_eq!(w.pending(), Some(Effect::FetchRepos));
+    assert_eq!(w.event(Event::ReposFailed("500".into())), vec![]);
+    assert_eq!(w.key(Key::Enter), vec![Effect::FetchRepos]);
+    // And the auth-retry escape hatch back to Wi-Fi:
+    w.event(Event::AuthFailed("dead network".into()));
+    assert!(w.key(Key::Backspace).is_empty());
+    // Now editing the SSID again.
+    assert!(w.key(Key::Char('X')).is_empty());
+}
+
+#[test]
 fn clone_failure_reloads_the_list() {
     let mut w = Wizard::first_boot();
     w.event(Event::Repos(repos()));
@@ -225,6 +243,38 @@ fn clone_failure_reloads_the_list() {
         w.event(Event::CloneFailed("TLS".into())),
         vec![Effect::FetchRepos]
     );
+}
+
+/// The QR screen really draws modules into the reserved square (the encoder
+/// ran and the scale fit), and the quiet zone above the QR stays white.
+#[test]
+fn qr_renders_modules() {
+    let mut w = Wizard::resume({
+        let mut c = conf::Conf::default();
+        c.wifi_ssid = "MyNet".into();
+        c
+    });
+    w.event(Event::AuthCode {
+        verification_uri: "https://github.com/login/device".into(),
+        user_code: "ABCD-1234".into(),
+    });
+    let mut f = Frame::new_white();
+    w.draw_into(&mut f);
+    // The 200px box sits at x = WIDTH-200, y = 40. Any non-white byte in its
+    // row band beyond the text column proves modules landed.
+    let x_byte0 = (display::WIDTH as usize - 200) / 8;
+    let inked = (40..240)
+        .flat_map(|y| (x_byte0..display::FB_BYTES_W).map(move |xb| (y, xb)))
+        .filter(|(y, xb)| f.bytes()[y * display::FB_BYTES_W + xb] != 0xFF)
+        .count();
+    assert!(inked > 50, "expected QR modules in the box, found {inked} inked bytes");
+    // Top rows of the panel above the box (y < 8) stay white in that column
+    // band — the quiet zone / layout didn't smear upward.
+    let smear = (0..8)
+        .flat_map(|y| (x_byte0..display::FB_BYTES_W).map(move |xb| (y, xb)))
+        .filter(|(y, xb)| f.bytes()[y * display::FB_BYTES_W + xb] != 0xFF)
+        .count();
+    assert_eq!(smear, 0);
 }
 
 /// Every screen renders without panicking (layout arithmetic guard).

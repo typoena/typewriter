@@ -27,6 +27,8 @@ use embedded_graphics::{
 };
 use keymap::Key;
 
+pub mod github;
+
 /// Repos larger than this are refused on-device: libgit2 has no partial
 /// clone, so tip media would be downloaded whole (see the spec's size gate).
 pub const SIZE_GATE_KB: u64 = 30 * 1024;
@@ -101,8 +103,14 @@ enum Screen {
         verification_uri: String,
         user_code: String,
     },
+    /// Sign-in failed (transport, denied, expired). Waits for the user —
+    /// auto-retrying here would spin the radio and the panel forever on a
+    /// dead network. Enter retries; Backspace goes back to Wi-Fi.
+    AuthRetry,
     /// Waiting on `FetchRepos`.
     RepoLoading,
+    /// Repo listing failed; Enter retries the fetch.
+    RepoRetry,
     /// Picking from the (filtered) list. `refused` holds a size-gate message
     /// for the last attempted pick.
     RepoPick {
@@ -217,6 +225,24 @@ impl Wizard {
             }
             // Waiting screens ignore keys (the driver owns the outcome)…
             Screen::WifiTesting | Screen::AuthStarting | Screen::RepoLoading => vec![],
+            Screen::AuthRetry => match k {
+                Key::Enter => {
+                    self.screen = Screen::AuthStarting;
+                    self.pending().into_iter().collect()
+                }
+                Key::Backspace => {
+                    self.screen = Screen::WifiEdit { field: 0 };
+                    vec![]
+                }
+                _ => vec![],
+            },
+            Screen::RepoRetry => match k {
+                Key::Enter => {
+                    self.screen = Screen::RepoLoading;
+                    self.pending().into_iter().collect()
+                }
+                _ => vec![],
+            },
             // …except the QR screen: Escape restarts the flow (a new code) if
             // the phone step went sideways.
             Screen::AuthCodeShown { .. } => {
@@ -345,8 +371,8 @@ impl Wizard {
             }
             Event::AuthFailed(reason) => {
                 self.notice = Some(format!("sign-in failed: {reason}"));
-                self.screen = Screen::AuthStarting;
-                self.pending().into_iter().collect()
+                self.screen = Screen::AuthRetry;
+                vec![]
             }
             Event::Repos(repos) => {
                 self.screen = Screen::RepoPick {
@@ -358,12 +384,9 @@ impl Wizard {
                 vec![]
             }
             Event::ReposFailed(reason) => {
-                // Listing needs the network + token — both just verified, so
-                // treat a failure as transient and let the user retry via a
-                // fresh sign-in (Escape-like restart keeps it simple).
                 self.notice = Some(format!("listing repos failed: {reason}"));
-                self.screen = Screen::AuthStarting;
-                self.pending().into_iter().collect()
+                self.screen = Screen::RepoRetry;
+                vec![]
             }
             Event::CloneProgress(line) => {
                 if let Screen::Cloning { progress } = &mut self.screen {
@@ -445,8 +468,8 @@ impl Wizard {
                 line(f, 2, "  on your phone, open:", ink);
                 line(f, 3, &format!("  {verification_uri}"), ink);
                 line(f, 5, "  and enter this code:", ink);
-                // The code, inverted for weight (QR render lands in slice 3 —
-                // reserved square on the right).
+                // The code, inverted for weight; the QR (the verification URI)
+                // on the right — scan, tap approve, done.
                 let code = format!(" {user_code} ");
                 let cw = (code.chars().count() as i32) * 10;
                 let _ = Rectangle::new(Point::new(28, 8 + 6 * 24), Size::new(cw as u32, 20))
@@ -454,14 +477,22 @@ impl Wizard {
                     .draw(f);
                 let _ = Text::with_baseline(&code, Point::new(28, 8 + 6 * 24), inv, Baseline::Top)
                     .draw(f);
-                let _ = Rectangle::new(Point::new(w - 200, 40), Size::new(160, 160))
-                    .into_styled(PrimitiveStyle::with_stroke(BinaryColor::On, 1))
-                    .draw(f);
+                draw_qr(f, verification_uri, w - 200, 40, 200);
                 hint(f, "waiting for the approval - Esc for a fresh code");
+            }
+            Screen::AuthRetry => {
+                line(f, 0, "Sign in with GitHub", ink);
+                line(f, 2, "  the sign-in did not complete.", ink);
+                hint(f, "Enter retries - Backspace edits Wi-Fi");
             }
             Screen::RepoLoading => {
                 line(f, 0, "Pick your notes repo", ink);
                 line(f, 2, "  listing your repos...", ink);
+            }
+            Screen::RepoRetry => {
+                line(f, 0, "Pick your notes repo", ink);
+                line(f, 2, "  the repo list did not load.", ink);
+                hint(f, "Enter retries");
             }
             Screen::RepoPick {
                 repos,
@@ -514,6 +545,38 @@ impl Wizard {
                 Baseline::Top,
             )
             .draw(f);
+        }
+    }
+}
+
+/// Draw `text` as a QR code filling a `box_px`-sized square at (x0, y0),
+/// centered, with the mandatory 4-module quiet zone (the surrounding white
+/// frame a scanner needs). The 1-bit panel is a natural QR surface; modules
+/// are `scale`-px filled rects. Encoding a short URI can't fail; if it ever
+/// does (or the box can't fit the version), the box stays blank and the
+/// user code + URL text beside it still carry the flow.
+fn draw_qr(f: &mut Frame, text: &str, x0: i32, y0: i32, box_px: i32) {
+    let Ok(qr) = qrcodegen::QrCode::encode_text(text, qrcodegen::QrCodeEcc::Medium) else {
+        return;
+    };
+    let size = qr.size(); // modules per side
+    let scale = box_px / (size + 8); // 4-module quiet zone each side
+    if scale < 2 {
+        return; // too dense to scan at this box size — text fallback remains
+    }
+    let total = size * scale;
+    let ox = x0 + (box_px - total) / 2;
+    let oy = y0 + (box_px - total) / 2;
+    for my in 0..size {
+        for mx in 0..size {
+            if qr.get_module(mx, my) {
+                let _ = Rectangle::new(
+                    Point::new(ox + mx * scale, oy + my * scale),
+                    Size::new(scale as u32, scale as u32),
+                )
+                .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
+                .draw(f);
+            }
         }
     }
 }
