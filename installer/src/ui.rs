@@ -7,7 +7,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, Gauge, List, ListItem, Paragraph, Wrap},
+    widgets::{Block, BorderType, Gauge, List, ListItem, Paragraph, Wrap},
 };
 
 use crate::app::{App, AuthState, Busy, RepoCheck, SdState, Step};
@@ -30,7 +30,7 @@ fn busy_line(app: &App, label: &str) -> Line<'static> {
 
 pub fn render(frame: &mut Frame, app: &App) {
     let [header, body, footer] = Layout::vertical([
-        Constraint::Length(4),
+        Constraint::Length(EINK_BOX_H + 2), // device-screen box + 1 row margin each side
         Constraint::Min(0),
         Constraint::Length(1),
     ])
@@ -54,6 +54,13 @@ const TAGLINE: &str = "A distraction-free writing machine.";
 const KEY_MS: u128 = 150;
 /// How long the caret blinks after both lines are typed, before it settles.
 const BLINK_MS: u128 = 10_000;
+
+/// The device's e-ink panel is GDEY0579T93, 792×272 px — a landscape strip of
+/// ~2.9:1. A monospace cell is roughly twice as tall as it is wide, so to
+/// reproduce that shape on screen the box's cols:rows must be ~2× wider, ≈5.8:1.
+/// 41×7 lands at ~2.93:1 and leaves the 35-char tagline room to breathe.
+const EINK_BOX_W: u16 = 41;
+const EINK_BOX_H: u16 = 7;
 
 /// One centred line of the header: `text[..shown]` in `style`, a caret cell at
 /// the cursor position (reverse-video when `caret` is lit), then padding out to
@@ -99,25 +106,47 @@ fn render_header(frame: &mut Frame, area: Rect, app: &App) {
     // name is complete), so there's only ever one caret on screen.
     let on_name = typed < NAME.len();
 
-    let lines = vec![
-        Line::from(""), // top margin
+    // Center a panel-proportioned box in the header band. Clamp to the band so a
+    // narrow terminal frames a smaller strip rather than overflowing.
+    let w = EINK_BOX_W.min(area.width);
+    let h = EINK_BOX_H.min(area.height);
+    let screen = Rect {
+        x: area.x + area.width.saturating_sub(w) / 2,
+        y: area.y + area.height.saturating_sub(h) / 2,
+        width: w,
+        height: h,
+    };
+    // The bezel: a rounded frame, softer than the plain-bordered panels below,
+    // so the header reads as the device's screen rather than another pane.
+    let bezel = Block::bordered()
+        .border_type(BorderType::Rounded)
+        .border_style(Style::new().fg(Color::DarkGray));
+    let inner = bezel.inner(screen);
+    frame.render_widget(bezel, screen);
+
+    // The name and tagline, vertically centered inside the screen — the two
+    // lines the device itself would show, typed out one caret at a time.
+    let content = vec![
         typed_line(
             NAME,
             name_shown,
             Style::new().add_modifier(Modifier::BOLD),
             lit && on_name,
         ),
+        Line::from(""),
         typed_line(
             TAGLINE,
             tag_shown,
             Style::new().fg(Color::DarkGray),
             lit && !on_name,
         ),
-        Line::from(""), // bottom margin
     ];
+    let top_pad = (inner.height as usize).saturating_sub(content.len()) / 2;
+    let mut lines = vec![Line::from(""); top_pad];
+    lines.extend(content);
     frame.render_widget(
         Paragraph::new(Text::from(lines)).alignment(Alignment::Center),
-        area,
+        inner,
     );
 }
 
