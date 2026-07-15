@@ -1,0 +1,7 @@
+[package]
+name = "conf"
+version = "0.1.0"
+edition = "2021"
+description = "The typoena.conf device-config schema (the seven TW_* keys): KEY=value parse/render plus remote-URL shorthand expansion. Shared source of truth for the firmware's runtime loader and the on-device wizard; ported from installer/src/config.rs, which should eventually consume this crate too. No deps, host-testable."
+
+[dependencies]
