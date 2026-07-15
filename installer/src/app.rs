@@ -164,6 +164,35 @@ impl App {
             return;
         }
         self.status = None;
+        // Ctrl-N / Ctrl-P jump a whole step from anywhere, independent of the
+        // in-step field/card focus (Tab only spills at the ends). Back is always
+        // safe; forward respects the same gate as the per-step forward keys — so
+        // on the SD step (forward is earned by writing the card) ^N refuses and
+        // says why via the status snackbar. Suppressed while the SD step owns a
+        // modal (a running write, or the wipe-confirm), where leaving is wrong —
+        // those keys fall through to the SD handler, which ignores them.
+        let sd_modal = self.step == Step::SdCard
+            && matches!(self.sd, SdState::Running | SdState::ConfirmWipe(_));
+        if !sd_modal && key.modifiers.contains(KeyModifiers::CONTROL) {
+            match key.code {
+                KeyCode::Char('p') => {
+                    self.prev();
+                    return;
+                }
+                KeyCode::Char('n') => {
+                    match self.step {
+                        Step::SdCard => {
+                            self.status =
+                                Some("write the card to finish this step — ^P steps back".into());
+                        }
+                        Step::Done => {} // last step — nowhere forward to go
+                        _ => self.next(),
+                    }
+                    return;
+                }
+                _ => {}
+            }
+        }
         match self.step {
             Step::Configure => self.on_key_configure(key),
             Step::SdCard => self.on_key_sdcard(key),
@@ -485,5 +514,57 @@ impl App {
         if self.step == Step::SdCard && matches!(self.sd, SdState::Idle) {
             self.begin_detect_cards();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ctrl(c: char) -> KeyEvent {
+        KeyEvent::new(KeyCode::Char(c), KeyModifiers::CONTROL)
+    }
+
+    /// An app parked past startup, so no background task owns input.
+    fn idle_app() -> App {
+        let mut app = App::new();
+        app.busy = Busy::None;
+        app
+    }
+
+    #[test]
+    fn ctrl_n_advances_a_whole_step() {
+        let mut app = idle_app();
+        assert!(app.step == Step::Preflight);
+        app.on_key(ctrl('n'));
+        assert!(app.step == Step::Configure);
+    }
+
+    #[test]
+    fn ctrl_p_steps_back_ignoring_field_focus() {
+        let mut app = idle_app();
+        app.step = Step::Configure;
+        app.focus = 2; // mid-form: a whole-step jump must not walk fields first
+        app.on_key(ctrl('p'));
+        assert!(app.step == Step::Preflight);
+    }
+
+    #[test]
+    fn ctrl_n_on_sd_warns_and_holds() {
+        let mut app = idle_app();
+        app.step = Step::SdCard; // set directly: no on_enter, so no card scan spawns
+        app.sd = SdState::Idle;
+        app.on_key(ctrl('n'));
+        assert!(app.step == Step::SdCard, "the write-gated step must not advance");
+        assert!(app.status.is_some(), "a snackbar warning should be shown");
+    }
+
+    #[test]
+    fn ctrl_p_ignored_while_card_is_writing() {
+        let mut app = idle_app();
+        app.step = Step::SdCard;
+        app.sd = SdState::Running;
+        app.on_key(ctrl('p'));
+        assert!(app.step == Step::SdCard, "must not leave a running write");
     }
 }
