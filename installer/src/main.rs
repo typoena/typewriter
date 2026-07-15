@@ -36,7 +36,7 @@ fn main() -> anyhow::Result<()> {
             .filter(|a| !a.starts_with("--"))
             .cloned()
             .collect();
-        let remote = positionals.first().cloned().unwrap_or_default();
+        let remote = config::expand_remote_url(&positionals.first().cloned().unwrap_or_default());
         if remote.is_empty() {
             anyhow::bail!("usage: --dry-run-sd <remote-url> [dest-dir] [--wipe]");
         }

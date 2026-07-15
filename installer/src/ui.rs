@@ -351,6 +351,16 @@ fn render_configure(frame: &mut Frame, area: Rect, app: &App, block: Block) {
             "Best guess — macOS hides the active network; confirm it's the one Typoena will use.",
             Style::new().fg(Color::Yellow),
         ));
+    } else if app.focused_field() == Field::RemoteUrl
+        && !app.config.remote_url.trim().is_empty()
+        && app.config.remote() != app.config.remote_url.trim()
+    {
+        // Shorthand in play — show live what it expands to, so there's never a
+        // surprise about what actually lands on the card.
+        lines.push(Line::styled(
+            format!("→ will use {}", app.config.remote()),
+            Style::new().fg(Color::Green),
+        ));
     } else if let Some(hint) = field_hint(app.focused_field()) {
         lines.push(Line::styled(hint, Style::new().fg(Color::DarkGray)));
     }
@@ -436,7 +446,7 @@ fn render_sdcard(frame: &mut Frame, area: Rect, app: &App, block: Block) {
             lines.push(Line::from(""));
             lines.push(Line::from(format!(
                 "This ERASES repo/ (and the dirty journal) and re-clones {} onto the card.",
-                app.config.remote_url
+                app.config.remote()
             )));
             lines.push(Line::from(""));
             lines.push(Line::styled(
@@ -588,9 +598,10 @@ fn field_hint(f: Field) -> Option<&'static str> {
         Field::WifiPass => {
             Some("^K fills this from your Keychain for the current SSID (may prompt macOS).")
         }
-        Field::RemoteUrl => {
-            Some("HTTPS URL of your notes repo, e.g. https://github.com/you/notes.git")
-        }
+        Field::RemoteUrl => Some(
+            "Your notes repo — you/notes is enough (expands to \
+             https://github.com/you/notes.git); full URLs and other hosts work too.",
+        ),
         _ => None,
     }
 }
@@ -768,6 +779,22 @@ mod tests {
         app.step = Step::Configure;
         let s = screen(&app);
         assert!(s.contains("^G"), "footer should advertise sign-in:\n{s}");
+    }
+
+    #[test]
+    fn remote_shorthand_shows_its_expansion_live() {
+        let mut app = App::new();
+        app.step = Step::Configure;
+        app.focus = Field::ALL
+            .iter()
+            .position(|&f| f == Field::RemoteUrl)
+            .unwrap();
+        app.config.remote_url = "you/notes".into();
+        let s = screen(&app);
+        assert!(
+            s.contains("https://github.com/you/notes.git"),
+            "the user must see what the shorthand becomes:\n{s}"
+        );
     }
 
     #[test]

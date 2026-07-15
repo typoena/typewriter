@@ -132,6 +132,12 @@ impl Config {
             .collect()
     }
 
+    /// The remote as the device needs it: the typed value expanded from any
+    /// accepted shorthand to a full HTTPS clone URL.
+    pub fn remote(&self) -> String {
+        expand_remote_url(&self.remote_url)
+    }
+
     /// Render the `typoena.conf` body — written to the card by the SD step.
     pub fn to_conf(&self) -> String {
         let mut s = String::new();
@@ -142,10 +148,68 @@ impl Config {
         for f in Field::ALL {
             s.push_str(f.conf_key());
             s.push('=');
-            s.push_str(self.get(f));
+            match f {
+                // The conf carries the expanded URL, never the shorthand — the
+                // firmware clones/pushes exactly what's written here.
+                Field::RemoteUrl => s.push_str(&self.remote()),
+                _ => s.push_str(self.get(f)),
+            }
             s.push('\n');
         }
         s
+    }
+}
+
+/// Expand remote-URL shorthand to the canonical HTTPS clone URL. The device's
+/// libgit2 speaks HTTPS only, so everything funnels there:
+///
+/// - `you/notes`             → `https://github.com/you/notes.git`
+/// - `you/notes.git`         → `https://github.com/you/notes.git`
+/// - `github.com/you/notes`  → `https://github.com/you/notes.git` (any host)
+/// - `git@host:you/notes`    → `https://host/you/notes.git` (SSH paste — an
+///   SSH origin on the card is a known device-push blocker)
+/// - `ssh://git@host[:port]/you/notes` → `https://host/you/notes.git` (the ssh
+///   port is dropped; it isn't the web port)
+/// - full `http(s)://…` URLs pass through untouched.
+///
+/// Inputs with no `/` at all can't be a repo path — returned as typed so the
+/// clone fails loudly rather than guessing.
+pub fn expand_remote_url(input: &str) -> String {
+    let s = input.trim().trim_end_matches('/');
+    if s.starts_with("https://") || s.starts_with("http://") {
+        return s.to_string();
+    }
+    if let Some(rest) = s.strip_prefix("git@")
+        && let Some((host, path)) = rest.split_once(':')
+    {
+        return format!("https://{host}/{}", ensure_dot_git(path));
+    }
+    if let Some(rest) = s.strip_prefix("ssh://") {
+        let rest = rest.strip_prefix("git@").unwrap_or(rest);
+        if let Some((host_port, path)) = rest.split_once('/') {
+            let host = host_port.split(':').next().unwrap_or(host_port);
+            return format!("https://{host}/{}", ensure_dot_git(path));
+        }
+    }
+    if !s.contains('/') {
+        return s.to_string();
+    }
+    // A dotted first segment reads as a host (`github.com/you/notes`); a plain
+    // one as a GitHub owner (`you/notes`).
+    let first = s.split('/').next().unwrap_or("");
+    if first.contains('.') {
+        format!("https://{}", ensure_dot_git(s))
+    } else {
+        format!("https://github.com/{}", ensure_dot_git(s))
+    }
+}
+
+fn ensure_dot_git(path: &str) -> String {
+    let path = path.trim_start_matches('/');
+    if path.ends_with(".git") {
+        path.to_string()
+    } else {
+        format!("{path}.git")
     }
 }
 
@@ -274,4 +338,86 @@ fn non_empty(out: std::process::Output) -> Option<String> {
     }
     let v = String::from_utf8_lossy(&out.stdout).trim().to_string();
     (!v.is_empty()).then_some(v)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn owner_repo_shorthand_expands_to_github() {
+        assert_eq!(
+            expand_remote_url("you/notes"),
+            "https://github.com/you/notes.git"
+        );
+        assert_eq!(
+            expand_remote_url("you/notes.git"),
+            "https://github.com/you/notes.git"
+        );
+    }
+
+    #[test]
+    fn host_paths_get_the_scheme() {
+        assert_eq!(
+            expand_remote_url("github.com/you/notes.git"),
+            "https://github.com/you/notes.git"
+        );
+        assert_eq!(
+            expand_remote_url("git.apoena.dev/you/notes"),
+            "https://git.apoena.dev/you/notes.git"
+        );
+    }
+
+    #[test]
+    fn full_urls_pass_through_untouched() {
+        assert_eq!(
+            expand_remote_url("https://github.com/you/notes.git"),
+            "https://github.com/you/notes.git"
+        );
+        // No forced .git on an explicit URL — respect the exact paste.
+        assert_eq!(
+            expand_remote_url("https://github.com/you/notes"),
+            "https://github.com/you/notes"
+        );
+    }
+
+    #[test]
+    fn ssh_pastes_become_https() {
+        assert_eq!(
+            expand_remote_url("git@github.com:you/notes.git"),
+            "https://github.com/you/notes.git"
+        );
+        assert_eq!(
+            expand_remote_url("ssh://git@git.apoena.dev:22222/you/notes.git"),
+            "https://git.apoena.dev/you/notes.git",
+            "the ssh port must be dropped, not carried to https"
+        );
+    }
+
+    #[test]
+    fn hopeless_input_is_left_as_typed() {
+        assert_eq!(expand_remote_url("notes"), "notes");
+        assert_eq!(expand_remote_url(""), "");
+    }
+
+    #[test]
+    fn whitespace_and_trailing_slash_are_trimmed() {
+        assert_eq!(
+            expand_remote_url("  you/notes/  "),
+            "https://github.com/you/notes.git"
+        );
+    }
+
+    #[test]
+    fn the_conf_carries_the_expanded_url() {
+        let cfg = Config {
+            remote_url: "you/notes".into(),
+            ..Config::default()
+        };
+        assert!(
+            cfg.to_conf()
+                .contains("TW_REMOTE_URL=https://github.com/you/notes.git\n"),
+            "the device must never see the shorthand"
+        );
+    }
 }

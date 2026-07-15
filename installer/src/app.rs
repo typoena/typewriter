@@ -472,7 +472,7 @@ impl App {
             return;
         };
         let plan = sdcard::Plan {
-            remote: self.config.remote_url.clone(),
+            remote: self.config.remote(),
             pat: self.config.pat.clone(),
             card_volume,
             conf_body: self.config.to_conf(),
