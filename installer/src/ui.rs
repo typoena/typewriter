@@ -10,7 +10,7 @@ use ratatui::{
     widgets::{Block, Gauge, List, ListItem, Paragraph, Wrap},
 };
 
-use crate::app::{App, Busy, SdState, Step};
+use crate::app::{App, AuthState, Busy, SdState, Step};
 use crate::config::Field;
 use crate::preflight::Status;
 
@@ -91,7 +91,7 @@ fn render_header(frame: &mut Frame, area: Rect, app: &App) {
     let lit = if elapsed < type_done {
         true
     } else if elapsed < type_done + BLINK_MS {
-        (elapsed / 530) % 2 == 0
+        (elapsed / 530).is_multiple_of(2)
     } else {
         false
     };
@@ -251,6 +251,30 @@ fn render_preflight(frame: &mut Frame, area: Rect, app: &App, block: Block) {
 }
 
 fn render_configure(frame: &mut Frame, area: Rect, app: &App, block: Block) {
+    // The GitHub sign-in takes over the step while it runs (it's modal — the
+    // form comes back when the flow ends or is cancelled).
+    match &app.auth {
+        AuthState::Starting => {
+            let lines = vec![
+                busy_line(app, "Contacting GitHub…"),
+                Line::from(""),
+                Line::styled(
+                    "Requesting a one-time sign-in code.",
+                    Style::new().fg(Color::DarkGray),
+                ),
+            ];
+            frame.render_widget(paragraph(lines, block), area);
+            return;
+        }
+        AuthState::Waiting {
+            user_code,
+            verification_uri,
+        } => {
+            render_auth_waiting(frame, area, app, block, user_code, verification_uri);
+            return;
+        }
+        AuthState::Idle => {}
+    }
     let mut lines: Vec<Line> = vec![
         Line::styled(
             "Pre-filled from this Mac where possible. Type to edit · Tab / ↑↓ move · Enter next.",
@@ -331,6 +355,51 @@ fn render_configure(frame: &mut Frame, area: Rect, app: &App, block: Block) {
         lines.push(Line::styled(hint, Style::new().fg(Color::DarkGray)));
     }
 
+    frame.render_widget(paragraph(lines, block), area);
+}
+
+/// The "enter this code on GitHub" screen shown while the device flow polls.
+/// The code is the one thing the user must carry to the browser, so it gets a
+/// big reversed-video cell of its own.
+fn render_auth_waiting(
+    frame: &mut Frame,
+    area: Rect,
+    app: &App,
+    block: Block,
+    user_code: &str,
+    verification_uri: &str,
+) {
+    let dim = Style::new().fg(Color::DarkGray);
+    let lines = vec![
+        Line::styled(
+            "Sign in with GitHub",
+            Style::new().add_modifier(Modifier::BOLD),
+        ),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("  1. Your browser opened  ", dim),
+            Span::raw(verification_uri.to_string()),
+            Span::styled("  (o reopens it)", dim),
+        ]),
+        Line::styled("  2. Enter this code:", dim),
+        Line::from(""),
+        Line::from(vec![
+            Span::raw("        "),
+            Span::styled(
+                format!(" {user_code} "),
+                Style::new().add_modifier(Modifier::BOLD | Modifier::REVERSED),
+            ),
+        ]),
+        Line::from(""),
+        Line::styled("  3. Authorize the Typoena app.", dim),
+        Line::from(""),
+        busy_line(app, "Waiting for you to authorize on GitHub…"),
+        Line::from(""),
+        Line::styled(
+            "Esc cancels — you can still paste a PAT by hand instead.",
+            Style::new().fg(Color::DarkGray),
+        ),
+    ];
     frame.render_widget(paragraph(lines, block), area);
 }
 
@@ -513,7 +582,8 @@ fn render_done(frame: &mut Frame, area: Rect, block: Block) {
 fn field_hint(f: Field) -> Option<&'static str> {
     match f {
         Field::Pat => Some(
-            "Fine-grained PAT, contents:write on the notes repo. Never derived; masked. ^U clears.",
+            "^G signs in with GitHub and fills this — or paste a fine-grained PAT \
+             (contents:write on the notes repo). Masked. ^U clears.",
         ),
         Field::WifiPass => {
             Some("^K fills this from your Keychain for the current SSID (may prompt macOS).")
@@ -562,9 +632,22 @@ fn render_footer(frame: &mut Frame, area: Rect, app: &App) {
         ]
     } else {
         match app.step {
+            Step::Configure if !matches!(app.auth, AuthState::Idle) => vec![
+                key("o"),
+                lbl(" reopen browser"),
+                sep(),
+                key("Esc"),
+                lbl(" cancel sign-in"),
+                sep(),
+                key("^C"),
+                lbl(" quit"),
+            ],
             Step::Configure => vec![
                 key("Tab"),
                 lbl(" field / next"),
+                sep(),
+                key("^G"),
+                lbl(" sign in"),
                 sep(),
                 key("^K"),
                 lbl(" wifi pw"),
@@ -657,6 +740,34 @@ mod tests {
             s.contains("back"),
             "legend should show how to go back:\n{s}"
         );
+    }
+
+    #[test]
+    fn sign_in_panel_shows_the_user_code() {
+        let mut app = App::new();
+        app.step = Step::Configure;
+        app.auth = crate::app::AuthState::Waiting {
+            user_code: "WDJB-MJHT".into(),
+            verification_uri: "https://github.com/login/device".into(),
+        };
+        let s = screen(&app);
+        assert!(
+            s.contains("WDJB-MJHT"),
+            "the code the user must type is the whole point:\n{s}"
+        );
+        assert!(
+            s.contains("github.com/login/device"),
+            "the URL must be visible in case the browser didn't open:\n{s}"
+        );
+        assert!(s.contains("Esc"), "the escape hatch must be shown:\n{s}");
+    }
+
+    #[test]
+    fn configure_footer_offers_the_sign_in_key() {
+        let mut app = App::new();
+        app.step = Step::Configure;
+        let s = screen(&app);
+        assert!(s.contains("^G"), "footer should advertise sign-in:\n{s}");
     }
 
     #[test]

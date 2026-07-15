@@ -30,8 +30,9 @@ needs **no repo checkout and no Rust toolchain** — just the card.
 ## Phase pipeline (the wizard)
 
 1. **Preflight** — a mounted card + git present. Advisory; warnings don't block.
-2. **Configure** — collect Wi-Fi SSID/pass, git remote, GitHub user, PAT, and
-   commit identity. Pre-fill via the derive ladder (below).
+2. **Configure** — collect Wi-Fi SSID/pass, git remote, GitHub user, GitHub
+   token, and commit identity. Pre-fill via the derive ladder (below); the
+   token comes from **Sign in with GitHub** (^G, device flow) or a pasted PAT.
 3. **SD card** — pick the card (refuse on ambiguity), `git clone` the remote
    onto `/repo`, seed `.typoena.toml` + snippets if absent, write
    `typoena.conf`, strip `._*`, eject.
@@ -45,9 +46,11 @@ needs **no repo checkout and no Rust toolchain** — just the card.
   unpublished device edits; offer backup-and-discard.
 - **AppleDouble `._*`** — `dot_clean` before eject; `._pack-*.idx` corrupts the
   pack scan (Mac git *and* device libgit2).
-- **PAT never derived** — always typed; fine-grained, `contents:write` on the
-  one repo; plaintext on FAT means physical custody is the control. The clone
-  uses the PAT so private notes repos work.
+- **Token never derived** — it comes from the ^G sign-in or is typed, never
+  scraped from this Mac; plaintext on FAT means physical custody is the
+  control. Device-flow tokens carry only the Typoena app's `contents:write`
+  on repos the user granted; a pasted PAT should be fine-grained and scoped
+  the same way. The clone uses the token so private notes repos work.
 
 _Dropped vs. the old `just load` (now moot with clone-from-remote): rsync
 mirror, `--ff-only` source refresh, `.gitignore` exclude list, `git repack -ad`._
@@ -58,7 +61,8 @@ Each value: explicit input → derived from this Mac → prompt.
 `author` ← `git config user.{name,email}` · `gh_user` ← `gh api user` ·
 `ssid` ← live SSID if it can be read, else the top preferred network as a
 **flagged guess** · `wifi_pass` ← Keychain (on ^K, may prompt macOS) ·
-`remote`, `pat` ← typed (PAT never derived).
+`remote` ← typed · `token` ← ^G Sign in with GitHub (device flow) or a typed
+PAT (never derived).
 
 **Wi-Fi SSID is best-effort, not authoritative.** On macOS 15+ (incl. Tahoe
 26) `networksetup -getairportnetwork` reports "not associated" even when
@@ -136,3 +140,17 @@ it.
    binary + sidecar from `releases/latest/download` → `shasum -c` verify → `exec
    … </dev/tty`. Verified end-to-end (mirror, live release, full typoena.dev
    chain). The interactive TUI run + real card write/eject still await a TTY.
+5. **Sign in with GitHub (device flow)** — DONE 2026-07-15 (`auth.rs`).
+   Replaces hand-creating a PAT: `^G` on Configure asks GitHub for a one-time
+   code (client_id `Iv23liwgnE86ITDpBdnn`, the org-owned "Typoena" GitHub App —
+   public by design, no client secret in the device flow), shows it big,
+   auto-opens github.com/login/device, and polls in the background
+   (`authorization_pending`/`slow_down` honored, Esc cancels via an atomic
+   flag) until the `ghu_` token lands in the GitHub-token field. The panel is
+   modal on Configure (plain Esc/n/q cancel; ^N/^P are inert so a reflexive
+   step-jump can't kill the flow). HTTP is system `curl` (no HTTP crate);
+   GitHub's OAuth endpoints answer form-encoded, parsed by a tiny
+   percent-decoding parser. `ghu_` tokens speak the same
+   `x-access-token:<token>` basic auth as a PAT, so the clone path and the
+   firmware are unchanged; manual PAT paste remains the fallback. If the app
+   has token expiry on, the success message flags the token's lifetime.

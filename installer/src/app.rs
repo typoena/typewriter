@@ -2,11 +2,14 @@
 //! step-aware key handling (nav steps, the Configure form, and the SD-card step
 //! each behave differently).
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::time::Instant;
 
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
+use crate::auth::{self, AuthEvent};
 use crate::config::{Config, Field, keychain_wifi_password};
 use crate::preflight::Preflight;
 use crate::sdcard::{self, Card, CardInspect, SdEvent};
@@ -42,6 +45,21 @@ impl Step {
     fn prev(self) -> Step {
         Step::ALL[self.index().saturating_sub(1)]
     }
+}
+
+/// The "Sign in with GitHub" device flow (started with ^G on Configure). While
+/// it's not Idle the Configure step is modal: the sign-in panel owns the keys
+/// (Esc cancels, o reopens the browser) so the user can't half-edit the form
+/// while a background worker is about to overwrite the token field.
+pub enum AuthState {
+    Idle,
+    /// Asking GitHub for a one-time code.
+    Starting,
+    /// Code issued — the user is off authorizing in the browser; we poll.
+    Waiting {
+        user_code: String,
+        verification_uri: String,
+    },
 }
 
 pub enum SdState {
@@ -109,6 +127,11 @@ pub struct App {
     /// Latest git-progress tick (phase, 0..=100), driving the SD-step gauge.
     pub sd_progress: Option<(String, u16)>,
     sd_rx: Option<Receiver<SdEvent>>,
+    // ── GitHub sign-in (device flow) ──
+    pub auth: AuthState,
+    auth_rx: Option<Receiver<AuthEvent>>,
+    /// Raised to stop the polling worker when the user cancels.
+    auth_cancel: Option<Arc<AtomicBool>>,
     // ── background computation ──
     /// The off-thread work currently running (spinner + locked input), if any.
     pub busy: Busy,
@@ -137,6 +160,9 @@ impl App {
             sd_log: Vec::new(),
             sd_progress: None,
             sd_rx: None,
+            auth: AuthState::Idle,
+            auth_rx: None,
+            auth_cancel: None,
             busy: Busy::Preflight,
             tick: 0,
             started: Instant::now(),
@@ -173,7 +199,11 @@ impl App {
         // those keys fall through to the SD handler, which ignores them.
         let sd_modal = self.step == Step::SdCard
             && matches!(self.sd, SdState::Running | SdState::ConfirmWipe(_));
-        if !sd_modal && key.modifiers.contains(KeyModifiers::CONTROL) {
+        // The GitHub sign-in panel is modal the same way: leaving Configure
+        // mid-flow would strand the code screen, so ^N/^P fall through to the
+        // Configure handler, which routes them to the panel's own keys.
+        let auth_modal = self.step == Step::Configure && !matches!(self.auth, AuthState::Idle);
+        if !sd_modal && !auth_modal && key.modifiers.contains(KeyModifiers::CONTROL) {
             match key.code {
                 KeyCode::Char('p') => {
                     self.prev();
@@ -224,6 +254,25 @@ impl App {
     /// Configure form: typing edits the focused field; field navigation spills
     /// over into step navigation at the ends.
     fn on_key_configure(&mut self, key: KeyEvent) {
+        // The sign-in panel owns the keys while the device flow runs. Modified
+        // chars (^N/^P step jumps land here too) are deliberately inert — only
+        // a plain Esc/n/q cancels, so a reflexive ^N can't kill the flow.
+        if !matches!(self.auth, AuthState::Idle) {
+            match key.code {
+                _ if key.modifiers != KeyModifiers::NONE => {}
+                KeyCode::Esc | KeyCode::Char('n') | KeyCode::Char('q') => self.cancel_device_flow(),
+                KeyCode::Char('o') => {
+                    if let AuthState::Waiting {
+                        verification_uri, ..
+                    } = &self.auth
+                    {
+                        auth::open_browser(verification_uri);
+                    }
+                }
+                _ => {}
+            }
+            return;
+        }
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
         let last = Field::ALL.len() - 1;
         match key.code {
@@ -255,6 +304,7 @@ impl App {
             }
             KeyCode::Char('u') if ctrl => self.config.get_mut(self.focused_field()).clear(),
             KeyCode::Char('k') if ctrl => self.fill_wifi_from_keychain(),
+            KeyCode::Char('g') if ctrl => self.begin_device_flow(),
             KeyCode::Backspace => {
                 self.config.get_mut(self.focused_field()).pop();
             }
@@ -339,6 +389,27 @@ impl App {
             let pw = keychain_wifi_password(&ssid);
             TaskResult::Keychain { ssid, pw }
         });
+    }
+
+    /// ^G: start the GitHub sign-in. The worker requests a device code, reports
+    /// it (we render it + GitHub opens in the browser), then polls until the
+    /// user authorizes; the token lands in the GitHub-token field.
+    fn begin_device_flow(&mut self) {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let cancel = Arc::new(AtomicBool::new(false));
+        self.auth_rx = Some(rx);
+        self.auth_cancel = Some(cancel.clone());
+        self.auth = AuthState::Starting;
+        std::thread::spawn(move || auth::run_device_flow(tx, cancel));
+    }
+
+    fn cancel_device_flow(&mut self) {
+        if let Some(c) = self.auth_cancel.take() {
+            c.store(true, Ordering::Relaxed);
+        }
+        self.auth_rx = None; // the worker's late sends land nowhere
+        self.auth = AuthState::Idle;
+        self.status = Some("sign-in cancelled — ^G restarts it, or paste a PAT".into());
     }
 
     fn begin_preflight(&mut self) {
@@ -451,6 +522,54 @@ impl App {
     pub fn poll_background(&mut self) {
         self.drain_worker();
         self.drain_task();
+        self.drain_auth();
+    }
+
+    fn drain_auth(&mut self) {
+        let Some(rx) = self.auth_rx.take() else {
+            return;
+        };
+        loop {
+            match rx.try_recv() {
+                Ok(AuthEvent::Code {
+                    user_code,
+                    verification_uri,
+                }) => {
+                    self.auth = AuthState::Waiting {
+                        user_code,
+                        verification_uri,
+                    };
+                }
+                Ok(AuthEvent::Done(result)) => {
+                    self.auth = AuthState::Idle;
+                    self.auth_cancel = None;
+                    self.status = Some(match result {
+                        Ok(t) => {
+                            self.config.pat = t.access_token;
+                            match t.expires_in {
+                                // Expiry ON in the app settings: still works, but
+                                // worth flagging — the device's push dies with it.
+                                Some(secs) => format!(
+                                    "signed in ✓ — note: this token expires in {}h (app setting)",
+                                    secs.div_ceil(3600)
+                                ),
+                                None => "signed in ✓ — GitHub token filled".into(),
+                            }
+                        }
+                        Err(e) => format!("sign-in failed: {e}"),
+                    });
+                    return; // rx drops: the flow is over
+                }
+                Err(TryRecvError::Empty) => break,
+                Err(TryRecvError::Disconnected) => {
+                    self.auth = AuthState::Idle;
+                    self.auth_cancel = None;
+                    self.status = Some("sign-in stopped unexpectedly — ^G to retry".into());
+                    return;
+                }
+            }
+        }
+        self.auth_rx = Some(rx);
     }
 
     fn drain_task(&mut self) {
@@ -555,7 +674,10 @@ mod tests {
         app.step = Step::SdCard; // set directly: no on_enter, so no card scan spawns
         app.sd = SdState::Idle;
         app.on_key(ctrl('n'));
-        assert!(app.step == Step::SdCard, "the write-gated step must not advance");
+        assert!(
+            app.step == Step::SdCard,
+            "the write-gated step must not advance"
+        );
         assert!(app.status.is_some(), "a snackbar warning should be shown");
     }
 
@@ -566,5 +688,45 @@ mod tests {
         app.sd = SdState::Running;
         app.on_key(ctrl('p'));
         assert!(app.step == Step::SdCard, "must not leave a running write");
+    }
+
+    /// An app parked on Configure with the sign-in panel up.
+    fn signing_in_app() -> App {
+        let mut app = idle_app();
+        app.step = Step::Configure;
+        app.auth = AuthState::Waiting {
+            user_code: "WDJB-MJHT".into(),
+            verification_uri: "https://github.com/login/device".into(),
+        };
+        app
+    }
+
+    #[test]
+    fn esc_cancels_the_sign_in_instead_of_quitting() {
+        let mut app = signing_in_app();
+        app.on_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+        assert!(!app.should_quit, "Esc must cancel the flow, not the app");
+        assert!(matches!(app.auth, AuthState::Idle));
+        assert!(app.status.is_some(), "cancelling should say how to retry");
+    }
+
+    #[test]
+    fn step_jumps_are_held_while_signing_in() {
+        let mut app = signing_in_app();
+        app.on_key(ctrl('n'));
+        app.on_key(ctrl('p'));
+        assert!(app.step == Step::Configure, "the sign-in panel is modal");
+        assert!(matches!(app.auth, AuthState::Waiting { .. }));
+    }
+
+    #[test]
+    fn typing_does_not_edit_fields_while_signing_in() {
+        let mut app = signing_in_app();
+        app.focus = 0;
+        app.on_key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE));
+        assert!(
+            !app.config.wifi_ssid.contains('x'),
+            "form editing is suspended under the sign-in panel"
+        );
     }
 }
