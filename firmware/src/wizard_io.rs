@@ -29,7 +29,7 @@ use esp_idf_svc::hal::modem::{Modem, WifiModem};
 use esp_idf_svc::http::client::{Configuration as HttpConfig, EspHttpConnection};
 use esp_idf_svc::nvs::EspDefaultNvsPartition;
 use esp_idf_svc::sntp::{EspSntp, SyncStatus};
-use esp_idf_svc::wifi::{BlockingWifi, EspWifi};
+use esp_idf_svc::wifi::{BlockingWifi, ClientConfiguration, Configuration, EspWifi};
 
 use display::{Frame, HEIGHT};
 use firmware::epd::Epd;
@@ -98,6 +98,20 @@ pub fn run(
                 Effect::WriteConf(c) => {
                     storage.write_conf(&c.render())?;
                     log::info!("wizard: conf persisted");
+                }
+                Effect::ScanWifi => {
+                    let ev = match scan_wifi(&mut wifi, &mut wifi_modem, sys_loop, nvs) {
+                        Ok(nets) => {
+                            log::info!("wizard: scan found {} network(s)", nets.len());
+                            Event::WifiScan(nets)
+                        }
+                        Err(e) => {
+                            log::warn!("wizard: scan failed: {e:#}");
+                            Event::WifiScanFailed(format!("{e:#}"))
+                        }
+                    };
+                    queue.extend(wiz.event(ev));
+                    dirty = true;
                 }
                 Effect::TestWifi { ssid, pass } => {
                     let ev = match join_wifi(
@@ -229,15 +243,13 @@ pub fn run(
     }
 }
 
-/// Build the radio if needed, then (re)associate with the given credentials.
-/// The `EspWifi` persists across calls; only the association changes.
-fn join_wifi<'d>(
+/// Build the persistent `EspWifi` from the reborrowed modem on first use.
+/// Idempotent: later calls (scan, join, re-join) reuse the same radio.
+fn ensure_radio<'d>(
     wifi: &mut Option<BlockingWifi<EspWifi<'d>>>,
     wifi_modem: &mut Option<WifiModem<'d>>,
     sys_loop: &EspSystemEventLoop,
     nvs: &EspDefaultNvsPartition,
-    ssid: &str,
-    pass: &str,
 ) -> Result<()> {
     if wifi.is_none() {
         let m = wifi_modem
@@ -248,7 +260,57 @@ fn join_wifi<'d>(
             sys_loop.clone(),
         )?);
     }
-    let w = wifi.as_mut().expect("just built");
+    Ok(())
+}
+
+/// Scan for nearby networks so the SSID can be picked, not typed. Leaves the
+/// radio built-but-stopped so the join path's `start()` runs from a clean
+/// state. Returns SSIDs deduped and strongest-first, hidden (blank) ones
+/// dropped.
+fn scan_wifi<'d>(
+    wifi: &mut Option<BlockingWifi<EspWifi<'d>>>,
+    wifi_modem: &mut Option<WifiModem<'d>>,
+    sys_loop: &EspSystemEventLoop,
+    nvs: &EspDefaultNvsPartition,
+) -> Result<Vec<String>> {
+    ensure_radio(wifi, wifi_modem, sys_loop, nvs)?;
+    let w = wifi.as_mut().expect("radio built");
+    // Scanning needs the radio started in station mode; a default client
+    // config is enough — we read beacons, never associate here.
+    w.set_configuration(&Configuration::Client(ClientConfiguration::default()))?;
+    w.start()?;
+    let aps = w.scan().context("Wi-Fi scan failed")?;
+    let _ = w.stop();
+
+    // Dedup by SSID (mesh APs repeat the name), keep the strongest signal,
+    // drop hidden networks (blank SSID), then sort strongest-first.
+    let mut best: Vec<(String, i8)> = Vec::new();
+    for ap in aps {
+        let ssid = ap.ssid.as_str().to_string();
+        if ssid.is_empty() {
+            continue;
+        }
+        match best.iter_mut().find(|(s, _)| *s == ssid) {
+            Some((_, rssi)) => *rssi = (*rssi).max(ap.signal_strength),
+            None => best.push((ssid, ap.signal_strength)),
+        }
+    }
+    best.sort_by(|a, b| b.1.cmp(&a.1));
+    Ok(best.into_iter().map(|(s, _)| s).collect())
+}
+
+/// Build the radio if needed, then (re)associate with the given credentials.
+/// The `EspWifi` persists across calls; only the association changes.
+fn join_wifi<'d>(
+    wifi: &mut Option<BlockingWifi<EspWifi<'d>>>,
+    wifi_modem: &mut Option<WifiModem<'d>>,
+    sys_loop: &EspSystemEventLoop,
+    nvs: &EspDefaultNvsPartition,
+    ssid: &str,
+    pass: &str,
+) -> Result<()> {
+    ensure_radio(wifi, wifi_modem, sys_loop, nvs)?;
+    let w = wifi.as_mut().expect("radio built");
     if w.is_connected().unwrap_or(false) {
         // Re-testing (new creds after a failure, or :setup later): start clean.
         let _ = w.disconnect();

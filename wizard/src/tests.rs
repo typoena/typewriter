@@ -27,11 +27,13 @@ fn repos() -> Vec<RepoChoice> {
 #[test]
 fn first_boot_happy_path() {
     let mut w = Wizard::first_boot();
-    assert_eq!(w.pending(), None); // starts editing, nothing to execute
+    assert_eq!(w.pending(), Some(Effect::ScanWifi)); // scans for networks first
 
-    // Wi-Fi: ssid, Enter, pass, Enter → TestWifi.
-    type_str(&mut w, "MyNet");
-    assert!(w.key(Key::Enter).is_empty());
+    // Scan → pick "MyNet" from the list → type the password → TestWifi.
+    assert!(w
+        .event(Event::WifiScan(vec!["MyNet".into(), "OtherNet".into()]))
+        .is_empty());
+    assert!(w.key(Key::Enter).is_empty()); // pick first row (MyNet) → password
     type_str(&mut w, "hunter2");
     let fx = w.key(Key::Enter);
     assert_eq!(
@@ -126,8 +128,8 @@ fn size_gate_refuses_and_allows_repick() {
 #[test]
 fn wifi_failure_returns_to_password_edit() {
     let mut w = Wizard::first_boot();
-    type_str(&mut w, "MyNet");
-    w.key(Key::Enter);
+    w.event(Event::WifiScan(vec!["MyNet".into()]));
+    w.key(Key::Enter); // pick MyNet → password
     type_str(&mut w, "wrong");
     w.key(Key::Enter);
     assert!(w.event(Event::WifiFailed("timeout".into())).is_empty());
@@ -184,8 +186,8 @@ fn auth_failure_restarts_flow_and_esc_requests_fresh_code() {
 #[test]
 fn open_network_allows_empty_password() {
     let mut w = Wizard::first_boot();
-    type_str(&mut w, "OpenNet");
-    w.key(Key::Enter);
+    w.event(Event::WifiScan(vec!["OpenNet".into()]));
+    w.key(Key::Enter); // pick OpenNet → password
     let fx = w.key(Key::Enter); // empty password committed
     assert_eq!(
         fx,
@@ -197,8 +199,10 @@ fn open_network_allows_empty_password() {
 }
 
 #[test]
-fn backspace_past_empty_password_returns_to_ssid() {
+fn manual_entry_navigates_ssid_and_password() {
     let mut w = Wizard::first_boot();
+    w.event(Event::WifiScan(vec![])); // no networks found
+    w.key(Key::Escape); // type it manually → SSID field (seeded empty)
     type_str(&mut w, "MyNet");
     w.key(Key::Enter);
     w.key(Key::Backspace); // empty pass → back on SSID
@@ -213,6 +217,41 @@ fn backspace_past_empty_password_returns_to_ssid() {
             pass: "p".into()
         }]
     );
+}
+
+/// Scan → filter → pick a specific row → the chosen SSID is what gets joined.
+#[test]
+fn scan_filter_and_pick_selects_the_row() {
+    let mut w = Wizard::first_boot();
+    w.event(Event::WifiScan(vec![
+        "Home-2G".into(),
+        "Home-5G".into(),
+        "Cafe".into(),
+    ]));
+    type_str(&mut w, "home"); // filters to the two Home networks
+    w.key(Key::Down); // move to "Home-5G"
+    w.key(Key::Enter); // pick it → password
+    let fx = w.key(Key::Enter); // empty password
+    assert_eq!(
+        fx,
+        vec![Effect::TestWifi {
+            ssid: "Home-5G".into(),
+            pass: String::new()
+        }]
+    );
+}
+
+/// An empty scan (or a filter that matches nothing) rescans on Enter rather
+/// than dead-ending.
+#[test]
+fn empty_scan_rescans_on_enter() {
+    let mut w = Wizard::first_boot();
+    w.event(Event::WifiScan(vec![]));
+    assert_eq!(w.key(Key::Enter), vec![Effect::ScanWifi]);
+    // A live filter with no match also rescans.
+    w.event(Event::WifiScan(vec!["Cafe".into()]));
+    type_str(&mut w, "zzz");
+    assert_eq!(w.key(Key::Enter), vec![Effect::ScanWifi]);
 }
 
 #[test]
@@ -282,8 +321,8 @@ fn qr_renders_modules() {
 #[test]
 fn tab_toggles_password_reveal() {
     let mut w = Wizard::first_boot();
-    type_str(&mut w, "MyNet");
-    w.key(Key::Enter); // onto the password field
+    w.event(Event::WifiScan(vec!["MyNet".into()]));
+    w.key(Key::Enter); // pick MyNet → password field
     type_str(&mut w, "abc");
     assert_eq!(w.conf().wifi_pass, "abc");
 
@@ -312,10 +351,14 @@ fn tab_toggles_password_reveal() {
 fn all_screens_draw() {
     let mut f = Frame::new_white();
     let mut w = Wizard::first_boot();
-    w.draw_into(&mut f);
+    w.draw_into(&mut f); // scanning
+    w.event(Event::WifiScan(vec!["MyNet".into(), "OtherNet".into()]));
+    w.draw_into(&mut f); // pick list
+    w.key(Key::Escape); // manual SSID entry
+    w.draw_into(&mut f); // WifiEdit field 0
     type_str(&mut w, "MyNet");
     w.key(Key::Enter);
-    w.draw_into(&mut f);
+    w.draw_into(&mut f); // WifiEdit password
     w.key(Key::Enter);
     w.draw_into(&mut f); // testing
     w.event(Event::WifiOk);

@@ -46,6 +46,8 @@ pub struct RepoChoice {
 /// / [`Wizard::event`]; the driver executes and answers with an [`Event`].
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Effect {
+    /// Scan for nearby networks so the SSID can be picked, not typed.
+    ScanWifi,
     /// Join this network (bounded retry) and report back.
     TestWifi { ssid: String, pass: String },
     /// Start the GitHub device flow (POST login/device/code), then poll for
@@ -65,6 +67,9 @@ pub enum Effect {
 /// What the firmware driver reports back into the wizard.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Event {
+    /// Scan results: SSIDs, deduped and strongest-first (driver's job).
+    WifiScan(Vec<String>),
+    WifiScanFailed(String),
     WifiOk,
     WifiFailed(String),
     /// Device flow started: show the QR (verification URI) + user code.
@@ -92,7 +97,18 @@ pub enum Event {
 /// The wizard's current screen.
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Screen {
-    /// Editing one Wi-Fi field (0 = SSID, 1 = password).
+    /// Waiting on `ScanWifi` (the first screen on a blank card).
+    WifiScanning,
+    /// Picking an SSID from the scan. Typing filters; Enter selects (or
+    /// rescans when nothing matches); Esc drops to manual entry for a hidden
+    /// or missed network, seeded with whatever was typed.
+    WifiPick {
+        networks: Vec<String>,
+        filter: String,
+        sel: usize,
+    },
+    /// Editing one Wi-Fi field (0 = SSID, 1 = password). Reached for the
+    /// password after a pick, or for a manual SSID (field 0) via `WifiPick`.
     WifiEdit { field: usize },
     /// Waiting on `TestWifi`.
     WifiTesting,
@@ -161,7 +177,7 @@ impl Wizard {
     /// clone is missing).
     pub fn resume(c: conf::Conf) -> Wizard {
         let screen = if c.wifi_ssid.trim().is_empty() {
-            Screen::WifiEdit { field: 0 }
+            Screen::WifiScanning
         } else if c.token.trim().is_empty() {
             Screen::AuthStarting
         } else {
@@ -180,6 +196,7 @@ impl Wizard {
     /// may land on a waiting screen) and after every `key`/`event` batch.
     pub fn pending(&self) -> Option<Effect> {
         match &self.screen {
+            Screen::WifiScanning => Some(Effect::ScanWifi),
             Screen::WifiTesting => Some(Effect::TestWifi {
                 ssid: self.conf.wifi_ssid.clone(),
                 pass: self.conf.wifi_pass.clone(),
@@ -217,9 +234,15 @@ impl Wizard {
                     }
                     Key::Backspace => {
                         let v = self.conf.get_mut(f);
-                        if v.pop().is_none() && *field == 1 {
-                            // Backspace past an empty password → back to SSID.
-                            self.screen = Screen::WifiEdit { field: 0 };
+                        if v.pop().is_none() {
+                            if *field == 1 {
+                                // Backspace past an empty password → back to SSID.
+                                self.screen = Screen::WifiEdit { field: 0 };
+                            } else {
+                                // Backspace past an empty manual SSID → the list.
+                                self.screen = Screen::WifiScanning;
+                                return self.pending().into_iter().collect();
+                            }
                         }
                     }
                     Key::DeleteWord => delete_word(self.conf.get_mut(f)),
@@ -239,8 +262,59 @@ impl Wizard {
                 }
                 vec![]
             }
+            Screen::WifiPick {
+                networks,
+                filter,
+                sel,
+            } => {
+                match k {
+                    Key::Char(c) if !c.is_control() => {
+                        filter.push(c);
+                        *sel = 0;
+                    }
+                    Key::Backspace => {
+                        filter.pop();
+                        *sel = 0;
+                    }
+                    Key::DeleteWord | Key::DeleteLine => {
+                        filter.clear();
+                        *sel = 0;
+                    }
+                    Key::Down => {
+                        let n = filtered_ssids(networks, filter).len();
+                        if n > 0 {
+                            *sel = (*sel + 1).min(n - 1);
+                        }
+                    }
+                    Key::Up => *sel = sel.saturating_sub(1),
+                    Key::Enter => {
+                        let shown = filtered_ssids(networks, filter);
+                        if let Some(ssid) = shown.get(*sel) {
+                            self.conf.wifi_ssid = (*ssid).clone();
+                            self.conf.wifi_pass.clear();
+                            self.screen = Screen::WifiEdit { field: 1 };
+                        } else {
+                            // Empty list / filter matches nothing → rescan.
+                            self.screen = Screen::WifiScanning;
+                            return self.pending().into_iter().collect();
+                        }
+                    }
+                    Key::Escape => {
+                        // Type a hidden or missed network by hand, seeded with
+                        // whatever was typed into the filter.
+                        self.conf.wifi_ssid = filter.clone();
+                        self.conf.wifi_pass.clear();
+                        self.screen = Screen::WifiEdit { field: 0 };
+                    }
+                    _ => {}
+                }
+                vec![]
+            }
             // Waiting screens ignore keys (the driver owns the outcome)…
-            Screen::WifiTesting | Screen::AuthStarting | Screen::RepoLoading => vec![],
+            Screen::WifiScanning
+            | Screen::WifiTesting
+            | Screen::AuthStarting
+            | Screen::RepoLoading => vec![],
             Screen::AuthRetry => match k {
                 Key::Enter => {
                     self.screen = Screen::AuthStarting;
@@ -335,6 +409,25 @@ impl Wizard {
     /// Feed one driver event. Returns follow-up effects like `key`.
     pub fn event(&mut self, e: Event) -> Vec<Effect> {
         match e {
+            Event::WifiScan(networks) => {
+                self.screen = Screen::WifiPick {
+                    networks,
+                    filter: String::new(),
+                    sel: 0,
+                };
+                vec![]
+            }
+            Event::WifiScanFailed(reason) => {
+                // Show the picker empty with the reason: Enter rescans, Esc
+                // types manually — both escape a flaky or dead scan.
+                self.notice = Some(format!("scan failed: {reason}"));
+                self.screen = Screen::WifiPick {
+                    networks: Vec::new(),
+                    filter: String::new(),
+                    sel: 0,
+                };
+                vec![]
+            }
             Event::WifiOk => {
                 // Wi-Fi verified — persist, then sign in (or skip straight to
                 // repos when a resume already carries a token).
@@ -467,17 +560,49 @@ impl Wizard {
                 )
                 .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
                 .draw(f);
-                let tab_hint = if *field == 1 && self.show_pass {
-                    " - Tab hides pw"
-                } else if *field == 1 {
-                    " - Tab shows pw"
+                let hint_text = if *field == 0 {
+                    "type SSID - Enter next - Backspace: back to list".to_string()
                 } else {
-                    ""
+                    let tab = if self.show_pass { "Tab hides pw" } else { "Tab shows pw" };
+                    format!("type - Enter joins - {tab} - empty = open network")
                 };
-                hint(
-                    f,
-                    &format!("type - Enter next{tab_hint} - empty = open network"),
-                );
+                hint(f, &hint_text);
+            }
+            Screen::WifiScanning => {
+                line(f, 0, "Welcome to Typoena - Wi-Fi", ink);
+                line(f, 2, "  scanning for networks...", ink);
+            }
+            Screen::WifiPick {
+                networks,
+                filter,
+                sel,
+            } => {
+                line(f, 0, &format!("Choose your Wi-Fi  ({})", networks.len()), ink);
+                line(f, 1, &format!("  filter: {filter}"), ink);
+                let shown = filtered_ssids(networks, filter);
+                if shown.is_empty() {
+                    line(f, 3, "  no networks found - Enter to rescan", ink);
+                } else {
+                    // Rows 3..9 — a 6-row window scrolled to keep sel visible.
+                    let win = 6usize;
+                    let top = sel.saturating_sub(win - 1);
+                    for (i, ssid) in shown.iter().enumerate().skip(top).take(win) {
+                        let row = 3 + (i - top) as i32;
+                        let text = format!("  {ssid}");
+                        if i == *sel {
+                            let _ = Rectangle::new(
+                                Point::new(0, 8 + row * 24),
+                                Size::new(w as u32, 20),
+                            )
+                            .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
+                            .draw(f);
+                            line(f, row, &text, inv);
+                        } else {
+                            line(f, row, &text, ink);
+                        }
+                    }
+                }
+                hint(f, "type filters - Ctrl-N/P move - Enter selects - Esc types it");
             }
             Screen::WifiTesting => {
                 line(f, 0, "Joining Wi-Fi...", ink);
@@ -614,6 +739,15 @@ fn filtered<'a>(repos: &'a [RepoChoice], filter: &str) -> Vec<&'a RepoChoice> {
     repos
         .iter()
         .filter(|r| q.is_empty() || r.full_name.to_lowercase().contains(&q))
+        .collect()
+}
+
+/// Case-insensitive substring filter over scanned SSIDs.
+fn filtered_ssids<'a>(networks: &'a [String], filter: &str) -> Vec<&'a String> {
+    let q = filter.to_lowercase();
+    networks
+        .iter()
+        .filter(|s| q.is_empty() || s.to_lowercase().contains(&q))
         .collect()
 }
 
