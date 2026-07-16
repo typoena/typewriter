@@ -465,6 +465,23 @@ impl Editor {
     /// drained by [`take_effects`](Self::take_effects); ordinary keys queue
     /// nothing.
     pub fn handle(&mut self, key: Key) {
+        // Cmd+S — an explicit save from any mode, mirroring `:w`, resolved
+        // before mode dispatch so it never changes mode nor gets recorded for
+        // `.` (returns early). It is guarded by the dirty flag: a clean buffer
+        // is already on the card, so a habitual repeat tap re-confirms "saved"
+        // with no SD write (the write is `atomic_write`: tmp + fsync + rename,
+        // real I/O and flash wear). `:w` stays unconditional for the rare
+        // force-write; the idle auto-save (`save_on_idle`) already covers the
+        // common case, so Cmd+S is mostly a reassuring confirmation gesture.
+        if key == Key::Save {
+            if self.dirty {
+                self.write_active();
+            } else {
+                self.set_notice(if self.path.is_empty() { "no file name" } else { "saved" });
+            }
+            return;
+        }
+
         // Any keystroke dismisses the transient notice ("snackbar"). The host
         // sets a fresh one *after* the key batch (on a `:` command's effect), so
         // a save/publish message survives to the next draw, then clears the
@@ -600,6 +617,10 @@ impl Editor {
             // yanking the caret off the text you're typing. Redo (Ctrl-r) is
             // likewise ignored here.
             Key::HalfPageDown | Key::HalfPageUp | Key::Redo | Key::Down | Key::Up => {}
+            // Cmd-S is resolved in `handle` before mode dispatch (so it saves
+            // without leaving Insert); unreachable here, but the match is
+            // exhaustive.
+            Key::Save => {}
             // Cmd-p works from every mode: acts like Esc (ending the insert
             // session, caret onto the last inserted char), then opens the
             // palette. Closing it lands in Normal, as Esc would have.
@@ -937,12 +958,7 @@ impl Editor {
             "delete" => self.delete_current(),
             "settings" => self.open_settings(),
             "fmt" => self.format_buffer(),
-            "w" | "wq" | "x" => {
-                if self.prefs.format_on_save {
-                    self.format_buffer();
-                }
-                self.request_save_active();
-            }
+            "w" | "wq" | "x" => self.write_active(),
             // fmt → save → push, shared with the `>` publish command.
             "gp" => self.run_publish(),
             "gl" => self.requests.push(Effect::Pull),

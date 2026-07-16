@@ -118,6 +118,19 @@ impl Editor {
         self.parked.retain(|b| b.dirty);
     }
 
+    /// The shared save path for the `:w` family and Cmd+S: format first (when
+    /// `format_on_save` is set), then queue the [`Effect::Save`]. Formatting is
+    /// skipped in Insert — `:w` runs from the command line so it always formats,
+    /// but a Cmd+S mid-typing must not reflow the current line and yank the caret
+    /// to its start (the same reasoning `save_on_idle` uses to never reflow
+    /// mid-session). The dirty guard for Cmd+S lives in [`handle`](Self::handle).
+    pub(crate) fn write_active(&mut self) {
+        if self.prefs.format_on_save && self.mode != Mode::Insert {
+            self.format_buffer();
+        }
+        self.request_save_active();
+    }
+
     /// Queue an [`Effect::Save`] of the active buffer. Posts "no file name" for an
     /// unnamed scratch buffer (nothing to save to) rather than writing to `""`.
     pub(crate) fn request_save_active(&mut self) {

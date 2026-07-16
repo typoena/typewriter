@@ -135,6 +135,90 @@ fn wq_and_x_alias_save_dropping_the_quit() {
     assert_eq!(kinds(&command("x").1), vec![Kind::Save]);
 }
 
+// --- Cmd+S (Key::Save) -----------------------------------------------------
+
+#[test]
+fn cmd_s_saves_a_dirty_buffer_like_w() {
+    // From Normal on a dirty buffer, Cmd+S queues exactly the Save `:w` would.
+    let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    e.handle(Key::Char('i'));
+    send(&mut e, "hi");
+    e.handle(Key::Escape);
+    e.handle(Key::Save);
+    assert_eq!(
+        e.take_effects(),
+        vec![Effect::Save {
+            path: "/sd/repo/notes.md".into(),
+            scope: Scope::Tracked,
+            contents: "hi".into(),
+        }]
+    );
+}
+
+#[test]
+fn cmd_s_on_a_clean_buffer_skips_the_write() {
+    // The habitual repeat tap: nothing changed since the last save, so Cmd+S
+    // must not queue a redundant SD write — it only re-confirms "saved".
+    let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, "done".into());
+    e.handle(Key::Save);
+    assert!(e.take_effects().is_empty(), "clean Cmd+S must queue no Save");
+    assert_eq!(e.notice.as_deref(), Some("saved"));
+    // And again — still free, still no write.
+    e.handle(Key::Save);
+    assert!(e.take_effects().is_empty());
+}
+
+#[test]
+fn cmd_s_on_an_unnamed_clean_buffer_posts_no_file_name() {
+    // A scratch buffer has nowhere to save to; the clean-path confirmation must
+    // not falsely claim "saved".
+    let mut e = Editor::new();
+    e.handle(Key::Save);
+    assert!(e.take_effects().is_empty());
+    assert_eq!(e.notice.as_deref(), Some("no file name"));
+}
+
+#[test]
+fn cmd_s_from_insert_saves_without_leaving_insert() {
+    // Mid-typing Cmd+S is a quick checkpoint: it saves but neither types an 's'
+    // nor drops out of Insert, so you keep typing where you were.
+    let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    e.handle(Key::Char('i'));
+    send(&mut e, "draft");
+    e.handle(Key::Save);
+    assert_eq!(e.mode(), Mode::Insert, "Cmd+S must not leave Insert");
+    assert_eq!(e.text(), "draft", "Cmd+S must not type an 's'");
+    assert_eq!(
+        e.take_effects(),
+        vec![Effect::Save {
+            path: "/sd/repo/notes.md".into(),
+            scope: Scope::Tracked,
+            contents: "draft".into(),
+        }]
+    );
+}
+
+#[test]
+fn cmd_s_from_insert_does_not_reformat_mid_session() {
+    // format_on_save is on by default, but a Cmd+S while still in Insert must
+    // NOT reflow the line — stripping the trailing spaces the user is mid-way
+    // through and yanking the caret to line start would be hostile. `:w` from
+    // Normal still formats (see `gp_formats_the_buffer_before_publishing`).
+    let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    assert!(e.prefs.format_on_save);
+    e.handle(Key::Char('i'));
+    send(&mut e, "hello   "); // trailing spaces a formatter would strip
+    e.handle(Key::Save);
+    assert_eq!(
+        e.take_effects(),
+        vec![Effect::Save {
+            path: "/sd/repo/notes.md".into(),
+            scope: Scope::Tracked,
+            contents: "hello   ".into(), // verbatim — not reflowed
+        }]
+    );
+}
+
 #[test]
 fn fmt_stays_in_core_and_asks_the_host_for_nothing() {
     assert!(command("fmt").1.is_empty());

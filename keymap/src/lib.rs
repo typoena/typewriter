@@ -42,6 +42,10 @@ pub enum Key {
     /// each first bailing out as Esc would); **inside** the palette the same
     /// chord closes it (toggle). Esc also closes.
     Palette,
+    /// Cmd+S — save the active buffer, like `:w`. Fires from **every** mode
+    /// without changing it (the editor guards it behind the dirty flag so a
+    /// habitual repeat tap on an unchanged buffer costs no SD write).
+    Save,
     /// Ctrl+N — move down: one line in Normal/View (vim `CTRL-N` ≡ `j`), or one
     /// row in the file palette. Ignored in Insert.
     Down,
@@ -159,6 +163,7 @@ fn translate(usage: u8, shift: bool, ctrl: bool, cmd: bool) -> Option<Key> {
         0x15 if ctrl => return Some(Key::Redo),       // Ctrl+R, redo
         0x13 if ctrl => return Some(Key::Up),   // Ctrl+P, move up (vim CTRL-P)
         0x13 if cmd => return Some(Key::Palette), // Cmd+P, file palette
+        0x16 if cmd => return Some(Key::Save),   // Cmd+S, save (like :w)
         0x11 if ctrl => return Some(Key::Down), // Ctrl+N, move down (vim CTRL-N)
         _ => {}
     }
@@ -412,6 +417,16 @@ mod tests {
         assert_eq!(translate(0x15, false, false, false), Some(Key::Char('r')));
         assert_eq!(translate(0x13, false, false, false), Some(Key::Char('p')));
         assert_eq!(translate(0x11, false, false, false), Some(Key::Char('n')));
+    }
+
+    #[test]
+    fn translate_cmd_s_saves() {
+        assert_eq!(translate(0x16, false, false, true), Some(Key::Save)); // Cmd+S
+        // Ctrl+S is swallowed (Ctrl carries the vim chords, not save), and a
+        // bare 's' is still an ordinary character.
+        assert_eq!(translate(0x16, false, true, false), None);
+        assert_eq!(translate(0x16, false, false, false), Some(Key::Char('s')));
+        assert_eq!(translate(0x16, true, false, false), Some(Key::Char('S')));
     }
 
     #[test]

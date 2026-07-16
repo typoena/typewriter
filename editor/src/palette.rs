@@ -189,7 +189,9 @@ impl Editor {
             }
             // Esc, or Cmd-P again, closes the palette.
             Key::Escape | Key::Palette => self.close_palette(),
-            Key::Redo => {}
+            // Redo has no meaning here; Cmd-S is handled in `handle` before
+            // dispatch (unreachable here, but the match must be exhaustive).
+            Key::Redo | Key::Save => {}
         }
     }
 
@@ -228,8 +230,9 @@ impl Editor {
                 self.new_file(&name);
             }
             Key::Escape | Key::Palette => self.close_palette(),
-            // No list to move over in this step.
-            Key::Up | Key::Down | Key::HalfPageUp | Key::HalfPageDown | Key::Redo => {}
+            // No list to move over in this step; Cmd-S is handled upstream in
+            // `handle` (unreachable here, but the match must be exhaustive).
+            Key::Up | Key::Down | Key::HalfPageUp | Key::HalfPageDown | Key::Redo | Key::Save => {}
         }
     }
 
