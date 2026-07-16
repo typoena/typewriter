@@ -139,7 +139,25 @@ enum Screen {
     Cloning { progress: String },
     /// Terminal screen; any key finishes.
     AllSet,
+    /// `:setup` entry (reset mode): pick what to change. Linear first-boot has
+    /// no menu — it walks Wi-Fi → sign-in → repo. Reset needs a chooser so you
+    /// can jump to just the Wi-Fi (or account) step. Each sub-flow returns here
+    /// when it completes; `Done` finishes.
+    SetupMenu { sel: usize },
 }
+
+/// How the wizard was entered. First boot walks the steps linearly; `:setup`
+/// reset shows [`Screen::SetupMenu`] and each completed sub-flow returns to it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Mode {
+    FirstBoot,
+    Setup,
+}
+
+/// The reset menu's rows, in display order (see [`Screen::SetupMenu`]).
+/// Repo-switch and factory-reset are a later slice; this pass covers the
+/// non-destructive changes.
+const SETUP_ITEMS: usize = 3;
 
 /// A transient error shown on the current screen (join failed, auth failed…).
 /// Cleared on the next keystroke.
@@ -155,6 +173,9 @@ pub struct Wizard {
     /// pain, the device is held still during a one-time setup, and its secrets
     /// live in cleartext on the card anyway (physical custody is the control).
     show_pass: bool,
+    /// First boot walks the steps linearly; `:setup` shows the reset menu and
+    /// each completed sub-flow returns to it.
+    mode: Mode,
 }
 
 impl Wizard {
@@ -188,6 +209,21 @@ impl Wizard {
             screen,
             notice: None,
             show_pass: true,
+            mode: Mode::FirstBoot,
+        }
+    }
+
+    /// `:setup` reset entry: prefilled from the current conf, opening on the
+    /// reset menu so the user can change just Wi-Fi or the account without
+    /// re-walking the whole flow. Each completed sub-flow returns to the menu;
+    /// `Done` hands the (possibly changed) conf back to the boot path.
+    pub fn setup(c: conf::Conf) -> Wizard {
+        Wizard {
+            conf: c,
+            screen: Screen::SetupMenu { sel: 0 },
+            notice: None,
+            show_pass: true,
+            mode: Mode::Setup,
         }
     }
 
@@ -221,6 +257,10 @@ impl Wizard {
             }
             return vec![];
         }
+        // In reset mode a completed/aborted sub-flow returns to the menu rather
+        // than advancing linearly. Precomputed so it can be read inside the
+        // `&mut self.screen` match below without a second borrow of `self`.
+        let setup = self.mode == Mode::Setup;
         match &mut self.screen {
             Screen::WifiEdit { field } => {
                 let f = if *field == 0 {
@@ -321,7 +361,12 @@ impl Wizard {
                     self.pending().into_iter().collect()
                 }
                 Key::Backspace => {
-                    self.screen = Screen::WifiEdit { field: 0 };
+                    // First boot: back to Wi-Fi. Reset: back to the menu.
+                    self.screen = if setup {
+                        Screen::SetupMenu { sel: 0 }
+                    } else {
+                        Screen::WifiEdit { field: 0 }
+                    };
                     vec![]
                 }
                 _ => vec![],
@@ -403,6 +448,35 @@ impl Wizard {
             }
             Screen::Cloning { .. } => vec![],
             Screen::AllSet => vec![Effect::Finish],
+            Screen::SetupMenu { sel } => match k {
+                Key::Down => {
+                    *sel = (*sel + 1).min(SETUP_ITEMS - 1);
+                    vec![]
+                }
+                Key::Up => {
+                    *sel = sel.saturating_sub(1);
+                    vec![]
+                }
+                Key::Enter => {
+                    // Copy the row out before reassigning `self.screen` (which
+                    // ends the `sel` borrow), then jump to that sub-flow.
+                    match *sel {
+                        0 => {
+                            // Change Wi-Fi — rescan and re-pick.
+                            self.screen = Screen::WifiScanning;
+                            self.pending().into_iter().collect()
+                        }
+                        1 => {
+                            // Re-sign in — a fresh device flow, new token.
+                            self.screen = Screen::AuthStarting;
+                            self.pending().into_iter().collect()
+                        }
+                        // Done — hand the (possibly changed) conf back.
+                        _ => vec![Effect::Finish],
+                    }
+                }
+                _ => vec![],
+            },
         }
     }
 
@@ -429,9 +503,12 @@ impl Wizard {
                 vec![]
             }
             Event::WifiOk => {
-                // Wi-Fi verified — persist, then sign in (or skip straight to
-                // repos when a resume already carries a token).
-                self.screen = if self.conf.token.trim().is_empty() {
+                // Wi-Fi verified — persist. Reset mode returns to the menu;
+                // first boot signs in (or skips to repos when a resume already
+                // carries a token).
+                self.screen = if self.mode == Mode::Setup {
+                    Screen::SetupMenu { sel: 0 }
+                } else if self.conf.token.trim().is_empty() {
                     Screen::AuthStarting
                 } else {
                     Screen::RepoLoading
@@ -473,7 +550,13 @@ impl Wizard {
                 } else {
                     email
                 };
-                self.screen = Screen::RepoLoading;
+                // Reset mode returns to the menu (the repo is unchanged, only
+                // the token was refreshed); first boot proceeds to the repo pick.
+                self.screen = if self.mode == Mode::Setup {
+                    Screen::SetupMenu { sel: 0 }
+                } else {
+                    Screen::RepoLoading
+                };
                 std::iter::once(Effect::WriteConf(self.conf.clone()))
                     .chain(self.pending())
                     .collect()
@@ -693,6 +776,32 @@ impl Wizard {
             Screen::AllSet => {
                 line(f, 0, "All set.", ink);
                 line(f, 2, "  Your Typoena is ready - press any key to write.", ink);
+            }
+            Screen::SetupMenu { sel } => {
+                line(f, 0, "Setup", ink);
+                let or_unset = |s: &str| {
+                    if s.trim().is_empty() { "not set".to_string() } else { s.to_string() }
+                };
+                let items = [
+                    format!("Wi-Fi network  ({})", or_unset(&self.conf.wifi_ssid)),
+                    format!("GitHub account  ({})", or_unset(&self.conf.gh_user)),
+                    "Done - back to writing".to_string(),
+                ];
+                for (i, text) in items.iter().enumerate() {
+                    let row = 2 + i as i32;
+                    if i == *sel {
+                        let _ = Rectangle::new(
+                            Point::new(0, 8 + row * 24),
+                            Size::new(w as u32, 20),
+                        )
+                        .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
+                        .draw(f);
+                        line(f, row, &format!("  {text}"), inv);
+                    } else {
+                        line(f, row, &format!("  {text}"), ink);
+                    }
+                }
+                hint(f, "up/down move - Enter selects");
             }
         }
         if let Some(n) = &self.notice {

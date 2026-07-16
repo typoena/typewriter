@@ -383,6 +383,80 @@ fn all_screens_draw() {
     w.draw_into(&mut f);
     w.event(Event::CloneDone);
     w.draw_into(&mut f); // done
+
+    // The reset menu is its own screen (only reached via `:setup`).
+    let s = Wizard::setup(full_conf());
+    s.draw_into(&mut f);
+}
+
+/// A fully-provisioned conf, as `:setup` would be handed at boot.
+fn full_conf() -> conf::Conf {
+    let mut c = conf::Conf::default();
+    c.wifi_ssid = "MyNet".into();
+    c.wifi_pass = "hunter2".into();
+    c.token = "ghu_tok".into();
+    c.gh_user = "you".into();
+    c.author_name = "You".into();
+    c.author_email = "you@example.com".into();
+    c.remote_url = "https://github.com/you/notes.git".into();
+    c
+}
+
+#[test]
+fn setup_menu_done_finishes_without_touching_conf() {
+    let mut w = Wizard::setup(full_conf());
+    // Opens on the menu, nothing pending (waits for a choice).
+    assert_eq!(w.pending(), None);
+    // Down to "Done" (row 2), Enter → Finish, no WriteConf (backing out is
+    // harmless — nothing was changed).
+    w.key(Key::Down);
+    w.key(Key::Down);
+    assert_eq!(w.key(Key::Enter), vec![Effect::Finish]);
+}
+
+#[test]
+fn setup_menu_wifi_reruns_scan_then_returns_to_menu() {
+    let mut w = Wizard::setup(full_conf());
+    // Row 0 = Wi-Fi → rescan.
+    assert_eq!(w.key(Key::Enter), vec![Effect::ScanWifi]);
+    w.event(Event::WifiScan(vec!["NewNet".into()]));
+    w.key(Key::Enter); // pick NewNet → password field
+    type_str(&mut w, "pw");
+    // Enter on the password tests Wi-Fi…
+    assert_eq!(w.key(Key::Enter), vec![Effect::TestWifi {
+        ssid: "NewNet".into(),
+        pass: "pw".into(),
+    }]);
+    // …and a good join persists the conf and lands back on the menu (NOT the
+    // linear sign-in step), because the token is already set.
+    let fx = w.event(Event::WifiOk);
+    assert!(matches!(fx.as_slice(), [Effect::WriteConf(_)]), "got {fx:?}");
+    // Back on the menu: Done finishes.
+    w.key(Key::Down);
+    w.key(Key::Down);
+    assert_eq!(w.key(Key::Enter), vec![Effect::Finish]);
+}
+
+#[test]
+fn setup_menu_reauth_updates_token_then_returns_to_menu() {
+    let mut w = Wizard::setup(full_conf());
+    // Row 1 = GitHub account → device flow.
+    w.key(Key::Down);
+    assert_eq!(w.key(Key::Enter), vec![Effect::StartAuth]);
+    w.event(Event::AuthCode {
+        verification_uri: "https://github.com/login/device".into(),
+        user_code: "ABCD-1234".into(),
+    });
+    let fx = w.event(Event::AuthDone {
+        token: "ghu_new".into(),
+        login: "you".into(),
+        name: "You".into(),
+        email: "you@example.com".into(),
+    });
+    // Re-auth in reset mode persists and returns to the menu — it does NOT walk
+    // on to the repo pick (the repo is unchanged).
+    assert!(matches!(fx.as_slice(), [Effect::WriteConf(c)] if c.token == "ghu_new"), "got {fx:?}");
+    assert_eq!(w.pending(), None); // on the menu, waiting
 }
 
 #[test]
