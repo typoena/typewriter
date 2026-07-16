@@ -174,3 +174,19 @@ pub(crate) fn next_option<'a>(current: &str, options: &[&'a str]) -> &'a str {
         None => options[0],
     }
 }
+
+/// The scroll-margin (scrolloff) values the palette rotates
+/// [`Prefs::scroll_margin`] through. Hand-editing the TOML can set any value
+/// (capped at render time to `(ROWS - 1) / 2`); these are just what the `>`
+/// palette cycles.
+pub(crate) const SCROLL_MARGIN_OPTIONS: [usize; 4] = [0, 1, 2, 3];
+
+/// [`next_option`] for a numeric preset: the value after `current`, wrapping,
+/// and snapping an off-list value to the head so one Enter always lands on a
+/// known option.
+pub(crate) fn next_usize_option(current: usize, options: &[usize]) -> usize {
+    match options.iter().position(|&o| o == current) {
+        Some(i) => options[(i + 1) % options.len()],
+        None => options[0],
+    }
+}

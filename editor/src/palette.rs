@@ -19,8 +19,9 @@ pub(crate) fn palette_label(path: &str) -> &str {
 ///   [`Publish`](PaletteCmd::Publish)) runs and closes the palette;
 /// - a **[parameterised](CmdKind::Param)** command ([`NewFile`](PaletteCmd::NewFile))
 ///   morphs the palette into a filename input step;
-/// - a **[toggle](CmdKind::Toggle)** — the boolean prefs and the
-///   [`Theme`](PaletteCmd::Theme)/[`AutoSync`](PaletteCmd::AutoSync) rotations —
+/// - a **[toggle](CmdKind::Toggle)** — the boolean prefs and the preset
+///   rotations ([`Theme`](PaletteCmd::Theme), [`AutoSync`](PaletteCmd::AutoSync),
+///   [`ScrollMargin`](PaletteCmd::ScrollMargin)) —
 ///   applies live and keeps the list open, so several settings flip in a row. Each
 ///   toggle's *label* carries the pref's current state ([`Editor::command_label`]),
 ///   so the list still doubles as a settings readout. `auto_sync` has no behaviour
@@ -34,6 +35,7 @@ pub(crate) enum PaletteCmd {
     SaveOnIdle,
     FormatOnSave,
     LineNumbers,
+    ScrollMargin,
     OpenLastOnBoot,
     Theme,
     AutoSync,
@@ -64,7 +66,7 @@ impl PaletteCmd {
 
 /// The palette command list, in display order (empty `>` query shows them all):
 /// the actions first, the settings after.
-pub(crate) const PALETTE_CMDS: [PaletteCmd; 10] = [
+pub(crate) const PALETTE_CMDS: [PaletteCmd; 11] = [
     PaletteCmd::NewFile,
     PaletteCmd::Format,
     PaletteCmd::Publish,
@@ -72,6 +74,7 @@ pub(crate) const PALETTE_CMDS: [PaletteCmd; 10] = [
     PaletteCmd::SaveOnIdle,
     PaletteCmd::FormatOnSave,
     PaletteCmd::LineNumbers,
+    PaletteCmd::ScrollMargin,
     PaletteCmd::OpenLastOnBoot,
     PaletteCmd::Theme,
     PaletteCmd::AutoSync,
@@ -316,6 +319,7 @@ impl Editor {
             PaletteCmd::SaveOnIdle => format!("save on idle: {}", on(self.prefs.save_on_idle)),
             PaletteCmd::FormatOnSave => format!("format on save: {}", on(self.prefs.format_on_save)),
             PaletteCmd::LineNumbers => format!("line numbers: {}", on(self.prefs.line_numbers)),
+            PaletteCmd::ScrollMargin => format!("scroll margin: {}", self.prefs.scroll_margin),
             PaletteCmd::OpenLastOnBoot => {
                 format!("open last on boot: {}", on(self.prefs.open_last_on_boot))
             }
@@ -413,6 +417,10 @@ impl Editor {
             PaletteCmd::LineNumbers => self.prefs.line_numbers = !self.prefs.line_numbers,
             PaletteCmd::OpenLastOnBoot => {
                 self.prefs.open_last_on_boot = !self.prefs.open_last_on_boot
+            }
+            PaletteCmd::ScrollMargin => {
+                self.prefs.scroll_margin =
+                    next_usize_option(self.prefs.scroll_margin, &SCROLL_MARGIN_OPTIONS)
             }
             PaletteCmd::Theme => {
                 self.prefs.theme = next_option(&self.prefs.theme, &THEME_OPTIONS).to_string()

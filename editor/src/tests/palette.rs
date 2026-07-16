@@ -494,6 +494,34 @@ fn running_the_auto_sync_command_walks_the_interval_presets() {
 }
 
 #[test]
+fn next_usize_option_rotates_wraps_and_snaps() {
+    assert_eq!(next_usize_option(2, &SCROLL_MARGIN_OPTIONS), 3);
+    assert_eq!(next_usize_option(3, &SCROLL_MARGIN_OPTIONS), 0); // wraps
+    assert_eq!(next_usize_option(9, &SCROLL_MARGIN_OPTIONS), 0); // off-list snaps to head
+}
+
+#[test]
+fn scroll_margin_command_label_reflects_the_current_value() {
+    let e = palette_editor(&["/sd/repo/notes.md"]);
+    assert_eq!(e.command_label(PaletteCmd::ScrollMargin), "scroll margin: 2");
+}
+
+#[test]
+fn running_the_scroll_margin_command_walks_the_presets_and_persists() {
+    // Default 2; Enter rotates 2 -> 3 -> 0 (wrap) -> 1, live and durably.
+    let mut e = palette_type(&["/sd/repo/notes.md"], ">margin");
+    assert_eq!(e.prefs().scroll_margin, 2);
+    e.handle(Key::Enter);
+    assert_eq!(e.prefs().scroll_margin, 3); // applied live
+    assert_eq!(e.mode(), Mode::Palette); // stays open
+    assert_eq!(kinds(&e.take_effects()), vec![Kind::SavePrefs]);
+    for expected in [0, 1] {
+        e.handle(Key::Enter);
+        assert_eq!(e.prefs().scroll_margin, expected);
+    }
+}
+
+#[test]
 fn dark_theme_inverts_the_whole_frame() {
     // The dark frame is the exact bitwise inverse of the light one.
     let mut e = Editor::with_text("hello world".into());
