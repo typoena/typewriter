@@ -28,8 +28,9 @@
 
 | Doc                                                | What's in it                                                                                                                            |
 | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| [`qfd.md`](qfd.md)                                 | Quality Function Deployment — turns user-facing requirements into technical HOWs; §3 is the filled 14 WHATs × 14 HOWs House of Quality. |
+| [`qfd.md`](qfd.md)                                 | Quality Function Deployment — turns user-facing requirements into technical HOWs; all four cascade houses are drawn at the top (House 1 is 16 WHATs × 16 HOWs). |
 | [`quality-house-empty.md`](quality-house-empty.md) | The House chassis, blank — for re-scoring from scratch.                                                                                 |
+| [`house-vs-product.md`](house-vs-product.md)       | Standing challenges between the scored houses and the real product — open disputes with evidence and resolution triggers.               |
 
 ## Bench work
 
