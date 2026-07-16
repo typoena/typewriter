@@ -244,6 +244,24 @@ provision sd_volume="":
     just _write-conf "$vol"
     just _eject "$vol"
 
+# TEST-ONLY: seed the card with JUST the Wi-Fi creds from firmware/.env so the
+# first-boot wizard RESUMES past the Wi-Fi step (SSID present → skipped) and
+# lands on sign-in — stops you re-typing a long password every flash. Everything
+# else stays blank, so sign-in + repo pick + clone still run live (a fresh token
+# each run, no expiry surprises). Pair with a wipe:
+#   just wipe && just wifi-seed
+# The conf it writes holds the password in cleartext, same as every provisioned
+# card (physical custody is the control) — a bench card, not one to hand out.
+wifi-seed sd_volume="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    : "${TW_WIFI_SSID:?set TW_WIFI_SSID in firmware/.env}"
+    vol="$(just _card "{{sd_volume}}" | tail -n1)"
+    conf="$vol/typoena.conf"
+    printf 'TW_WIFI_SSID=%s\nTW_WIFI_PASS=%s\n' "$TW_WIFI_SSID" "${TW_WIFI_PASS:-}" > "$conf"
+    echo "seeded $conf (Wi-Fi only) — wizard resumes at sign-in" >&2
+    just _eject "$vol"
+
 # Reformat the card to an empty FAT32 volume and eject — a blank slate for
 # testing the first-boot wizard (no repo/, no typoena.conf, no .typoena-dirty,
 # no macOS dot-dirs). Reuses _card's removable-only detection, so it can't hit
