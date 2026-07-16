@@ -7,7 +7,7 @@
 >
 > Context: partial refresh landed in Spike 5, windowed-Y in Spike 13 (both in
 > [`../v0.1-mvp-technical.md`](../v0.1-mvp-technical.md#hardware-bring-up-order)),
-> panel + driver port [ADR-003](../adr.md#adr-003-display--gdey0579t93-epd-driven-by-a-thin-ssd1683-port),
+> panel + driver port [ADR-003](../adr.md#adr-003-display-medium--e-ink-gdey0579t93-panel),
 > driver: [`../../firmware/src/epd.rs`](../../firmware/src/epd.rs), refresh
 > policy: [`../../firmware/src/main.rs`](../../firmware/src/main.rs).
 
