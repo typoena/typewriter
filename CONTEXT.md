@@ -80,6 +80,34 @@ into user-facing language).
 > prompt. A **Publish** is the only user-observable unit of "shipping work";
 > internal commits are an implementation detail of that.
 
+### First run
+
+**Onboarding**:
+The one-time path from a device with no `/sd/typoena.conf` to a configured
+device showing a writing cursor on the user's own notes repo. Two peer paths
+produce the same card: the **Wizard** (on the device itself) and the
+**Installer** (on a Mac). Both sign in through the same GitHub App device
+flow and write the same two artifacts: `/sd/typoena.conf` and a cloned
+`/sd/repo`.
+_Avoid_: provisioning (the engineering function name in `docs/qfd.md`, not
+user-facing language); setup (collides with `:setup`, the in-session reset
+menu); first-boot flow (that names the trigger, not the outcome).
+
+**Wizard**:
+The on-device onboarding flow — Wi-Fi scan-pick, QR code sign-in with
+GitHub, repo pick, clone — driven with only the device's keyboard, its
+panel, and the user's phone. No computer involved. Triggered when
+`/sd/typoena.conf` is absent; revisited later via `:setup`.
+_Avoid_: captive portal, SoftAP (a deferred companion idea, not the wizard).
+
+**Installer**:
+The macOS one-command tool (`curl … | sh` from typoena.dev) that prepares an
+SD card from a Mac: clones the notes repo onto the card, seeds defaults,
+writes `typoena.conf`, ejects. It never flashes firmware — devices ship
+pre-flashed.
+_Avoid_: flasher, setup app, `install.sh` (that is the download script that
+fetches the Installer, not the Installer itself).
+
 ### Screen regions
 
 **Writing column**:
