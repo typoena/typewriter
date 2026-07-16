@@ -16,8 +16,11 @@
 //! pure half (bodies, parsers) lives in `wizard::github`, host-tested.
 //!
 //! Slice status: Wi-Fi + device-flow sign-in (QR on panel, poll-to-token,
-//! `GET /user` identity) are real. `FetchRepos` / `Clone` (slice 4) surface
-//! as a hard stop with a pointer at the installer.
+//! `GET /user` identity), the repo list (`FetchRepos`) and the shallow
+//! `Clone` are all real. The clone runs on a worker thread spawned *before*
+//! the radio comes up — its 96 KB stack needs a contiguous internal-DRAM
+//! block that Wi-Fi would otherwise fragment away (the git service dodges the
+//! same trap by spawning at boot).
 
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::time::{Duration, Instant};
@@ -52,6 +55,14 @@ enum CloneMsg {
     Failed(String),
 }
 
+/// A clone job handed to the pre-spawned worker thread. Creds ride along
+/// because `CARD_CONF` isn't set until the wizard returns.
+struct CloneReq {
+    remote_url: String,
+    gh_user: String,
+    token: String,
+}
+
 /// An in-flight device-flow grant the main loop polls between keystrokes.
 struct PendingAuth {
     device_code: String,
@@ -84,8 +95,35 @@ pub fn run(
     let mut wifi: Option<BlockingWifi<EspWifi<'_>>> = None;
     let mut clock_synced = false;
     let mut pending_auth: Option<PendingAuth> = None;
-    // Set while a clone thread is running; drained in the idle branch.
-    let mut clone_rx: Option<Receiver<CloneMsg>> = None;
+
+    // Clone runs on a dedicated 96 KB thread (libgit2's path-buffer nesting
+    // overflows the main task stack). Spawn it *now*, before any Wi-Fi work:
+    // FreeRTOS stacks come from internal DRAM, and once the radio is up that
+    // pool is too fragmented for a 96 KB contiguous block — the very failure
+    // the git service sidesteps by grabbing its stack at boot. The worker
+    // parks on `clone_req_rx` until the clone step sends a job (`clone_tx`),
+    // and exits when that sender drops as `run` returns. Progress/outcome come
+    // back on `clone_msg_rx`, drained in the idle branch.
+    let (clone_tx, clone_req_rx) = std::sync::mpsc::channel::<CloneReq>();
+    let (clone_msg_tx, clone_msg_rx) = std::sync::mpsc::channel::<CloneMsg>();
+    std::thread::Builder::new()
+        .name("wizclone".into())
+        .stack_size(firmware::git_sync::GIT_STACK)
+        .spawn(move || clone_worker(clone_req_rx, clone_msg_tx))
+        .context("spawning the clone worker")?;
+    let (int_free, int_largest) = unsafe {
+        use esp_idf_svc::sys::{heap_caps_get_free_size, heap_caps_get_largest_free_block, MALLOC_CAP_INTERNAL};
+        (
+            heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+            heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
+        )
+    };
+    log::info!(
+        "wizard: clone worker up ({} KB stack); internal DRAM free {} B (largest block {} B)",
+        firmware::git_sync::GIT_STACK / 1024,
+        int_free,
+        int_largest,
+    );
 
     loop {
         // Paint before executing: waiting screens ("Joining Wi-Fi…",
@@ -190,42 +228,22 @@ pub fn run(
                     dirty = true;
                 }
                 Effect::Clone { full_name } => {
-                    // Shallow-clone on a dedicated GIT_STACK thread (libgit2's
-                    // path nesting overflows the main task stack) using the
-                    // network the wizard already brought up. Creds come from the
-                    // in-progress conf — CARD_CONF isn't set until the wizard
-                    // returns. Progress lands on `clone_rx`, drained below.
-                    let remote_url = wiz.conf().remote_url.clone();
-                    let gh_user = wiz.conf().gh_user.clone();
-                    let token = wiz.conf().token.clone();
-                    log::info!("wizard: cloning {full_name} from {remote_url}");
-                    let (ctx, crx) = std::sync::mpsc::channel::<CloneMsg>();
-                    clone_rx = Some(crx);
-                    std::thread::Builder::new()
-                        .name("wizclone".into())
-                        .stack_size(firmware::git_sync::GIT_STACK)
-                        .spawn(move || {
-                            let ptx = ctx.clone();
-                            let progress =
-                                move |s: &str| { let _ = ptx.send(CloneMsg::Progress(s.to_string())); };
-                            let msg = match firmware::git_sync::clone_repo(
-                                &remote_url,
-                                &gh_user,
-                                &token,
-                                &progress,
-                            ) {
-                                Ok(n) => {
-                                    log::info!("wizard: clone wrote {n} file(s)");
-                                    CloneMsg::Done
-                                }
-                                Err(e) => {
-                                    log::warn!("wizard: clone failed: {e:#}");
-                                    CloneMsg::Failed(format!("{e:#}"))
-                                }
-                            };
-                            let _ = ctx.send(msg);
-                        })
-                        .context("spawning the clone thread")?;
+                    // Hand the job to the worker pre-spawned in `run` (see the
+                    // spawn above) — it clones over the network the wizard
+                    // already brought up. Progress/outcome come back on
+                    // `clone_msg_rx`, drained in the idle branch.
+                    let req = CloneReq {
+                        remote_url: wiz.conf().remote_url.clone(),
+                        gh_user: wiz.conf().gh_user.clone(),
+                        token: wiz.conf().token.clone(),
+                    };
+                    log::info!("wizard: cloning {full_name} from {}", req.remote_url);
+                    if clone_tx.send(req).is_err() {
+                        queue.extend(
+                            wiz.event(Event::CloneFailed("clone worker is gone".into())),
+                        );
+                        dirty = true;
+                    }
                 }
                 Effect::Finish => return Ok(wiz.conf().clone()),
             }
@@ -243,36 +261,33 @@ pub fn run(
                 dirty = true;
             }
             None => {
-                // Idle: drain a running clone thread's progress. Read out one
-                // message with the borrow scoped tight, then act (so we can
-                // clear `clone_rx` on the terminal ones).
-                let cmsg = clone_rx.as_ref().and_then(|rx| match rx.try_recv() {
-                    Ok(m) => Some(Ok(m)),
-                    Err(TryRecvError::Empty) => None,
-                    Err(TryRecvError::Disconnected) => Some(Err(())),
-                });
-                if let Some(res) = cmsg {
-                    match res {
-                        Ok(CloneMsg::Progress(s)) => {
-                            queue.extend(wiz.event(Event::CloneProgress(s)));
-                        }
-                        Ok(CloneMsg::Done) => {
-                            clone_rx = None;
-                            queue.extend(wiz.event(Event::CloneDone));
-                        }
-                        Ok(CloneMsg::Failed(e)) => {
-                            clone_rx = None;
-                            queue.extend(wiz.event(Event::CloneFailed(e)));
-                        }
-                        Err(()) => {
-                            clone_rx = None;
-                            queue.extend(wiz.event(Event::CloneFailed(
-                                "clone thread ended unexpectedly".into(),
-                            )));
-                        }
+                // Idle: drain the clone worker's progress/outcome. Empty until
+                // the clone step sends a job; the worker parks otherwise.
+                match clone_msg_rx.try_recv() {
+                    Ok(CloneMsg::Progress(s)) => {
+                        queue.extend(wiz.event(Event::CloneProgress(s)));
+                        dirty = true;
+                        continue;
                     }
-                    dirty = true;
-                    continue;
+                    Ok(CloneMsg::Done) => {
+                        queue.extend(wiz.event(Event::CloneDone));
+                        dirty = true;
+                        continue;
+                    }
+                    Ok(CloneMsg::Failed(e)) => {
+                        queue.extend(wiz.event(Event::CloneFailed(e)));
+                        dirty = true;
+                        continue;
+                    }
+                    Err(TryRecvError::Empty) => {}
+                    Err(TryRecvError::Disconnected) => {
+                        // Worker thread died (e.g. clone stack overflow).
+                        queue.extend(wiz.event(Event::CloneFailed(
+                            "clone thread ended unexpectedly".into(),
+                        )));
+                        dirty = true;
+                        continue;
+                    }
                 }
 
                 // Advance an in-flight sign-in at GitHub's pace.
@@ -328,6 +343,37 @@ pub fn run(
                 FreeRtos::delay_ms(10);
             }
         }
+    }
+}
+
+/// The pre-spawned clone thread (see the spawn in `run`): parks on `req_rx`,
+/// runs one shallow clone per job against the wizard's live Wi-Fi — it never
+/// touches the modem, the main task owns the radio — and streams
+/// progress/outcome back on `msg_tx`. Exits when the request sender drops (the
+/// wizard finished). Its 96 KB stack is grabbed at spawn time, before Wi-Fi
+/// fragments internal DRAM, which is the whole point of spawning it early.
+fn clone_worker(req_rx: Receiver<CloneReq>, msg_tx: std::sync::mpsc::Sender<CloneMsg>) {
+    for req in req_rx {
+        let ptx = msg_tx.clone();
+        let progress = move |s: &str| {
+            let _ = ptx.send(CloneMsg::Progress(s.to_string()));
+        };
+        let msg = match firmware::git_sync::clone_repo(
+            &req.remote_url,
+            &req.gh_user,
+            &req.token,
+            &progress,
+        ) {
+            Ok(n) => {
+                log::info!("wizard: clone wrote {n} file(s)");
+                CloneMsg::Done
+            }
+            Err(e) => {
+                log::warn!("wizard: clone failed: {e:#}");
+                CloneMsg::Failed(format!("{e:#}"))
+            }
+        };
+        let _ = msg_tx.send(msg);
     }
 }
 
