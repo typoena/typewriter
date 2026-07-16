@@ -61,7 +61,10 @@ production risk lives.
 For a blank practice copy of the full four-house cascade (all catalogues
 and House-1 weights/targets kept; every relation matrix, roof, basement,
 and carried-down importance column left empty), see
-[`quality-house-empty.md`](quality-house-empty.md).
+[`quality-house-empty.md`](quality-house-empty.md). Standing challenges
+between these houses and the product they describe live in
+[`house-vs-product.md`](house-vs-product.md) — the model is argued with
+there, not silently re-scored.
 
 ### House 1 — WHATs × HOWs
 
@@ -285,9 +288,9 @@ and carried-down importance column left empty), see
   \end{tikzpicture}%
 }
 
-% --- Dimensions tuned for the typewriter QFD (15 W x 15 H) ---
-\def\qfdNW{15}
-\def\qfdNH{15}
+% --- Dimensions tuned for the typewriter QFD (16 W x 16 H) ---
+\def\qfdNW{16}
+\def\qfdNH{16}
 \def\qfdWhatW{4.6}
 \def\qfdImpW{0.7}
 \def\qfdHdrH{5.0}
@@ -353,7 +356,8 @@ and carried-down importance column left empty), see
     12/{W12 Local-only files coexist with git scope (v0.5+)},
     13/{W13 Typography sets a writing-tool tone},
     14/{W14 I can carry the device and write away from a desk},
-    15/{W15 A first-time user reaches writing without developer tools}%
+    15/{W15 A first-time user reaches writing without developer tools},
+    16/{W16 Any file, action, or edit point one motion away}%
   }
     \node[anchor=west, font=\scriptsize,
           text width=\qfdWhatTextW cm, align=left]
@@ -361,7 +365,7 @@ and carried-down importance column left empty), see
 
   % ---------- Importance (raw 1-10 weight) ----------
   \foreach \r/\w in {1/10, 2/9, 3/10, 4/7, 5/6, 6/9, 7/8, 8/7,
-                     9/8, 10/5, 11/4, 12/5, 13/7, 14/8, 15/7}
+                     9/8, 10/5, 11/4, 12/5, 13/7, 14/8, 15/7, 16/10}
     \node[font=\scriptsize] at ({-\qfdImpW/2}, {-\r + 0.5}) {\w};
 
   % ---------- HOWs (rotated column titles) ----------
@@ -380,7 +384,8 @@ and carried-down importance column left empty), see
     12/{H12 Network reconnect time},
     13/{H13 Idle / typing / push current},
     14/{H15 Clean release build time},
-    15/{H16 Onboarding duration}%
+    15/{H16 Onboarding duration},
+    16/{H17 Reach cost (keystrokes)}%
   }
     \node[rotate=90, anchor=west, font=\scriptsize]
       at ({\c - 0.5}, 0.15) {\t};
@@ -394,11 +399,12 @@ and carried-down importance column left empty), see
   \node[qfdrel/W] at ({9 - 0.5},  {-1 + 0.5}) {};
   \node[qfdrel/W] at ({11 - 0.5}, {-1 + 0.5}) {};
 
-  % W2 row 2: H6S H7M H9S H12S
+  % W2 row 2: H6S H7M H9S H12S H17M
   \node[qfdrel/S] at ({6 - 0.5},  {-2 + 0.5}) {};
   \node[qfdrel/M] at ({7 - 0.5},  {-2 + 0.5}) {};
   \node[qfdrel/S] at ({9 - 0.5},  {-2 + 0.5}) {};
   \node[qfdrel/S] at ({12 - 0.5}, {-2 + 0.5}) {};
+  \node[qfdrel/M] at ({16 - 0.5}, {-2 + 0.5}) {};
 
   % W3 row 3: H8S
   \node[qfdrel/S] at ({8 - 0.5},  {-3 + 0.5}) {};
@@ -462,6 +468,11 @@ and carried-down importance column left empty), see
   \node[qfdrel/W] at ({12 - 0.5}, {-15 + 0.5}) {};
   \node[qfdrel/S] at ({15 - 0.5}, {-15 + 0.5}) {};
 
+  % W16 row 16: H1M H16M H17S
+  \node[qfdrel/M] at ({1 - 0.5},  {-16 + 0.5}) {};
+  \node[qfdrel/M] at ({15 - 0.5}, {-16 + 0.5}) {};
+  \node[qfdrel/S] at ({16 - 0.5}, {-16 + 0.5}) {};
+
   % ---------- Roof correlations ----------
   \node[font=\scriptsize] at (C-1-2)   {$+\!+$};   % H1-H2 strong reinforce
   \node[font=\scriptsize] at (C-1-3)   {$-$};      % H1-H3 mild conflict
@@ -486,21 +497,22 @@ and carried-down importance column left empty), see
 
   % ---------- Basement: target / abs weight / rel weight % ----------
   \foreach \c/\tgt/\abs/\rel in {%
-    1/{$\leq$400\,ms}/148/9,
-    2/{$\leq$1 line}/177/11,
-    3/{1 : 64}/144/9,
-    4/{$\leq$5\,s}/62/4,
-    5/{$\geq$1\,h}/111/7,
-    6/{$\geq$95\,\%}/134/8,
-    7/{$\leq$30\,s}/27/2,
-    8/{100\,\%}/156/10,
-    9/{$\geq$1\,MB}/193/12,
-    10/{$\leq$2\,MB}/41/3,
-    11/{$\leq$128\,KB}/45/3,
-    12/{$\leq$30\,s}/160/10,
+    1/{$\leq$400\,ms}/178/10,
+    2/{$\leq$1 line}/177/10,
+    3/{1 : 64}/144/8,
+    4/{$\leq$5\,s}/62/3,
+    5/{$\geq$1\,h}/111/6,
+    6/{$\geq$95\,\%}/134/7,
+    7/{$\leq$30\,s}/27/1,
+    8/{100\,\%}/156/9,
+    9/{$\geq$1\,MB}/193/11,
+    10/{$\leq$2\,MB}/41/2,
+    11/{$\leq$128\,KB}/45/2,
+    12/{$\leq$30\,s}/160/9,
     13/{obs.}/137/8,
     14/{$\leq$7\,min}/29/2,
-    15/{$\leq$10\,min}/63/4%
+    15/{$\leq$10\,min}/93/5,
+    16/{$\leq$6 keys}/117/6%
   } {
     \node[font=\scriptsize] at ({\c - 0.5}, {-\qfdNW - 0.5}) {\tgt};
     \node[font=\scriptsize] at ({\c - 0.5}, {-\qfdNW - 1.5}) {\abs};
@@ -513,7 +525,7 @@ and carried-down importance column left empty), see
     \node[anchor=east, font=\scriptsize\itshape]
       at ({-0.1}, {-\qfdNW - \k + 0.5}) {\lbl};
 
-  % ---------- Perception zone: 5 products x 15 WHATs (0-5 scores) ----------
+  % ---------- Perception zone: 5 products x 16 WHATs (0-5 scores) ----------
   % Columns: \so=Typoena shipped (measured through 2026-07-16), \st=reMarkable 2 + Type Folio,
   %          \sf=Freewrite Traveler, \sg=Pomera DM250,
   %          \sh=Freewrite Smart Typewriter.
@@ -534,7 +546,8 @@ and carried-down importance column left empty), see
     12/4/1/2/3/2,
     13/3/5/2/2/2,
     14/2/4/5/5/1,
-    15/4/2/3/5/3%
+    15/4/2/3/5/3,
+    16/5/2/2/3/2%
   } {
     \pgfmathsetmacro{\xo}{\qfdNH + (\so + 0.5)*\qfdCmpW/6}
     \pgfmathsetmacro{\xt}{\qfdNH + (\st + 0.5)*\qfdCmpW/6}
@@ -620,10 +633,12 @@ and carried-down importance column left empty), see
 
 §2's HOWs (rows, importance = each HOW's House-1 basement Σ) × the
 components C1–C20. The basement **derives** the component ranking instead
-of asserting it: **C5 e-ink panel #1, C12 libgit2 #2, C2 std runtime #3,
-C13 mbedTLS #4**; C11/C15 sit parenthesised and unranked (unbuilt). The
-roof's `−−` between C10 (FAT) and C12 (libgit2) is Publish's convicted
-residual, drawn. Source-of-truth matrix + reading:
+of asserting it: **C5 e-ink panel #1, C7 widget/editor layer #2, C12
+libgit2 #3, C2 std runtime #4** — C7's jump past libgit2 is the headline
+of the 2026-07-17 W16/H17 re-score (the reach vote lands where the
+palette and modal grammar live); C11/C15 sit parenthesised and unranked
+(unbuilt). The roof's `−−` between C10 (FAT) and C12 (libgit2) is
+Publish's convicted residual, drawn. Source-of-truth matrix + reading:
 [§5](#5-how--component-mapping-phase-2).
 
 ```tikz
@@ -846,8 +861,8 @@ residual, drawn. Source-of-truth matrix + reading:
   \end{tikzpicture}%
 }
 
-% --- Dimensions tuned for the Phase-2 house (15 HOWs x 20 components) ---
-\def\qfdNW{15}
+% --- Dimensions tuned for the Phase-2 house (16 HOWs x 20 components) ---
+\def\qfdNW{16}
 \def\qfdNH{20}
 \def\qfdWhatW{4.6}
 \def\qfdImpW{0.9}
@@ -879,14 +894,15 @@ residual, drawn. Source-of-truth matrix + reading:
     12/{H12 Network reconnect time},
     13/{H13 Idle / typing / push current},
     14/{H15 Clean release build time},
-    15/{H16 Onboarding duration}%
+    15/{H16 Onboarding duration},
+    16/{H17 Reach cost (keystrokes)}%
   }
     \node[anchor=west, font=\scriptsize,
           text width=\qfdWhatTextW cm, align=left]
       at ({\qfdLeftEdge + 0.1}, {-\r + 0.5}) {\t};
 
   % ---------- Importance: each HOW's Phase-1 basement Sigma ----------
-  \foreach \r/\w in {1/148, 2/177, 3/144, 4/62, 5/111, 6/134, 7/27, 8/156, 9/193, 10/41, 11/45, 12/160, 13/137, 14/29, 15/63}
+  \foreach \r/\w in {1/178, 2/177, 3/144, 4/62, 5/111, 6/134, 7/27, 8/156, 9/193, 10/41, 11/45, 12/160, 13/137, 14/29, 15/93, 16/117}
     \node[font=\scriptsize] at ({-\qfdImpW/2}, {-\r + 0.5}) {\w};
 
   % ---------- Columns: components (rotated titles) ----------
@@ -1014,6 +1030,11 @@ residual, drawn. Source-of-truth matrix + reading:
   \node[qfdrel/S] at ({18 - 0.5}, {-15 + 0.5}) {};
   \node[qfdrel/M] at ({19 - 0.5}, {-15 + 0.5}) {};
   \node[qfdrel/S] at ({20 - 0.5}, {-15 + 0.5}) {};
+  % H17 row 16: C7S C8M C9M C10M
+  \node[qfdrel/S] at ({7 - 0.5}, {-16 + 0.5}) {};
+  \node[qfdrel/M] at ({8 - 0.5}, {-16 + 0.5}) {};
+  \node[qfdrel/M] at ({9 - 0.5}, {-16 + 0.5}) {};
+  \node[qfdrel/M] at ({10 - 0.5}, {-16 + 0.5}) {};
 
   % ---------- Roof: component-component correlations (documented ones only) ----------
   \node[font=\scriptsize] at (C-2-12)  {$+$};      % std VFS/net is what lets libgit2 run (ADR-001 proved by ADR-004)
@@ -1027,26 +1048,26 @@ residual, drawn. Source-of-truth matrix + reading:
 
   % ---------- Basement: derived Sigma / rank ----------
   \foreach \c/\abs/\rk in {%
-    1/{3255}/{8},
-    2/{4558}/{3},
-    3/{2515}/{11},
-    4/{3269}/{7},
-    5/{5751}/{1},
-    6/{3480}/{6},
-    7/{4344}/{5},
-    8/{2145}/{12},
-    9/{3000}/{9},
-    10/{2976}/{10},
+    1/{3345}/{10},
+    2/{4588}/{4},
+    3/{2785}/{11},
+    4/{3359}/{9},
+    5/{6021}/{1},
+    6/{3750}/{6},
+    7/{5667}/{2},
+    8/{2586}/{12},
+    9/{3621}/{7},
+    10/{3417}/{8},
     11/{(1590)}/{--},
-    12/{5331}/{2},
-    13/{4398}/{4},
-    14/{1395}/{13},
+    12/{5601}/{3},
+    13/{4488}/{5},
+    14/{1485}/{13},
     15/{(0)}/{--},
     16/{1233}/{14},
-    17/{608}/{15},
-    18/{567}/{16},
-    19/{189}/{18},
-    20/{567}/{16}%
+    17/{878}/{15},
+    18/{837}/{16},
+    19/{279}/{18},
+    20/{837}/{16}%
   } {
     \node[font=\scriptsize] at ({\c - 0.5}, {-\qfdNW - 0.5}) {\abs};
     \node[font=\scriptsize\bfseries]
@@ -1066,8 +1087,8 @@ residual, drawn. Source-of-truth matrix + reading:
 
 Components (rows, importance = the derived House-2 Σ) × the processes
 that produce them. No factory — "process" is the toolchain + release
-pipeline P1–P9. **P1 firmware build carries 51.9 % of the process weight;
-P4 bench assembly is #2 (22 %) with only manual controls** — the
+pipeline P1–P9. **P1 firmware build carries 52.4 % of the process weight;
+P4 bench assembly is #2 (21.4 %) with only manual controls** — the
 CS-jumper and SDXC lessons were both paid there. Catalogue + first-cut
 caveat: [§5](#5-how--component-mapping-phase-2).
 
@@ -1334,7 +1355,7 @@ caveat: [§5](#5-how--component-mapping-phase-2).
           text width=\qfdWhatTextW cm, align=left]
       at ({\qfdLeftEdge + 0.1}, {-\r + 0.5}) {\t};
 
-  \foreach \r/\w in {1/{3255}, 2/{4558}, 3/{2515}, 4/{3269}, 5/{5751}, 6/{3480}, 7/{4344}, 8/{2145}, 9/{3000}, 10/{2976}, 11/{(1590)}, 12/{5331}, 13/{4398}, 14/{1395}, 15/{(0)}, 16/{1233}, 17/{608}, 18/{567}, 19/{189}, 20/{567}}
+  \foreach \r/\w in {1/{3345}, 2/{4588}, 3/{2785}, 4/{3359}, 5/{6021}, 6/{3750}, 7/{5667}, 8/{2586}, 9/{3621}, 10/{3417}, 11/{(1590)}, 12/{5601}, 13/{4488}, 14/{1485}, 15/{(0)}, 16/{1233}, 17/{878}, 18/{837}, 19/{279}, 20/{837}}
     \node[font=\scriptsize] at ({-\qfdImpW/2}, {-\r + 0.5}) {\w};
 
   \foreach \c/\t in {%
@@ -1413,15 +1434,15 @@ caveat: [§5](#5-how--component-mapping-phase-2).
 
   % ---------- Basement: relative weight / rank ----------
   \foreach \c/\rel/\rk in {%
-    1/{51.9}/{1},
-    2/{10.5}/{3},
-    3/{4.0}/{6},
-    4/{22.0}/{2},
-    5/{4.3}/{4},
-    6/{4.3}/{5},
-    7/{1.0}/{8},
-    8/{0.3}/{9},
-    9/{1.6}/{7}%
+    1/{52.4}/{1},
+    2/{10.0}/{3},
+    3/{3.7}/{6},
+    4/{21.4}/{2},
+    5/{4.5}/{4},
+    6/{4.5}/{5},
+    7/{1.3}/{8},
+    8/{0.4}/{9},
+    9/{1.9}/{7}%
   } {
     \node[font=\scriptsize] at ({\c - 0.5}, {-\qfdNW - 0.5}) {\rel};
     \node[font=\scriptsize\bfseries]
@@ -1696,7 +1717,10 @@ Reading: [§5](#5-how--component-mapping-phase-2).
           text width=\qfdWhatTextW cm, align=left]
       at ({\qfdLeftEdge + 0.1}, {-\r + 0.5}) {\t};
 
-  \foreach \r/\w in {1/{19.4}, 2/{32.7}, 3/{22.7}, 4/{10.2}, 5/{3.1}, 6/{0.4}, 7/{9.4}, 8/{2.1}}
+  % Row importance = House 3's basement (P rel-%). A prior revision
+  % mistakenly carried the Q basement values here (8 entries for 9 rows);
+  % caught in the 2026-07-17 re-derivation — see qfd.md §8.
+  \foreach \r/\w in {1/{52.4}, 2/{10.0}, 3/{3.7}, 4/{21.4}, 5/{4.5}, 6/{4.5}, 7/{1.3}, 8/{0.4}, 9/{1.9}}
     \node[font=\scriptsize] at ({-\qfdImpW/2}, {-\r + 0.5}) {\w};
 
   \foreach \c/\t in {%
@@ -1753,14 +1777,14 @@ Reading: [§5](#5-how--component-mapping-phase-2).
 
   % ---------- Basement: relative weight / rank ----------
   \foreach \c/\rel/\rk in {%
-    1/{19.4}/{3},
-    2/{32.7}/{1},
-    3/{22.7}/{2},
-    4/{10.2}/{4},
-    5/{3.1}/{6},
-    6/{0.4}/{8},
-    7/{9.4}/{5},
-    8/{2.1}/{7}%
+    1/{19.5}/{3},
+    2/{32.4}/{1},
+    3/{22.6}/{2},
+    4/{10.1}/{4},
+    5/{3.3}/{6},
+    6/{0.5}/{8},
+    7/{9.3}/{5},
+    8/{2.4}/{7}%
   } {
     \node[font=\scriptsize] at ({\c - 0.5}, {-\qfdNW - 0.5}) {\rel};
     \node[font=\scriptsize\bfseries]
@@ -1785,6 +1809,7 @@ requirement comes from.
 | --- | ---------------------------------------------------------------------------------- | :----: | ---------------------------------------------------------------------------------------------------------------------------------- |
 |     | **The writing loop**                                                               |        |                                                                                                                                    |
 | W1  | Sub-second visible response to typing                                              |   10   | [product → Write](v0.1-mvp-product.md#user-stories), [README → UX](../README.md#ux-boundaries-set-by-the-medium)                   |
+| W16 | Any file, any action, any edit point is one motion away                            |   10   | [house-vs-product.md → D1](house-vs-product.md), [v0.5 → palette](v0.5-palette-and-multi-file.md)                                  |
 | W5  | Quick boot to a writing cursor                                                     |   6    | [product → acceptance](v0.1-mvp-product.md#acceptance-criteria) (≤ 5 s)                                                            |
 | W7  | Nothing on the device competes with prose                                          |   8    | [README → vision](../README.md#vision)                                                                                             |
 | W8  | The UI never moves except when I move it                                           |   7    | [README → UX](../README.md#ux-boundaries-set-by-the-medium)                                                                        |
@@ -1821,6 +1846,22 @@ U2's weight of 2 is the product's reach bet, not an observed user — when a
 real one appears, re-derive the W column as Σ(segment weight × strength,
 normalised to 1–10) instead of asserting it.
 
+### The WHAT that earned its row — flow (W16)
+
+The 2026-07-17 challenge ([`house-vs-product.md`](house-vs-product.md) D1)
+argued the product's center is **flow** — everything one motion away — and
+that this table was structurally blind to it: the shipped editing grammar
+(palette, vim modes, search) had no row voting for it, sheltering under
+W7 at best. Resolved the same day by scoring the claim instead of
+asserting it: **W16** is the reach *outcome* (a requirement, not a
+solution), with **H17 reach cost** (§2) as its measurable characteristic.
+Deliberately *not* added: a holistic "flow" row — it would touch every HOW
+weakly and add noise, and W1/W3 stay at 10 because they read as flow's
+preconditions, not its rivals. The re-score's headline is in §3/§5: H1
+moved to #2 and C7 (the widget/editor layer) to #2 — the derived ranking
+now agrees with where the July effort went, which was D1's
+revealed-preference evidence all along.
+
 ---
 
 ## 2. Engineering characteristics (the HOWs)
@@ -1840,6 +1881,7 @@ of these functions, or of artifacts they produce.
 | Function  | Transformation                             |
 | --------- | ------------------------------------------ |
 | Type      | keypress → glyph rendered + buffer mutated |
+| Navigate  | intent → active file / buffer / caret repositioned |
 | Save      | dirty buffer → persisted file on SD        |
 | Publish   | persisted file → commit on remote          |
 | Recover   | degraded file state → readable file        |
@@ -1873,6 +1915,8 @@ the diagram and every matrix stay flat).
 | H4  | Boot latency (cold)                            |  ↓  | ≤ 5 s                    | ≤ 3 s †             |
 | H5  | Continuous-typing endurance (no drop, no leak) |  ↑  | ≥ 1 h                    | ≥ 8 h               |
 | H8  | Save durability (post-confirm power loss)      |  →  | 100 %                    | 100 %               |
+|     | **Reach — everything one motion away**         |     |                          |                     |
+| H17 | Reach cost (keystrokes to any file / command / edit point) | ↓ | ≤ 6 median ⊳    | same                |
 |     | **Publish & network**                          |     |                          |                     |
 | H6  | Publish reliability (network up)               |  ↑  | ≥ 95 %                   | ≥ 99 %              |
 | H7  | Publish latency (one file)                     |  ↓  | ≤ 30 s ‡                 | ≤ 10 s ‡            |
@@ -1941,6 +1985,16 @@ the main task and Wi-Fi is owned by the git thread, so there are no separate
 ui/render/wifi stacks. Comfortable in 512 KB SRAM either way; the target
 moved to follow the architecture, not the other way around.
 
+⊳ **Reach cost (H17), defined 2026-07-17 — the W16/flow characteristic**
+([`house-vs-product.md`](house-vs-product.md) D1). Keystrokes from intent
+to target: any of ~1100 files = Cmd-P + 2-char query + Enter (**4**; MRU
+recents under 2 chars), any command = the `>` / `:` grammar, any edit
+point = modal motions with counts. The ≤ 6 bar is a session *median* and
+is **unmeasured** — first measurement owed (§6). H17 had a fight before it
+had a name: the 35 s palette walk (2026-07-13, fixed to 4.3 s via dirent
+file_type) was a reach-cost regression, invisible to the house as then
+drawn.
+
 ---
 
 ## 3. House of Quality — WHATs × HOWs
@@ -1958,14 +2012,14 @@ priority list below come from the basement.
 ### Reading the house
 
 - **Importance (left column)** is the raw 1–10 weight from §1, not a normalised
-  %, so adding stays cheap when a WHAT shifts. Sum of weights is 110; treat each
-  unit as ~0.91 % if you want a percentage view.
+  %, so adding stays cheap when a WHAT shifts. Sum of weights is 120; treat each
+  unit as ~0.83 % if you want a percentage view.
 - **Roof** carries the §4 symbols translated into classical QFD glyphs:
   `++` strong reinforcement (`◎`), `+` mild reinforcement (`○`), `−` mild
   conflict (`×`), `−−` strong conflict (`⊗`).
 - **Basement rows** are: v0.1 target → column sum (`Σ` of `weight × strength`) →
-  relative weight as integer % of total (1627). Rounded relative weights sum
-  to ~100 (102 with 15 columns' rounding).
+  relative weight as integer % of total (1804). Rounded relative weights sum
+  to ~100 (99 with 16 columns' rounding).
 - **H7, H10, H15** (Publish latency, binary size, build time) sit at the bottom
   of the basement, knowingly-paid costs per §7, not signals to optimise harder.
 
@@ -1978,23 +2032,31 @@ priority list below come from the basement.
    capped it (mwindow 64 KB/1.5 MB, odb 1 MB), and shifted the live worry to
    internal DRAM (see §2 ¶). The umbrella typography WHAT (W13)
    keeps a fixed-size glyph-cache load on top of that arena pressure.
-2. **H2 — partial-refresh region area** (177). Bound how many pixels the
+2. **H1 — Type latency** (178). The single most user-visible number;
+   [ADR-002] and [ADR-003] are co-conspirators. #5 until the 2026-07-17
+   W16 re-score: reach's medium vote — every one-motion jump is only as
+   instant as its repaint — adds 30 and pushes it one point past H2.
+3. **H2 — partial-refresh region area** (177). Bound how many pixels the
    panel has to flip per keypress; [ADR-003] is the hardware-side answer.
-3. **H8 — save durability** (156). Atomic-rename + fsync; FAT's weakness
-   is acknowledged in [ADR-007] and mitigated, not designed around. H8's
-   voter base spans W3 (power-loss correctness), W6 (long sessions),
-   W12 (file scopes), and W14 (carrying = unclean shutdowns) — the
-   fourth voter is what lifts H8 into the top three by arithmetic alone.
 4. **H12 — network reconnect time** (160). Mobile use is the chief driver
    (W14 + W2 + W4 + W6, now joined by W15's clone leg); TLS session
    resumption (2026-07-14, second vendored delta in
    `esp_mbedtls_stream.c`) is the shipped answer — it cut the rejected-push
    reconcile fetch from ~30 s to ~5 s. Previously below the top six on a
    stationary v0.1 reading; W14 promotes it.
-5. **H1 — Type latency** (148). The single most user-visible number;
-   [ADR-002] and [ADR-003] are co-conspirators.
+5. **H8 — save durability** (156). Atomic-rename + fsync; FAT's weakness
+   is acknowledged in [ADR-007] and mitigated, not designed around. H8's
+   voter base spans W3 (power-loss correctness), W6 (long sessions),
+   W12 (file scopes), and W14 (carrying = unclean shutdowns) — the
+   fourth voter is what lifts H8 into the top five by arithmetic alone.
 6. **H3 — full-refresh cadence** (144). The ghosting/flash tradeoff; lives
    in the render layer.
+
+H17 (reach cost, 117) enters at **#9 on day one, above H5 endurance** —
+a brand-new characteristic out-voting a soak target reads right for a
+product whose center is flow, and is exactly the statement W16 was added
+to make. Its two voters are W16 (strong) and W2 (medium: `:gp` is the
+reach grammar applied to Publish).
 
 H13 (current draw, 137) sits at #7, close to the top-six cutoff because
 W14 promotes the "wall-power for v0.1, measure first" stance from
@@ -2009,18 +2071,23 @@ HTTPS push; the shipped transport is libgit2) — plus [ADR-005] token auth.
 The matrix simply reads W14's mobile-use voter as a louder signal for
 reconnect (H12) than for the Publish transport itself.
 
-H16 (onboarding duration, 63) enters at the bottom of the table rather than
-the top: W15 is its only strong voter, so the house correctly reads it as a
-first-run, once-per-device characteristic — important to the product's reach
-(it is what typoena.dev's "just power it on" sells), not to the daily writing
-loop. Its budget row lives in §6 because it is still unmeasured.
+H16 (onboarding duration, 93) sits in the lower half rather than at the
+bottom: W15 is its only strong voter, but W16's "the product itself is one
+command away" adds a medium vote (63 → 93 at the 2026-07-17 re-score). The
+house still correctly reads it as a first-run, once-per-device
+characteristic — important to the product's reach (it is what
+typoena.dev's "just power it on" sells), not to the daily writing loop.
+Its budget row lives in §6 because it is still unmeasured.
 
 **Why H8 ranks where it does.** Pre-W14, HoQ totals rewarded characteristics
 that touch many WHATs over characteristics that absolutely matter for one WHAT.
 W3 ("Pulling power never corrupts the file", weight 10) was H8's
 strongest single voter, but H8 still sat at #6 because its base was
 narrow. W14's "carrying = bumps = unclean shutdowns" widens H8's voter
-base and pushes it to #3 by arithmetic. §6's "table-stakes correctness"
+base and lifts it into the top five by arithmetic (#5 after the
+2026-07-17 re-score; an earlier revision of this passage claimed #3,
+overlooking that H12's 160 outranks H8's 156 — caught and corrected in
+the same pass, see §8). §6's "table-stakes correctness"
 override is no longer the load-bearing argument for H8's prominence —
 its acceptance-criteria override for H4/H5 still is. See §6.
 
@@ -2073,17 +2140,23 @@ hackable-Linux 3).
 | W12 | Local-only files coexist with git scope           |    4    |  1   |   2   |   2   |  3   | Typoena: shipped in v0.5 (on-device 2026-07-12) — `/sd/local` never publishes, palette walks both scopes; 4 not 5 while the scope model has one shipped week of lived use. reMarkable cloud-only. Freewrites have local + Postbox but no VCS. Pomera = pure local.                                                                                                                                                                                                                                                                         |
 | W13 | Typography sets a writing-tool tone               |    3    |  5   |   2   |   2   |  2   | Typoena v0.1: single mono (serif option in v1.0). reMarkable: rich type rendering. Freewrite + Pomera: utilitarian.                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | W14 | I can carry the device and write away from a desk |    2    |  4   |   5   |   1   |  5   | Typoena still wall-powered (ADR-008) — desk-bound until v0.8's battery, though the parametric case (`hardware/case/`, OpenSCAD) now exists. reMarkable + Type Folio bag-friendly with bulk. Freewrite Traveler is the form-factor reference (~1.6 lb, folds). Smart Typewriter ~5 lb, desk-bound. Pomera DM250 pocketable foldable.                                                                                                                                                                                                        |
+| W16 | Any file / action / edit one motion away          |    5    |  2   |   2   |   2   |  3   | Typoena: fuzzy palette over ~1100 files (Cmd-P + 2 chars + Enter), modal editing grammar with counts, `>`/`:` command palette, one-line install — the seiton claim made scoreable, and self-scored on the product's own home turf (discount accordingly). reMarkable Type Folio: touch menus, no keyboard grammar. Freewrites: gloriously few destinations but shallow reach — folder switch plus arrow keys, editing mid-document is famously costly. Pomera: menu-driven file list, no modal grammar.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | W15 | First-time setup without developer tools          |    4    |  2   |   3   |   3   |  5   | Typoena: two verified paths — on-device wizard (Wi-Fi scan-pick, QR device-flow sign-in, repo pick + shallow clone; slices 0–5a on hardware 2026-07-16) and the `curl … \| sh` installer (checksum-verified, no toolchain); 4 not 5 while factory-reset/repo-switch are on-device-pending and repos > ~30 MB are refused. reMarkable needs account + companion app. Freewrites need a Postbox account. Pomera: no setup at all.                                                                                                            |
 
-**Totals** (sum across 15 WHATs, no weighting): Typoena 57, Pomera 55,
-Freewrite Traveler 50, reMarkable 46, Freewrite Smart Typewriter 45.
+**Totals** (sum across 16 WHATs, no weighting): Typoena 62, Pomera 58,
+Freewrite Traveler 52, reMarkable 48, Freewrite Smart Typewriter 47.
 History: Typoena 52→51 at the 2026-07-11 measurement rebase (W6 +1 soak,
 W1 −2 on the ~630 ms reading), then 51→57 at the 2026-07-16 rebase (W1 +1
 once the ~630 ms figure was re-read as the erase tier, W12 +1 on shipped
 v0.5, W15 4 new); every product gained its W15 row (Pomera +5, Traveler and
-Smart +3, reMarkable +2). Traveler pre-Sailfish 44; Smart pre-Sailfish 39;
+Smart +3, reMarkable +2). The 2026-07-17 W16 row (reach) added Typoena +5,
+Pomera +3, the rest +2 — the five sits on the dimension the product was
+literally built around, so it is the least independent cell in the table.
+Traveler pre-Sailfish 44; Smart pre-Sailfish 39;
 reMarkable W1 dropped 3→2→1 across two rounds of author testing.
-Typoena's lead over Pomera is two points and still hinges on the same
+Typoena's lead over Pomera is four points — two of them from the
+self-scored W16 row, so read it as the same two-point contest it was —
+and still hinges on the same
 dimensions: W14 (portability) and W1's erase tier are where the tethered
 e-ink device loses ground; v0.8 (battery) and a faster erase/caret path are
 what widen it. The "Pomera + Wi-Fi + git + hackable BOM" framing from
@@ -2110,6 +2183,7 @@ finding: Typoena's column is bench data, the market's is marketing copy.
 | H5 endurance                      | ≥ 1 h attested (2026-07-11)                 |            |       |       |             |
 | H7 Publish (real repo, warm)      | ~19 s `:gp` (2026-07-14)                    | n/a (no git) | n/a | n/a   | n/a         |
 | H16 onboarding (blank → cursor)   | unmeasured (≤ 10 min target)                |            |       |       | ~0 (no setup) |
+| H17 reach (keystrokes to target)  | 4 to any file by construction (Cmd-P + 2-char query + Enter); session median unmeasured |  |  |  |             |
 
 Post-Sailfish Freewrite latency ("cut 40–100 %") and Pomera's "LCD ~zero"
 are real signals but not numbers — they stay in the rationale column above,
@@ -2118,7 +2192,7 @@ score should be re-checked against it.
 
 #### Caveats
 
-- **Single-rater bias.** All fifteen rows are scored from the project
+- **Single-rater bias.** All sixteen rows are scored from the project
   author's POV. A reMarkable buyer would weight W11 (battery) at 10 and
   W12 (git) at 1, flipping the totals. §1's segment table (U1/U2) now
   makes this structural: the weights are U1-asserted, and the re-derive
@@ -2247,6 +2321,11 @@ point at §7's tradeoff rows.
     - C7 widget layer · C8 rope buffer
   - **How: USB host keyboard** ([ADR-009], T9 — rejected: BLE-HID, radio contention with Wi-Fi during Publish)
     - C9 TinyUSB host · C3 threads
+- **Navigate** (intent → active file / buffer / caret repositioned) — serves W16 (10), and W2's one-action Publish rides the same grammar · measured by H17, each motion's repaint priced by H1/H2
+  - **How: fuzzy file palette over both scopes** (Cmd-P; MRU recents under 2 chars, background card walk interned to one PSRAM blob — rejected: a file-manager screen, a destination that competes with prose)
+    - C7 widget layer · C10 FAT walk · C8 rope
+  - **How: modal editing grammar** (vim Normal/Visual/ex, counts, `.` repeat, `/` smartcase + accent-folded search — rejected: chorded shortcuts, reach cost grows with document and file count instead of staying O(one motion))
+    - C7 · C8 · C9 keyboard
 - **Save** (dirty buffer → persisted file on SD) — serves W3 (10), W6 (9), W12 (5) · measured by H8
   - **How: atomic-rename + fsync on FAT** ([ADR-007], T7; unlink-first + `*.tmp` boot recovery because FatFS `f_rename` won't overwrite — rejected: LittleFS working copy, a desktop can't read it)
     - C10 FAT on SD (own SPI3, [ADR-012]) · C2 std VFS
@@ -2327,16 +2406,20 @@ HOW-to-component matrix (9 strong / 3 medium / 1 weak):
 | H13 mA    |   9    |        |   1    |        |   9    |       |        |         |   3    |   3    |         |         |         |         |         |    9    |         |          |          |         |
 | H15 build |        |   9    |        |        |        |       |        |         |        |        |         |    9    |    3    |         |         |         |         |          |          |         |
 | H16 onb   |        |        |        |        |        |       |        |         |        |   3    |         |    9    |    3    |    3    |         |         |    9    |    9     |    3     |    9    |
-| **Σ**     |  3255  |  4558  |  2515  |  3269  |  5751  | 3480  |  4344  |  2145   |  3000  |  2976  | (1590)  |  5331   |  4398   |  1395   |   (0)   |  1233   |   608   |   567    |   189    |   567   |
-| **Rank**  |   8    |   3    |   11   |   7    |   1    |   6   |   5    |   12    |   9    |   10   |    —    |    2    |    4    |   13    |    —    |   14    |   15    |   16     |   18     |   16    |
+| H17 reach |        |        |        |        |        |       |   9    |    3    |   3    |   3    |         |         |         |         |         |         |         |          |          |         |
+| **Σ**     |  3345  |  4588  |  2785  |  3359  |  6021  | 3750  |  5667  |  2586   |  3621  |  3417  | (1590)  |  5601   |  4488   |  1485   |   (0)   |  1233   |   878   |   837    |   279    |   837   |
+| **Rank**  |   10   |   4    |   11   |   9    |   1    |   6   |   2    |   12    |   7    |   8    |    —    |    3    |    5    |   13    |    —    |   14    |   15    |   16     |   18     |   16    |
 
 The **Σ row carries the cascade down**: component Σ = Σ(basement Σ of each
 HOW × cell strength), so component priorities are derived from the house,
 not asserted. C11 and C15 are parenthesised and excluded from the rank —
 they are unbuilt ([ADR-007]'s possible future shape / the open [ADR-011]),
 so their votes are fiction until they ship; C15's 0 is the sanity check
-(no shipped characteristic touches it). C18/C20 tie at 567. Recompute this
-row whenever the basement Σ or a cell above changes.
+(no shipped characteristic touches it). C18/C20 tie at 837. Recompute this
+row whenever the basement Σ or a cell above changes. H17's strong cell
+lands on C7 — the widget layer read broadly as the editor surface: the
+palette, the modal grammar's rendering, and the dirty-rects that price
+each motion all live in the `editor` crate behind it.
 
 This matrix is drawn as **House 2** [at the top of the file](#house-of-quality--the-four-diagrams)
 (row importance = each HOW's Phase-1 basement Σ, the derived Σ / Rank as
@@ -2346,13 +2429,16 @@ truth** — re-score here first, then mirror the drawing, same day.
 
 ### Read across, not down
 
-- **C5/C6/C7** (panel + graphics + widget) are the most leveraged
-  cluster — 13 575 summed Σ, ~27 % of all component votes — and C5 is the
-  #1 single component (5 751). The derived rank adds nuance the old
-  asserted reading lacked: C6 (#6) and C7 (#5) are interleaved with the
-  git/TLS and platform components, not a solid top-three block. [ADR-002]
+- **C5/C7/C6** (panel + widget/editor + graphics) are the most leveraged
+  cluster — 15 438 summed Σ, ~27 % of all component votes — and the
+  2026-07-17 W16 re-score made the cluster's internal order the headline:
+  **C7 jumped #5 → #2** (5 667), overtaking libgit2. H17's strong vote
+  lands where the palette and the modal grammar live, so the derived
+  ranking now points at the same place the July effort record did — the
+  divergence D1 used as evidence is dissolved by arithmetic, not excused.
+  C5 stays #1 (6 021); C6 holds #6. [ADR-002]
   and [ADR-003] are the ADRs to keep most honest as v0.x progresses.
-- **C12** (`libgit2`) is **#2 by derivation** (5 331) and overloaded:
+- **C12** (`libgit2`) is **#3 by derivation** (5 601, was #2) and overloaded:
   H6, H7, H9, H10, H11, H12, H15 — and now
   H16's clone leg — all touch it. [ADR-004]'s kill-switch **fired**
   (spike 7, 2026-07-06: gix had no HTTPS push) and the fallback became the
@@ -2377,13 +2463,15 @@ truth** — re-score here first, then mirror the drawing, same day.
   to the same configured card, so neither is a single point of failure for
   W15 — a Mac user never touches the wizard; a computer-less user never
   touches the installer. C20 (device-flow auth) and C12 (shallow clone) are
-  the shared spine of both. **Rank-vs-effort flag:** these rank #15–#18
-  yet absorbed most of the mid-July effort. The divergence is explained,
-  not a misallocation — the Σ column prices the *daily writing loop*,
-  and the onboarding sprint bought *reach* (W15, once per device). But the
-  flag stands as a reminder: with W15 shipped, the arithmetic says the
-  next unit of effort belongs back in C5/C12 territory.
-- **C2** (std runtime) is **#3 by derivation** (4 558) — it sits
+  the shared spine of both. **Rank-vs-effort flag, resolved 2026-07-17:**
+  these still rank #15–#18, but the divergence the flag pointed at is
+  gone. [`house-vs-product.md`](house-vs-product.md) D1 read the July
+  effort record as revealed preference that the WHAT weights were stale,
+  and the W16/H17 re-score confirmed it: the votes moved to where the
+  effort went (C7 #2; C8, C9, C10 all rose), while C17–C20 stay low for
+  the honest reason — onboarding is once per device. The flag's early
+  trigger (a second firing) retires with D1.
+- **C2** (std runtime) is **#4 by derivation** (4 588) — it sits
   underneath almost everything, but it's the
   _enabler_ (H4 boot, H10 binary, H12 reconnect) rather than the bottleneck.
   Reversing [ADR-001] would force re-deciding [ADR-004], [ADR-005],
@@ -2433,12 +2521,12 @@ release → typoena.dev, device-flow e2e).
 
 The scored house is drawn as **House 4** [at the top of the file](#house-of-quality--the-four-diagrams).
 
-**Reading the pair.** P1 carries **51.9 %** of the process weight — the
+**Reading the pair.** P1 carries **52.4 %** of the process weight — the
 firmware build produces almost every high-Σ component, which is why Q2/Q3
 (on-device verification + build gates) rank #1/#2 among controls: the
 project's habit of hardware-verifying every slice is exactly where the
 arithmetic says the control effort belongs. Two flags worth keeping:
-**P4 bench assembly is #2 (22 %) with only manual controls** — nothing
+**P4 bench assembly is #2 (21.4 %) with only manual controls** — nothing
 automated guards the wiring that C5/C10/C16 depend on (the CS-jumper and
 SDXC lessons were both paid here), so hardware changes deserve the same
 verify-on-device discipline as code; and **Q6's rank #8 understates it** —
@@ -2455,7 +2543,7 @@ A curated rank, drawing from §3 importance and §4 conflicts, with one
 deliberate override: acceptance-criteria critical paths (H4 boot,
 H5 soak) move up regardless of weighted-vote spread. (Pre-W14 this list
 also lifted H8 durability over its narrow voter base; W14 has widened
-that base, so H8's #3 spot is now arithmetic — see §3.) These started as
+that base, so H8's top-five spot is now arithmetic — see §3.) These started as
 the numbers spikes 2–7 had to validate; most are now measured on the
 shipped device — the Verdict column carries the result, and every row
 names its fallback in "If we miss it": a target without a fallback is a
@@ -2472,7 +2560,8 @@ already-met targets.
 | 6    | H3 cadence             | full every ~64 partials          | `FULL_REFRESH_EVERY = 64`           | ✓ holding; flashes deferred to idle ≥ 1 s                                                                                                                             | If ghosting returns: lower `FULL_REFRESH_EVERY`, temperature-tune per panel                                                                                              |
 | 7    | H4 Boot latency        | ≤ 5 s (cold, to cursor)          | 4258 ms 2026-07-11 ✓                | Held ~4.2 s through the 2026-07-14 restructure (async splash, background walk) — [boot-time-budget](notes/boot-time-budget.md)                                        | For v1.0's ≤ 3 s: memtest off (−0.74 s); beyond that the target moves, not the boot path — the ~1.9 s cold full refresh is an e-ink floor                                |
 | 8    | H5 soak                | 1 h no leak / no drop            | 1 h real-use soak ✓ 2026-07-11      | Attested                                                                                                                                                              | Bisect the heap-touching change (the run-4 per-draw-alloc OOM was exactly this class) and re-soak before shipping it                                                     |
-| 9    | H16 onboarding         | ≤ 10 min (blank card → cursor)   | **unmeasured** — time a fresh run   | Wizard slices 0–5a verified on hardware but never wall-clocked                                                                                                        | Shallow-clone tuning, device-flow poll cadence; structurally, the deferred SoftAP companion (a phone keyboard beats the device keyboard for entry speed)                 |
+| 9    | H17 reach cost         | ≤ 6 keystrokes median (file / command / edit point) | **unmeasured** — count a real session | 4-keystroke file reach by construction (Cmd-P + 2-char query + Enter; MRU recents under 2 chars); the grammar is host-tested but a session median has never been counted | MRU depth + `PALETTE_MIN_QUERY` tuning, pinned files; if the *grammar itself* is what costs motions, that is a design question for [house-vs-product.md](house-vs-product.md), not a tuning knob |
+| 10   | H16 onboarding         | ≤ 10 min (blank card → cursor)   | **unmeasured** — time a fresh run   | Wizard slices 0–5a verified on hardware but never wall-clocked                                                                                                        | Shallow-clone tuning, device-flow poll cadence; structurally, the deferred SoftAP companion (a phone keyboard beats the device keyboard for entry speed)                 |
 
 The two not-in-MVP rows but already-shaped-by-design:
 
@@ -2843,6 +2932,39 @@ trigger is a decision being avoided, not deferred.
   size and overflowed the legend box. Now `\scriptsize\bfseries` (bold
   only, same size), fixed in every preamble copy here and in
   `quality-house-empty.md`.
+- **The flow challenge — [`house-vs-product.md`](house-vs-product.md)
+  opened (2026-07-17).** The author rejected the houses' reading of the
+  product ("your keystroke appears instantly and your words are never
+  lost") in favour of **flow** — the first 2S of 5S applied at every
+  layer — and the July effort record backs the claim as revealed
+  preference: the rank-vs-effort divergence (§5) reads as stale weights,
+  not drift, and the shipped editing grammar (palette, vim modes, search)
+  turns out to have **no WHAT row voting for it at all**. Not fixable by
+  a same-day re-weight without baking the assertion in, so this became
+  the first entry (D1) of a new standing-challenges page where the model
+  is argued with instead of silently re-scored. Nothing in the matrices
+  changed; §1 gained the "WHAT that has no row" note and the §5 flag now
+  carries D1's counter-reading.
+- **W16 + H17 scored — D1 resolved by re-derivation, same day
+  (2026-07-17).** The user took the challenge's strongest fix: a reach
+  *outcome* WHAT (**W16** "any file, any action, any edit point is one
+  motion away", weight 10) with a measurable companion characteristic
+  (**H17** reach cost in keystrokes, ≤ 6 median, unmeasured), plus a
+  **Navigate** function row — not a holistic "flow" row, which would have
+  touched everything weakly. Cells kept sparse (W16 → H1/H16/H17; H17
+  voters W16 + W2; H17 → C7/C8/C9/C10) and the full cascade re-derived:
+  House 1 total 1627 → 1804, **H1 climbs #5 → #2** (178, past H2's 177),
+  H17 enters at #9 above H5, H16 63 → 93; House 2 headline **C7 #5 → #2**
+  (5 667) past libgit2 — the derived ranking now agrees with the July
+  effort record, dissolving the §5 rank-vs-effort flag; Houses 3–4 ranks
+  unchanged (P1 52.4 %, P4 21.4 %), a robustness check passed. Perception
+  gained the W16 row (Typoena's five is self-scored on home turf and
+  flagged as such). Re-verifying every number caught two pre-existing
+  slips, both fixed: **House 4's row-importance column carried the Q
+  basement values instead of the P process weights** (eight entries for
+  nine rows — a paste of its own basement), and **§3's priority list had
+  H8 (156) at #3 above H12 (160)**, an ordering the arithmetic never
+  supported.
 
 The earlier variance between README's "~12 lines" and product/[ADR-003]'s
 "~11 lines" of "edit area" is now superseded: the side-panel redesign removed
@@ -2892,6 +3014,13 @@ README, the product/technical docs, and [ADR-003] are all updated to ~13 lines
   must always name a live fallback, and a §7 tension must always carry a
   **Trigger to revisit** — otherwise it is a decision being avoided, not
   deferred.
+- When the houses and the builder disagree about what the product *is*,
+  the dispute goes to [`house-vs-product.md`](house-vs-product.md) first —
+  argued with evidence and a trigger, not resolved by a same-day
+  re-weight. Weights, rows, or cells change here only after the entry
+  there says why; and the next House-1 re-score must settle any OPEN
+  entry that is waiting on it (none open today — D1/flow resolved
+  2026-07-17 by the W16/H17 re-score).
 
 [ADR-001]: adr.md#adr-001-language-and-runtime--rust-on-esp-idf-rs-std
 [ADR-002]: adr.md#adr-002-ui-strategy--custom-widgets-on-embedded-graphics-not-ratatui
