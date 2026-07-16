@@ -337,9 +337,12 @@ pub fn run_git_service(
 /// files written.
 ///
 /// Runs on a `GIT_STACK` thread (libgit2's path-buffer nesting overflows the
-/// default) and applies `tune_libgit2` itself, since the service thread that
-/// normally does so hasn't started yet. `progress` receives short status lines
-/// for the panel.
+/// default) and applies `tune_libgit2` + installs the TLS trust store itself,
+/// since the service thread that normally does so (via `ensure_online`) hasn't
+/// started yet — without the trust store libgit2 rejects github.com as
+/// `NOT_TRUSTED`. Wi-Fi is already up and the clock already SNTP-synced by the
+/// wizard's device-flow step, so only the CA bundle is missing here.
+/// `progress` receives short status lines for the panel.
 pub fn clone_repo(
     remote_url: &str,
     gh_user: &str,
@@ -347,12 +350,25 @@ pub fn clone_repo(
     progress: &dyn Fn(&str),
 ) -> Result<usize> {
     tune_libgit2();
+    // libgit2's mbedTLS stream has no CA set until this runs; the service thread
+    // that normally installs it hasn't started during the wizard.
+    install_tls_trust_store()?;
     log::info!(
         "clone: init {REPO_DIR} <- {remote_url} (free heap {})",
         free_heap()
     );
     let repo = Repository::init(REPO_DIR).context("git init")?;
-    let mut remote = repo.remote("origin", remote_url).context("adding origin")?;
+    // A previous failed attempt may have left `origin` behind (init is
+    // idempotent, but re-adding a remote is not). Reuse or repoint it — this
+    // also covers the user re-picking a different repo on retry.
+    let mut remote = match repo.remote("origin", remote_url) {
+        Ok(r) => r,
+        Err(_) => {
+            repo.remote_set_url("origin", remote_url)
+                .context("repointing existing origin")?;
+            repo.find_remote("origin").context("reopening origin")?
+        }
+    };
 
     // Learn the default branch (main/master/…) from the ref advertisement.
     progress("contacting origin");
