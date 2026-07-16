@@ -132,7 +132,12 @@ fn main() -> anyhow::Result<()> {
         let effective = firmware::git_sync::effective_conf_from(&card);
         let final_conf = if !effective.missing_required().is_empty() || !storage.repo_present() {
             log::info!("unconfigured card (conf incomplete or repo missing) — entering the onboarding wizard");
-            match wizard_io::run(&mut epd, &storage, effective, &sys_loop, &nvs, &mut modem) {
+            // The gate above asks "is the device usable?" (baked dev values can
+            // answer yes). The wizard provisions the *card*, so it resumes from
+            // the card's own state — never the baked fallback, which would skip
+            // the very steps a blank card needs (and, on the author's device,
+            // mask the whole flow by jumping straight to the repo step).
+            match wizard_io::run(&mut epd, &storage, card, &sys_loop, &nvs, &mut modem) {
                 Ok(c) => c,
                 Err(e) => boot_halt(&mut epd, "Setup stopped", &format!("{e:#}")),
             }
