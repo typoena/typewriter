@@ -152,6 +152,15 @@ and stay put; no char flicker from previous batches.
   the only suspect left.
 - **Measured timings encode architecture.** Windowed vs full-area at
   543/629 ms said "the waveform drives all gates regardless" — which both
-  scoped the blast radius of stale RAM and flagged the next lever: restricting
-  the gate scan so single-line updates get *actually* fast (open, future perf
-  pass).
+  scoped the blast radius of stale RAM and flagged a candidate lever:
+  restricting the gate scan so single-line updates get *actually* fast.
+  **Spiked and refuted the same day**: programming driver output control
+  (`0x01`, MUX = band height) + gate scan start (`0x0F`) on both controllers
+  took visible effect but a 20-gate scan still ran 571 ms — the partial
+  waveform's BUSY time does not scale with MUX on this panel. Worse, writing
+  `0x01` with the datasheet POR scan-order byte **mirrored the panel
+  vertically**: the operating gate config is loaded from panel OTP at reset,
+  can't be read back, and differs from the datasheet POR. Verdict: `0x01` is
+  a write-only hazard on this panel; the ~545 ms partial floor stands. Lever
+  closed — full spike writeup in
+  [the gate-scan postmortem](2026-07-16-gate-scan-spike-refuted.md).
