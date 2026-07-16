@@ -25,11 +25,19 @@ fn main() -> anyhow::Result<()> {
     if args.iter().any(|a| a == "--list-cards") {
         return list_cards();
     }
-    // Full-card reformat TUI: pick a card, confirm, erase to blank FAT32, eject.
-    // Usage: --wipe [volume] [--label NAME]   (backs the firmware `just wipe`).
+    // Full-card reformat: erase a removable card to blank FAT32 (backs the
+    // firmware `just wipe`). Headless by default — a target summary + one y/N —
+    // so it chains: `just wipe --no-eject && just wifi-seed`.
+    //   --wipe [volume] [--label NAME] [--no-eject] [--yes|-y] [--ui]
+    //   --no-eject   leave the fresh volume mounted (for a follow-up seed step)
+    //   --yes / -y   skip the confirmation prompt (for scripts)
+    //   --ui         use the full-screen TUI (card picker + confirm screen)
     if args.iter().any(|a| a == "--wipe") {
         let mut label = "TYPOENA".to_string();
         let mut volume: Option<String> = None;
+        let mut eject = true;
+        let mut assume_yes = false;
+        let mut ui = false;
         let mut it = args.iter().skip(1);
         while let Some(a) = it.next() {
             match a.as_str() {
@@ -38,12 +46,19 @@ fn main() -> anyhow::Result<()> {
                         label = v.clone();
                     }
                 }
-                s if s.starts_with("--") => {} // --wipe and any other flags
+                "--no-eject" => eject = false,
+                "--yes" | "-y" => assume_yes = true,
+                "--ui" => ui = true,
+                s if s.starts_with('-') => {} // --wipe and any other flags
                 s if volume.is_none() => volume = Some(s.to_string()),
                 _ => {}
             }
         }
-        return wipe::run(volume, label);
+        return if ui {
+            wipe::run(volume, label)
+        } else {
+            wipe::run_headless(volume, label, eject, assume_yes)
+        };
     }
     // Verify the (optionally wipe +) clone + config-write path without a card
     // (clones to a temp dir, no eject).

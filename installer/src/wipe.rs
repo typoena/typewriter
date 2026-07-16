@@ -1,8 +1,13 @@
-//! Full-card reformat TUI (`--wipe`): pick a removable card, confirm exactly
-//! what's about to be destroyed (device, size, and any unpublished device
-//! edits), then `diskutil eraseVolume` it to a blank FAT32 volume and eject —
-//! the "blank slate for first-boot-wizard testing" the firmware `just wipe`
-//! recipe used to do behind a bare bash y/N prompt.
+//! Full-card reformat (`--wipe`): show exactly what's about to be destroyed
+//! (device, size, and any unpublished device edits), confirm, then `diskutil
+//! eraseVolume` it to a blank FAT32 volume and eject — the "blank slate for
+//! first-boot-wizard testing" the firmware `just wipe` recipe drives.
+//!
+//! Headless by default ([`run_headless`]): a one-line target summary + a single
+//! `y/N` on the TTY, no alternate screen — so it drops cleanly into a chain like
+//! `just wipe --no-eject && just wifi-seed`. `--yes` skips the prompt; `--ui`
+//! brings back the full [`run`] TUI (card picker + destructive-confirm screen).
+//! Both share the same erase core ([`do_wipe`]).
 //!
 //! This is distinct from the wizard's SD "wipe", which only erases `repo/`
 //! before a re-clone; this reformats the whole volume. It only ever targets a
@@ -10,7 +15,7 @@
 //! re-checks that the device is still removable inside the worker before it
 //! erases anything.
 
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
@@ -117,6 +122,101 @@ pub fn run(want_volume: Option<String>, label: String) -> anyhow::Result<()> {
     let result = event_loop(&mut terminal, &mut app);
     ratatui::restore();
     result
+}
+
+/// Headless `--wipe` (the default): resolve the target card, print exactly what
+/// will be erased, confirm once on the TTY (unless `assume_yes`), then erase to
+/// blank FAT32 and — unless `--no-eject` — eject. Same erase core as the TUI,
+/// no alternate screen, so it chains cleanly (`just wipe --no-eject && just
+/// wifi-seed`). Mirrors the justfile `_card` safety: an explicit volume wins;
+/// otherwise exactly one removable card is required (refuse on zero or many).
+pub fn run_headless(
+    want_volume: Option<String>,
+    label: String,
+    eject: bool,
+    assume_yes: bool,
+) -> anyhow::Result<()> {
+    let cards = sdcard::detect_cards();
+    let card = resolve_card(&cards, want_volume.as_deref())?;
+    let target = match prepare(card.volume.clone(), card.fs.clone()) {
+        PrepResult::Ok(t) => t,
+        PrepResult::Err(e) => bail!(e),
+    };
+
+    // Show precisely what's about to be destroyed before a single byte is touched.
+    print_target(&target, &label);
+    if !assume_yes && !confirm()? {
+        println!("aborted — nothing erased.");
+        return Ok(());
+    }
+
+    // Stream the erase (and eject) log straight to stdout.
+    let mut emit = |e: WipeEvent| {
+        if let WipeEvent::Log(l) = e {
+            println!("{l}");
+        }
+    };
+    do_wipe(&target.device, &label, &target.volume, eject, &mut emit)?;
+    if !eject {
+        println!("next: `just wifi-seed` to seed Wi-Fi creds, or eject before removing.");
+    }
+    Ok(())
+}
+
+/// Pick the card to erase: an explicit name/path wins; otherwise require exactly
+/// one removable card, refusing on zero or many — the same guard the justfile
+/// `_card` helper applies, so a stray second card can't be nuked by guess.
+fn resolve_card<'a>(cards: &'a [Card], want: Option<&str>) -> anyhow::Result<&'a Card> {
+    if let Some(w) = want {
+        return cards
+            .iter()
+            .find(|c| {
+                c.name == w
+                    || c.volume.to_string_lossy() == w
+                    || c.volume == Path::new("/Volumes").join(w)
+            })
+            .with_context(|| format!("no removable card matching {w:?} (see --list-cards)"));
+    }
+    match cards {
+        [] => bail!("no removable card detected — insert one (see --list-cards)"),
+        [c] => Ok(c),
+        many => bail!(
+            "{} removable cards detected ({}) — name one: --wipe <volume>",
+            many.len(),
+            many.iter()
+                .map(|c| c.name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+    }
+}
+
+/// The plain-text equivalent of the TUI confirm screen: what device, how big,
+/// and any never-published device edits the erase would lose.
+fn print_target(t: &Target, label: &str) {
+    println!("erase {} → blank FAT32 '{label}'", t.volume.display());
+    println!("  device   {}", t.device);
+    println!("  size     {}", t.size);
+    println!("  current  {}", t.fs);
+    if t.origin.is_some() || t.head.is_some() || t.dirty > 0 {
+        let origin = t.origin.as_deref().unwrap_or("(unknown origin)");
+        let head = t.head.as_deref().unwrap_or("(unknown HEAD)");
+        print!("  repo     {origin} @ {head}");
+        if t.dirty > 0 {
+            print!(", {} unpublished edit(s) WILL BE LOST", t.dirty);
+        }
+        println!();
+    }
+}
+
+/// Read a single y/N line from the TTY. Anything but `y`/`Y` is "no" — the safe
+/// default for an irreversible erase.
+fn confirm() -> anyhow::Result<bool> {
+    print!("Erase? [y/N] ");
+    std::io::stdout().flush().ok();
+    let mut line = String::new();
+    std::io::stdin().read_line(&mut line)?;
+    Ok(matches!(line.trim(), "y" | "Y"))
 }
 
 fn event_loop(terminal: &mut ratatui::DefaultTerminal, app: &mut WipeApp) -> anyhow::Result<()> {
@@ -311,7 +411,7 @@ fn run_wipe(device: String, label: String, volume: PathBuf, tx: Sender<WipeEvent
     let mut emit = |e: WipeEvent| {
         let _ = tx.send(e);
     };
-    let res = do_wipe(&device, &label, &volume, &mut emit).map_err(|e| format!("{e:#}"));
+    let res = do_wipe(&device, &label, &volume, true, &mut emit).map_err(|e| format!("{e:#}"));
     let _ = tx.send(WipeEvent::Done(res));
 }
 
@@ -319,6 +419,7 @@ fn do_wipe(
     device: &str,
     label: &str,
     volume: &Path,
+    eject: bool,
     emit: &mut dyn FnMut(WipeEvent),
 ) -> anyhow::Result<()> {
     // Defense in depth: the device came from detect_cards (removable-only), but
@@ -368,6 +469,13 @@ fn do_wipe(
             status.code(),
             errbuf.trim()
         );
+    }
+
+    // --no-eject leaves the fresh volume mounted so a follow-up step (e.g.
+    // `just wifi-seed`) can write to it without a re-insert.
+    if !eject {
+        emit(WipeEvent::Log("erased — left mounted (--no-eject).".into()));
+        return Ok(());
     }
 
     // Flush + eject the whole media by its device node — the mount point moved
@@ -706,5 +814,44 @@ mod tests {
         let s = screen(&app_with(Phase::Done));
         assert!(s.contains("erased"), "done must confirm the erase:\n{s}");
         assert!(s.contains("ejected"), "done must say it ejected:\n{s}");
+    }
+
+    fn card(name: &str) -> Card {
+        Card {
+            volume: PathBuf::from("/Volumes").join(name),
+            name: name.into(),
+            fs: "MS-DOS FAT32".into(),
+            fat: true,
+        }
+    }
+
+    #[test]
+    fn resolve_card_needs_exactly_one_when_unnamed() {
+        // Zero cards and more-than-one card both refuse (no guessing).
+        assert!(resolve_card(&[], None).is_err(), "zero cards must refuse");
+        let two = [card("A"), card("B")];
+        match resolve_card(&two, None) {
+            Ok(c) => panic!("two cards must refuse, got {}", c.name),
+            Err(e) => {
+                let err = e.to_string();
+                assert!(err.contains("A") && err.contains("B"), "must list the cards: {err}");
+            }
+        }
+        // The sole card is unambiguous.
+        let one = [card("A")];
+        assert_eq!(resolve_card(&one, None).unwrap().name, "A");
+    }
+
+    #[test]
+    fn resolve_card_matches_an_explicit_name_or_path() {
+        let cards = [card("A"), card("B")];
+        // By bare name, and by full /Volumes path.
+        assert_eq!(resolve_card(&cards, Some("B")).unwrap().name, "B");
+        assert_eq!(
+            resolve_card(&cards, Some("/Volumes/A")).unwrap().name,
+            "A"
+        );
+        // A name that isn't present refuses rather than falling back.
+        assert!(resolve_card(&cards, Some("Z")).is_err(), "no match must err");
     }
 }

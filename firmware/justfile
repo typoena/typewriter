@@ -248,8 +248,8 @@ provision sd_volume="":
 # first-boot wizard RESUMES past the Wi-Fi step (SSID present → skipped) and
 # lands on sign-in — stops you re-typing a long password every flash. Everything
 # else stays blank, so sign-in + repo pick + clone still run live (a fresh token
-# each run, no expiry surprises). Pair with a wipe:
-#   just wipe && just wifi-seed
+# each run, no expiry surprises). Pair with a wipe (keep the card mounted):
+#   just wipe --no-eject && just wifi-seed
 # The conf it writes holds the password in cleartext, same as every provisioned
 # card (physical custody is the control) — a bench card, not one to hand out.
 wifi-seed sd_volume="":
@@ -264,21 +264,19 @@ wifi-seed sd_volume="":
 
 # Reformat a card to an empty FAT32 volume and eject — a blank slate for testing
 # the first-boot wizard (no repo/, no typoena.conf, no .typoena-dirty). Runs the
-# installer's ratatui `--wipe` TUI: pick the card, confirm exactly what's about
-# to be erased (device, size, any unpublished device edits), then watch the
-# erase + eject stream. The TUI reuses the same removable-only detection, so it
-# can't touch the internal disk; FAT32 is what the device mounts (esp_vfs_fat,
-# format_if_mount_failed=false). The label is uppercased to ≤11 chars by diskutil.
-#   just wipe
-#   just wipe SDCARD MYLABEL
-wipe sd_volume="" label="TYPOENA":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    cd "{{justfile_directory()}}/../installer"
-    args=(--wipe)
-    if [ -n "{{sd_volume}}" ]; then args+=("{{sd_volume}}"); fi
-    args+=(--label "{{label}}")
-    cargo run -- "${args[@]}"
+# installer's headless `--wipe`: it prints exactly what's about to be erased
+# (device, size, any unpublished device edits), asks once y/N, then streams the
+# erase (+ eject). Removable-only detection means it can't touch the internal
+# disk; FAT32 is what the device mounts (esp_vfs_fat, format_if_mount_failed=
+# false). The label is uppercased to ≤11 chars by diskutil. Args pass straight
+# through to the installer:
+#   just wipe                                # sole card → confirm → erase + eject
+#   just wipe SDCARD --label MYLABEL         # name the card and the volume label
+#   just wipe --no-eject && just wifi-seed   # keep it mounted, then seed Wi-Fi
+#   just wipe -y                             # skip the y/N confirm (scripts)
+#   just wipe --ui                           # the old full-screen TUI (picker)
+wipe *args:
+    cd "{{justfile_directory()}}/../installer" && cargo run -- --wipe {{args}}
 
 # Resolve the target card volume. Prints the /Volumes/<name> path as the last
 # stdout line (callers capture it); all diagnostics go to stderr. Prefers an
