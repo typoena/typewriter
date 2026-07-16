@@ -55,8 +55,9 @@ production risk lives.
 > This mirror used to live in a separate `quality-house.md`; it was merged into §3
 > on 2026-07-11 so the two can no longer silently drift.
 
-For a blank version of the same chassis (WHATs, HOWs, importance, and v0.1
-targets kept; relations + roof + Σ basement left empty for practice), see
+For a blank practice copy of the full four-house cascade (all catalogues
+and House-1 weights/targets kept; every relation matrix, roof, basement,
+and carried-down importance column left empty), see
 [`quality-house-empty.md`](quality-house-empty.md).
 
 ```tikz
