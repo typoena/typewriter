@@ -44,7 +44,15 @@ const SPI_CHUNK: usize = 4096;
 /// at room temperature. Fully reversible: set to `None` to restore the honest
 /// behaviour (register left at init's `[0x64,0x00]`, no per-partial rewrite).
 /// Results log: docs/tradeoff-curves/epd-refresh-latency.md.
-const PARTIAL_TEMP: Option<[u8; 2]> = Some([0x7F, 0x00]);
+///
+/// CLOSED 2026-07-17: swept hot `[0x7F,0x00]` and cold `[0x19,0x00]` against the
+/// `[0x64,0x00]` default — windowed stayed ~565 ms and full-area ~690 ms at
+/// *every* value. The partial waveform's BUSY time is temperature-independent
+/// here (the `0x18`←`0x80` internal sensor overrides the register, or the OTP
+/// partial LUT simply has one fixed schedule). Not a lever. Left as `None`
+/// (honest baseline, no per-partial register write); the scaffolding stays only
+/// so the closed result is self-documenting next to the driver.
+const PARTIAL_TEMP: Option<[u8; 2]> = None;
 
 pub struct Epd<'d> {
     spi: SpiBusDriver<'d, SpiDriver<'d>>,

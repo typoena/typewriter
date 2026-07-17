@@ -64,7 +64,13 @@ fn main() -> anyhow::Result<()> {
         None::<AnyIOPin>,
         &DriverConfig::new().dma(Dma::Auto(4096)),
     )?;
-    let bus = SpiBusDriver::new(spi, &Config::new().baudrate(4.MHz().into()))?;
+    // EPD SPI clock. Was 4 MHz; the panel (SSD1683) takes 10–20 MHz, and this
+    // clock only affects the pixel clock-out, not the waveform BUSY time — so it
+    // trims the pre-kick band write (~43 ms full-area at 4 MHz) off perceived
+    // latency on the erase/caret/scroll path. Sweep higher (16/20 MHz) only
+    // while watching the panel for signal-integrity glitches (garbled/missing
+    // bands). See docs/tradeoff-curves/epd-refresh-latency.md.
+    let bus = SpiBusDriver::new(spi, &Config::new().baudrate(20.MHz().into()))?;
     let cs = PinDriver::output(pins.gpio7)?;
     let dc = PinDriver::output(pins.gpio6)?;
     let rst = PinDriver::output(pins.gpio5)?;
