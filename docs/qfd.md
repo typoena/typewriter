@@ -638,7 +638,10 @@ libgit2 #3, C2 std runtime #4** — C7's jump past libgit2 is the headline
 of the 2026-07-17 W16/H17 re-score (the reach vote lands where the
 palette and modal grammar live); C11/C15 sit parenthesised and unranked
 (unbuilt). The roof's `−−` between C10 (FAT) and C12 (libgit2) is
-Publish's convicted residual, drawn. Source-of-truth matrix + reading:
+Publish's convicted residual; the three `−−` on C6/C7 × C12/C13 are the
+July crash record — conflicts mediated by shared memory pools, priced in
+[§5's shared-pool budget](#shared-pool-budget--who-allocates-from-what).
+Source-of-truth matrix + reading:
 [§5](#5-how--component-mapping-phase-2).
 
 ```tikz
@@ -1040,6 +1043,9 @@ Publish's convicted residual, drawn. Source-of-truth matrix + reading:
   \node[font=\scriptsize] at (C-2-12)  {$+$};      % std VFS/net is what lets libgit2 run (ADR-001 proved by ADR-004)
   \node[font=\scriptsize] at (C-4-12)  {$+$};      % PSRAM absorbs libgit2 mmap working set (capped)
   \node[font=\scriptsize] at (C-5-7)   {$+\!+$};   % widget dirty-rects aligned to panel regions (ADR-002/003)
+  \node[font=\scriptsize] at (C-6-12)  {$-\!-$};   % via DMA reserve: checkout exhausted internal, spi_master NULL-deref (ff :gl crash) — §5 pool budget
+  \node[font=\scriptsize] at (C-7-12)  {$-\!-$};   % via PSRAM: push working set starved Frame::new_white, UI thread aborted (run 4) — §5 pool budget
+  \node[font=\scriptsize] at (C-7-13)  {$-\!-$};   % via internal DRAM: palette file list vs ssl_setup's 33 KB, TLS refused to start — §5 pool budget
   \node[font=\scriptsize] at (C-10-12) {$-\!-$};   % FAT linear dir scans vs loose objects = the H7 residual
   \node[font=\scriptsize] at (C-12-13) {$+\!+$};   % libgit2 rides ESP-IDF mbedTLS (vendored stream)
   \node[font=\scriptsize] at (C-17-20) {$+\!+$};   % wizard signs in through the App device flow
@@ -2242,9 +2248,9 @@ right-hand zone of the diagram.
 The roof shows where pushing one characteristic pushes another the wrong way.
 ASCII glyphs (with classical QFD equivalents): **`++`** strong
 reinforcement (`◎`), **`+`** mild reinforcement (`○`), **`−`** mild
-conflict (`×`), **`−−`** strong conflict (`⊗`). The 14×14 roof matrix is
-in the §3 diagram; the cells that actually shape the design are called out
-below.
+conflict (`×`), **`−−`** strong conflict (`⊗`). The 16×16 roof matrix is
+drawn on House 1 at the top of the file; the cells that actually shape the
+design are called out below.
 
 ### Conflicts that actually shape the design
 
@@ -2477,6 +2483,72 @@ truth** — re-score here first, then mirror the drawing, same day.
   Reversing [ADR-001] would force re-deciding [ADR-004], [ADR-005],
   [ADR-006], [ADR-007] all at once — they're a single decision in three
   drawers.
+- **The roof reads sparse because the real coupling is pool-mediated.**
+  At the call level the components are genuinely decoupled — and some of
+  that emptiness was *bought*, not found ([ADR-012] deleted the SD↔EPD
+  bus conflict, the 96 KB git thread keeps libgit2 off the UI, the editor
+  core is pure and host-tested). What remains runs through three shared
+  memory pools instead of the call graph, and is priced in the
+  [shared-pool budget](#shared-pool-budget--who-allocates-from-what)
+  below — the source of truth for the three pool-mediated `−−` roof
+  cells (C6↔C12, C7↔C12, C7↔C13).
+
+### Shared-pool budget — who allocates from what
+
+The House-2 roof was first scored from the call graph — who talks to
+whom — and by that reading stayed nearly empty. Every crash of the July
+push campaign came through a channel the call graph can't see: **shared
+memory pools**. Three crashes, three roof cells the first scoring
+missed, all `−−`, all mediated:
+
+- **C7 ↔ C12 via PSRAM** — the push's mmap working set exhausted PSRAM
+  and `Frame::new_white`'s 26 KB draw allocation died on `HalfPageUp`,
+  OOM-aborting the UI thread mid-push (run 4). Fixes: persistent
+  two-frame draw (repaints never allocate) + mwindow/odb caps.
+- **C7 ↔ C13 via internal DRAM** — the palette's 1 098 path
+  `Vec<String>`s held ~60–70 KB of internal DRAM and `ssl_setup`'s
+  ~33 KB internal-only allocation failed, so TLS refused to start.
+  Fixes: `CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC=y` + the file list interned
+  to one PSRAM blob.
+- **C6 ↔ C12 via the DMA reserve** — ff `:gl`'s checkout exhausted
+  internal DRAM, a DMA-capable allocation inside `spi_master` returned
+  NULL and the driver dereferenced it (repo safe, device down). Fix:
+  reserve doubled 32 → 64 KB.
+
+A pairwise roof structurally underprices these: pool contention is
+N-way — every consumer conflicts with every other consumer through the
+pool — and fragmenting that into C(N,2) glyphs is the House-2 sibling of
+the blindness that fragmented flow across House 1's rows
+([`house-vs-product.md`](house-vs-product.md) D1). Making a pool a
+House-2 *column* was considered and rejected: matrix columns rank where
+the next unit of effort goes, and a pool is not a place effort can go —
+every memory-flavoured HOW would vote it to #1 and distort the cascade
+into Houses 3–4. The shape that fits is the transpose: **consumers ×
+pools**, cells = worst-observed draw, column arithmetic = the crash
+condition.
+
+| Consumer | Internal DRAM (512 KB SRAM) | PSRAM (8 MB octal) | DMA-capable reserve (64 KB, carved from internal) |
+| --- | --- | --- | --- |
+| C3 threads | stacks 124 KB: git 96 + walk 16 + USB 4+8 (≤ 128 KB budget, §6) | — | — |
+| C5/C6 display | — | 2 × 26 KB persistent frames (allocated once at boot — the run-4 lesson) | every EPD SPI transfer |
+| C7 widget / palette | *(was 182 KB of file list — interned away 2026-07-14)* | 51 KB path blob | — |
+| C8 rope buffer | — | open file, capped 256 KB | — |
+| C10 FAT on SD | FatFS work areas + 16-FD mount (unmeasured) | — | every SD SPI transfer |
+| C12 libgit2 | 96 KB thread stack (counted under C3) | mwindow ≤ 1.5 MB + odb cache ≤ 1 MB + pack `.idx` map ~1.7 MB (whole-file, outside the mwindow budget) | — |
+| C13 mbedTLS | *(was ~33 KB `ssl_setup` — moved 2026-07-13 via `EXTERNAL_MEM_ALLOC`)* | TLS session ~35 KB | — |
+| C1/C2 system (Wi-Fi, lwIP, esp-idf) | the standing floor — unmeasured, the pool's biggest unpriced tenant | — | — |
+| **Worst observed (min-ever free)** | **2 099 B** (run 9, mid-TLS-send) | **684 B** pre-cap (run 6); **4.5 MB** post-cap (run 9) | alloc failure at the old 32 KB (the ff `:gl` crash) |
+
+Reading it: each of the three crashes is one column touching zero, and
+internal DRAM's proven margin at its worst moment is **~2 KB**. The
+bottom row's telemetry already exists (`log_push_heap` prints per-pool
+free, min-evers, and the largest PSRAM block; `esp_map` live-bytes
+tracks the mmap share) — when a new consumer lands or a min-ever moves,
+update this table first, then draw (or retire) the roof cell it
+justifies. The reusable lesson: on a 512 KB-internal SoC the roof's real
+axis is **"who allocates from what," not "who calls whom"** — the call
+graph predicted none of the three crashes; this table's column sums
+would have flagged all of them.
 
 ### Houses 3–4 — the cascade to process and controls
 
@@ -2965,6 +3037,27 @@ trigger is a decision being avoided, not deferred.
   nine rows — a paste of its own basement), and **§3's priority list had
   H8 (156) at #3 above H12 (160)**, an ordering the arithmetic never
   supported.
+- **House 2's roof was scored from the wrong graph — three pool-mediated
+  `−−` added, shared-pool budget matrix opened (2026-07-17).** The roof
+  carried one conflict (C10↔C12) while the July crash record held three
+  more, each already paid for on the bench: **C7↔C12** (push exhausted
+  PSRAM, `Frame::new_white` died, UI thread OOM-aborted — run 4),
+  **C7↔C13** (palette's file list held internal DRAM, `ssl_setup`'s
+  ~33 KB failed, TLS refused to start), **C6↔C12** (checkout exhausted
+  internal, `spi_master` NULL-dereffed a failed DMA alloc). All three
+  were invisible because the roof was read off the call graph while the
+  conflicts run through shared memory pools — N-way contention a
+  pairwise roof fragments, the House-2 sibling of D1's fragmented flow.
+  Making a pool a component *column* was considered and rejected
+  (columns rank effort targets; a pool would vote itself to #1 and
+  distort the cascade), so §5 gained the transpose instead: a
+  **consumers × pools budget matrix** (cells = worst-observed draw,
+  bottom row = per-pool min-ever free — internal DRAM's is 2 099 B),
+  now the source of truth for the pool-mediated roof cells. No Σ
+  changes — the roof and the new table sit outside the importance
+  arithmetic. Same pass caught §4's roof intro still saying "14×14"
+  (stale across two HOW-catalogue changes; the roof has been 15- then
+  16-wide) — corrected to 16×16.
 
 The earlier variance between README's "~12 lines" and product/[ADR-003]'s
 "~11 lines" of "edit area" is now superseded: the side-panel redesign removed
@@ -2999,6 +3092,12 @@ README, the product/technical docs, and [ADR-003] are all updated to ~13 lines
   recompute it whenever the basement or a §5 cell changes, and keep
   unbuilt components (today C11, C15) parenthesised and out of the rank —
   scored fiction outranks real components, as the 2026-07-16 pass showed.
+- The §5 shared-pool budget matrix is the source of truth for House 2's
+  pool-mediated roof cells: when a component starts allocating from
+  internal DRAM, PSRAM, or the DMA reserve — or a telemetry min-ever
+  moves — update the table first, then draw (or retire) the roof cell it
+  justifies. The roof was scored from the call graph once and missed
+  three crashes; don't score it that way twice.
 - The four house diagrams at the top mirror their sources — House 1 the
   §1/§2 catalogues, House 2 the §5 matrix, Houses 3–4 the §5 P/Q
   catalogues — re-score the table first, then the drawing, same day.
