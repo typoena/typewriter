@@ -75,8 +75,8 @@ learning = "Delivered 2026-07-14, ~16 weeks ahead of the 2026-11-02 baseline, an
 name = "v0.7.5 focus mode"
 start = 2026-07-17
 original = 2026-07-17
-status = "on-track"
-note = "Unplanned same-day insert after v0.7. Silent-timer Pomodoro: a 25-min focus block with no visible countdown, then a full-screen masking rest card dismissed by c. Built + host-tested (firmware 0.7.5, 245 editor tests, both builds compile for xtensa); on-device smoke-test pending via :focusdebug (25-second blocks)."
+delivered = 2026-07-17
+learning = "Delivered same-day — an unplanned insert after v0.7, specced/built/host-tested/on-device-verified in one session (firmware 0.7.5, 5 focus + 245 editor + 29 keymap tests). Silent 25-min block on a monotonic clock with no live countdown (e-ink can't show one cheaply); the rest card drops at the next typing pause, or a +2 min grace cap — proven on device when a continuous-typing block force-broke at 27 s (25 + 2). Resume/quit moved from a bare c / q+Esc to the Ctrl-C / Ctrl-Q chords after a bench run judged a single key too easy to fumble behind the full-screen curtain; the host also drops the rest of the key batch on exit so a bump can't reach the buffer. :focusdebug (25-second clock) made the same-day on-device check practical."
 
 [[feature]]
 name = "v0.8 battery + sleep"
@@ -99,7 +99,7 @@ week = 2026-06-29
 requires = ["v0.1 it writes, it pushes"]
 ```
 
-## Status — synced 2026-07-14
+## Status — synced 2026-07-17
 
 The editor **core** has been built 2–3 versions ahead of the device
 **releases**, and is now **extracted into a host-testable `editor` crate** (plus
@@ -154,6 +154,12 @@ closing gate passed with an O(changed) `apply_tree_diff` written after libgit2's
 rejected-push reconcile cycle from 59 s to 24 s, and `:sync` was renamed `:gp`.
 Still open post-v0.7: the warm clean-publish measurement, the images-off-card
 decision, and the empty-note trailing-newline watch item.
+**v0.7.5 focus mode is DELIVERED 2026-07-17** (firmware **0.7.5**), an unplanned
+same-day insert specced/built/verified in one session: a silent-timer Pomodoro
+(25-min block, no live countdown) that drops a full-screen masking rest card at
+the next typing pause, dismissed by the `Ctrl-C` (continue) / `Ctrl-Q` (quit)
+chords — the grace cap force-broke a continuous-typing block at 27 s on device.
+`:focusdebug` gives a 25-second clock for testing.
 
 Marks: `[x]` done in core · `[~]` partially done · `[ ]` not started. An
 inline `(✓)` marks the done half of a split item.
@@ -222,16 +228,17 @@ fast-forward only, an O(changed) tree-diff apply); `:sync` renamed `:gp`.
 **CLOSED 2026-07-14** (firmware 0.7.0), panel- and git-path-verified on-device.
 Detail: [v0.7-search-and-git.md](v0.7-search-and-git.md).
 
-## v0.7.5 — Focus mode (Pomodoro) — [~]
+## v0.7.5 — Focus mode (Pomodoro) — [x]
 
 A silent-timer Pomodoro cycle: a 25-minute **focus** block with no visible
 countdown (the device tracks it silently and imposes the break), then a
-full-screen **rest** card that masks the text and is dismissed by `c` to start
-the next block. Rest is themed (white card / black in dark theme), untimed, and
-shows the block's `words · minutes`; `q`/`Esc` ends the session. Surfaced as
-"focus" (the Pomodoro name is trademarked). Ephemeral — RAM-only, off on reboot.
-A hidden `:focusdebug` runs the block on a 25-**second** clock for quick testing.
-**Built + host-tested 2026-07-17 (firmware 0.7.5), on-device smoke-test pending.**
+full-screen **rest** card that masks the text. `Ctrl-C` starts the next block,
+`Ctrl-Q` quits — both deliberate chords so a stray key can't end a break behind
+the curtain (a bench run showed a bare `c` was too easy). Rest is themed (white
+card / black in dark theme), untimed, and shows the block's `words · minutes`.
+Surfaced as "focus" (the Pomodoro name is trademarked). Ephemeral — RAM-only,
+off on reboot. A hidden `:focusdebug` runs the block on a 25-**second** clock
+for testing. **DELIVERED 2026-07-17** (firmware 0.7.5), verified on the panel.
 Unplanned same-day insert after v0.7, on the
 [v0.2.5](v0.2.5-international-input.md) `.5` precedent.
 Detail: [v0.7.5-focus-mode.md](v0.7.5-focus-mode.md).
