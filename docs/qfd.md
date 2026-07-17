@@ -6,12 +6,12 @@ must _achieve_ (engineering characteristics) and what we must _build_
 Surfaces the few targets that dominate the design and the conflicts between
 them. Every decision cell points back to [`adr.md`](adr.md).
 
-Scope: the shipped device — v0.1 delivered 2026-07-11, v0.5–v0.7 delivered
+Scope: the shipped device. v0.1 delivered 2026-07-11, v0.5–v0.7 delivered
 2026-07-12/14, v0.9 onboarding in flight (see
 [`v0.1-mvp-product.md`](v0.1-mvp-product.md),
 [`v0.5-palette-and-multi-file.md`](v0.5-palette-and-multi-file.md),
 [`v0.7-search-and-git.md`](v0.7-search-and-git.md),
-[`v0.9-onboarding-wizard.md`](v0.9-onboarding-wizard.md)) — **plus the
+[`v0.9-onboarding-wizard.md`](v0.9-onboarding-wizard.md)), **plus the
 companion products** that now deliver the getting-started outcome: the macOS
 installer ([`../installer/DESIGN.md`](../installer/DESIGN.md)), the
 typoena.dev site with its `install.sh` one-liner, and the Typoena GitHub App
@@ -38,7 +38,7 @@ the diagram was lifted above §1 on 2026-07-11 so the picture leads.)
 The artifact this whole document builds and reads is shown first: §1's WHATs (rows) × §2's HOWs (columns), scored 9 / 3 / 1 / blank, with the roof correlations (§4), the basement Σ / relative weights, and the right-hand competitive-perception zone. §1–§8 define, prioritise, and read them; the sync rules and a blank practice copy travel with the diagrams just below.
 
 All four houses of the classical QFD cascade are stacked below, each
-carrying the previous house's basement down as its row importance —
+carrying the previous house's basement down as its row importance:
 WHATs × HOWs, then HOWs × components, components × processes, processes ×
 controls. The matrices, catalogues, and narrative they mirror live in
 [§3](#3-house-of-quality--whats--hows) and
@@ -52,7 +52,7 @@ be scaffolding; the pipeline reading is where this project's real
 production risk lives.
 
 > **Single source of truth.** The `\foreach` blocks in the diagram restate §1's
-> weights and §2's targets — TikZ can't read the tables, so keep them in sync when
+> weights and §2's targets: TikZ can't read the tables, so keep them in sync when
 > either changes, and **recompute the basement Σ / Rel % here** (see
 > [Regenerating](#regenerating)) rather than transcribing them from elsewhere.
 > This mirror used to live in a separate `quality-house.md`; it was merged into §3
@@ -63,7 +63,7 @@ and House-1 weights/targets kept; every relation matrix, roof, basement,
 and carried-down importance column left empty), see
 [`quality-house-empty.md`](quality-house-empty.md). Standing challenges
 between these houses and the product they describe live in
-[`house-vs-product.md`](house-vs-product.md) — the model is argued with
+[`house-vs-product.md`](house-vs-product.md): the model is argued with
 there, not silently re-scored.
 
 ### House 1 — WHATs × HOWs
@@ -634,12 +634,12 @@ there, not silently re-scored.
 §2's HOWs (rows, importance = each HOW's House-1 basement Σ) × the
 components C1–C20. The basement **derives** the component ranking instead
 of asserting it: **C5 e-ink panel #1, C7 widget/editor layer #2, C12
-libgit2 #3, C2 std runtime #4** — C7's jump past libgit2 is the headline
+libgit2 #3, C2 std runtime #4**: C7's jump past libgit2 is the headline
 of the 2026-07-17 W16/H17 re-score (the reach vote lands where the
 palette and modal grammar live); C11/C15 sit parenthesised and unranked
 (unbuilt). The roof's `−−` between C10 (FAT) and C12 (libgit2) is
 Publish's convicted residual; the three `−−` on C6/C7 × C12/C13 are the
-July crash record — conflicts mediated by shared memory pools, priced in
+July crash record: conflicts mediated by shared memory pools, priced in
 [§5's shared-pool budget](#shared-pool-budget--who-allocates-from-what).
 Source-of-truth matrix + reading:
 [§5](#5-how--component-mapping-phase-2).
@@ -1092,9 +1092,9 @@ Source-of-truth matrix + reading:
 ### House 3 — components × processes (pipeline reading)
 
 Components (rows, importance = the derived House-2 Σ) × the processes
-that produce them. No factory — "process" is the toolchain + release
+that produce them. No factory: "process" is the toolchain + release
 pipeline P1–P9. **P1 firmware build carries 52.4 % of the process weight;
-P4 bench assembly is #2 (21.4 %) with only manual controls** — the
+P4 bench assembly is #2 (21.4 %) with only manual controls**; the
 CS-jumper and SDXC lessons were both paid there. Catalogue + first-cut
 caveat: [§5](#5-how--component-mapping-phase-2).
 
@@ -1466,7 +1466,7 @@ caveat: [§5](#5-how--component-mapping-phase-2).
 
 Processes (rows, importance = House-3 rel-%) × the verification
 practices that guard them, Q1–Q8. **Q2 on-device verification #1, Q3
-build gates #2** — the hardware-verify-everything habit is where the
+build gates #2**: the hardware-verify-everything habit is where the
 arithmetic says control effort belongs. Q6's checksum chain ranks #8 by
 breadth while being the *sole* control on the public install path.
 Reading: [§5](#5-how--component-mapping-phase-2).
@@ -1807,7 +1807,7 @@ Reading: [§5](#5-how--component-mapping-phase-2).
 ## 1. Customer requirements (the WHATs)
 
 What a user values about the device, with importance weights on a 1–10
-scale, grouped by theme for reading (IDs keep their House row order — the
+scale, grouped by theme for reading (IDs keep their House row order; the
 diagram and every matrix stay flat). Source columns point at the doc the
 requirement comes from.
 
@@ -1819,8 +1819,8 @@ requirement comes from.
 | W5  | Quick boot to a writing cursor                                                     |   6    | [product → acceptance](v0.1-mvp-product.md#acceptance-criteria) (≤ 5 s)                                                            |
 | W7  | Nothing on the device competes with prose                                          |   8    | [README → vision](../README.md#vision)                                                                                             |
 | W8  | The UI never moves except when I move it                                           |   7    | [README → UX](../README.md#ux-boundaries-set-by-the-medium)                                                                        |
-| W13 | Typography sets a writing-tool tone — typewriter or developer editor, never gadget |   7    | [macroplan → v1.0](macroplan.md), [README → UX](../README.md#ux-boundaries-set-by-the-medium)                                      |
-|     | **Trust — words survive power and time**                                           |        |                                                                                                                                    |
+| W13 | Typography sets a writing-tool tone: typewriter or developer editor, never gadget |   7    | [macroplan → v1.0](macroplan.md), [README → UX](../README.md#ux-boundaries-set-by-the-medium)                                      |
+|     | **Trust: words survive power and time**                                           |        |                                                                                                                                    |
 | W3  | Pulling power never corrupts the file                                              |   10   | [product → Recover](v0.1-mvp-product.md#user-stories), [acceptance](v0.1-mvp-product.md#acceptance-criteria)                       |
 | W6  | Long sessions without crash / lag / drift                                          |   9    | [product → acceptance](v0.1-mvp-product.md#acceptance-criteria) (1 h soak)                                                         |
 |     | **Publish & scopes**                                                               |        |                                                                                                                                    |
@@ -1843,28 +1843,28 @@ structural rather than a footnote:
 
 | ID  | Segment                                                       | Weight (1–5) |
 | --- | ------------------------------------------------------------- | :----------: |
-| U1  | The author — daily writer, owns the toolchain and the roadmap |      5       |
+| U1  | The author, daily writer, owns the toolchain and the roadmap |      5       |
 | U2  | A first-time user without developer tools                     |      2       |
 
 Every W-weight above is asserted from U1's chair; W15 is the one row that
 exists *because of* U2 (U1 already has `just` and a pre-flashed device).
-U2's weight of 2 is the product's reach bet, not an observed user — when a
+U2's weight of 2 is the product's reach bet, not an observed user; when a
 real one appears, re-derive the W column as Σ(segment weight × strength,
 normalised to 1–10) instead of asserting it.
 
 ### The WHAT that earned its row — flow (W16)
 
 The 2026-07-17 challenge ([`house-vs-product.md`](house-vs-product.md) D1)
-argued the product's center is **flow** — everything one motion away — and
+argued the product's center is **flow** (everything one motion away) and
 that this table was structurally blind to it: the shipped editing grammar
 (palette, vim modes, search) had no row voting for it, sheltering under
 W7 at best. Resolved the same day by scoring the claim instead of
 asserting it: **W16** is the reach *outcome* (a requirement, not a
 solution), with **H17 reach cost** (§2) as its measurable characteristic.
-Deliberately *not* added: a holistic "flow" row — it would touch every HOW
+Deliberately *not* added: a holistic "flow" row that would touch every HOW
 weakly and add noise, and W1/W3 stay at 10 because they read as flow's
 preconditions, not its rivals. The re-score's headline is in §3/§5: H1
-moved to #2 and C7 (the widget/editor layer) to #2 — the derived ranking
+moved to #2 and C7 (the widget/editor layer) to #2; the derived ranking
 now agrees with where the July effort went, which was D1's
 revealed-preference evidence all along.
 
@@ -1898,7 +1898,7 @@ of these functions, or of artifacts they produce.
 v0.9 wizard (slices 0–5a hardware-verified 2026-07-16,
 [`v0.9-onboarding-wizard.md`](v0.9-onboarding-wizard.md)) it is a runtime
 function with **two peer realisations**: the on-device wizard (keyboard +
-panel + the user's phone — no computer) and the macOS installer
+panel + the user's phone, no computer) and the macOS installer
 ([`../installer/DESIGN.md`](../installer/DESIGN.md)), which prepares the same
 SD card from a Mac. Both write the same artifact (`/sd/typoena.conf` + a
 cloned `/sd/repo`) and both authenticate through the Typoena GitHub App
@@ -1908,7 +1908,7 @@ inside HOW names: **Render** (buffer → e-ink frame, inside Type),
 
 ### Characteristics
 
-Rows are grouped by theme for reading (IDs keep their House column order —
+Rows are grouped by theme for reading (IDs keep their House column order;
 the diagram and every matrix stay flat).
 
 | ID  | Characteristic                                 | Dir | v0.1 target              | v1.0 target         |
@@ -1917,11 +1917,11 @@ the diagram and every matrix stay flat).
 | H1  | Type latency (keypress → glyph)                |  ↓  | ≤ 400 ms §               | ≤ 300 ms §          |
 | H2  | Partial-refresh region area per keystroke      |  ↓  | ≤ 1 text line (~22 px h) | same                |
 | H3  | Full-refresh cadence (clears ghosting)         |  →  | 1 per 64 partials        | tuned by panel temp |
-|     | **Session — start, endure, never lose a word** |     |                          |                     |
+|     | **Session: start, endure, never lose a word**  |     |                          |                     |
 | H4  | Boot latency (cold)                            |  ↓  | ≤ 5 s                    | ≤ 3 s †             |
 | H5  | Continuous-typing endurance (no drop, no leak) |  ↑  | ≥ 1 h                    | ≥ 8 h               |
 | H8  | Save durability (post-confirm power loss)      |  →  | 100 %                    | 100 %               |
-|     | **Reach — everything one motion away**         |     |                          |                     |
+|     | **Reach: everything one motion away**          |     |                          |                     |
 | H17 | Reach cost (keystrokes to any file / command / edit point) | ↓ | ≤ 6 median ⊳    | same                |
 |     | **Publish & network**                          |     |                          |                     |
 | H6  | Publish reliability (network up)               |  ↑  | ≥ 95 %                   | ≥ 99 %              |
@@ -1937,34 +1937,34 @@ the diagram and every matrix stay flat).
 | H16 | Onboarding duration (blank card → writing cursor) | ↓ | ≤ 10 min (v0.9, unmeasured) | same            |
 
 † **Boot latency, measured 2026-07-11:** cold boot is **4258 ms**, so the ≤ 5 s
-v0.1 target is met. The ≤ 3 s v1.0 target is assessed **marginal-to-unreachable** —
+v0.1 target is met. The ≤ 3 s v1.0 target is assessed **marginal-to-unreachable**:
 one ~1.9 s full refresh is unavoidable at cold boot (the `0x26` "previous" bank is
 garbage until the first full paint), an e-ink floor rather than a tuning knob.
 The 2026-07-14 boot restructure (async splash refresh, palette file-walk moved
 to a background thread) held cursor-ready at ~4.2 s even with the full git
-build and the 1100-file card walk — the walk now lands mid-session instead of
+build and the 1100-file card walk; the walk now lands mid-session instead of
 blocking boot. Breakdown + levers:
 [`notes/boot-time-budget.md`](notes/boot-time-budget.md).
 
 ‡ **Publish latency, re-measured on the real repo 2026-07-13/14:** on the
 author's real notes repo (~63 k objects), a cold `:gp` is **~24 s** and a warm
-clean publish **~19 s** — inside the ≤ 30 s v0.1 target, but the earlier toy-repo
+clean publish **~19 s**, inside the ≤ 30 s v0.1 target, but the earlier toy-repo
 figures (~16 s cold / ~10 s warm, 2026-07-11) turned out not to transfer:
 publish cost scales with repo shape. The mix also inverted: the push leg is
 **5.9 s** (TLS session resumption); the splice-commit dominates at **10.3 s**
 for one depth-4 file, and the convicted residual is **FAT linear directory
-scans** (~0.1 ms/entry, `objects/` fan-out ≈ 256 dirs — see
+scans** (~0.1 ms/entry, `objects/` fan-out ≈ 256 dirs; see
 [`tradeoff-curves/sync-commit-staging.md`](tradeoff-curves/sync-commit-staging.md)).
 The ≤ 10 s v1.0 target is **not met on deep paths** (root-level warm ≈ 12–13 s);
 the lever is pack-not-loose object writes, deferred to a perf pass. History:
 [`notes/sync-latency.md`](notes/sync-latency.md),
 [`kaizen/real-repo-sync.md`](kaizen/real-repo-sync.md).
 
-§ **Type latency — two tiers, re-read 2026-07-14.** The ~630 ms figure measured
+§ **Type latency: two tiers, re-read 2026-07-14.** The ~630 ms figure measured
 2026-07-11 is the **full-area partial** (deletes, caret moves, mode flips, the
 splash→editor swap), not the additive typing path: per-keystroke typing rides
 the **windowed-Y partial** (~10 rows), projected at **~100–130 ms** from the
-floor+slope model — inside the ≤ 400 ms target, bench confirmation from the
+floor+slope model: inside the ≤ 400 ms target, bench confirmation from the
 on-device refresh log still pending
 ([`tradeoff-curves/epd-refresh-latency.md`](tradeoff-curves/epd-refresh-latency.md)).
 The v0.1 target history stands: relaxed from ≤ 200 ms to ≤ 400 ms (the original
@@ -1972,31 +1972,31 @@ was tighter than [ADR-003]'s own accepted "~200–300 ms" e-ink cost); v1.0 rese
 from ≤ 150 ms to ≤ 300 ms. The open item is now the **erase/caret tier**
 (~630 ms full-area partial per event), not additive typing.
 
-¶ **Heap during Publish — measured and re-plumbed 2026-07-13.** The ≥ 1 MB
+¶ **Heap during Publish: measured and re-plumbed 2026-07-13.** The ≥ 1 MB
 PSRAM bar is now **met** (min-ever 4.5 MB free on the first real-repo push,
-run 9) — but only after capping libgit2's mmap working set (mwindow
+run 9), but only after capping libgit2's mmap working set (mwindow
 64 KB/1.5 MB, was 256 KB/4 MB; whole-file `.idx`/midx maps sit **outside** that
 budget) and the odb cache at 1 MB. The learning that renamed this row: PSRAM
-was the wrong sole pool to watch — **internal DRAM** is now the scarcer
+was the wrong sole pool to watch: **internal DRAM** is now the scarcer
 resource (min-ever ~2.1 KB during TLS send; the mbedTLS
 `EXTERNAL_MEM_ALLOC` move and interning the palette file list to one PSRAM
 blob were both forced by internal-DRAM exhaustion). Watched via the
 `log_push_heap` telemetry in `git_sync`.
 
-∥ **Stack budget revised ≤ 80 KB → ≤ 128 KB (2026-07-16).** The old target was
+∥ **Stack budget revised ≤ 80 KB to ≤ 128 KB (2026-07-16).** The old target was
 priced for the pre-libgit2 five-thread guess (76 KB). Shipped reality: git
 thread **96 KB** (libgit2 needs the headroom, [ADR-004] outcome) + USB pumps
 4 + 8 KB + background file-walk 16 KB = **124 KB explicit**; UI/render run on
 the main task and Wi-Fi is owned by the git thread, so there are no separate
 ui/render/wifi stacks. Comfortable in 512 KB SRAM either way; the target
-moved to follow the architecture, not the other way around.
+moved to follow the architecture rather than the reverse.
 
-⊳ **Reach cost (H17), defined 2026-07-17 — the W16/flow characteristic**
+⊳ **Reach cost (H17), defined 2026-07-17: the W16/flow characteristic**
 ([`house-vs-product.md`](house-vs-product.md) D1). Keystrokes from intent
 to target: any of ~1100 files = Cmd-P + 2-char query + Enter (**4**; MRU
 recents under 2 chars), any command = the `>` / `:` grammar, any edit
 point = modal motions with counts. The ≤ 6 bar is a session *median* and
-is **unmeasured** — first measurement owed (§6). H17 had a fight before it
+is **unmeasured**; first measurement owed (§6). H17 had a fight before it
 had a name: the 35 s palette walk (2026-07-13, fixed to 4.3 s via dirent
 file_type) was a reach-cost regression, invisible to the house as then
 drawn.
@@ -2031,34 +2031,34 @@ priority list below come from the basement.
 
 ### Top engineering priorities (from importance)
 
-1. **H9 — heap during push** (193). libgit2 pack + rope + TLS all
+1. **H9: heap during push** (193). libgit2 pack + rope + TLS all
    share the same arena; [ADR-001] and [ADR-004] trade binary size for ecosystem
-   so this became the watched metric — and the watch paid off: the 2026-07-13
+   so this became the watched metric, and the watch paid off: the 2026-07-13
    real-repo push campaign found libgit2's mmap working set as the consumer,
    capped it (mwindow 64 KB/1.5 MB, odb 1 MB), and shifted the live worry to
    internal DRAM (see §2 ¶). The umbrella typography WHAT (W13)
    keeps a fixed-size glyph-cache load on top of that arena pressure.
-2. **H1 — Type latency** (178). The single most user-visible number;
+2. **H1: Type latency** (178). The single most user-visible number;
    [ADR-002] and [ADR-003] are co-conspirators. #5 until the 2026-07-17
-   W16 re-score: reach's medium vote — every one-motion jump is only as
-   instant as its repaint — adds 30 and pushes it one point past H2.
-3. **H2 — partial-refresh region area** (177). Bound how many pixels the
+   W16 re-score: reach's medium vote (every one-motion jump is only as
+   instant as its repaint) adds 30 and pushes it one point past H2.
+3. **H2: partial-refresh region area** (177). Bound how many pixels the
    panel has to flip per keypress; [ADR-003] is the hardware-side answer.
-4. **H12 — network reconnect time** (160). Mobile use is the chief driver
+4. **H12: network reconnect time** (160). Mobile use is the chief driver
    (W14 + W2 + W4 + W6, now joined by W15's clone leg); TLS session
    resumption (2026-07-14, second vendored delta in
-   `esp_mbedtls_stream.c`) is the shipped answer — it cut the rejected-push
+   `esp_mbedtls_stream.c`) is the shipped answer: it cut the rejected-push
    reconcile fetch from ~30 s to ~5 s. Previously below the top six on a
    stationary v0.1 reading; W14 promotes it.
-5. **H8 — save durability** (156). Atomic-rename + fsync; FAT's weakness
+5. **H8: save durability** (156). Atomic-rename + fsync; FAT's weakness
    is acknowledged in [ADR-007] and mitigated, not designed around. H8's
    voter base spans W3 (power-loss correctness), W6 (long sessions),
-   W12 (file scopes), and W14 (carrying = unclean shutdowns) — the
+   W12 (file scopes), and W14 (carrying = unclean shutdowns): the
    fourth voter is what lifts H8 into the top five by arithmetic alone.
-6. **H3 — full-refresh cadence** (144). The ghosting/flash tradeoff; lives
+6. **H3: full-refresh cadence** (144). The ghosting/flash tradeoff; lives
    in the render layer.
 
-H17 (reach cost, 117) enters at **#9 on day one, above H5 endurance** —
+H17 (reach cost, 117) enters at **#9 on day one, above H5 endurance**:
 a brand-new characteristic out-voting a soak target reads right for a
 product whose center is flow, and is exactly the statement W16 was added
 to make. Its two voters are W16 (strong) and W2 (medium: `:gp` is the
@@ -2068,20 +2068,20 @@ H13 (current draw, 137) sits at #7, close to the top-six cutoff because
 W14 promotes the "wall-power for v0.1, measure first" stance from
 acknowledged tradeoff to watched metric. The v0.1 "measured only" target
 (§2) is still right; what changes is that bench multimeter readings (§6)
-gain a second audience — sizing the v0.8 cell against a real portability
+gain a second audience: sizing the v0.8 cell against a real portability
 target, not just informing ADR-008's deferral.
 
 H6 (Publish reliability, 134) sits just below the top six. Its ADR ownership
-is [ADR-004] — whose spike-7 kill-switch **fired** (2026-07-06, gix has no
-HTTPS push; the shipped transport is libgit2) — plus [ADR-005] token auth.
+is [ADR-004], whose spike-7 kill-switch **fired** (2026-07-06, gix has no
+HTTPS push; the shipped transport is libgit2), plus [ADR-005] token auth.
 The matrix simply reads W14's mobile-use voter as a louder signal for
 reconnect (H12) than for the Publish transport itself.
 
 H16 (onboarding duration, 93) sits in the lower half rather than at the
 bottom: W15 is its only strong voter, but W16's "the product itself is one
-command away" adds a medium vote (63 → 93 at the 2026-07-17 re-score). The
+command away" adds a medium vote (63 to 93 at the 2026-07-17 re-score). The
 house still correctly reads it as a first-run, once-per-device
-characteristic — important to the product's reach (it is what
+characteristic: important to the product's reach (it is what
 typoena.dev's "just power it on" sells), not to the daily writing loop.
 Its budget row lives in §6 because it is still unmeasured.
 
@@ -2092,9 +2092,9 @@ strongest single voter, but H8 still sat at #6 because its base was
 narrow. W14's "carrying = bumps = unclean shutdowns" widens H8's voter
 base and lifts it into the top five by arithmetic (#5 after the
 2026-07-17 re-score; an earlier revision of this passage claimed #3,
-overlooking that H12's 160 outranks H8's 156 — caught and corrected in
+overlooking that H12's 160 outranks H8's 156; caught and corrected in
 the same pass, see §8). §6's "table-stakes correctness"
-override is no longer the load-bearing argument for H8's prominence —
+override is no longer the load-bearing argument for H8's prominence;
 its acceptance-criteria override for H4/H5 still is. See §6.
 
 The bottom three (H7 Publish latency, H15 build time, H10 binary size) are real
@@ -2109,14 +2109,14 @@ before the runtime decision does.
 Five products on the 0–5 scale, scored against each WHAT. Reference
 configurations: **reMarkable 2 + Type Folio**, **Freewrite Traveler**,
 **Freewrite Smart Typewriter**, **Pomera DM250** (DM250 has a reflective
-monochrome LCD, not e-ink — flagged in W1 / W8). The Typoena column is the
+monochrome LCD, not e-ink, flagged in W1 / W8). The Typoena column is the
 **shipped device as of 2026-07-16** (v0.1 delivered 2026-07-11, v0.5–v0.7
 delivered 2026-07-12/14, v0.9 wizard slices 0–5a hardware-verified), rebased
 on measured hardware results and lived use; the four competitors remain
 single-rater guesses. Three Typoena moves since the 2026-07-11 rebase: W1
-2→3 (the ~630 ms figure turned out to be the erase/caret tier — additive
+2 to 3 (the ~630 ms figure turned out to be the erase/caret tier: additive
 typing rides the ~100–130 ms windowed-Y partial, projected, bench confirm
-pending), W12 3→4 (v0.5 multi-file + Local scope shipped on device), and the
+pending), W12 3 to 4 (v0.5 multi-file + Local scope shipped on device), and the
 new W15 row (wizard + installer + install.sh one-liner).
 
 Freewrite Traveler scores assume the
@@ -2124,67 +2124,67 @@ Freewrite Traveler scores assume the
 (released 2025-11-19), which rewrote the OS in Rust, cut keystroke latency
 40–100 %, and trimmed power draw −30 % typing / −50 % idle on both
 Traveler and Smart Typewriter Gen 3. Three rows rescored upward as a
-result: W1 Traveler 3→4 / Smart 2→3 (Smart's larger panel still trails
-Traveler by one notch), W5 both 3→4 (boot accelerated, no published
-number), W9 both 1→2 (Rust rewrite explicitly unblocked features that
+result: W1 Traveler 3 to 4 / Smart 2 to 3 (Smart's larger panel still trails
+Traveler by one notch), W5 both 3 to 4 (boot accelerated, no published
+number), W9 both 1 to 2 (Rust rewrite explicitly unblocked features that
 JS could not carry; still closed so neither reaches reMarkable's
 hackable-Linux 3).
 
 | ID  | WHAT (truncated)                                  | Typoena | reM. | Frw.T | Frw.S | Pom. | Rationale (shortest defensible)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | --- | ------------------------------------------------- | :-----: | :--: | :---: | :---: | :--: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| W1  | Sub-second response to typing                     |    3    |  1   |   4   |   3   |  5   | Typoena additive typing rides the windowed-Y partial, ~100–130 ms projected (2026-07-14 re-read; bench confirm pending) — competitive with the Freewrites — but erase/caret events still pay the ~630 ms full-area partial, so 3 not 4; reMarkable e-ink visibly laggy on a typing-focused device — tested less responsive than Smart Typewriter, and latency is so load-bearing for W1 that it earns a 1 not a 2; both Freewrites post-Sailfish trimmed latency 40–100 % (Frw.T plausibly inside 200 ms; Frw.S still trails by one notch on larger panel); Pomera LCD ~zero. |
-| W2  | Publishing is one deliberate action away          |    5    |  4   |   4   |   4   |  2   | `:gp` atomic (one command, splice → commit → push, rejected-push replay included — verified on device 2026-07-14); reMarkable + Freewrite cloud-sync is one-tap but not git; Pomera = USB/SD copy or QR transfer.                                                                                                                                                                                                                                                                                                                          |
+| W1  | Sub-second response to typing                     |    3    |  1   |   4   |   3   |  5   | Typoena additive typing rides the windowed-Y partial, ~100–130 ms projected (2026-07-14 re-read; bench confirm pending), competitive with the Freewrites, but erase/caret events still pay the ~630 ms full-area partial, so 3 not 4; reMarkable e-ink visibly laggy on a typing-focused device, tested less responsive than Smart Typewriter, and latency is so load-bearing for W1 that it earns a 1 not a 2; both Freewrites post-Sailfish trimmed latency 40–100 % (Frw.T plausibly inside 200 ms; Frw.S still trails by one notch on larger panel); Pomera LCD ~zero. |
+| W2  | Publishing is one deliberate action away          |    5    |  4   |   4   |   4   |  2   | `:gp` atomic (one command, splice → commit → push, rejected-push replay included, verified on device 2026-07-14); reMarkable + Freewrite cloud-sync is one-tap but not git; Pomera = USB/SD copy or QR transfer.                                                                                                                                                                                                                                                                                                                          |
 | W3  | Pulling power never corrupts the file             |    4    |  4   |   2   |   2   |  2   | Typoena: atomic-rename + fsync, plus the dirty-path journal at `/sd/.typoena-dirty` making an interrupted Publish power-pull-safe (2026-07-13); the actual power-pull test is still deferred to v0.9, so 4 not 5. reMarkable journals. Freewrite + Pomera: forum reports of corruption on yank.                                                                                                                                                                                                                                            |
 | W4  | Provisioning never interrupts writing             |    5    |  2   |   2   |   2   |  5   | Typoena: config is read once at boot from `/sd/typoena.conf`; reconfiguration lives behind `:setup` (reboot → reset menu), never mid-session. reM/Frw need Wi-Fi + account. Pomera: literally none.                                                                                                                                                                                                                                                                                                                                       |
 | W5  | Quick boot to a writing cursor                    |    4    |  3   |   4   |   4   |  5   | Typoena measured 4.26 s cold (2026-07-11). reMarkable cold-boots ~20 s (great from sleep). Both Freewrites accelerated post-Sailfish (no published number; were ~10–15 s e-ink wake). Pomera ~3 s.                                                                                                                                                                                                                                                                                                                                         |
-| W6  | Long sessions without crash / lag / drift         |    4    |  3   |   4   |   4   |  5   | Typoena: 1 h soak attested 2026-07-11 (real use, no crash / lag / leak) — one proven hour vs rivals' years, so 4 not 5. Freewrite famously stable (both variants). Pomera firmware is decades-mature.                                                                                                                                                                                                                                                                                                                                      |
+| W6  | Long sessions without crash / lag / drift         |    4    |  3   |   4   |   4   |  5   | Typoena: 1 h soak attested 2026-07-11 (real use, no crash / lag / leak): one proven hour vs rivals' years, so 4 not 5. Freewrite famously stable (both variants). Pomera firmware is decades-mature.                                                                                                                                                                                                                                                                                                                                      |
 | W7  | Nothing on the device competes with prose         |    5    |  2   |   5   |   5   |  5   | reMarkable has apps, menus, drawing, PDFs. Freewrite + Pomera are single-purpose; Typoena by design.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | W8  | The UI never moves except when I move it          |    4    |  3   |   4   |   4   |  5   | reMarkable animates more; Typoena uses dirty-rects; Freewrites minimal motion; Pomera near-static LCD.                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | W9  | Codebase absorbs the planned roadmap              |    4    |  3   |   2   |   2   |  1   | Modular Rust Typoena; reMarkable is hackable Linux; both Freewrites carry Sailfish (Rust rewrite explicitly unblocked features JS could not carry) but closed; Pomera closed firmware.                                                                                                                                                                                                                                                                                                                                                     |
 | W10 | I can repair or fork it with hobbyist tools       |    5    |  4   |   2   |   2   |  1   | Typoena: open BOM + ESP32. reMarkable: rooted Linux + community ROMs. Freewrite + Pomera: closed.                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | W11 | Multi-day battery life (v0.8 onward)              |    1    |  5   |   5   |   5   |  4   | Typoena v0.1 = wall-powered (battery deferred). reMarkable + both Freewrites legendary (~4 weeks; Sailfish trimmed −30 % typing / −50 % idle). Pomera ~24 h.                                                                                                                                                                                                                                                                                                                                                                               |
-| W12 | Local-only files coexist with git scope           |    4    |  1   |   2   |   2   |  3   | Typoena: shipped in v0.5 (on-device 2026-07-12) — `/sd/local` never publishes, palette walks both scopes; 4 not 5 while the scope model has one shipped week of lived use. reMarkable cloud-only. Freewrites have local + Postbox but no VCS. Pomera = pure local.                                                                                                                                                                                                                                                                         |
+| W12 | Local-only files coexist with git scope           |    4    |  1   |   2   |   2   |  3   | Typoena: shipped in v0.5 (on-device 2026-07-12): `/sd/local` never publishes, palette walks both scopes; 4 not 5 while the scope model has one shipped week of lived use. reMarkable cloud-only. Freewrites have local + Postbox but no VCS. Pomera = pure local.                                                                                                                                                                                                                                                                         |
 | W13 | Typography sets a writing-tool tone               |    3    |  5   |   2   |   2   |  2   | Typoena v0.1: single mono (serif option in v1.0). reMarkable: rich type rendering. Freewrite + Pomera: utilitarian.                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| W14 | I can carry the device and write away from a desk |    2    |  4   |   5   |   1   |  5   | Typoena still wall-powered (ADR-008) — desk-bound until v0.8's battery, though the parametric case (`hardware/case/`, OpenSCAD) now exists. reMarkable + Type Folio bag-friendly with bulk. Freewrite Traveler is the form-factor reference (~1.6 lb, folds). Smart Typewriter ~5 lb, desk-bound. Pomera DM250 pocketable foldable.                                                                                                                                                                                                        |
-| W16 | Any file / action / edit one motion away          |    5    |  2   |   2   |   2   |  3   | Typoena: fuzzy palette over ~1100 files (Cmd-P + 2 chars + Enter), modal editing grammar with counts, `>`/`:` command palette, one-line install — the seiton claim made scoreable, and self-scored on the product's own home turf (discount accordingly). reMarkable Type Folio: touch menus, no keyboard grammar. Freewrites: gloriously few destinations but shallow reach — folder switch plus arrow keys, editing mid-document is famously costly. Pomera: menu-driven file list, no modal grammar.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| W15 | First-time setup without developer tools          |    4    |  2   |   3   |   3   |  5   | Typoena: two verified paths — on-device wizard (Wi-Fi scan-pick, QR device-flow sign-in, repo pick + shallow clone; slices 0–5a on hardware 2026-07-16) and the `curl … \| sh` installer (checksum-verified, no toolchain); 4 not 5 while factory-reset/repo-switch are on-device-pending and repos > ~30 MB are refused. reMarkable needs account + companion app. Freewrites need a Postbox account. Pomera: no setup at all.                                                                                                            |
+| W14 | I can carry the device and write away from a desk |    2    |  4   |   5   |   1   |  5   | Typoena still wall-powered (ADR-008): desk-bound until v0.8's battery, though the parametric case (`hardware/case/`, OpenSCAD) now exists. reMarkable + Type Folio bag-friendly with bulk. Freewrite Traveler is the form-factor reference (~1.6 lb, folds). Smart Typewriter ~5 lb, desk-bound. Pomera DM250 pocketable foldable.                                                                                                                                                                                                        |
+| W16 | Any file / action / edit one motion away          |    5    |  2   |   2   |   2   |  3   | Typoena: fuzzy palette over ~1100 files (Cmd-P + 2 chars + Enter), modal editing grammar with counts, `>`/`:` command palette, one-line install: the seiton claim made scoreable, and self-scored on the product's own home turf (discount accordingly). reMarkable Type Folio: touch menus, no keyboard grammar. Freewrites: gloriously few destinations but shallow reach: folder switch plus arrow keys, editing mid-document is famously costly. Pomera: menu-driven file list, no modal grammar.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| W15 | First-time setup without developer tools          |    4    |  2   |   3   |   3   |  5   | Typoena: two verified paths: on-device wizard (Wi-Fi scan-pick, QR device-flow sign-in, repo pick + shallow clone; slices 0–5a on hardware 2026-07-16) and the `curl … \| sh` installer (checksum-verified, no toolchain); 4 not 5 while factory-reset/repo-switch are on-device-pending and repos > ~30 MB are refused. reMarkable needs account + companion app. Freewrites need a Postbox account. Pomera: no setup at all.                                                                                                            |
 
 **Totals** (sum across 16 WHATs, no weighting): Typoena 62, Pomera 58,
 Freewrite Traveler 52, reMarkable 48, Freewrite Smart Typewriter 47.
-History: Typoena 52→51 at the 2026-07-11 measurement rebase (W6 +1 soak,
-W1 −2 on the ~630 ms reading), then 51→57 at the 2026-07-16 rebase (W1 +1
+History: Typoena 52 to 51 at the 2026-07-11 measurement rebase (W6 +1 soak,
+W1 −2 on the ~630 ms reading), then 51 to 57 at the 2026-07-16 rebase (W1 +1
 once the ~630 ms figure was re-read as the erase tier, W12 +1 on shipped
 v0.5, W15 4 new); every product gained its W15 row (Pomera +5, Traveler and
 Smart +3, reMarkable +2). The 2026-07-17 W16 row (reach) added Typoena +5,
-Pomera +3, the rest +2 — the five sits on the dimension the product was
+Pomera +3, the rest +2; the five sits on the dimension the product was
 literally built around, so it is the least independent cell in the table.
 Traveler pre-Sailfish 44; Smart pre-Sailfish 39;
-reMarkable W1 dropped 3→2→1 across two rounds of author testing.
-Typoena's lead over Pomera is four points — two of them from the
-self-scored W16 row, so read it as the same two-point contest it was —
+reMarkable W1 dropped 3 to 2 to 1 across two rounds of author testing.
+Typoena's lead over Pomera is four points (two of them from the
+self-scored W16 row, so read it as the same two-point contest it was)
 and still hinges on the same
 dimensions: W14 (portability) and W1's erase tier are where the tethered
 e-ink device loses ground; v0.8 (battery) and a faster erase/caret path are
 what widen it. The "Pomera + Wi-Fi + git + hackable BOM" framing from
-`README.md` holds — and W15 is now measurable product surface (wizard +
+`README.md` holds, and W15 is now measurable product surface (wizard +
 installer), not aspiration.
 
 Weighted totals (Σ score × W weight) tell the same story with more
-contrast — left as exercise; the unweighted view is enough to read the
+contrast, left as exercise; the unweighted view is enough to read the
 picture.
 
 #### Characteristic benchmarks (measured, not rated)
 
 The 0–5 scores above are perception; where actual numbers exist they are
-collected here. A number beats a rating, and a blank beats a guess — so the
+collected here. A number beats a rating, and a blank beats a guess, so the
 competitor columns stay empty except where a published figure or an author
 test exists (marked *(a)* when anecdotal). The sparseness is itself the
 finding: Typoena's column is bench data, the market's is marketing copy.
 
 | Characteristic                    | Typoena (measured)                          | reM.       | Frw.T | Frw.S | Pom.        |
 | --------------------------------- | ------------------------------------------- | ---------- | ----- | ----- | ----------- |
-| H1 type latency — additive typing | ~100–130 ms projected (bench confirm owed)  |            |       |       |             |
-| H1 — erase / caret tier           | ~630 ms                                     |            |       |       |             |
+| H1 type latency, additive typing  | ~100–130 ms projected (bench confirm owed)  |            |       |       |             |
+| H1 erase / caret tier             | ~630 ms                                     |            |       |       |             |
 | H4 boot (cold, to cursor)         | 4.26 s (2026-07-11)                         | ~20 s *(a)* |      |       | ~3 s *(a)*  |
 | H5 endurance                      | ≥ 1 h attested (2026-07-11)                 |            |       |       |             |
 | H7 Publish (real repo, warm)      | ~19 s `:gp` (2026-07-14)                    | n/a (no git) | n/a | n/a   | n/a         |
@@ -2192,7 +2192,7 @@ finding: Typoena's column is bench data, the market's is marketing copy.
 | H17 reach (keystrokes to target)  | 4 to any file by construction (Cmd-P + 2-char query + Enter); session median unmeasured |  |  |  |             |
 
 Post-Sailfish Freewrite latency ("cut 40–100 %") and Pomera's "LCD ~zero"
-are real signals but not numbers — they stay in the rationale column above,
+are real signals but not numbers: they stay in the rationale column above,
 not here. When a competitor cell fills in, the corresponding perception
 score should be re-checked against it.
 
@@ -2216,7 +2216,7 @@ score should be re-checked against it.
 ### Regenerating
 
 The matrix cells (`\node[qfdrel/{S,M,W}]`), roof symbols (`C-i-j` slots),
-and basement Σ + Rel% are native to this file — re-score directly in the
+and basement Σ + Rel% are native to this file: re-score directly in the
 TikZ source, then update the §3 priority list and §4 conflict list in
 the narrative above to match the new picture.
 
@@ -2231,13 +2231,13 @@ When §1 or §2 changes:
 5. Carry the change down: the §5 component Σ row multiplies these basement
    Σ values by the HOW→component cells, so it moves whenever they do.
 
-Perception scores are **not** derived from §1/§2 — they live only in
+Perception scores are **not** derived from §1/§2: they live only in
 this file. Update them when (a) a competitor ships a relevant change,
 (b) measurement replaces a guess, or (c) a WHAT is added/removed in §1.
 Each score keeps its one-line rationale in the table above.
 
 If a renderer rejects the `tikz` fence, the file is still readable as
-source — the placement comments name each WHAT, HOW, and cell. The
+source: the placement comments name each WHAT, HOW, and cell. The
 perception-scores table above is the human-readable fallback for the
 right-hand zone of the diagram.
 
@@ -2255,13 +2255,13 @@ design are called out below.
 ### Conflicts that actually shape the design
 
 - **H1 latency ↔ H3 refresh cadence** (mild). More partial refreshes per
-  second pile up ghosting faster, demanding earlier full refreshes —
+  second pile up ghosting faster, demanding earlier full refreshes:
   visible flashes that hurt H8 perception and H1 burst behaviour. The
   [ADR-003] (T3) strip aspect is the structural answer: a small framebuffer makes
   _both_ cheaper, not one at the expense of the other. The runtime answer
   is render §H3: schedule full refreshes on idle ≥ 1 s (v0.1 tech doc). The
-  rows-vs-latency cost model behind this tradeoff — full / full-area-partial /
-  windowed-Y — is in
+  rows-vs-latency cost model behind this tradeoff (full / full-area-partial /
+  windowed-Y) is in
   [`tradeoff-curves/epd-refresh-latency.md`](tradeoff-curves/epd-refresh-latency.md).
 - **H9 heap ↔ H10 binary size** (strong). std + libgit2 + mbedtls inflate
   both. We chose to spend on these ([ADR-001]/T1, [ADR-004]/T4) because 16 MB flash
@@ -2269,25 +2269,25 @@ design are called out below.
   different reason than feared (gix had no HTTPS push, not a heap failure),
   and the heap fight then happened on libgit2's side: the 2026-07-13 push
   campaign traced full-PSRAM exhaustion to its mmap working set and settled
-  it with hard caps (mwindow 64 KB/1.5 MB, odb cache 1 MB — §2 ¶).
+  it with hard caps (mwindow 64 KB/1.5 MB, odb cache 1 MB; §2 ¶).
 - **H9 heap ↔ H5 soak** (strong). A long writing session grows the rope
   and the glyph cache; Publishing on top can OOM. Mitigations shipped: 256 KB
   file cap (v0.1 tech doc), the persistent two-frame draw in `main.rs`
-  (repaints never allocate — added after a mid-push `HalfPageUp` OOM-aborted
+  (repaints never allocate: added after a mid-push `HalfPageUp` OOM-aborted
   the UI thread, run 4), and the palette file list interned to one PSRAM
   blob (was 182 KB of internal DRAM).
 - **H6 Publish reliability ↔ H12 network reconnect** (reinforcing). Both come
   from the same network stack; the TLS session-resumption vendored delta
-  (2026-07-14) proved the correlation — added for reconnect cost, it also
+  (2026-07-14) proved the correlation: added for reconnect cost, it also
   removed the idle keep-alive push failure's sting (run 8's `SSL Generic
-  error` during the 31 s marking gap; durable fix — reconnect-on-stale in
-  the http layer — still open).
+  error` during the 31 s marking gap; durable fix, reconnect-on-stale in
+  the http layer, still open).
 - **H12 reconnect ↔ H16 onboarding** (reinforcing). The wizard's clone leg
   rides the same TLS + Wi-Fi bring-up as Publish; every second shaved off
   connect/reconnect shortens first-run too (ls-refs fast path, session
   resumption).
 - **H10 binary ↔ H15 build time** (strong). std builds are slow. Accepted
-  in [ADR-001] (T1) — refactor leverage is the long-term payoff, not the
+  in [ADR-001] (T1): refactor leverage is the long-term payoff, not the
   per-build seconds.
 - **H4 boot ↔ H10 binary** (mild). Larger binary = slower flash load.
   Affordable at our size class but worth watching as features land.
@@ -2315,54 +2315,54 @@ constrains the choice.
 ### The cascade — WHAT → Function → How → Components
 
 The spine of the design, read top-down: which outcomes each Function (§2)
-serves, which approach was chosen — with the rejected alternative kept
-visible — and which components realise it. The matrices score the same
+serves, which approach was chosen (with the rejected alternative kept
+visible) and which components realise it. The matrices score the same
 links exhaustively; this tree is the readable path through them. T-IDs
 point at §7's tradeoff rows.
 
-- **Type** (keypress → glyph + buffer mutated) — serves W1 (10), W7 (8), W8 (7), W13 (7) · measured by H1, H2, H3
-  - **How: e-ink with windowed partial refresh** ([ADR-003], T3 — rejected: FSTN / memory LCD / OLED, no paper aesthetic, no 0 W persistence)
+- **Type** (keypress → glyph + buffer mutated): serves W1 (10), W7 (8), W8 (7), W13 (7) · measured by H1, H2, H3
+  - **How: e-ink with windowed partial refresh** ([ADR-003], T3; rejected: FSTN / memory LCD / OLED, no paper aesthetic, no 0 W persistence)
     - C5 GDEY0579T93 panel · C6 `embedded-graphics` + driver
-  - **How: custom dirty-rect widget layer** ([ADR-002], T2 — rejected: Ratatui, regions don't align to e-ink refresh areas)
+  - **How: custom dirty-rect widget layer** ([ADR-002], T2; rejected: Ratatui, regions don't align to e-ink refresh areas)
     - C7 widget layer · C8 rope buffer
-  - **How: USB host keyboard** ([ADR-009], T9 — rejected: BLE-HID, radio contention with Wi-Fi during Publish)
+  - **How: USB host keyboard** ([ADR-009], T9; rejected: BLE-HID, radio contention with Wi-Fi during Publish)
     - C9 TinyUSB host · C3 threads
-- **Navigate** (intent → active file / buffer / caret repositioned) — serves W16 (10), and W2's one-action Publish rides the same grammar · measured by H17, each motion's repaint priced by H1/H2
-  - **How: fuzzy file palette over both scopes** (Cmd-P; MRU recents under 2 chars, background card walk interned to one PSRAM blob — rejected: a file-manager screen, a destination that competes with prose)
+- **Navigate** (intent → active file / buffer / caret repositioned): serves W16 (10), and W2's one-action Publish rides the same grammar · measured by H17, each motion's repaint priced by H1/H2
+  - **How: fuzzy file palette over both scopes** (Cmd-P; MRU recents under 2 chars, background card walk interned to one PSRAM blob; rejected: a file-manager screen, a destination that competes with prose)
     - C7 widget layer · C10 FAT walk · C8 rope
-  - **How: modal editing grammar** (vim Normal/Visual/ex, counts, `.` repeat, `/` smartcase + accent-folded search — rejected: chorded shortcuts, reach cost grows with document and file count instead of staying O(one motion))
+  - **How: modal editing grammar** (vim Normal/Visual/ex, counts, `.` repeat, `/` smartcase + accent-folded search; rejected: chorded shortcuts, reach cost grows with document and file count instead of staying O(one motion))
     - C7 · C8 · C9 keyboard
-- **Save** (dirty buffer → persisted file on SD) — serves W3 (10), W6 (9), W12 (5) · measured by H8
-  - **How: atomic-rename + fsync on FAT** ([ADR-007], T7; unlink-first + `*.tmp` boot recovery because FatFS `f_rename` won't overwrite — rejected: LittleFS working copy, a desktop can't read it)
+- **Save** (dirty buffer → persisted file on SD): serves W3 (10), W6 (9), W12 (5) · measured by H8
+  - **How: atomic-rename + fsync on FAT** ([ADR-007], T7; unlink-first + `*.tmp` boot recovery because FatFS `f_rename` won't overwrite; rejected: LittleFS working copy, a desktop can't read it)
     - C10 FAT on SD (own SPI3, [ADR-012]) · C2 std VFS
-- **Publish** (persisted file → commit on remote; sub-function Reconnect) — serves W2 (9), W6 (9), W14 (8) · measured by H6, H7, H9, H12
-  - **How: libgit2 as an esp-idf CMake component** ([ADR-004] kill-switch outcome, T4 — rejected: gitoxide, no HTTPS push)
+- **Publish** (persisted file → commit on remote; sub-function Reconnect): serves W2 (9), W6 (9), W14 (8) · measured by H6, H7, H9, H12
+  - **How: libgit2 as an esp-idf CMake component** ([ADR-004] kill-switch outcome, T4; rejected: gitoxide, no HTTPS push)
     - C12 libgit2 + vendored `esp_mbedtls_stream.c` · C13 mbedTLS · C14 token auth
-  - **How: splice commit onto the local tip** (T11 — rejected: full index write, 611 s / OOM on the real repo)
+  - **How: splice commit onto the local tip** (T11; rejected: full index write, 611 s / OOM on the real repo)
     - C12 · C10 (dirty-path journal `/sd/.typoena-dirty`)
-  - **How: HTTPS + GitHub token** ([ADR-005], T5 — rejected: SSH, the device transport doesn't speak it)
+  - **How: HTTPS + GitHub token** ([ADR-005], T5; rejected: SSH, the device transport doesn't speak it)
     - C13 · C14
-  - **How: one atomic `:gp`, auto-timestamp message, replay on rejection** ([ADR-010], T10 — rejected: a commit-message prompt, a modal that taxes the writing loop)
+  - **How: one atomic `:gp`, auto-timestamp message, replay on rejection** ([ADR-010], T10; rejected: a commit-message prompt, a modal that taxes the writing loop)
     - C12
-- **Recover** (degraded file state → readable file) — serves W3 (10), W6 (9) · measured by H8, plus H6's replay path
+- **Recover** (degraded file state → readable file): serves W3 (10), W6 (9) · measured by H8, plus H6's replay path
   - **How: journal + boot-time reconciliation** (`*.tmp` recovery, stranded-commit replay, soft-reset reconcile)
     - C10 · C12
-- **Boot** (power-on → cursor ready) — serves W5 (6), and W15's first impression · measured by H4
-  - **How: async splash refresh + background file walk** (2026-07-14 restructure — rejected: synchronous walk, 8.7 s to cursor)
+- **Boot** (power-on → cursor ready): serves W5 (6), and W15's first impression · measured by H4
+  - **How: async splash refresh + background file walk** (2026-07-14 restructure; rejected: synchronous walk, 8.7 s to cursor)
     - C5 · C10 · C2 · C3 (16 KB walk thread)
-- **Provision** (uninitialized device → configured device) — serves W4 (7), W15 (7) · measured by H16 (its clone leg rides H12)
-  - **How: two peer paths to one artifact** (`/sd/typoena.conf` + cloned `/sd/repo`; deliberate redundancy — neither path is a single point of failure for W15)
+- **Provision** (uninitialized device → configured device): serves W4 (7), W15 (7) · measured by H16 (its clone leg rides H12)
+  - **How: two peer paths to one artifact** (`/sd/typoena.conf` + cloned `/sd/repo`; deliberate redundancy, neither path is a single point of failure for W15)
     - on-device wizard → C17 (`conf` + `wizard` crates)
     - macOS installer → C18, delivered by C19 (typoena.dev `install.sh`, T15, T14)
-    - rejected: captive portal (v0.1 — ceremony without a user); deferred: SoftAP companion webapp (chosen over BLE 2026-07-16, unbuilt)
-  - **How: plaintext conf on the card** (rejected for now: encrypted LittleFS/NVS + eFuse key — the open [ADR-011]; C11/C15 stay unused)
+    - rejected: captive portal (v0.1: ceremony without a user); deferred: SoftAP companion webapp (chosen over BLE 2026-07-16, unbuilt)
+  - **How: plaintext conf on the card** (rejected for now: encrypted LittleFS/NVS + eFuse key, the open [ADR-011]; C11/C15 stay unused)
     - C10
-  - **How: GitHub App device flow** (rejected as primary: hand-created PAT — kept as the fallback)
+  - **How: GitHub App device flow** (rejected as primary: hand-created PAT, kept as the fallback)
     - C20 GitHub App · C14
-  - **How: shallow clone + ~30 MB repo gate** (T13 — rejected: full clone, exceeds device memory and minutes-scale patience)
+  - **How: shallow clone + ~30 MB repo gate** (T13; rejected: full clone, exceeds device memory and minutes-scale patience)
     - C12
 
-C1–C4 (SoC, std runtime, threads, PSRAM allocator) underlie every branch —
+C1–C4 (SoC, std runtime, threads, PSRAM allocator) underlie every branch:
 the platform layer rather than a Function's own component; see "Read
 across, not down" below for why C2 is the enabler, not the bottleneck.
 
@@ -2418,12 +2418,12 @@ HOW-to-component matrix (9 strong / 3 medium / 1 weak):
 
 The **Σ row carries the cascade down**: component Σ = Σ(basement Σ of each
 HOW × cell strength), so component priorities are derived from the house,
-not asserted. C11 and C15 are parenthesised and excluded from the rank —
+not asserted. C11 and C15 are parenthesised and excluded from the rank:
 they are unbuilt ([ADR-007]'s possible future shape / the open [ADR-011]),
 so their votes are fiction until they ship; C15's 0 is the sanity check
 (no shipped characteristic touches it). C18/C20 tie at 837. Recompute this
 row whenever the basement Σ or a cell above changes. H17's strong cell
-lands on C7 — the widget layer read broadly as the editor surface: the
+lands on C7, the widget layer read broadly as the editor surface: the
 palette, the modal grammar's rendering, and the dirty-rects that price
 each motion all live in the `editor` crate behind it.
 
@@ -2431,43 +2431,43 @@ This matrix is drawn as **House 2** [at the top of the file](#house-of-quality--
 (row importance = each HOW's Phase-1 basement Σ, the derived Σ / Rank as
 basement, the documented component correlations in the roof; C11/C15
 parenthesised and unranked). **This markdown matrix is the source of
-truth** — re-score here first, then mirror the drawing, same day.
+truth**: re-score here first, then mirror the drawing, same day.
 
 ### Read across, not down
 
 - **C5/C7/C6** (panel + widget/editor + graphics) are the most leveraged
-  cluster — 15 438 summed Σ, ~27 % of all component votes — and the
+  cluster (15 438 summed Σ, ~27 % of all component votes) and the
   2026-07-17 W16 re-score made the cluster's internal order the headline:
-  **C7 jumped #5 → #2** (5 667), overtaking libgit2. H17's strong vote
+  **C7 jumped #5 to #2** (5 667), overtaking libgit2. H17's strong vote
   lands where the palette and the modal grammar live, so the derived
-  ranking now points at the same place the July effort record did — the
+  ranking now points at the same place the July effort record did: the
   divergence D1 used as evidence is dissolved by arithmetic, not excused.
   C5 stays #1 (6 021); C6 holds #6. [ADR-002]
   and [ADR-003] are the ADRs to keep most honest as v0.x progresses.
 - **C12** (`libgit2`) is **#3 by derivation** (5 601, was #2) and overloaded:
-  H6, H7, H9, H10, H11, H12, H15 — and now
-  H16's clone leg — all touch it. [ADR-004]'s kill-switch **fired**
+  H6, H7, H9, H10, H11, H12, H15 (and now
+  H16's clone leg) all touch it. [ADR-004]'s kill-switch **fired**
   (spike 7, 2026-07-06: gix had no HTTPS push) and the fallback became the
   component: `git2` vendored as an esp-idf CMake component with two
   deliberate C-side deltas (`esp_mbedtls_stream.c`: a double-free fix in the
   error path reported upstream, plus TLS session resumption). The overload
-  prediction held — the real-repo push campaign (2026-07-13) was fought
+  prediction held: the real-repo push campaign (2026-07-13) was fought
   entirely inside C12's memory profile. [ADR-010] pins the _shape_ of the
   publish sequence; swapping the library under it never changed the user
   contract, exactly as designed.
-- **C11** (LittleFS) is **still unused — and v0.9 decided against it for
+- **C11** (LittleFS) is **still unused, and v0.9 decided against it for
   config**: the wizard/installer write plaintext `/sd/typoena.conf` on the
   card (one artifact both provisioning paths share, desktop-inspectable).
   C15 (eFuse key) is likewise unused; token-at-rest protection is the open
   [ADR-011]. C11's non-zero cells describe a possible future shape per
-  [ADR-007], not shipped reality — which is why its Σ (1 590, a would-be
+  [ADR-007], not shipped reality, which is why its Σ (1 590, a would-be
   #13, above actually-shipped C14) is parenthesised and unranked. The
   derivation caught this: score fictional cells and they outrank real
   components.
 - **C17–C20** (wizard, installer, site, GitHub App) form the onboarding
   cluster that owns H16. Deliberate redundancy: C17 and C18 are peer paths
   to the same configured card, so neither is a single point of failure for
-  W15 — a Mac user never touches the wizard; a computer-less user never
+  W15: a Mac user never touches the wizard; a computer-less user never
   touches the installer. C20 (device-flow auth) and C12 (shallow clone) are
   the shared spine of both. **Rank-vs-effort flag, resolved 2026-07-17:**
   these still rank #15–#18, but the divergence the flag pointed at is
@@ -2475,53 +2475,53 @@ truth** — re-score here first, then mirror the drawing, same day.
   effort record as revealed preference that the WHAT weights were stale,
   and the W16/H17 re-score confirmed it: the votes moved to where the
   effort went (C7 #2; C8, C9, C10 all rose), while C17–C20 stay low for
-  the honest reason — onboarding is once per device. The flag's early
+  the honest reason: onboarding is once per device. The flag's early
   trigger (a second firing) retires with D1.
-- **C2** (std runtime) is **#4 by derivation** (4 588) — it sits
+- **C2** (std runtime) is **#4 by derivation** (4 588): it sits
   underneath almost everything, but it's the
   _enabler_ (H4 boot, H10 binary, H12 reconnect) rather than the bottleneck.
   Reversing [ADR-001] would force re-deciding [ADR-004], [ADR-005],
-  [ADR-006], [ADR-007] all at once — they're a single decision in three
+  [ADR-006], [ADR-007] all at once: they're a single decision in three
   drawers.
 - **The roof reads sparse because the real coupling is pool-mediated.**
-  At the call level the components are genuinely decoupled — and some of
+  At the call level the components are genuinely decoupled, and some of
   that emptiness was *bought*, not found ([ADR-012] deleted the SD↔EPD
   bus conflict, the 96 KB git thread keeps libgit2 off the UI, the editor
   core is pure and host-tested). What remains runs through three shared
   memory pools instead of the call graph, and is priced in the
   [shared-pool budget](#shared-pool-budget--who-allocates-from-what)
-  below — the source of truth for the three pool-mediated `−−` roof
+  below: the source of truth for the three pool-mediated `−−` roof
   cells (C6↔C12, C7↔C12, C7↔C13).
 
 ### Shared-pool budget — who allocates from what
 
-The House-2 roof was first scored from the call graph — who talks to
-whom — and by that reading stayed nearly empty. Every crash of the July
+The House-2 roof was first scored from the call graph (who talks to
+whom) and by that reading stayed nearly empty. Every crash of the July
 push campaign came through a channel the call graph can't see: **shared
 memory pools**. Three crashes, three roof cells the first scoring
 missed, all `−−`, all mediated:
 
-- **C7 ↔ C12 via PSRAM** — the push's mmap working set exhausted PSRAM
+- **C7 ↔ C12 via PSRAM**: the push's mmap working set exhausted PSRAM
   and `Frame::new_white`'s 26 KB draw allocation died on `HalfPageUp`,
   OOM-aborting the UI thread mid-push (run 4). Fixes: persistent
   two-frame draw (repaints never allocate) + mwindow/odb caps.
-- **C7 ↔ C13 via internal DRAM** — the palette's 1 098 path
+- **C7 ↔ C13 via internal DRAM**: the palette's 1 098 path
   `Vec<String>`s held ~60–70 KB of internal DRAM and `ssl_setup`'s
   ~33 KB internal-only allocation failed, so TLS refused to start.
   Fixes: `CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC=y` + the file list interned
   to one PSRAM blob.
-- **C6 ↔ C12 via the DMA reserve** — ff `:gl`'s checkout exhausted
+- **C6 ↔ C12 via the DMA reserve**: ff `:gl`'s checkout exhausted
   internal DRAM, a DMA-capable allocation inside `spi_master` returned
   NULL and the driver dereferenced it (repo safe, device down). Fix:
-  reserve doubled 32 → 64 KB.
+  reserve doubled 32 to 64 KB.
 
 A pairwise roof structurally underprices these: pool contention is
-N-way — every consumer conflicts with every other consumer through the
-pool — and fragmenting that into C(N,2) glyphs is the House-2 sibling of
+N-way (every consumer conflicts with every other consumer through the
+pool) and fragmenting that into C(N,2) glyphs is the House-2 sibling of
 the blindness that fragmented flow across House 1's rows
 ([`house-vs-product.md`](house-vs-product.md) D1). Making a pool a
 House-2 *column* was considered and rejected: matrix columns rank where
-the next unit of effort goes, and a pool is not a place effort can go —
+the next unit of effort goes, and a pool is not a place effort can go:
 every memory-flavoured HOW would vote it to #1 and distort the cascade
 into Houses 3–4. The shape that fits is the transpose: **consumers ×
 pools**, cells = worst-observed draw, column arithmetic = the crash
@@ -2530,23 +2530,23 @@ condition.
 | Consumer | Internal DRAM (512 KB SRAM) | PSRAM (8 MB octal) | DMA-capable reserve (64 KB, carved from internal) |
 | --- | --- | --- | --- |
 | C3 threads | stacks 124 KB: git 96 + walk 16 + USB 4+8 (≤ 128 KB budget, §6) | — | — |
-| C5/C6 display | — | 2 × 26 KB persistent frames (allocated once at boot — the run-4 lesson) | every EPD SPI transfer |
-| C7 widget / palette | *(was 182 KB of file list — interned away 2026-07-14)* | 51 KB path blob | — |
+| C5/C6 display | — | 2 × 26 KB persistent frames (allocated once at boot, the run-4 lesson) | every EPD SPI transfer |
+| C7 widget / palette | *(was 182 KB of file list, interned away 2026-07-14)* | 51 KB path blob | — |
 | C8 rope buffer | — | open file, capped 256 KB | — |
 | C10 FAT on SD | FatFS work areas + 16-FD mount (unmeasured) | — | every SD SPI transfer |
 | C12 libgit2 | 96 KB thread stack (counted under C3) | mwindow ≤ 1.5 MB + odb cache ≤ 1 MB + pack `.idx` map ~1.7 MB (whole-file, outside the mwindow budget) | — |
-| C13 mbedTLS | *(was ~33 KB `ssl_setup` — moved 2026-07-13 via `EXTERNAL_MEM_ALLOC`)* | TLS session ~35 KB | — |
-| C1/C2 system (Wi-Fi, lwIP, esp-idf) | the standing floor — unmeasured, the pool's biggest unpriced tenant | — | — |
+| C13 mbedTLS | *(was ~33 KB `ssl_setup`, moved 2026-07-13 via `EXTERNAL_MEM_ALLOC`)* | TLS session ~35 KB | — |
+| C1/C2 system (Wi-Fi, lwIP, esp-idf) | the standing floor, unmeasured, the pool's biggest unpriced tenant | — | — |
 | **Worst observed (min-ever free)** | **2 099 B** (run 9, mid-TLS-send) | **684 B** pre-cap (run 6); **4.5 MB** post-cap (run 9) | alloc failure at the old 32 KB (the ff `:gl` crash) |
 
 Reading it: each of the three crashes is one column touching zero, and
 internal DRAM's proven margin at its worst moment is **~2 KB**. The
 bottom row's telemetry already exists (`log_push_heap` prints per-pool
 free, min-evers, and the largest PSRAM block; `esp_map` live-bytes
-tracks the mmap share) — when a new consumer lands or a min-ever moves,
+tracks the mmap share): when a new consumer lands or a min-ever moves,
 update this table first, then draw (or retire) the roof cell it
 justifies. The reusable lesson: on a 512 KB-internal SoC the roof's real
-axis is **"who allocates from what," not "who calls whom"** — the call
+axis is **"who allocates from what," not "who calls whom"**: the call
 graph predicted none of the three crashes; this table's column sums
 would have flagged all of them.
 
@@ -2555,12 +2555,12 @@ would have flagged all of them.
 Classical QFD carries the cascade two houses further: components deploy
 into the **process** that produces them (House 3), and the process deploys
 into the **controls** that keep it honest (House 4). This project has no
-factory — but it does have a production system: the toolchain and release
+factory, but it does have a production system: the toolchain and release
 pipeline (P1–P9) and the verification practices that guard it (Q1–Q8).
 Both houses (stacked at the top of the file) are scored under that reading. **First cut, scored
 2026-07-16**: the P/Q catalogues and cells are asserted from the
 documented pipeline (justfile, installer DESIGN, release chain, the
-hardware-verification record), single-rater, not measured — re-score when
+hardware-verification record), single-rater, not measured: re-score when
 the pipeline changes shape.
 
 Row importance carries down the cascade as in House 2: House 3 rows carry
@@ -2569,7 +2569,7 @@ everywhere), House 4 rows carry each process's House-3 relative weight.
 Basements show relative weight + rank (raw Σ grows geometrically down the
 cascade and stops being readable).
 
-**The processes** — P1 firmware build (`just build`: cargo for xtensa +
+**The processes**: P1 firmware build (`just build`: cargo for xtensa +
 ESP-IDF), P2 the libgit2 esp-idf CMake component build (vendored deltas;
 needs its own fingerprint handling), P3 flash at manufacturing (devices
 ship pre-flashed, [installer DESIGN](../installer/DESIGN.md)), P4 bench
@@ -2577,11 +2577,11 @@ hardware assembly (panel, SPI3 SD, PSU, case), P5/P6 the two peer card
 provisioning paths (wizard / installer), P7 the installer release cut
 (`installer-v*` tag → universal binary + `.sha256`), P8 site deploy
 (Coolify auto-deploy), P9 GitHub App + org administration (client_id,
-scopes, token-expiry policy — the one "process" no repo builds).
+scopes, token-expiry policy, the one "process" no repo builds).
 
 The scored house is drawn as **House 3** [at the top of the file](#house-of-quality--the-four-diagrams).
 
-**The controls** — Q1 host test suites (editor 237 / keymap 29 / wizard 39),
+**The controls**: Q1 host test suites (editor 237 / keymap 29 / wizard 39),
 Q2 on-device verification runs (the hardware-verified stamps throughout
 this file), Q3 build gates (`just build` / `build-light`), Q4 bench
 instrumentation + telemetry (`sd_bench`, refresh log, `log_push_heap`,
@@ -2593,15 +2593,15 @@ release → typoena.dev, device-flow e2e).
 
 The scored house is drawn as **House 4** [at the top of the file](#house-of-quality--the-four-diagrams).
 
-**Reading the pair.** P1 carries **52.4 %** of the process weight — the
+**Reading the pair.** P1 carries **52.4 %** of the process weight: the
 firmware build produces almost every high-Σ component, which is why Q2/Q3
 (on-device verification + build gates) rank #1/#2 among controls: the
 project's habit of hardware-verifying every slice is exactly where the
 arithmetic says the control effort belongs. Two flags worth keeping:
-**P4 bench assembly is #2 (21.4 %) with only manual controls** — nothing
+**P4 bench assembly is #2 (21.4 %) with only manual controls**: nothing
 automated guards the wiring that C5/C10/C16 depend on (the CS-jumper and
 SDXC lessons were both paid here), so hardware changes deserve the same
-verify-on-device discipline as code; and **Q6's rank #8 understates it** —
+verify-on-device discipline as code; and **Q6's rank #8 understates it**:
 the checksum chain is the *only* control on the public install path, so
 its breadth-based rank reads low exactly the way H8's once did in House 1
 (narrow voter base, absolute stakes for its one voter).
@@ -2615,30 +2615,30 @@ A curated rank, drawing from §3 importance and §4 conflicts, with one
 deliberate override: acceptance-criteria critical paths (H4 boot,
 H5 soak) move up regardless of weighted-vote spread. (Pre-W14 this list
 also lifted H8 durability over its narrow voter base; W14 has widened
-that base, so H8's top-five spot is now arithmetic — see §3.) These started as
+that base, so H8's top-five spot is now arithmetic; see §3.) These started as
 the numbers spikes 2–7 had to validate; most are now measured on the
-shipped device — the Verdict column carries the result, and every row
+shipped device. The Verdict column carries the result, and every row
 names its fallback in "If we miss it": a target without a fallback is a
 wish, not a budget. The fallback column also covers regression on
 already-met targets.
 
 | Rank | Characteristic         | Target                           | Watched on                          | Verdict                                                                                                                                                              | If we miss it                                                                                                                                                            |
 | ---- | ---------------------- | -------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | H2 region area         | ≤ 1 line per keypress            | on-device refresh log               | ✓ windowed-Y drives only the touched line's band                                                                                                                     | Larger font / coarser refresh region — the fallback that was never needed, kept named                                                                                    |
-| 2    | H9 heap (Publish)      | ≥ 1 MB PSRAM free at push peak   | `log_push_heap` telemetry           | ✓ run 9: min-ever 4.5 MB after mwindow 64 KB/1.5 MB + odb 1 MB caps; **new watch = internal DRAM** (min-ever ~2.1 KB during TLS send) — §2 ¶                           | Re-tighten the mwindow/odb caps; move remaining internal-DRAM allocs to PSRAM (the `EXTERNAL_MEM_ALLOC` pattern); last resort = gate repo shape, as onboarding's 30 MB gate already does |
+| 1    | H2 region area         | ≤ 1 line per keypress            | on-device refresh log               | ✓ windowed-Y drives only the touched line's band                                                                                                                     | Larger font / coarser refresh region: the fallback that was never needed, kept named                                                                                    |
+| 2    | H9 heap (Publish)      | ≥ 1 MB PSRAM free at push peak   | `log_push_heap` telemetry           | ✓ run 9: min-ever 4.5 MB after mwindow 64 KB/1.5 MB + odb 1 MB caps; **new watch = internal DRAM** (min-ever ~2.1 KB during TLS send); §2 ¶                           | Re-tighten the mwindow/odb caps; move remaining internal-DRAM allocs to PSRAM (the `EXTERNAL_MEM_ALLOC` pattern); last resort = gate repo shape, as onboarding's 30 MB gate already does |
 | 3    | H8 durability          | 100 % (post-confirm power loss)  | dirty journal + boot recovery       | Journal (`/sd/.typoena-dirty`) + `*.tmp` boot-recovery + stranded-commit replay shipped; the physical power-pull test is still owed (v0.9)                             | A failed pull test blocks v0.9 sign-off: fsync the directory handle after rename, then redesign the journal if that is not enough                                        |
-| 4    | H1 Type latency        | ≤ 400 ms (revised from ≤ 200 ms) | refresh log (bench confirm pending) | Typing tier ~100–130 ms projected ✓; **erase/caret tier ~630 ms ✗**                                                                                                   | A cheaper erase path (windowed erase); if the panel can't deliver one, re-price [ADR-003] and move the target openly — never quietly                                     |
-| 5    | H6 Publish reliability | ≥ 95 % (network up)              | daily `:gp` use                     | Rejected-push → reconcile → replay → push cycle verified on device 2026-07-14; residual risk = stale keep-alive on long marking gaps (avoided via repack, not fixed)  | Reconnect-on-stale in the http layer — the named durable fix, owed before v1.0 claims ≥ 99 %                                                                             |
+| 4    | H1 Type latency        | ≤ 400 ms (revised from ≤ 200 ms) | refresh log (bench confirm pending) | Typing tier ~100–130 ms projected ✓; **erase/caret tier ~630 ms ✗**                                                                                                   | A cheaper erase path (windowed erase); if the panel can't deliver one, re-price [ADR-003] and move the target openly, never quietly                                     |
+| 5    | H6 Publish reliability | ≥ 95 % (network up)              | daily `:gp` use                     | Rejected-push → reconcile → replay → push cycle verified on device 2026-07-14; residual risk = stale keep-alive on long marking gaps (avoided via repack, not fixed)  | Reconnect-on-stale in the http layer: the named durable fix, owed before v1.0 claims ≥ 99 %                                                                             |
 | 6    | H3 cadence             | full every ~64 partials          | `FULL_REFRESH_EVERY = 64`           | ✓ holding; flashes deferred to idle ≥ 1 s                                                                                                                             | If ghosting returns: lower `FULL_REFRESH_EVERY`, temperature-tune per panel                                                                                              |
-| 7    | H4 Boot latency        | ≤ 5 s (cold, to cursor)          | 4258 ms 2026-07-11 ✓                | Held ~4.2 s through the 2026-07-14 restructure (async splash, background walk) — [boot-time-budget](notes/boot-time-budget.md)                                        | For v1.0's ≤ 3 s: memtest off (−0.74 s); beyond that the target moves, not the boot path — the ~1.9 s cold full refresh is an e-ink floor                                |
+| 7    | H4 Boot latency        | ≤ 5 s (cold, to cursor)          | 4258 ms 2026-07-11 ✓                | Held ~4.2 s through the 2026-07-14 restructure (async splash, background walk); [boot-time-budget](notes/boot-time-budget.md)                                        | For v1.0's ≤ 3 s: memtest off (−0.74 s); beyond that the target moves, not the boot path: the ~1.9 s cold full refresh is an e-ink floor                                |
 | 8    | H5 soak                | 1 h no leak / no drop            | 1 h real-use soak ✓ 2026-07-11      | Attested                                                                                                                                                              | Bisect the heap-touching change (the run-4 per-draw-alloc OOM was exactly this class) and re-soak before shipping it                                                     |
-| 9    | H17 reach cost         | ≤ 6 keystrokes median (file / command / edit point) | **unmeasured** — count a real session | 4-keystroke file reach by construction (Cmd-P + 2-char query + Enter; MRU recents under 2 chars); the grammar is host-tested but a session median has never been counted | MRU depth + `PALETTE_MIN_QUERY` tuning, pinned files; if the *grammar itself* is what costs motions, that is a design question for [house-vs-product.md](house-vs-product.md), not a tuning knob |
-| 10   | H16 onboarding         | ≤ 10 min (blank card → cursor)   | **unmeasured** — time a fresh run   | Wizard slices 0–5a verified on hardware but never wall-clocked                                                                                                        | Shallow-clone tuning, device-flow poll cadence; structurally, the deferred SoftAP companion (a phone keyboard beats the device keyboard for entry speed)                 |
+| 9    | H17 reach cost         | ≤ 6 keystrokes median (file / command / edit point) | **unmeasured**: count a real session | 4-keystroke file reach by construction (Cmd-P + 2-char query + Enter; MRU recents under 2 chars); the grammar is host-tested but a session median has never been counted | MRU depth + `PALETTE_MIN_QUERY` tuning, pinned files; if the *grammar itself* is what costs motions, that is a design question for [house-vs-product.md](house-vs-product.md), not a tuning knob |
+| 10   | H16 onboarding         | ≤ 10 min (blank card → cursor)   | **unmeasured**: time a fresh run   | Wizard slices 0–5a verified on hardware but never wall-clocked                                                                                                        | Shallow-clone tuning, device-flow poll cadence; structurally, the deferred SoftAP companion (a phone keyboard beats the device keyboard for entry speed)                 |
 
 The two not-in-MVP rows but already-shaped-by-design:
 
-| — | H13 current | Measured only in v0.1 | bench multimeter | Cell sizing for v0.8 is data-driven, not spec-sheet | If measurements say > 2-day life is unreachable: revisit [ADR-008]'s cell class or W11's weight — on numbers, not hope |
-| — | H11 stacks | Sum ≤ 128 KB (was ≤ 80 KB) | measured: 124 KB explicit (git 96 + walk 16 + USB 4+8) | Target followed the shipped architecture — §2 ∥ | Re-price before adding any thread; if a new one breaks the sum, shrink or merge an existing stack first |
+| — | H13 current | Measured only in v0.1 | bench multimeter | Cell sizing for v0.8 is data-driven, not spec-sheet | If measurements say > 2-day life is unreachable: revisit [ADR-008]'s cell class or W11's weight, on numbers, not hope |
+| — | H11 stacks | Sum ≤ 128 KB (was ≤ 80 KB) | measured: 124 KB explicit (git 96 + walk 16 + USB 4+8) | Target followed the shipped architecture; §2 ∥ | Re-price before adding any thread; if a new one breaks the sum, shrink or merge an existing stack first |
 
 ---
 
@@ -2653,23 +2653,23 @@ below.
 | T1  | std (esp-idf-rs) over no_std (esp-hal)          | Heap, threads, VFS, mbedtls, room for a full git stack (proved out by libgit2)                       | +1 MB binary, +5–10 min builds                                                                                                                        | [ADR-001] |
 | T2  | Custom widget layer over Ratatui                | Dirty-rects aligned to e-ink regions; 200 KB binary back                                             | 500 LoC we own and maintain                                                                                                                           | [ADR-002] |
 | T3  | e-ink medium over FSTN / memory LCD / OLED      | Paper aesthetic; 0 W idle persistence; medium enforces writing posture                               | ~200–300 ms typing latency; periodic full-refresh flash (scroll worst-case)                                                                           | [ADR-003] |
-| T4  | `libgit2` (`git2`) over `gitoxide` — the [ADR-004] kill-switch, fired 2026-07-06 | Working HTTPS push on-device; mature pack/transport code riding ESP-IDF's mbedTLS                    | FFI + a C build (esp-idf CMake component); two vendored C deltas to maintain (`esp_mbedtls_stream.c` double-free fix + TLS session resumption); an mmap profile that needed hard caps (mwindow, odb) | [ADR-004] |
-| T5  | HTTPS + GitHub token over SSH                   | Simplest auth the device transport supports; App device-flow tokens (`ghu_`) ride the same header as a PAT, so wizard/installer sign-in changed nothing in the git path | Long-lived secret on device — now **plaintext in `/sd/typoena.conf`** (both provisioning paths write it; physical custody of the card is the control); encrypted-at-rest is the open [ADR-011]      | [ADR-005], [ADR-011] |
+| T4  | `libgit2` (`git2`) over `gitoxide`: the [ADR-004] kill-switch, fired 2026-07-06 | Working HTTPS push on-device; mature pack/transport code riding ESP-IDF's mbedTLS                    | FFI + a C build (esp-idf CMake component); two vendored C deltas to maintain (`esp_mbedtls_stream.c` double-free fix + TLS session resumption); an mmap profile that needed hard caps (mwindow, odb) | [ADR-004] |
+| T5  | HTTPS + GitHub token over SSH                   | Simplest auth the device transport supports; App device-flow tokens (`ghu_`) ride the same header as a PAT, so wizard/installer sign-in changed nothing in the git path | Long-lived secret on device, now **plaintext in `/sd/typoena.conf`** (both provisioning paths write it; physical custody of the card is the control); encrypted-at-rest is the open [ADR-011]      | [ADR-005], [ADR-011] |
 | T6  | `std::thread` over `embassy` or `tokio`         | Boring, debuggable, real stack traces; no exec to tune                                               | ~76 KB total stack across 5 tasks                                                                                                                     | [ADR-006] |
 | T7  | FAT-on-SD + LittleFS-on-flash split             | Desktop can read SD; config survives SD reformat                                                     | Two filesystems to manage; FAT's power-loss weakness mitigated by atomic-rename                                                                       | [ADR-007] |
 | T8  | Wall power for v0.1, battery deferred           | Measure real draw before sizing the cell                                                             | Tethered MVP; not the final aesthetic                                                                                                                 | [ADR-008] |
 | T9  | USB host (TinyUSB) over BLE-HID                 | No radio contention with Wi-Fi during push; keyboard powered from the device                         | One more USB connector on enclosure                                                                                                                   | [ADR-009] |
 | T10 | Atomic Publish (`:gp`, was `Ctrl-G`) + auto-timestamp commit message | One action, one outcome; matches the user's existing `gct` workflow; no modal prompt to slow H1 latency | Commit history is timestamp noise; the device authors replay commits the user never sees; reversal would break muscle memory                          | [ADR-010] |
-| T11 | Splice commit over full index write             | Real-repo Publish exists at all: ~19–24 s vs 611 s / OOM on the index path; dirty-path journal makes it power-pull-safe | Desktop-side edits to the card are never committed by the device — hand-edits on a computer must be pushed from that computer                         | [sync-commit-staging](tradeoff-curves/sync-commit-staging.md) |
-| T12 | Media stays in git, never on the card           | Killed `:gl`'s last OOM path; pull/apply touches text only; the repo stays whole for remote readers | Stale card media; phantom `git status` noise if the card is mounted on a computer — never hand-commit from the card                                   | (2026-07-14, `is_media_path`) |
+| T11 | Splice commit over full index write             | Real-repo Publish exists at all: ~19–24 s vs 611 s / OOM on the index path; dirty-path journal makes it power-pull-safe | Desktop-side edits to the card are never committed by the device; hand-edits on a computer must be pushed from that computer                         | [sync-commit-staging](tradeoff-curves/sync-commit-staging.md) |
+| T12 | Media stays in git, never on the card           | Killed `:gl`'s last OOM path; pull/apply touches text only; the repo stays whole for remote readers | Stale card media; phantom `git status` noise if the card is mounted on a computer; never hand-commit from the card                                   | (2026-07-14, `is_media_path`) |
 | T13 | Shallow clone + ~30 MB repo gate at onboarding  | First-run clone fits device memory and minutes-scale patience                                        | Repos over the gate are refused at the repo-pick step (libgit2 has no partial clone, so tip media would download even if never written)               | [wizard](v0.9-onboarding-wizard.md) |
-| T14 | Installer provisions the card, never flashes    | No USB-flash toolchain in the user path; devices ship pre-flashed; installer stays a small TUI      | Field firmware updates cannot lean on the installer — auto-update becomes a device-side problem (open, macroplan v1.x)                                | [installer/DESIGN.md](../installer/DESIGN.md) |
+| T14 | Installer provisions the card, never flashes    | No USB-flash toolchain in the user path; devices ship pre-flashed; installer stays a small TUI      | Field firmware updates cannot lean on the installer: auto-update becomes a device-side problem (open, macroplan v1.x)                                | [installer/DESIGN.md](../installer/DESIGN.md) |
 | T15 | `curl … \| sh` one-liner over app-store/dmg     | Zero-friction start from typoena.dev; checksum-verified download; quarantine handled                | Pipe-to-shell trust ask; macOS-only today; the site and the GitHub release become launch-path infrastructure to keep up                               | (site repo `install.sh`) |
 
 ### Conflicts left explicitly _unresolved_ by v0.1
 
 These are the live tensions we are watching, not deciding harder. Each
-carries the trigger that would force the decision — a tension without a
+carries the trigger that would force the decision: a tension without a
 trigger is a decision being avoided, not deferred.
 
 - **FAT loose-object cost vs H7's v1.0 target** (falls out of T11). The
@@ -2680,11 +2680,11 @@ trigger is a decision being avoided, not deferred.
   paths. **Trigger to revisit:** a v1.0 planning pass that keeps the ≤ 10 s
   target, or warm root-level `:gp` regressing past ~15 s.
 - **Keep-alive race vs H6.** Run 8's push died on a connection idled out
-  during a long marking gap; repack shrank the gap so run 9 succeeded —
+  during a long marking gap; repack shrank the gap so run 9 succeeded:
   the race is *avoided*, not fixed. Durable fix = reconnect-on-stale in the
   http layer. **Trigger to revisit:** any recurrence of the run-8 signature
   (`SSL Generic error` mid-push), or before v1.0 claims ≥ 99 %.
-- **Token at rest ([ADR-011], open — the Paid side of T5).** Both
+- **Token at rest ([ADR-011], open, the Paid side of T5).** Both
   provisioning paths write the GitHub token plaintext to
   `/sd/typoena.conf`; physical custody of the card is the only control.
   Encrypted-at-rest (C15's eFuse key, C11) stays designed-but-unbuilt.
@@ -2695,26 +2695,26 @@ trigger is a decision being avoided, not deferred.
   passwords on the device and the installer is macOS-only; the SoftAP
   companion webapp (phone-driven hand-off) was chosen over BLE 2026-07-16
   and **deferred**. **Trigger to revisit:** a real first-time user blocked
-  by either path — no Mac for the installer, or defeated by on-device
+  by either path: no Mac for the installer, or defeated by on-device
   password entry.
 - **[ADR-007] vs H8** (T7). Power loss between FAT rename and dir flush
   yields the previous saved version. We document this as expected behavior.
   **Trigger to revisit:** soak or power-pull testing showing it trigger on
-  a routine save — then it is a bug, not a documented behavior.
+  a routine save: then it is a bug, not a documented behavior.
 - **W13 typography paths.** v0.1 ships one mono font; v1.0's
   writing-tool-tone outcome admits two paths (mono = developer comfort,
   serif = typewriter feel). Not yet decided whether to ship both or one.
   Cost preview per added font: +H9 glyph-cache footprint, +H10 binary for
   embedded assets. **Trigger to revisit:** the v1.0 design pass opening, or
-  a serif asset being proposed for any earlier release — whichever first.
+  a serif asset being proposed for any earlier release, whichever first.
 - **[ADR-008] vs W11+W14** (T8). Wall power in v0.1 is now an explicit
   disappointment of two WHATs, not one (battery W11 + portability W14).
   The disappointment is bounded by [ADR-008]'s commitment to measure
-  current draw on real hardware before sizing v0.8's cell — spec the
+  current draw on real hardware before sizing v0.8's cell: spec the
   cell against measured numbers, not against the spec sheet. The §3
   promotion of H13 (current draw) from #11 to #7 is the matrix
   registering this. **Trigger to revisit:** bench multimeter numbers
-  landing (H13's "measured only" fulfilled) — that starts v0.8 cell
+  landing (H13's "measured only" fulfilled): that starts v0.8 cell
   sizing.
 
 ---
@@ -2722,7 +2722,7 @@ trigger is a decision being avoided, not deferred.
 ## 8. Inconsistencies spotted and fixed
 
 - **[ADR-006] stack figure.** [ADR-006] previously said "~40 KB of stack
-  space for task stacks" — but the v0.1 technical design's task table
+  space for task stacks", but the v0.1 technical design's task table
   (`usb 8 + wifi 8 + ui 16 + render 12 + git 32`) sums to **76 KB**.
   Updated [ADR-006]'s Consequences section to reflect the actual budget
   and cross-reference the tech doc. The 76 KB figure still fits
@@ -2735,7 +2735,7 @@ trigger is a decision being avoided, not deferred.
   and recording the decision as
   [ADR-010].
   Pulled the v0.7 roadmap item "Commit message prompt instead of hard-coded
-  `wip`" — it's now contradicted by [ADR-010] and removed.
+  `wip`": it's now contradicted by [ADR-010] and removed.
 - **First-run flow vs. target user.** The v0.1 product doc described a
   captive-portal first-run, but the same doc names the v0.1 target user as
   the dev themselves ("Me. Solo."). Provisioning a solo-dev device through
@@ -2750,34 +2750,34 @@ trigger is a decision being avoided, not deferred.
   [`CONTEXT.md`](../CONTEXT.md) as the canonical glossary; user-facing text
   now uses **Save** and **Publish** only.
 - **House of Quality column sums recomputed.** Earlier Σ row drifted from
-  the matrix arithmetic — H1 listed 138 but sums to 148; H8 147 vs 132;
+  the matrix arithmetic: H1 listed 138 but sums to 148; H8 147 vs 132;
   H9 162 vs 172; H13 74 vs 65; smaller deltas elsewhere. Recomputed all
-  sums from the cells. H8 dropped from #3 to #6 — a "fewer WHAT voters"
+  sums from the cells. H8 dropped from #3 to #6: a "fewer WHAT voters"
   artifact, not a signal that durability matters less to the design.
 - **W13 reframed, W14 removed.** Earlier W13/W14 rows named solutions
   ("beautiful monospace", "beautiful serif") inside the requirements
   column, conflating _what the user values_ with _which asset delivers it_.
   Replaced with one outcome WHAT (typography sets a writing-tool tone),
   and moved the mono+serif option to §7 as a v1.0 unresolved tension.
-  Σ shifted (H9 205→193, H2 198→177, H1 155→148) because the prior
+  Σ shifted (H9 205 to 193, H2 198 to 177, H1 155 to 148) because the prior
   W13/W14 cells were scoring solution-fit rather than outcome-fit.
 - **WHATs swept for solution-shape phrasing.** Following the W13 reframe,
   the same drift was found in W2 (named the key `Ctrl-G`), W4 (named the
   process shape "one-shot"), W7 (named the hardware "surface"), W8 (named
   the medium "e-ink"), W10 (named the deliverable "BOM"), and W9 ("nine
-  releases" — brittle vs roadmap reshuffles). All rephrased as outcomes;
+  releases", brittle vs roadmap reshuffles). All rephrased as outcomes;
   the named solutions remain documented in §7 tradeoffs and the relevant
-  ADRs where they belong. Matrix cell strengths held — each cell scored
+  ADRs where they belong. Matrix cell strengths held (each cell scored
   the characteristic against the underlying outcome, not the surface
-  phrasing — so no Σ recompute.
+  phrasing), so no Σ recompute.
 - **§3 vs §6 priority lists clarified.** The two were giving different
   orderings without saying why. §6 now states explicitly that it is a
   curated rank with two named overrides over §3's pure arithmetic:
   acceptance-criteria critical paths (H4, H5) and table-stakes correctness
   (H8) get manual lifts. §3 now names the HoQ structural bias that makes
-  the curation necessary — reward for spread, penalty for narrow-but-
-  critical characteristics — using H8/W3 as the canonical example.
-- **W14 added — portability outcome.** Captures "I can carry the device
+  the curation necessary (reward for spread, penalty for narrow-but-
+  critical characteristics), using H8/W3 as the canonical example.
+- **W14 added: portability outcome.** Captures "I can carry the device
   and write away from a desk" as a distinct WHAT from W11 (multi-day
   battery), weight 8. Recomputed basement Σ; H8 lifted from #6 to #3 in
   the §3 priority list as its voter base widened from W3+W6+W12 to also
@@ -2786,8 +2786,8 @@ trigger is a decision being avoided, not deferred.
   "W13 reframed, W14 removed" bullet above); the slot is now repurposed.
   §6's "(b) narrow voter base" override for H8 no longer applies and
   has been retired in the §6 preamble.
-- **H14 retired — outside §2's scope.** §2 covers measurable engineering
-  characteristics — performance metrics of the device's functions, or
+- **H14 retired: outside §2's scope.** §2 covers measurable engineering
+  characteristics: performance metrics of the device's functions, or
   properties of its firmware artifact, memory layout, and build process.
   H14 ("Module count / public-API surface (refactor proxy)") is a
   property of source-code organisation, none of those. The refactor-
@@ -2795,29 +2795,29 @@ trigger is a decision being avoided, not deferred.
   decide architectural discipline; it does not need a HoQ matrix slot.
   Removed from §2, the §5 matrix row, the C12 overloaded-list mention,
   and the §4 H14↔H15 conflict bullet. W9's matrix vote shrinks from
-  `H10 W + H11 W + H14 S + H15 M` to `H10 W + H11 W + H15 M` — an
+  `H10 W + H11 W + H14 S + H15 M` to `H10 W + H11 W + H15 M`: an
   honest reading that "codebase absorbs the planned roadmap" is
   delivered by ADRs, not by a measurable characteristic. ID "H14" left
   as a gap (cross-doc HOW references survive without renumbering H15).
-  Total basement Σ drops 1674 → 1557, so rel% recomputed in the §3
+  Total basement Σ drops 1674 to 1557, so rel% recomputed in the §3
   basement.
 - **HOWs renamed "characteristics," not "functions."** A function is a
   transformation (input → output); HOWs like H6 "success rate" and
   H10 "binary size" are _measures_ of functions or properties of
   artifacts, not transformations themselves. §2's header, §4's
   ("HOW-vs-HOW tradeoffs"), §5's ("HOW → Component mapping") and
-  caption, and §6's column header all cascaded — wherever "function"
+  caption, and §6's column header all cascaded: wherever "function"
   meant HOW. Classical QFD uses "engineering characteristics" (or
   "substitute quality characteristics") for exactly this slot. The
-  methodology name in the title (Quality Function Deployment) stays —
+  methodology name in the title (Quality Function Deployment) stays:
   it is the framework's proper noun, not a claim about this doc's
   vocabulary.
 - **H6/H7/H8/H12 swept for solution-shape phrasing and measure-vs-
   attribute.** Two drifts in one pass. (a) Solution names inside
   characteristic names: H6 was "`Ctrl-G` push success rate on healthy
-  Wi-Fi" — three solutions inside one name (the key, the git verb, the
-  transport); H7 was "Push end-to-end (one-file commit)" — git verb and
-  its unit; H12 was "Wi-Fi reconnect on transient outage" — transport
+  Wi-Fi": three solutions inside one name (the key, the git verb, the
+  transport); H7 was "Push end-to-end (one-file commit)": git verb and
+  its unit; H12 was "Wi-Fi reconnect on transient outage": transport
   in the name. (b) Measure or behaviour assertion instead of attribute:
   H6's "success rate" is a metric; H8 "Save survives power loss after
   status confirms" is a behaviour assertion. Renamed to pure attributes
@@ -2845,46 +2845,46 @@ trigger is a decision being avoided, not deferred.
   transformation; H4's "to cursor" is implicit in Boot's definition.
   Matrix cell strengths held; no Σ recompute.
 - **H4 boot measured; H3 cadence corrected; boot-time docs added
-  (2026-07-11).** Cold boot instrumented at **4258 ms** — the ≤ 5 s v0.1 target
+  (2026-07-11).** Cold boot instrumented at **4258 ms**: the ≤ 5 s v0.1 target
   is met; §6's H4 row now carries that measured result and the real mitigation
   (editor rides a full-area partial over the splash, −1.25 s) in place of the
   pre-integration guesses (trim logging / lazy-mount SD). §2's ≤ 3 s v1.0 target
-  gained a footnote flagging it **marginal-to-unreachable** — one ~1.9 s full
+  gained a footnote flagging it **marginal-to-unreachable**: one ~1.9 s full
   refresh is an unavoidable e-ink cold-boot floor. Separately, §2 + §6 H3
   full-refresh cadence corrected from "1 per 20 partials" to **1 per 64**: the
   firmware stretched it (`FULL_REFRESH_EVERY = 64`) once windowed-Y refresh made
-  ghosting rare — a drift that predated this pass. New supporting docs:
+  ghosting rare: a drift that predated this pass. New supporting docs:
   [`notes/boot-time-budget.md`](notes/boot-time-budget.md) (waterfall + v1.0
   feasibility) and
   [`tradeoff-curves/epd-refresh-latency.md`](tradeoff-curves/epd-refresh-latency.md)
   (rows-vs-latency model), cross-linked from §4's H1↔H3 bullet.
-- **Typoena perception column rebased target → measured (2026-07-11).**
+- **Typoena perception column rebased from target to measured (2026-07-11).**
   With v0.1 delivered and hardware-verified, the §3 right-hand zone's Typoena
   profile is the shipped v0.1 result, not a §2 target projection: legend +
   caption relabelled "v0.1 measured", W5 rationale now cites the 4.26 s cold
   boot, W3 notes the verified atomic round-trip (power-pull test still deferred
-  to v0.9), **W6 rose 3→4** on the attested 1 h soak, and **W1 dropped 4→2**
+  to v0.9), **W6 rose 3 to 4** on the attested 1 h soak, and **W1 dropped 4 to 2**
   once type latency was measured at ~630 ms (over the revised ≤400 ms target).
-  Net Typoena total 52→51, trimming its lead over Pomera to a single point.
+  Net Typoena total 52 to 51, trimming its lead over Pomera to a single point.
   Competitor scores untouched (no new external release). Two drifts caught in the same pass: the
   TikZ W14 row scored Pomera/Smart 2/5 while the authoritative table and totals
   use 5/1 (Smart ~5 lb desk-bound = 1, Pomera pocketable = 5), TikZ corrected
   to match; and the Caveats "thirteen rows" corrected to "fourteen" (§1 has 14
   WHATs).
-- **H1 type-latency target relaxed ≤200 → ≤400 ms; v1.0 reset to ≤300 ms
+- **H1 type-latency target relaxed ≤200 to ≤400 ms; v1.0 reset to ≤300 ms
   (2026-07-11).** Cold per-keystroke render measures ~630 ms, so §2's v0.1 H1
   target moved from ≤ 200 ms to ≤ 400 ms and gained a footnote; §3's basement
   target text and §6's rank-4 row followed. The relaxed target is unmet: ~630 ms
   still exceeds ≤ 400 ms (the open v0.1 latency gap), though a longer wait is
   acceptable for now; next-version usage will settle it. The perception W1
-  score dropped 4→2 to match. The v1.0 figure was reset from ≤ 150 ms to
+  score dropped 4 to 2 to match. The v1.0 figure was reset from ≤ 150 ms to
   ≤ 300 ms ([ADR-003]'s ~200–300 ms floor); ≤ 150 ms sat below what the panel
   can deliver.
 
 - **This file lagged [ADR-004]'s fired kill-switch by ten days (fixed
   2026-07-16).** Spike 7 fired the kill-switch on 2026-07-06 (gix has no
   HTTPS push; the shipped git engine is `libgit2`/`git2` as an esp-idf CMake
-  component), and adr.md recorded it in an "Outcome" section — but this doc
+  component), and adr.md recorded it in an "Outcome" section, but this doc
   kept scoring C12 as `gitoxide` and §7 kept "gitoxide over libgit2-sys" as
   the standing decision. §3 narrative, §4 roof bullets, §5 C12 + read-across,
   §6 rank-2 fallback, and the §7 row all rewritten to the libgit2 reality.
@@ -2901,11 +2901,11 @@ trigger is a decision being avoided, not deferred.
 - **Config landed on the card, not in encrypted internal flash
   (2026-07-16).** [ADR-005]/[ADR-007] planned "v0.9 moves the secret to
   encrypted LittleFS/NVS with an eFuse key"; v0.9 actually shipped plaintext
-  `/sd/typoena.conf` — deliberately, so the wizard and the macOS installer
+  `/sd/typoena.conf`, deliberately, so the wizard and the macOS installer
   produce one identical, desktop-inspectable artifact. C11/C15 are therefore
   still unused, and at-rest protection is the open [ADR-011]. §5's C11
   bullet and §7's auth row updated; the tension is now explicit in §7's
-  unresolved list instead of being silently mis-described as done-in-v0.9.
+  unresolved list instead of being mis-described as done-in-v0.9.
 - **H11 stack budget was fiction twice over (2026-07-16).** The ≤ 80 KB
   target priced a five-thread model (usb/wifi/ui/render/git, 76 KB) that no
   longer exists: UI and render run on the main task, Wi-Fi is owned by the
@@ -2917,19 +2917,19 @@ trigger is a decision being avoided, not deferred.
   presented ~630 ms as "per-keystroke render", but the refresh-latency curve
   doc shows that figure is the **full-area partial** (deletes, caret moves,
   splash swap); additive typing rides the windowed-Y partial at ~100–130 ms
-  (projected — bench confirmation still owed from the on-device refresh
+  (projected: bench confirmation still owed from the on-device refresh
   log). §2 §-footnote rewritten as a two-tier story; perception W1 raised
-  2→3, not higher, until the bench number lands and the erase tier gets a
+  2 to 3, not higher, until the bench number lands and the erase tier gets a
   lever.
-- **W15 + H16 added — the companions enter the house (2026-07-16).** The
+- **W15 + H16 added: the companions enter the house (2026-07-16).** The
   product now includes surfaces that are not the device: the macOS installer
   (card provisioner), typoena.dev + `install.sh`, the Typoena GitHub App,
   and the on-device wizard. Their shared user outcome landed as W15 ("a
   first-time user reaches writing without developer tools", weight 7), their
   shared characteristic as H16 (onboarding duration, ≤ 10 min, unmeasured),
-  and their parts as C17–C20. Basement Σ recomputed 1557 → 1627 (H12 picks
-  up W15's weak vote, 153 → 160); rel% re-derived. The house deliberately
-  reads H16 as bottom-tier for the daily writing loop — its weight is about
+  and their parts as C17–C20. Basement Σ recomputed 1557 to 1627 (H12 picks
+  up W15's weak vote, 153 to 160); rel% re-derived. The house deliberately
+  reads H16 as bottom-tier for the daily writing loop: its weight is about
   product reach, and §6 carries its (unmeasured) budget row.
 - **W14's "no enclosure spec yet" was stale (2026-07-16).** The parametric
   OpenSCAD case exists (`hardware/case/`, scad + stl + renders); the score
@@ -2938,21 +2938,21 @@ trigger is a decision being avoided, not deferred.
 - **[ADR-009] TinyUSB tension retired (2026-07-16).** "If TinyUSB turns out
   unstable, BLE-HID is the fallback" sat in §7's unresolved list since
   before spike 4; the USB host path has since carried every hardware session
-  for two weeks. Removed from the live-tension list — reopening it would
+  for two weeks. Removed from the live-tension list: reopening it would
   take new evidence, not vigilance.
-- **Companion-side doc drift — flagged and then fixed the same day
+- **Companion-side doc drift, flagged and then fixed the same day
   (2026-07-16).** The site repo's README called `install.sh` a placeholder
-  that "flashes the firmware" — rewritten to the live, checksum-verified,
+  that "flashes the firmware": rewritten to the live, checksum-verified,
   never-flashes reality (and its repo pointer corrected to the
   `typoena` org). The installer's `DESIGN.md` still cited
-  `installer-v0.1.0` as the release — trued up to the tag-per-release
+  `installer-v0.1.0` as the release: trued up to the tag-per-release
   model, latest `installer-v0.4.0`; the GitHub release itself was never
   lagging (latest-release already served 0.4.0), only the prose.
   `v0.5-palette-and-multi-file.md`'s header still said "slice 1 of 4" and
-  `v0.6-markdown.md`'s still said slice 5 was remaining — both stamped
+  `v0.6-markdown.md`'s still said slice 5 was remaining: both stamped
   **DELIVERED 2026-07-12** to match macroplan and the on-device record.
 - **Format-alignment pass against the QFD skill's canonical DESIGN shape
-  (2026-07-16)** — and the two inconsistencies it flushed out. Additions:
+  (2026-07-16)**, and the two inconsistencies it flushed out. Additions:
   the §5 cascade tree (WHAT → Function → How → Components, rejected
   alternatives kept visible), the derived component Σ/Rank row (component
   priorities now arithmetic, not asserted), a mandatory "If we miss it"
@@ -2961,54 +2961,54 @@ trigger is a decision being avoided, not deferred.
   (numbers beat ratings; blanks beat guesses), theme grouping on the §1/§2
   catalogues, and the U1/U2 segment table making the single-rater bias
   structural. The derivation immediately earned its keep twice: (a)
-  **H12 × C12 was blank** although the shipped H12 lever — TLS session
-  resumption — lives in C12's vendored `esp_mbedtls_stream.c`; cell added
+  **H12 × C12 was blank** although the shipped H12 lever, TLS session
+  resumption, lives in C12's vendored `esp_mbedtls_stream.c`; cell added
   at 3 (basement unaffected; it scores WHAT × HOW). (b) **C11's matrix
   votes were fiction**: unbuilt LittleFS would have ranked #13, above
-  actually-shipped C14 — its Σ is now parenthesised and unranked until
+  actually-shipped C14; its Σ is now parenthesised and unranked until
   [ADR-007]'s future shape ships. Kept deliberately against the skill's
   letter: "engineering characteristics" over its "Functions" naming (the
-  GLOSSARY.md ontology is sharper — H10 "binary size" is no verb), the
+  GLOSSARY.md ontology is sharper: H10 "binary size" is no verb), the
   `docs/qfd.md` + single `adr.md` layout (anchors are load-bearing;
   renaming buys convention, pays link churn), and the `++/−−` roof glyphs
   (mapped to the classical `◎○×⊗` in §4's legend).
 - **House 2 drawn (2026-07-16).** §5 was titled "Phase 2" but its
-  HOW → component matrix had never been rendered as a house — the doc
+  HOW → component matrix had never been rendered as a house: the doc
   showed one house and called itself a QFD cascade. The Phase-2 house now
   sits in §5 (same `qfdhouse` preamble as House 1, 15 HOW rows × 20
   component columns, Phase-1 Σ as row importance, derived Σ/Rank as
   basement, and a roof carrying only the component correlations already
-  documented in this file — the C10↔C12 `−−` cell is the FAT-vs-loose-
+  documented in this file: the C10↔C12 `−−` cell is the FAT-vs-loose-
   objects residual made visible).
 - **Houses 3–4 drawn under the pipeline reading (2026-07-16, same day).**
-  First recorded as "deliberately undrawn — no manufacturing process";
+  First recorded as "deliberately undrawn, no manufacturing process";
   superseded within hours: the project *does* have a production system,
   the toolchain + release pipeline (P1–P9) guarded by its verification
   practices (Q1–Q8), and reading "process" that way makes both houses
   informative rather than scaffolding. The cascade now runs all four
   houses with Σ carried down each basement. Two findings on first
   derivation: **P4 bench assembly is the #2 process (22 %) with only
-  manual controls** — the CS-jumper and SDXC lessons were both paid
+  manual controls**: the CS-jumper and SDXC lessons were both paid
   there; and **Q6 (checksum chain) ranks #8 by breadth while being the
-  sole control on the public install path** — the same
+  sole control on the public install path**: the same
   narrow-voter-vs-absolute-stakes bias H8 exposed in House 1. Cells are
   a single-rater first cut from the documented pipeline, flagged as such
   in §5.
 - **All four houses stacked at the top; legend weight fixed
   (2026-07-16).** The doc is read from Remanso, where the diagrams are
-  the summary — Houses 2–4 moved from §5 up beside House 1, each with a
+  the summary: Houses 2–4 moved from §5 up beside House 1, each with a
   headline caption; §5 keeps the matrices, catalogues, and narrative as
   the source of truth, with pointers up. Same pass: the House-1 legend's
   "Typoena (shipped, measured)" label was set `font=\bfseries`, which
-  *replaces* the picture's `\scriptsize` — it rendered bold at default
+  *replaces* the picture's `\scriptsize`: it rendered bold at default
   size and overflowed the legend box. Now `\scriptsize\bfseries` (bold
   only, same size), fixed in every preamble copy here and in
   `quality-house-empty.md`.
-- **The flow challenge — [`house-vs-product.md`](house-vs-product.md)
+- **The flow challenge: [`house-vs-product.md`](house-vs-product.md)
   opened (2026-07-17).** The author rejected the houses' reading of the
   product ("your keystroke appears instantly and your words are never
-  lost") in favour of **flow** — the first 2S of 5S applied at every
-  layer — and the July effort record backs the claim as revealed
+  lost") in favour of **flow** (the first 2S of 5S applied at every
+  layer) and the July effort record backs the claim as revealed
   preference: the rank-vs-effort divergence (§5) reads as stale weights,
   not drift, and the shipped editing grammar (palette, vim modes, search)
   turns out to have **no WHAT row voting for it at all**. Not fixable by
@@ -3017,52 +3017,52 @@ trigger is a decision being avoided, not deferred.
   is argued with instead of silently re-scored. Nothing in the matrices
   changed; §1 gained the "WHAT that has no row" note and the §5 flag now
   carries D1's counter-reading.
-- **W16 + H17 scored — D1 resolved by re-derivation, same day
+- **W16 + H17 scored: D1 resolved by re-derivation, same day
   (2026-07-17).** The user took the challenge's strongest fix: a reach
   *outcome* WHAT (**W16** "any file, any action, any edit point is one
   motion away", weight 10) with a measurable companion characteristic
   (**H17** reach cost in keystrokes, ≤ 6 median, unmeasured), plus a
-  **Navigate** function row — not a holistic "flow" row, which would have
+  **Navigate** function row: not a holistic "flow" row, which would have
   touched everything weakly. Cells kept sparse (W16 → H1/H16/H17; H17
   voters W16 + W2; H17 → C7/C8/C9/C10) and the full cascade re-derived:
-  House 1 total 1627 → 1804, **H1 climbs #5 → #2** (178, past H2's 177),
-  H17 enters at #9 above H5, H16 63 → 93; House 2 headline **C7 #5 → #2**
-  (5 667) past libgit2 — the derived ranking now agrees with the July
+  House 1 total 1627 to 1804, **H1 climbs #5 to #2** (178, past H2's 177),
+  H17 enters at #9 above H5, H16 63 to 93; House 2 headline **C7 #5 to #2**
+  (5 667) past libgit2: the derived ranking now agrees with the July
   effort record, dissolving the §5 rank-vs-effort flag; Houses 3–4 ranks
   unchanged (P1 52.4 %, P4 21.4 %), a robustness check passed. Perception
   gained the W16 row (Typoena's five is self-scored on home turf and
   flagged as such). Re-verifying every number caught two pre-existing
   slips, both fixed: **House 4's row-importance column carried the Q
   basement values instead of the P process weights** (eight entries for
-  nine rows — a paste of its own basement), and **§3's priority list had
+  nine rows: a paste of its own basement), and **§3's priority list had
   H8 (156) at #3 above H12 (160)**, an ordering the arithmetic never
   supported.
-- **House 2's roof was scored from the wrong graph — three pool-mediated
+- **House 2's roof was scored from the wrong graph: three pool-mediated
   `−−` added, shared-pool budget matrix opened (2026-07-17).** The roof
   carried one conflict (C10↔C12) while the July crash record held three
   more, each already paid for on the bench: **C7↔C12** (push exhausted
-  PSRAM, `Frame::new_white` died, UI thread OOM-aborted — run 4),
+  PSRAM, `Frame::new_white` died, UI thread OOM-aborted, run 4),
   **C7↔C13** (palette's file list held internal DRAM, `ssl_setup`'s
   ~33 KB failed, TLS refused to start), **C6↔C12** (checkout exhausted
   internal, `spi_master` NULL-dereffed a failed DMA alloc). All three
   were invisible because the roof was read off the call graph while the
-  conflicts run through shared memory pools — N-way contention a
+  conflicts run through shared memory pools: N-way contention a
   pairwise roof fragments, the House-2 sibling of D1's fragmented flow.
   Making a pool a component *column* was considered and rejected
   (columns rank effort targets; a pool would vote itself to #1 and
   distort the cascade), so §5 gained the transpose instead: a
   **consumers × pools budget matrix** (cells = worst-observed draw,
-  bottom row = per-pool min-ever free — internal DRAM's is 2 099 B),
+  bottom row = per-pool min-ever free, internal DRAM's is 2 099 B),
   now the source of truth for the pool-mediated roof cells. No Σ
-  changes — the roof and the new table sit outside the importance
+  changes: the roof and the new table sit outside the importance
   arithmetic. Same pass caught §4's roof intro still saying "14×14"
   (stale across two HOW-catalogue changes; the roof has been 15- then
-  16-wide) — corrected to 16×16.
+  16-wide): corrected to 16×16.
 
 The earlier variance between README's "~12 lines" and product/[ADR-003]'s
 "~11 lines" of "edit area" is now superseded: the side-panel redesign removed
 the top header and bottom status bars (metadata moved into the **side panel**),
-so the **writing column** spans the full panel height — ~13 lines at the
+so the **writing column** spans the full panel height: ~13 lines at the
 editor's 20 px font (`FONT_10X20`, `editor.rs` `ROWS = HEIGHT / 20 = 13`).
 README, the product/technical docs, and [ADR-003] are all updated to ~13 lines
 (writing column).
@@ -3074,10 +3074,10 @@ README, the product/technical docs, and [ADR-003] are all updated to ~13 lines
 - When a new ADR lands, add its components to §5 and re-score any
   characteristic-row whose dominant component changed. **The same applies
   when an existing ADR gains an Outcome** (a kill-switch fires, a decision
-  reverses): cascade it here the same day — this doc scored the dead
+  reverses): cascade it here the same day: this doc scored the dead
   gitoxide option for ten days after the swap.
 - When a spike returns numbers, update §6's "Target" or "Watched on"
-  columns — this is the doc that _should_ feel out of date if measured
+  columns: this is the doc that _should_ feel out of date if measured
   reality drifts from estimates.
 - The companion surfaces (installer, typoena.dev, GitHub App, wizard) are
   in the house as W15 / H16 / C17–C20 but keep their design records in
@@ -3090,20 +3090,20 @@ README, the product/technical docs, and [ADR-003] are all updated to ~13 lines
   here still match the new picture.
 - The §5 component Σ/Rank row is **derived** (basement Σ × cell strength):
   recompute it whenever the basement or a §5 cell changes, and keep
-  unbuilt components (today C11, C15) parenthesised and out of the rank —
+  unbuilt components (today C11, C15) parenthesised and out of the rank:
   scored fiction outranks real components, as the 2026-07-16 pass showed.
 - The §5 shared-pool budget matrix is the source of truth for House 2's
   pool-mediated roof cells: when a component starts allocating from
-  internal DRAM, PSRAM, or the DMA reserve — or a telemetry min-ever
-  moves — update the table first, then draw (or retire) the roof cell it
+  internal DRAM, PSRAM, or the DMA reserve (or a telemetry min-ever
+  moves), update the table first, then draw (or retire) the roof cell it
   justifies. The roof was scored from the call graph once and missed
   three crashes; don't score it that way twice.
-- The four house diagrams at the top mirror their sources — House 1 the
+- The four house diagrams at the top mirror their sources (House 1 the
   §1/§2 catalogues, House 2 the §5 matrix, Houses 3–4 the §5 P/Q
-  catalogues — re-score the table first, then the drawing, same day.
+  catalogues); re-score the table first, then the drawing, same day.
   Every house's preamble is a copy of House 1's: a style change to one
   must be pasted into all four (plus `quality-house-empty.md`).
-- Houses 3–4 re-score when the *pipeline* changes shape — a new process
+- Houses 3–4 re-score when the *pipeline* changes shape: a new process
   step (CI, a second-platform installer, auto-update) or a new control
   (a test rig, release automation) gets a column and a fresh derivation
   the day it ships. Their cells are a 2026-07-16 single-rater first cut;
@@ -3111,14 +3111,14 @@ README, the product/technical docs, and [ADR-003] are all updated to ~13 lines
   Q6-is-the-only-install-path-control flags as live until answered.
 - A §6 row is not done when its target is met: the "If we miss it" cell
   must always name a live fallback, and a §7 tension must always carry a
-  **Trigger to revisit** — otherwise it is a decision being avoided, not
+  **Trigger to revisit**: otherwise it is a decision being avoided, not
   deferred.
 - When the houses and the builder disagree about what the product *is*,
-  the dispute goes to [`house-vs-product.md`](house-vs-product.md) first —
+  the dispute goes to [`house-vs-product.md`](house-vs-product.md) first:
   argued with evidence and a trigger, not resolved by a same-day
   re-weight. Weights, rows, or cells change here only after the entry
   there says why; and the next House-1 re-score must settle any OPEN
-  entry that is waiting on it (none open today — D1/flow resolved
+  entry that is waiting on it (none open today: D1/flow resolved
   2026-07-17 by the W16/H17 re-score).
 
 [ADR-001]: adr.md#adr-001-language-and-runtime--rust-on-esp-idf-rs-std
