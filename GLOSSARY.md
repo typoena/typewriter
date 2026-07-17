@@ -9,17 +9,17 @@ vocabulary (Save, Publish, Recover, Tracked, Local, …) lives in
 Five layers, top to bottom:
 
 1. **WHAT** — user-facing requirement; an outcome the user values.
-   Lives in [`docs/qfd.md`](docs/qfd.md) §1. Phrased as a sentence.
+   Lives in [`docs/qfd-house-1.md`](docs/qfd-house-1.md) §1. Phrased as a sentence.
    Example: "Sub-second visible response to typing".
 
 2. **Function** — a transformation the device performs (verb,
-   input → output). Lives in [`docs/qfd.md`](docs/qfd.md) §2's
+   input → output). Lives in [`docs/qfd-house-1.md`](docs/qfd-house-1.md) §2's
    Functions inventory. Examples: Type, Save, Publish, Recover,
    Boot, Provision.
 
 3. **Characteristic** ≡ **HOW** — a measurable attribute of a
    function (or of an artifact or process). Noun. Lives in
-   [`docs/qfd.md`](docs/qfd.md) §2's HOW table. Examples: latency,
+   [`docs/qfd-house-1.md`](docs/qfd-house-1.md) §2's HOW table. Examples: latency,
    reliability, durability, binary size, build time.
 
 4. **Metric + Unit** — the quantity and scale used to express a
@@ -33,12 +33,12 @@ Five layers, top to bottom:
 ## Side layers
 
 - **Component** — subsystem that delivers one or more
-  characteristics. Lives in [`docs/qfd.md`](docs/qfd.md) §5.
+  characteristics. Lives in [`docs/qfd-house-2.md`](docs/qfd-house-2.md) §5.
 - **ADR** — Architecture Decision Record ([`docs/adr.md`](docs/adr.md)).
   Captures a decision about a Component or Function with consequences.
 - **Spike** — time-boxed validation experiment that returns numbers
   before integration. Referenced from
-  [`docs/qfd.md`](docs/qfd.md) §6's "Watched on" column.
+  [`docs/qfd-budget.md`](docs/qfd-budget.md) §6's "Watched on" column.
 
 ## How the layers connect
 
@@ -67,7 +67,7 @@ catch them early next time.
   `e-ink`) inside an outcome or attribute. WHATs and Characteristics
   describe outcomes and attributes, not the technology that implements
   them. Move solution names to §7 tradeoffs or the relevant ADR.
-  (See [`docs/qfd.md`](docs/qfd.md) §8: W13 reframe, WHAT sweep,
+  (See [`docs/qfd-changelog.md`](docs/qfd-changelog.md) §8: W13 reframe, WHAT sweep,
   H6/H7/H8/H12 sweep.)
 
 - **Measure-vs-attribute drift.** Naming a metric (`success rate`,
@@ -79,4 +79,4 @@ catch them early next time.
   "engineering functions". A function is a transformation; a
   characteristic is one of its measurable attributes. HOWs _measure_
   functions; they are not functions. (See
-  [`docs/qfd.md`](docs/qfd.md) §8 for the rename cascade.)
+  [`docs/qfd-changelog.md`](docs/qfd-changelog.md) §8 for the rename cascade.)

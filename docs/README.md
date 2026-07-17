@@ -28,7 +28,14 @@
 
 | Doc                                                | What's in it                                                                                                                            |
 | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| [`qfd.md`](qfd.md)                                 | Quality Function Deployment — turns user-facing requirements into technical HOWs; all four cascade houses are drawn at the top (House 1 is 16 WHATs × 16 HOWs). |
+| [`qfd.md`](qfd.md)                                 | Quality Function Deployment **hub** — what-matters-now headlines, the page index, and the keep-honest rules. Start here.                |
+| [`qfd-house-1.md`](qfd-house-1.md)                 | House 1 (WHATs × HOWs, 16×16) with §1 requirements, §2 characteristics, §3 reading, §4 roof.                                           |
+| [`qfd-perception.md`](qfd-perception.md)           | Competitive perception — five products scored 0–5 per WHAT, measured benchmarks, caveats.                                              |
+| [`qfd-house-2.md`](qfd-house-2.md)                 | House 2 (HOWs × components) — §5 cascade tree, component ranking, shared-pool budget matrix.                                           |
+| [`qfd-houses-3-4.md`](qfd-houses-3-4.md)           | Houses 3 & 4 under the pipeline reading — processes P1–P9 × controls Q1–Q8.                                                            |
+| [`qfd-budget.md`](qfd-budget.md)                   | §6 critical performance budget — ranked targets, verdicts, and the named fallback per row.                                            |
+| [`qfd-tradeoffs.md`](qfd-tradeoffs.md)             | §7 tradeoffs T1–T15 and the tensions left deliberately unresolved, each with its trigger.                                             |
+| [`qfd-changelog.md`](qfd-changelog.md)             | §8 ledger — every inconsistency spotted between the houses and reality, and its fix.                                                  |
 | [`quality-house-empty.md`](quality-house-empty.md) | The House chassis, blank — for re-scoring from scratch.                                                                                 |
 | [`house-vs-product.md`](house-vs-product.md)       | Standing challenges between the scored houses and the real product — open disputes with evidence and resolution triggers.               |
 

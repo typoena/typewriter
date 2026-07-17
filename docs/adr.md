@@ -60,7 +60,7 @@ and TLS without writing them, and has Espressif as an actual upstream.
   cleanly against it (spike 7 is the kill-switch — see
   [v0.1 technical: hardware bring-up order](v0.1-mvp-technical.md#hardware-bring-up-order)).
 
-See also: [qfd.md §7](qfd.md#7-tradeoffs-and-their-why-linked-to-adrs) for
+See also: [qfd-tradeoffs.md §7](qfd-tradeoffs.md#7-tradeoffs-and-their-why-linked-to-adrs) for
 the binary-size / build-time costs traded against ecosystem access.
 
 ---
@@ -101,7 +101,7 @@ refresh regions.
 
 Implementation: [v0.1 technical → render module](v0.1-mvp-technical.md#module-breakdown).
 Owns the two top-ranked functions (H1 latency, H2 region area) in
-[qfd.md §3](qfd.md#3-house-of-quality--whats--hows).
+[qfd-house-1.md §3](qfd-house-1.md#3-house-of-quality--whats--hows).
 
 ---
 
@@ -156,14 +156,14 @@ as the price of those properties.
   constraint — no multi-pane, no large headers. See
   [v0.1 product → screen layout](v0.1-mvp-product.md#screen-layout).
 - Framebuffer is ~27 KB; keeps PSRAM free for git pack data — a top-3
-  budget item in [qfd.md §6](qfd.md#6-critical-performance-budget).
+  budget item in [qfd-budget.md §6](qfd-budget.md#6-critical-performance-budget).
 - Driver: SSD1683-class. If `epd-waveshare` doesn't already cover this
   panel's controller, ~300 LoC of `embedded-hal` SPI driver. Validated in
   [spike 2](v0.1-mvp-technical.md#hardware-bring-up-order).
 - **Per-keystroke latency floor ~100–300 ms** (partial refresh). The render
   module must buffer the active line and flush on a short timer, not redraw
   on every keystroke. Owns the top-ranked H1 latency constraint in
-  [qfd.md §3](qfd.md#3-house-of-quality--whats--hows); strategy lives in
+  [qfd-house-1.md §3](qfd-house-1.md#3-house-of-quality--whats--hows); strategy lives in
   [ADR-002].
 - **Scroll is the worst-case refresh operation** — every scroll is a full
   edit-area redraw, either with a visible flash (full refresh) or
@@ -222,7 +222,7 @@ risk table).
   upstream.
 - Auth via PAT in an Authorization header — no SSH (see [ADR-005]).
 - Performance on PSRAM during pack operations is a watched metric — top-3
-  priority in [qfd.md §6](qfd.md#6-critical-performance-budget).
+  priority in [qfd-budget.md §6](qfd-budget.md#6-critical-performance-budget).
 
 Implementation: [v0.1 technical → `git` module](v0.1-mvp-technical.md#module-breakdown)
 and [risks table](v0.1-mvp-technical.md#risks-and-how-well-know-they-bit-us).
@@ -515,7 +515,7 @@ implementation matured:
   documents the replay model.
 
 Heading and anchor kept for link stability;
-[qfd.md §8](qfd.md#8-inconsistencies-spotted-and-fixed) records when the
+[qfd-changelog.md](qfd-changelog.md#8-inconsistencies-spotted-and-fixed) records when the
 drift was caught.
 
 ---

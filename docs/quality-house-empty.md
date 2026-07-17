@@ -3,11 +3,11 @@
 The same **four-house cascade** as [`qfd.md`](qfd.md), with every scored
 surface deliberately blank. Fill each house in yourself, carry your
 derived Σ down to the next house's importance column, then compare against
-the populated houses ([House 1 in §3](qfd.md#3-house-of-quality--whats--hows),
-[Houses 2–4 in §5](qfd.md#5-how--component-mapping-phase-2)) to check your
+the populated houses ([House 1 in §3](qfd-house-1.md#3-house-of-quality--whats--hows),
+[House 2 in §5](qfd-house-2.md#5-how--component-mapping-phase-2), [Houses 3–4](qfd-houses-3-4.md)) to check your
 reading.
 
-Kept (definitional inputs from `qfd.md`):
+Kept (definitional inputs from the scored `qfd-*.md` houses):
 
 - WHATs + importance weights (§1) and HOWs + v0.1 targets (§2) — House 1
 - The component (C1–C20), process (P1–P9), and control (Q1–Q8) catalogues
@@ -327,7 +327,7 @@ Blank (training surface):
 
 
   % ---------- Basement: target / abs / rel% ----------
-  % Targets (v0.1, from qfd.md §2) are kept. Σ abs and Rel % are blank —
+  % Targets (v0.1, from qfd-house-1.md §2) are kept. Σ abs and Rel % are blank —
   % compute them from your relations: abs = Σ over WHATs of
   % (importance × cell strength), with strength 9 / 3 / 1 / 0.
   \foreach \c/\tgt in {%
@@ -677,7 +677,7 @@ Row importance is blank: carry your House-1 basement Σ down.
 ## House 3 — components × processes (pipeline reading)
 
 Processes are the toolchain + release pipeline — see the
-reinterpretation note in [`qfd.md` §5](qfd.md#5-how--component-mapping-phase-2).
+reinterpretation note in [`qfd-houses-3-4.md`](qfd-houses-3-4.md).
 Row importance is blank: carry your House-2 derived Σ down.
 
 ```tikz
@@ -1310,8 +1310,8 @@ Row importance is blank: carry your House-3 rel-% down.
    than raw Σ — the absolute numbers grow geometrically and stop being
    readable.
 6. **Diff.** Compare your basements and roofs against
-   [`qfd.md` §3](qfd.md#3-house-of-quality--whats--hows) and
-   [`qfd.md` §5](qfd.md#5-how--component-mapping-phase-2) — divergences
+   [`qfd-house-1.md` §3](qfd-house-1.md#3-house-of-quality--whats--hows) and
+   [`qfd-house-2.md` §5](qfd-house-2.md#5-how--component-mapping-phase-2) — divergences
    are usually the most interesting part.
 
 ## Gotchas
@@ -1321,5 +1321,5 @@ Row importance is blank: carry your House-3 rel-% down.
 - The perception zone is hidden here on purpose. To bring it back in
   House 1, delete the two `\qfdshow...false` lines near the top of its
   block.
-- Houses 2–4 share House 1's preamble verbatim (as in `qfd.md`): a style
+- Houses 2–4 share House 1's preamble verbatim (as in the `qfd-*.md` houses): a style
   change to one block must be pasted into all of them.

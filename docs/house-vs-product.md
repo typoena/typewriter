@@ -2,7 +2,7 @@
 
 Standing challenges between the scored QFD houses ([`qfd.md`](qfd.md)) and
 the product actually being built: places where the model and reality tell
-different stories. [`qfd.md` §8](qfd.md#8-inconsistencies-spotted-and-fixed)
+different stories. [`qfd-changelog.md`](qfd-changelog.md#8-inconsistencies-spotted-and-fixed)
 is the ledger of inconsistencies *fixed*; this page holds the disputes still
 *open*, claims about what the product is that the houses cannot yet express,
 argued with evidence on both sides rather than settled by fiat.
@@ -11,8 +11,8 @@ argued with evidence on both sides rather than settled by fiat.
 silently corrected. The challenge lands here with the claim, the house's
 counter-reading, the evidence, a reconciliation if one exists, and a
 **trigger** naming what would resolve it. On resolution, the outcome
-cascades into `qfd.md` (weights, cells, or commentary, recomputed per its
-honesty footer) and the entry here is stamped resolved with a pointer to
+cascades into the `qfd-*.md` houses (weights, cells, or commentary,
+recomputed per [`qfd.md`](qfd.md)'s honesty rules) and the entry here is stamped resolved with a pointer to
 the §8 ledger line. An entry that never resolves is fine; an entry that
 resolves silently is not.
 
@@ -108,11 +108,11 @@ the weights question rides along for free. Early trigger: the
 rank-vs-effort flag fires a **second** time with the effort again in the
 seiton layer. Once is a reach purchase; twice is the weights being wrong.
 *(Both triggers discharged by the resolution below; the flag itself is
-retired in `qfd.md` §5.)*
+retired in [`qfd-house-2.md`](qfd-house-2.md) §5.)*
 
 **Outcome (2026-07-17).** The author chose the reach-WHAT fix and the
 cascade was re-derived the same day
-([`qfd.md` §8](qfd.md#8-inconsistencies-spotted-and-fixed) has the full
+([`qfd-changelog.md`](qfd-changelog.md#8-inconsistencies-spotted-and-fixed) has the full
 ledger entry): **W16** "any file, any action, any edit point is one
 motion away" (weight 10, joining W1/W3, identity alongside its
 preconditions), **H17** reach cost (≤ 6 keystrokes median, unmeasured;
@@ -133,7 +133,7 @@ importance column, §3's H8/H12 ordering), both fixed and ledgered.
 
 - One entry per challenge, D-numbered, dated, stamped OPEN or RESOLVED,
   never deleted. A resolved entry keeps its argument and gains the outcome
-  plus a pointer to the `qfd.md` §8 ledger line that recorded the cascade.
+  plus a pointer to the [`qfd-changelog.md`](qfd-changelog.md) ledger line that recorded the cascade.
 - Every OPEN entry carries a **trigger**. An entry without one is an
   opinion parked where a decision should be.
 - Claims here are single-rater until noted otherwise: same U1 chair as
