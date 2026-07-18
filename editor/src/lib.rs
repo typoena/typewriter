@@ -342,6 +342,12 @@ pub struct Editor {
     /// Which step the palette is in ([`List`](PaletteStep::List) filter vs the
     /// `New file` filename input). `List` whenever the palette is closed.
     palette_step: PaletteStep,
+    /// Tab-completion cycle state for the `> new file` step: the stem the user
+    /// had typed before the first Tab, plus the position last shown (see
+    /// [`new_file_complete`](Self::new_file_complete)). `None` until the first
+    /// Tab, and reset by any edit to the name so a later Tab re-seeds from the
+    /// text then present. Only meaningful in [`PaletteStep::NewFile`].
+    new_file_completion: Option<(String, usize)>,
     /// The snippet library, fed by the host at boot via
     /// [`set_snippets`](Self::set_snippets) from `.typoena.snippets.json`. Empty
     /// until fed (and after a missing/malformed file). Drives inline
@@ -423,6 +429,7 @@ impl Editor {
             palette_query: String::new(),
             palette_sel: 0,
             palette_step: PaletteStep::List,
+            new_file_completion: None,
             snippets: Vec::new(),
             snippet_stops: Vec::new(),
             snippet_hint: None,

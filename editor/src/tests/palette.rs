@@ -644,7 +644,92 @@ fn new_file_command_opens_the_filename_input_step() {
     e.handle(Key::Enter);
     assert_eq!(e.mode(), Mode::Palette); // still open — now the input step
     assert_eq!(e.palette_step, PaletteStep::NewFile);
-    assert!(e.palette_query.is_empty()); // the list filter gave way to the name
+    // The list filter gives way to the name, pre-filled with the active
+    // buffer's folder so a sibling file needs only its basename.
+    assert_eq!(e.palette_query, "repo/");
+}
+
+#[test]
+fn new_file_step_prefills_the_active_buffers_folder() {
+    let mut e = Editor::with_file("/sd/repo/journal/2026.md".into(), Scope::Tracked, String::new());
+    e.set_file_list(vec!["/sd/repo/journal/2026.md".into()]);
+    e.handle(Key::Palette);
+    for c in ">new".chars() {
+        e.handle(Key::Char(c));
+    }
+    e.handle(Key::Enter); // → input step
+    assert_eq!(e.palette_query, "repo/journal/"); // the folder, not the file
+    // Typing just the basename lands the file beside the one we're editing.
+    for c in "notes.md".chars() {
+        e.handle(Key::Char(c));
+    }
+    e.handle(Key::Enter);
+    assert_eq!(e.path(), "/sd/repo/journal/notes.md");
+    assert!(e.dirty());
+}
+
+#[test]
+fn new_file_step_prefills_scope_root_for_an_unnamed_scratch() {
+    let mut e = Editor::new(); // unnamed scratch, Tracked scope
+    e.handle(Key::Palette);
+    for c in ">new".chars() {
+        e.handle(Key::Char(c));
+    }
+    e.handle(Key::Enter);
+    assert_eq!(e.palette_query, "repo/"); // no path → the scope root
+}
+
+#[test]
+fn new_file_tab_completes_a_unique_folder() {
+    let mut e = palette_type(&["/sd/repo/notes/a.md", "/sd/repo/notes/b.md"], ">new");
+    e.handle(Key::Enter); // input step, prefilled "repo/"
+    for c in "not".chars() {
+        e.handle(Key::Char(c)); // "repo/not"
+    }
+    e.handle(Key::Char('\t')); // the only match under repo/ starting "not"
+    assert_eq!(e.palette_query, "repo/notes/");
+    // Tab landed a folder, not a literal tab character.
+    assert!(!e.palette_query.contains('\t'));
+}
+
+#[test]
+fn new_file_tab_cycles_folders_and_wraps_back_to_the_stem() {
+    let mut e = palette_type(&["/sd/repo/inbox/a.md", "/sd/repo/notes/b.md"], ">new");
+    e.handle(Key::Enter); // prefilled "repo/"
+    // From the stem "repo/", Tab cycles the existing sub-folders in sorted
+    // order, then wraps back to exactly what was typed.
+    e.handle(Key::Char('\t'));
+    assert_eq!(e.palette_query, "repo/inbox/");
+    e.handle(Key::Char('\t'));
+    assert_eq!(e.palette_query, "repo/notes/");
+    e.handle(Key::Char('\t'));
+    assert_eq!(e.palette_query, "repo/"); // back to the stem
+    e.handle(Key::Char('\t'));
+    assert_eq!(e.palette_query, "repo/inbox/"); // and around again
+}
+
+#[test]
+fn new_file_tab_with_no_matching_folder_is_a_noop() {
+    let mut e = palette_type(&["/sd/repo/notes/a.md"], ">new");
+    e.handle(Key::Enter);
+    for c in "zzz".chars() {
+        e.handle(Key::Char(c)); // "repo/zzz" — no folder starts with this
+    }
+    e.handle(Key::Char('\t'));
+    assert_eq!(e.palette_query, "repo/zzz"); // unchanged, no literal tab
+}
+
+#[test]
+fn new_file_editing_after_tab_reseeds_the_completion() {
+    let mut e = palette_type(&["/sd/repo/inbox/a.md", "/sd/repo/notes/b.md"], ">new");
+    e.handle(Key::Enter);
+    e.handle(Key::Char('\t')); // "repo/inbox/"
+    assert_eq!(e.palette_query, "repo/inbox/");
+    // Backspace the trailing slash, then Tab: the cycle re-seeds from "repo/inbox"
+    // (a unique prefix) and completes it, rather than continuing the old cycle.
+    e.handle(Key::Backspace); // "repo/inbox"
+    e.handle(Key::Char('\t'));
+    assert_eq!(e.palette_query, "repo/inbox/");
 }
 
 #[test]
@@ -663,8 +748,12 @@ fn new_file_step_creates_the_typed_file_and_switches() {
 #[test]
 fn new_file_step_backspace_returns_to_the_command_list() {
     let mut e = palette_type(&["/sd/repo/notes.md"], ">new");
-    e.handle(Key::Enter); // input step, empty name
-    e.handle(Key::Backspace); // nothing to erase → step back to the `>` list
+    e.handle(Key::Enter); // input step, prefilled "repo/"
+    for _ in "repo/".chars() {
+        e.handle(Key::Backspace); // clear the pre-filled folder
+    }
+    assert_eq!(e.palette_step, PaletteStep::NewFile); // still in the step
+    e.handle(Key::Backspace); // now nothing to erase → step back to the `>` list
     assert_eq!(e.palette_step, PaletteStep::List);
     assert!(e.palette_command_mode()); // query restored to ">"
     assert_eq!(e.mode(), Mode::Palette);
@@ -673,8 +762,8 @@ fn new_file_step_backspace_returns_to_the_command_list() {
 #[test]
 fn new_file_step_empty_enter_stays_in_the_step() {
     let mut e = palette_type(&["/sd/repo/notes.md"], ">new");
-    e.handle(Key::Enter); // input step
-    e.handle(Key::Enter); // empty name → no-op, still awaiting one
+    e.handle(Key::Enter); // input step, prefilled "repo/"
+    e.handle(Key::Enter); // folder only, no basename → no-op, still awaiting one
     assert_eq!(e.palette_step, PaletteStep::NewFile);
     assert_eq!(e.mode(), Mode::Palette);
     assert_eq!(e.path(), "/sd/repo/notes.md"); // unchanged

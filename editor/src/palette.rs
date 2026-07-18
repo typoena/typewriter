@@ -204,12 +204,23 @@ impl Editor {
     }
 
     /// Keys in the `> new file` input step: the query is a filename, not a filter.
-    /// Enter creates it (scope resolved from a `repo/`/`local/` prefix, exactly as
-    /// `:enew` did) and closes; an empty name is a no-op that stays in the step.
-    /// Backspacing past the start steps **back** to the `>` command list rather
-    /// than closing, so the step is escapable without losing the palette. Esc or
-    /// `Cmd-P` closes outright.
+    /// The prompt opens pre-filled with the active buffer's folder (see
+    /// [`begin_new_file_step`](Self::begin_new_file_step)). **Tab** completes and
+    /// cycles the folder against the dirs already on the card
+    /// ([`new_file_complete`](Self::new_file_complete)) — it never enters a literal
+    /// tab. Enter creates the file (scope resolved from a `repo/`/`local/` prefix,
+    /// exactly as `:enew` did) and closes; an empty name is a no-op that stays in
+    /// the step. Backspacing past the start (once the name is emptied) steps
+    /// **back** to the `>` command list rather than closing, so the step is
+    /// escapable without losing the palette. Esc or `Cmd-P` closes outright.
     pub(crate) fn new_file_step_key(&mut self, key: Key) {
+        // Tab drives folder completion; every other key edits the name, so it
+        // ends any in-progress completion cycle (a later Tab re-seeds).
+        if key == Key::Char('\t') {
+            self.new_file_complete();
+            return;
+        }
+        self.new_file_completion = None;
         match key {
             Key::Char(c) => self.palette_query.push(c),
             Key::Backspace => {
@@ -231,8 +242,10 @@ impl Editor {
             Key::DeleteLine => self.palette_query.clear(),
             Key::Enter => {
                 let name = self.palette_query.trim().to_string();
-                if name.is_empty() {
-                    return; // nothing typed yet — stay in the step
+                // Nothing typed, or only the pre-filled folder (no basename yet):
+                // stay in the step rather than create a file with an empty name.
+                if name.is_empty() || name.ends_with('/') {
+                    return;
                 }
                 self.close_palette();
                 self.new_file(&name);
@@ -389,10 +402,92 @@ impl Editor {
     /// gives way to a prompt, and the next Enter creates the typed file. Reached
     /// only from [`palette_run_command`](Self::palette_run_command), so the palette
     /// is already open.
+    ///
+    /// The prompt is **pre-filled with the active buffer's folder**
+    /// ([`current_folder_prefix`](Self::current_folder_prefix)), so the common
+    /// "make a file next to this one" case needs only the basename — and Tab
+    /// completes from there into any other folder (see
+    /// [`new_file_complete`](Self::new_file_complete)).
     pub(crate) fn begin_new_file_step(&mut self) {
         self.palette_step = PaletteStep::NewFile;
-        self.palette_query.clear();
+        self.palette_query = self.current_folder_prefix();
         self.palette_sel = 0;
+        self.new_file_completion = None;
+    }
+
+    /// The folder the `> new file` step pre-fills: the directory of the active
+    /// buffer in palette-label form (`repo/notes/foo.md` → `repo/notes/`). An
+    /// unnamed scratch (no path) falls back to the current [`Scope`]'s root, so
+    /// the prompt is never empty and the typed name always lands somewhere real.
+    pub(crate) fn current_folder_prefix(&self) -> String {
+        if self.path.is_empty() {
+            return match self.scope {
+                Scope::Tracked => "repo/".to_string(),
+                Scope::Local => "local/".to_string(),
+            };
+        }
+        let label = palette_label(&self.path);
+        match label.rfind('/') {
+            // Everything up to and including the last '/' — the folder.
+            Some(i) => label[..=i].to_string(),
+            // A label with no '/' can't happen (every file is under a scope
+            // root), but degrade to an empty prompt rather than panic.
+            None => String::new(),
+        }
+    }
+
+    /// Tab in the `> new file` step: complete the typed name against the folders
+    /// that already exist on the card, and cycle through the matches on repeated
+    /// Tab. On the first Tab we snapshot the typed text as the *stem* and collect
+    /// every existing folder that has it as a prefix
+    /// ([`folder_completions`](Self::folder_completions)); each further Tab steps
+    /// to the next candidate, wrapping through one extra slot that restores the
+    /// stem — so you can always cycle back to exactly what you typed. A stem that
+    /// matches no folder is a no-op (Tab never enters a literal tab here).
+    pub(crate) fn new_file_complete(&mut self) {
+        let (stem, pos) = match self.new_file_completion.take() {
+            Some((stem, pos)) => (stem, pos + 1),
+            None => (self.palette_query.clone(), 0),
+        };
+        let cands = self.folder_completions(&stem);
+        if cands.is_empty() {
+            return; // nothing to complete — leave the name, stay unseeded
+        }
+        // One slot past the candidates cycles back to the typed stem.
+        let pos = pos % (cands.len() + 1);
+        self.palette_query = cands.get(pos).cloned().unwrap_or_else(|| stem.clone());
+        self.new_file_completion = Some((stem, pos));
+    }
+
+    /// The distinct existing folders (each in palette-label form with a trailing
+    /// `/`) that have `stem` as a case-insensitive prefix, sorted, excluding an
+    /// exact match to the stem itself (that is the "back to what you typed" slot
+    /// [`new_file_complete`](Self::new_file_complete) adds separately). Folders
+    /// are derived from the palette file list — every ancestor directory of every
+    /// known file — plus the two scope roots, which exist even when empty.
+    pub(crate) fn folder_completions(&self, stem: &str) -> Vec<String> {
+        let stem_lc = stem.to_ascii_lowercase();
+        let mut folders: Vec<String> = vec!["local/".to_string(), "repo/".to_string()];
+        for i in 0..self.file_count() {
+            let label = palette_label(self.file_at(i));
+            // Push each ancestor directory prefix of this file (up to and
+            // including each '/'): `repo/notes/foo.md` yields `repo/`, `repo/notes/`.
+            let mut start = 0;
+            while let Some(rel) = label[start..].find('/') {
+                let end = start + rel + 1; // include the '/'
+                let folder = label[..end].to_string();
+                if !folders.contains(&folder) {
+                    folders.push(folder);
+                }
+                start = end;
+            }
+        }
+        folders.retain(|f| {
+            let flc = f.to_ascii_lowercase();
+            flc != stem_lc && flc.starts_with(&stem_lc)
+        });
+        folders.sort();
+        folders
     }
 
     /// The publish path shared by `:gp` and the `>` `publish` command: format on
