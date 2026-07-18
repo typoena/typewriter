@@ -1,0 +1,264 @@
+//! Host tests for the lifted run loop — the routing that used to be untestable
+//! inline in the firmware binary. In-memory doubles stand in for every port, so
+//! these run on the host with no esp-idf.
+
+use std::cell::RefCell;
+use std::convert::Infallible;
+use std::rc::Rc;
+
+use editor::{Editor, Effect, Scope};
+
+use super::*;
+use crate::ports::{
+    Clock, FileIndex, PublishDispatch, PublishOutcome, PullDispatch, PullOutcome, SetupDispatch,
+    Storage, SyncOutcome, SyncService, System,
+};
+use crate::render::Panel;
+
+// ---- test doubles ---------------------------------------------------------
+
+/// A screen that accepts every frame — the render engine's paints are no-ops.
+struct MockScreen;
+impl hal::Screen for MockScreen {
+    type Error = Infallible;
+    fn display_frame(&mut self, _fb: &[u8]) -> Result<(), Infallible> {
+        Ok(())
+    }
+    fn display_frame_partial_window(
+        &mut self,
+        _fb: &[u8],
+        _y0: u16,
+        _h: u16,
+    ) -> Result<(), Infallible> {
+        Ok(())
+    }
+}
+
+/// A keyboard with nothing queued and nothing attached.
+struct NoKeyboard;
+impl hal::Keyboard for NoKeyboard {
+    fn next_key(&mut self) -> Option<hal::Key> {
+        None
+    }
+    fn keyboard_present(&self) -> bool {
+        false
+    }
+}
+
+#[derive(Default)]
+struct StorageLog {
+    saves: Vec<(String, String)>,
+    loads: Vec<String>,
+    deletes: Vec<String>,
+    last_files: Vec<String>,
+}
+
+/// Records every call; `load_path` echoes a canned body back.
+#[derive(Clone, Default)]
+struct RecStorage(Rc<RefCell<StorageLog>>);
+impl Storage for RecStorage {
+    fn save_path(&self, path: &str, contents: &str) -> anyhow::Result<()> {
+        self.0.borrow_mut().saves.push((path.into(), contents.into()));
+        Ok(())
+    }
+    fn load_path(&self, path: &str) -> anyhow::Result<String> {
+        self.0.borrow_mut().loads.push(path.into());
+        Ok("loaded-body".into())
+    }
+    fn delete_path(&self, path: &str) -> anyhow::Result<()> {
+        self.0.borrow_mut().deletes.push(path.into());
+        Ok(())
+    }
+    fn record_last_file(&self, path: &str) {
+        self.0.borrow_mut().last_files.push(path.into());
+    }
+}
+
+#[derive(Default)]
+struct SyncLog {
+    publishes: u32,
+    pulls: u32,
+    outcome: Option<SyncOutcome>,
+}
+
+/// Configurable dispatch results + a single queued outcome.
+#[derive(Clone)]
+struct RecSync {
+    log: Rc<RefCell<SyncLog>>,
+    publish_ret: Rc<dyn Fn() -> PublishDispatch>,
+    pull_ret: Rc<dyn Fn() -> PullDispatch>,
+}
+impl RecSync {
+    fn new() -> Self {
+        Self {
+            log: Rc::new(RefCell::new(SyncLog::default())),
+            publish_ret: Rc::new(|| PublishDispatch::Dispatched),
+            pull_ret: Rc::new(|| PullDispatch::Dispatched),
+        }
+    }
+}
+impl SyncService for RecSync {
+    fn publish(&self) -> PublishDispatch {
+        self.log.borrow_mut().publishes += 1;
+        (self.publish_ret)()
+    }
+    fn pull(&self) -> PullDispatch {
+        self.log.borrow_mut().pulls += 1;
+        (self.pull_ret)()
+    }
+    fn poll_outcome(&self) -> Option<SyncOutcome> {
+        self.log.borrow_mut().outcome.take()
+    }
+}
+
+struct FixedClock;
+impl Clock for FixedClock {
+    fn today(&self) -> Option<editor::Date> {
+        None
+    }
+    fn idle_yield(&self) {}
+}
+
+struct PanicSystem;
+impl System for PanicSystem {
+    fn prepare_setup(&self) -> SetupDispatch {
+        SetupDispatch::Unsupported
+    }
+    fn reboot(&self) -> ! {
+        panic!("reboot in test")
+    }
+}
+
+#[derive(Clone, Default)]
+struct RecFiles(Rc<RefCell<u32>>);
+impl FileIndex for RecFiles {
+    fn request_rewalk(&self) {
+        *self.0.borrow_mut() += 1;
+    }
+    fn poll_result(&self) -> Option<String> {
+        None
+    }
+}
+
+/// Build a runtime around the given storage/sync/files, defaulting the rest.
+fn runtime(
+    ed: Editor,
+    storage: RecStorage,
+    sync: RecSync,
+    files: RecFiles,
+) -> Runtime<MockScreen> {
+    let mut ed = ed;
+    let panel = Panel::new(MockScreen, &mut ed).expect("first paint");
+    Runtime::new(
+        ed,
+        panel,
+        Box::new(NoKeyboard),
+        Box::new(storage),
+        Box::new(sync),
+        Box::new(FixedClock),
+        Box::new(PanicSystem),
+        Box::new(files),
+    )
+}
+
+// ---- pure helpers ---------------------------------------------------------
+
+#[test]
+fn file_stem_strips_dir_and_extension() {
+    assert_eq!(file_stem("/sd/repo/notes.md"), "notes");
+    assert_eq!(file_stem("/sd/local/2026-07-18.md"), "2026-07-18");
+    assert_eq!(file_stem("bare"), "bare");
+}
+
+#[test]
+fn publish_notice_covers_every_variant() {
+    assert_eq!(publish_notice(&PublishOutcome::Pushed("abc123".into())), "synced abc123");
+    assert_eq!(publish_notice(&PublishOutcome::UpToDate), "up to date");
+    assert_eq!(publish_notice(&PublishOutcome::Failed("no wifi".into())), "no wifi");
+}
+
+#[test]
+fn pull_notice_covers_every_variant() {
+    assert_eq!(pull_notice(&PullOutcome::Pulled("abc".into())), "pulled abc");
+    assert_eq!(pull_notice(&PullOutcome::Rebased("def".into())), "rebased def - :gp to publish");
+    assert_eq!(pull_notice(&PullOutcome::UpToDate), "up to date");
+    assert_eq!(pull_notice(&PullOutcome::LocalAhead), "ahead - :gp to publish");
+    assert_eq!(pull_notice(&PullOutcome::Failed("boom".into())), "boom");
+}
+
+// ---- effect routing -------------------------------------------------------
+
+#[test]
+fn save_effect_writes_through_storage() {
+    let storage = RecStorage::default();
+    let mut rt = runtime(Editor::new(), storage.clone(), RecSync::new(), RecFiles::default());
+    rt.service_one(Effect::Save {
+        path: "/sd/repo/notes.md".into(),
+        scope: Scope::Tracked,
+        contents: "hello".into(),
+    });
+    assert_eq!(storage.0.borrow().saves, vec![("/sd/repo/notes.md".into(), "hello".into())]);
+}
+
+#[test]
+fn save_prefs_effect_writes_the_prefs_path() {
+    let storage = RecStorage::default();
+    let mut rt = runtime(Editor::new(), storage.clone(), RecSync::new(), RecFiles::default());
+    rt.service_one(Effect::SavePrefs { contents: "line_numbers = true\n".into() });
+    let saves = &storage.0.borrow().saves;
+    assert_eq!(saves.len(), 1);
+    assert_eq!(saves[0].0, editor::PREFS_PATH);
+}
+
+#[test]
+fn delete_effect_unlinks_through_storage() {
+    let storage = RecStorage::default();
+    let mut rt = runtime(Editor::new(), storage.clone(), RecSync::new(), RecFiles::default());
+    rt.service_one(Effect::Delete { path: "/sd/local/scratch.md".into(), scope: Scope::Local });
+    assert_eq!(storage.0.borrow().deletes, vec!["/sd/local/scratch.md".to_string()]);
+}
+
+#[test]
+fn publish_effect_dispatches_to_sync() {
+    let sync = RecSync::new();
+    let mut rt = runtime(Editor::new(), RecStorage::default(), sync.clone(), RecFiles::default());
+    rt.service_one(Effect::Publish);
+    assert_eq!(sync.log.borrow().publishes, 1);
+}
+
+#[test]
+fn pull_effect_dispatches_to_sync() {
+    let sync = RecSync::new();
+    let mut rt = runtime(Editor::new(), RecStorage::default(), sync.clone(), RecFiles::default());
+    rt.service_one(Effect::Pull);
+    assert_eq!(sync.log.borrow().pulls, 1);
+}
+
+// ---- sync outcome ---------------------------------------------------------
+
+#[test]
+fn pull_that_moves_the_tree_reloads_active_and_rewalks() {
+    let storage = RecStorage::default();
+    let files = RecFiles::default();
+    // A clean, named active buffer — a moving pull re-reads it from disk.
+    let ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, "old".into());
+    let mut rt = runtime(ed, storage.clone(), RecSync::new(), files.clone());
+
+    rt.handle_sync_outcome(SyncOutcome::Pull(PullOutcome::Pulled("abc".into())));
+
+    assert_eq!(storage.0.borrow().loads, vec!["/sd/repo/notes.md".to_string()]);
+    assert_eq!(*files.0.borrow(), 1, "palette should be re-walked after a moving pull");
+}
+
+#[test]
+fn up_to_date_pull_leaves_the_tree_untouched() {
+    let storage = RecStorage::default();
+    let files = RecFiles::default();
+    let ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, "old".into());
+    let mut rt = runtime(ed, storage.clone(), RecSync::new(), files.clone());
+
+    rt.handle_sync_outcome(SyncOutcome::Pull(PullOutcome::UpToDate));
+
+    assert!(storage.0.borrow().loads.is_empty(), "no reload when the tree didn't move");
+    assert_eq!(*files.0.borrow(), 0, "no re-walk when the tree didn't move");
+}

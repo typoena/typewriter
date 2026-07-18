@@ -1,0 +1,17 @@
+[package]
+name = "app"
+version = "0.1.0"
+edition = "2021"
+description = "Application layer: the panel render engine (Panel, generic over hal::Screen) and — as the migration proceeds — the run-loop Runtime plus its ports. Pure and host-testable: depends only on the domain crates (editor, display) and the hal frontier, never on esp-idf. Mirrors the composition/application tier of the C ../typing-machine reference."
+
+[dependencies]
+# The hardware frontier the render engine paints through (hal::Screen).
+hal = { path = "../hal" }
+# The Storage port surfaces the SD adapter's error type unchanged.
+anyhow = "1"
+# Domain value types the engine renders: the Frame framebuffer + the Editor.
+display = { path = "../display" }
+editor = { path = "../editor" }
+# The render engine logs refresh timings / failures over the same `log` facade
+# the firmware initialises; on the host the messages are simply dropped.
+log = "0.4"
