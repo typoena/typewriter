@@ -3,6 +3,9 @@
 **/target/
 Cargo.lock.bak
 *.rs.bk
+# The host workspace is libraries only (no shipped binary), so its lock floats
+# rather than being pinned in git — matching the per-crate convention it replaces.
+/Cargo.lock
 
 # esp-idf / embedded build artifacts
 /build/

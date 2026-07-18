@@ -1,0 +1,30 @@
+# Host-side Cargo workspace — the pure, off-device crates.
+#
+# These are the domain/frontier crates that build and test on the host with a
+# stock toolchain: one shared `Cargo.lock`, one `target/`, and a single
+# `cargo test` that exercises every one of them at once (previously each crate
+# carried its own lock and had to be tested individually).
+#
+# The two esp-idf binaries stay OUT of this workspace on purpose — they can't
+# share a default build with the host crates:
+#   * `firmware` builds for `xtensa-esp32s3-espidf` (see firmware/.cargo/config.toml)
+#     and pins the esp-rs git forks via its own [patch.crates-io]; it depends on
+#     `hal`/`app` here by path, which is fine across a workspace boundary.
+#   * `installer` is a separate macOS CLI tool with its own release cadence.
+# `spikes/` holds standalone bench crates, also excluded.
+[workspace]
+resolver = "2"
+members = [
+    "keymap",
+    "conf",
+    "display",
+    "editor",
+    "wizard",
+    "hal",
+    "app",
+]
+exclude = [
+    "firmware",
+    "installer",
+    "spikes",
+]
