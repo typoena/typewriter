@@ -1,0 +1,11 @@
+[package]
+name = "hal"
+version = "0.1.0"
+edition = "2021"
+description = "Hardware abstraction layer: the device-capability port traits (Screen, Keyboard) the render/run loop depends on. Pure interface definitions with no esp-idf — the esp-idf drivers in the firmware crate implement them and inject them at composition. Mirrors the `hal/` layer of the C `../typing-machine` reference. Host-buildable."
+
+# Deliberately dependency-free bar `keymap` (the Key value type the Keyboard
+# port traffics in) so this frontier stays a pure leaf with no outward deps —
+# the clean-architecture rule for the hal layer.
+[dependencies]
+keymap = { path = "../keymap" }
