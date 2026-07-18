@@ -36,13 +36,13 @@ use esp_idf_svc::sntp::{EspSntp, SyncStatus};
 use esp_idf_svc::wifi::{BlockingWifi, ClientConfiguration, Configuration, EspWifi};
 
 use display::{Frame, HEIGHT};
-use firmware::epd::Epd;
-use firmware::net::connect_wifi;
-use firmware::persistence::Storage;
 use wizard::github;
 use wizard::{Effect, Event, RepoChoice, Wizard};
 
-use crate::usb_kbd;
+use crate::drivers::keyboard_usb as usb_kbd;
+use crate::drivers::screen_epd::Epd;
+use crate::drivers::wifi_esp::connect_wifi;
+use crate::infrastructure::storage_sd::Storage;
 
 /// SNTP first-sync budget (mirrors git_sync's): required before any TLS.
 const SNTP_TIMEOUT: Duration = Duration::from_secs(20);
@@ -117,7 +117,7 @@ pub fn run(
     let (clone_msg_tx, clone_msg_rx) = std::sync::mpsc::channel::<CloneMsg>();
     std::thread::Builder::new()
         .name("wizclone".into())
-        .stack_size(firmware::git_sync::GIT_STACK)
+        .stack_size(crate::infrastructure::sync_git::GIT_STACK)
         .spawn(move || clone_worker(clone_req_rx, clone_msg_tx))
         .context("spawning the clone worker")?;
     let (int_free, int_largest) = unsafe {
@@ -129,7 +129,7 @@ pub fn run(
     };
     log::info!(
         "wizard: clone worker up ({} KB stack); internal DRAM free {} B (largest block {} B)",
-        firmware::git_sync::GIT_STACK / 1024,
+        crate::infrastructure::sync_git::GIT_STACK / 1024,
         int_free,
         int_largest,
     );
@@ -415,7 +415,7 @@ fn clone_worker(req_rx: Receiver<CloneReq>, msg_tx: std::sync::mpsc::Sender<Clon
         let progress = move |s: &str| {
             let _ = ptx.send(CloneMsg::Progress(s.to_string()));
         };
-        let msg = match firmware::git_sync::clone_repo(
+        let msg = match crate::infrastructure::sync_git::clone_repo(
             &req.remote_url,
             &req.gh_user,
             &req.token,

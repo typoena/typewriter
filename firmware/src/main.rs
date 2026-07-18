@@ -1,6 +1,3 @@
-#[cfg(feature = "git")]
-mod wizard_io;
-
 use std::rc::Rc;
 
 use esp_idf_svc::hal::delay::FreeRtos;
@@ -13,14 +10,19 @@ use esp_idf_svc::hal::units::FromValueType;
 use app::{file_stem, FileIndex, Panel, Runtime};
 use display::Frame;
 use editor::{Editor, Prefs, Scope, Snippets, LOCAL_DIR, PREFS_PATH, SNIPPETS_PATH};
-use firmware::adapters::{EspClock, EspFileWalk, SdStorage};
+use firmware::drivers::clock_esp::{self, EspClock};
+use firmware::drivers::keyboard_usb as usb_kbd;
+use firmware::drivers::screen_epd::Epd;
 #[cfg(feature = "git")]
-use firmware::adapters::{EspSystem, GitSyncService};
+use firmware::drivers::system_esp::EspSystem;
 #[cfg(not(feature = "git"))]
-use firmware::adapters::{NullSyncService, NullSystem};
-use firmware::epd::Epd;
-use firmware::persistence::{Storage, CONF_PATH, NOTES};
-use firmware::usb_kbd;
+use firmware::drivers::system_esp::NullSystem;
+use firmware::infrastructure::file_index::EspFileWalk;
+use firmware::infrastructure::storage_sd::{SdStorage, Storage, CONF_PATH, NOTES};
+#[cfg(feature = "git")]
+use firmware::infrastructure::sync_git::GitSyncService;
+#[cfg(not(feature = "git"))]
+use firmware::infrastructure::sync_null::NullSyncService;
 
 /// Injected by build.rs so serial output identifies the exact build.
 const BUILD_TAG: &str = concat!("build ", env!("BUILD_TIME"), " @", env!("BUILD_GIT"));
@@ -123,7 +125,7 @@ fn main() -> anyhow::Result<()> {
             if provided.is_empty() { "nothing".into() } else { provided.join(", ") }
         );
 
-        let effective = firmware::git_sync::effective_conf_from(&card);
+        let effective = firmware::infrastructure::sync_git::effective_conf_from(&card);
         let unconfigured = !effective.missing_required().is_empty() || !storage.repo_present();
         // `:setup` reboots into the wizard prefilled (the running editor can't
         // reclaim the radio from the git thread). One-shot: clear the marker on
@@ -144,14 +146,14 @@ fn main() -> anyhow::Result<()> {
             // the very steps a blank card needs (and, on the author's device,
             // mask the whole flow by jumping straight to the repo step). `:setup`
             // (configured card, marker set) opens the reset menu instead.
-            match wizard_io::run(&mut epd, &storage, card, setup_requested && !unconfigured, &sys_loop, &nvs, &mut modem) {
+            match firmware::infrastructure::wizard_io::run(&mut epd, &storage, card, setup_requested && !unconfigured, &sys_loop, &nvs, &mut modem) {
                 Ok(c) => c,
                 Err(e) => boot_halt(&mut epd, "Setup stopped", &format!("{e:#}")),
             }
         } else {
             card
         };
-        firmware::git_sync::set_card_conf(final_conf);
+        firmware::infrastructure::sync_git::set_card_conf(final_conf);
         (sys_loop, nvs, modem)
     };
 
@@ -169,7 +171,7 @@ fn main() -> anyhow::Result<()> {
     // `localtime_r` — and thus the `:inbox` note's dated name/title — reflects the
     // local calendar day. Empty (the default) leaves the ESP clock at UTC.
     if !prefs.timezone.is_empty() {
-        apply_timezone(&prefs.timezone);
+        clock_esp::apply_timezone(&prefs.timezone);
     }
     let (boot_path, boot_scope, saved) = boot_note(&mut epd, &storage, &prefs);
 
@@ -180,7 +182,7 @@ fn main() -> anyhow::Result<()> {
     // snackbar. Behind the `git` feature so a light build carries no libgit2.
     #[cfg(feature = "git")]
     let (git_tx, git_rx) = {
-        use firmware::git_sync::{run_git_service, GitOutcome, GitRequest, GIT_STACK};
+        use firmware::infrastructure::sync_git::{run_git_service, GitOutcome, GitRequest, GIT_STACK};
 
         // sys_loop / nvs / modem come from the wizard-gate block above — the
         // wizard borrows the modem for its join test, then the git thread
@@ -296,25 +298,6 @@ fn main() -> anyhow::Result<()> {
         Box::new(files),
     );
     runtime.run()
-}
-
-/// Apply a POSIX `TZ` string to libc so `localtime_r` reads the local calendar
-/// day (see `Prefs::timezone`). newlib carries no zoneinfo database, so `tz` must
-/// be the POSIX form (`CET-1CEST,M3.5.0,M10.5.0/3`), never an IANA name
-/// (`Europe/Paris`) — the latter silently stays UTC. Best-effort: an interior NUL
-/// or a failed `setenv` just leaves the previous zone (UTC) in place.
-fn apply_timezone(tz: &str) {
-    let Ok(c_tz) = std::ffi::CString::new(tz) else {
-        log::warn!("timezone {tz:?} has an interior NUL; left at UTC");
-        return;
-    };
-    // SAFETY: both pointers are valid C strings for the call; `tzset` reads the
-    // `TZ` env var we just set. `1` = overwrite any existing value.
-    unsafe {
-        esp_idf_svc::sys::setenv(c"TZ".as_ptr(), c_tz.as_ptr(), 1);
-        esp_idf_svc::sys::tzset();
-    }
-    log::info!("timezone applied: TZ={tz}");
 }
 
 /// Mount the SD card, or halt with the reason on the panel. A missing CARD is

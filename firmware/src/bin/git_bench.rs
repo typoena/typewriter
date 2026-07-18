@@ -24,8 +24,8 @@ use anyhow::{Context, Result};
 use esp_idf_svc::hal::delay::FreeRtos;
 use git2::{IndexEntry, IndexTime, ObjectType, Oid, Repository, Signature, Tree};
 
-use firmware::git_sync::GIT_STACK;
-use firmware::persistence::{Storage, REPO_DIR};
+use firmware::infrastructure::storage_sd::{Storage, REPO_DIR};
+use firmware::infrastructure::sync_git::GIT_STACK;
 
 const BUILD_TAG: &str = concat!("build ", env!("BUILD_TIME"), " @", env!("BUILD_GIT"));
 

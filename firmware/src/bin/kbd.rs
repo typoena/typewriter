@@ -1,7 +1,7 @@
 //! Keyboard smoke test — USB host boot keyboard, nothing else.
 //!
 //! The lightest possible "does the keyboard work on this board?" check: it
-//! brings up the shared [`firmware::usb_kbd`] host stack and echoes every
+//! brings up the shared [`firmware::drivers::keyboard_usb`] host stack and echoes every
 //! decoded key to the serial console. No SD card, no e-paper, no Wi-Fi — so it
 //! runs on a bare ESP32-S3 with only a USB keyboard plugged into the OTG port
 //! (the editor firmware `boot_halt`s on a missing card long before the keyboard
@@ -15,7 +15,7 @@
 
 use esp_idf_svc::hal::delay::FreeRtos;
 
-use firmware::usb_kbd::{self, Key};
+use firmware::drivers::keyboard_usb::{self as usb_kbd, Key};
 
 /// Injected by build.rs so serial output identifies the exact build.
 const BUILD_TAG: &str = concat!("build ", env!("BUILD_TIME"), " @", env!("BUILD_GIT"));

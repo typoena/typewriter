@@ -6,12 +6,12 @@
 //! into a service the editor drives, with three changes for the product:
 //!
 //! 1. **Storage is the SD card `/sd/repo`** (the same working copy the editor
-//!    saves `notes.md` into via [`crate::persistence`]), not the spike's 4 MB
+//!    saves `notes.md` into via [`crate::infrastructure::storage_sd`]), not the spike's 4 MB
 //!    flash-FAT `/spiflash/repo`. The real notes repo can't fit in flash, so the
 //!    card is the only viable home — and there's a single source of truth: git
 //!    commits the exact file the editor just wrote. The git thread reaches the
 //!    card through plain `std::fs`; FatFS's per-volume reentrancy lock serialises
-//!    it against the UI task's saves (see [`crate::persistence::Storage`]).
+//!    it against the UI task's saves (see [`crate::infrastructure::storage_sd::Storage`]).
 //! 2. **`open` only — never clone-and-wipe.** The spike re-cloned into a
 //!    throwaway flash dir; doing that to the user's card would delete their
 //!    notes. A `/sd/repo` that isn't a valid repo is a provisioning error
@@ -53,8 +53,8 @@ use git2::{
     PushOptions, RemoteCallbacks, Repository, Signature, Tree,
 };
 
-use crate::net::connect_wifi;
-use crate::persistence::{LOCAL_DIR, REPO_DIR};
+use crate::drivers::wifi_esp::connect_wifi;
+use crate::infrastructure::storage_sd::{LOCAL_DIR, REPO_DIR};
 
 // Baked in at build time from firmware/.env (see build.rs). Empty when unset.
 // Since the runtime conf (v0.9 onboarding slice 0) these are the per-field
@@ -147,8 +147,9 @@ fn author_email() -> &'static str {
 
 /// GitHub's root CAs, embedded so the push can verify the server's TLS chain.
 /// Shared with the spikes. Written to the card and handed to libgit2 via
-/// `GIT_OPT_SET_SSL_CERT_LOCATIONS`.
-const GITHUB_ROOTS_PEM: &str = include_str!("bin/github_roots.pem");
+/// `GIT_OPT_SET_SSL_CERT_LOCATIONS`. Path is relative to this source file —
+/// `../bin/` reaches `src/bin/` now that this module lives under `infrastructure/`.
+const GITHUB_ROOTS_PEM: &str = include_str!("../bin/github_roots.pem");
 /// CA bundle on the card root — outside `/sd/repo`, so it's never staged.
 const CA_BUNDLE_PATH: &str = "/sd/ca.pem";
 
@@ -1595,4 +1596,79 @@ fn log_push_heap(stage: &str) {
         cached / 1024,
         allowed / 1024
     );
+}
+
+// ---- app::SyncService port adapter ----------------------------------------
+
+use crate::infrastructure::storage_sd::Storage;
+
+/// [`app::SyncService`] backed by the git thread (the `:gp`/`:gl` transport).
+/// Owns the request/outcome channels and a handle to the card's dirty journal,
+/// which it takes on publish and settles when the outcome lands. Lives here (the
+/// `git` build only); the light build uses [`crate::infrastructure::sync_null`].
+pub struct GitSyncService {
+    card: Rc<Storage>,
+    tx: Sender<GitRequest>,
+    rx: Receiver<GitOutcome>,
+}
+
+impl GitSyncService {
+    pub fn new(card: Rc<Storage>, tx: Sender<GitRequest>, rx: Receiver<GitOutcome>) -> Self {
+        Self { card, tx, rx }
+    }
+}
+
+impl app::SyncService for GitSyncService {
+    fn publish(&self) -> app::PublishDispatch {
+        let paths = self.card.take_dirty();
+        match self.tx.send(GitRequest::Publish(PublishRequest { paths })) {
+            Ok(()) => app::PublishDispatch::Dispatched,
+            Err(_) => {
+                // Thread gone — nothing will report back, so return the snapshot
+                // to pending ourselves.
+                self.card.publish_failed();
+                app::PublishDispatch::ThreadDown
+            }
+        }
+    }
+
+    fn pull(&self) -> app::PullDispatch {
+        if self.card.has_dirty() {
+            log::info!(":gl refused — dirty journal non-empty; :gp first");
+            app::PullDispatch::RefusedDirty
+        } else {
+            match self.tx.send(GitRequest::Pull) {
+                Ok(()) => app::PullDispatch::Dispatched,
+                Err(_) => app::PullDispatch::ThreadDown,
+            }
+        }
+    }
+
+    fn poll_outcome(&self) -> Option<app::SyncOutcome> {
+        let outcome = self.rx.try_recv().ok()?;
+        Some(match outcome {
+            GitOutcome::Publish(o) => {
+                // Settle the dirty snapshot this publish took: confirmed
+                // published (or up to date) → forget it; failed → back to pending.
+                match &o {
+                    PublishOutcome::Pushed(_) | PublishOutcome::UpToDate => {
+                        self.card.publish_succeeded()
+                    }
+                    PublishOutcome::Failed(_) => self.card.publish_failed(),
+                }
+                app::SyncOutcome::Publish(match o {
+                    PublishOutcome::Pushed(oid) => app::PublishOutcome::Pushed(oid),
+                    PublishOutcome::UpToDate => app::PublishOutcome::UpToDate,
+                    PublishOutcome::Failed(reason) => app::PublishOutcome::Failed(reason),
+                })
+            }
+            GitOutcome::Pull(o) => app::SyncOutcome::Pull(match o {
+                PullOutcome::Pulled(oid) => app::PullOutcome::Pulled(oid),
+                PullOutcome::Rebased(oid) => app::PullOutcome::Rebased(oid),
+                PullOutcome::UpToDate => app::PullOutcome::UpToDate,
+                PullOutcome::LocalAhead => app::PullOutcome::LocalAhead,
+                PullOutcome::Failed(reason) => app::PullOutcome::Failed(reason),
+            }),
+        })
+    }
 }

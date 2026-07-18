@@ -1,7 +1,7 @@
 //! Full editor on the panel — the real experience, no SD card.
 //!
 //! The device firmware ([`main.rs`]) minus persistence: it brings up the
-//! e-paper (Spike 2 wiring) and the shared [`firmware::usb_kbd`] host stack,
+//! e-paper (Spike 2 wiring) and the shared [`firmware::drivers::keyboard_usb`] host stack,
 //! then runs the actual [`editor::Editor`] through the **same panel engine as
 //! `main.rs`** — [`app::Panel`] — so the panel behaves exactly like the
 //! shipping device (boot splash, windowed/additive partials, the debounced
@@ -32,8 +32,8 @@ use esp_idf_svc::hal::units::FromValueType;
 use app::{FocusTimer, Panel};
 use display::Frame;
 use editor::{Editor, Effect, Mode, Prefs, Snippets};
-use firmware::epd::Epd;
-use firmware::usb_kbd;
+use firmware::drivers::keyboard_usb as usb_kbd;
+use firmware::drivers::screen_epd::Epd;
 
 /// Injected by build.rs so serial output identifies the exact build.
 const BUILD_TAG: &str = concat!("build ", env!("BUILD_TIME"), " @", env!("BUILD_GIT"));

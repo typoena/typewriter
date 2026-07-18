@@ -28,7 +28,7 @@ use std::time::Instant;
 use anyhow::{Context, Result};
 use esp_idf_svc::hal::delay::FreeRtos;
 
-use firmware::persistence::Storage;
+use firmware::infrastructure::storage_sd::Storage;
 
 /// Injected by build.rs so serial output identifies the exact build.
 const BUILD_TAG: &str = concat!("build ", env!("BUILD_TIME"), " @", env!("BUILD_GIT"));

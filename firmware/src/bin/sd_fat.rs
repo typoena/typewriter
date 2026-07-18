@@ -1,9 +1,9 @@
 //! Spike 3 — SD card (FAT) on its own SPI3 host, now a thin on-device harness
-//! over the real [`firmware::persistence`] module.
+//! over the real [`firmware::infrastructure::storage_sd`] module.
 //!
 //! The raw storage stack (SPI3 bring-up, hand-rolled SDSPI descriptors, the
 //! atomic write/fsync/unlink/rename dance) was proven here first and has since
-//! graduated into `firmware::persistence` so the editor and this spike share one
+//! graduated into `firmware::infrastructure::storage_sd` so the editor and this spike share one
 //! implementation. This binary now just drives that module on hardware:
 //!
 //!   1. [`Storage::mount`] — SPI3 (SCK 14, MOSI 15, MISO 13, CS 10; ADR-012) +
@@ -24,7 +24,7 @@ use std::fs;
 use anyhow::{bail, Context, Result};
 use esp_idf_svc::hal::delay::FreeRtos;
 
-use firmware::persistence::{Storage, MAX_FILE_BYTES, NOTES, REPO_DIR};
+use firmware::infrastructure::storage_sd::{Storage, MAX_FILE_BYTES, NOTES, REPO_DIR};
 
 /// Injected by build.rs so serial output identifies the exact build.
 const BUILD_TAG: &str = concat!("build ", env!("BUILD_TIME"), " @", env!("BUILD_GIT"));
@@ -35,7 +35,7 @@ fn main() -> Result<()> {
     esp_idf_svc::sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
 
-    log::info!("Typoena — Spike 3 (SD/FAT via firmware::persistence), {BUILD_TAG}");
+    log::info!("Typoena — Spike 3 (SD/FAT via firmware::infrastructure::storage_sd), {BUILD_TAG}");
 
     match run() {
         Ok(()) => log::info!("✅ Spike 3 complete — persistence::Storage mounts and round-trips"),

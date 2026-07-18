@@ -41,6 +41,7 @@ use std::io::Write as _;
 use std::mem::MaybeUninit;
 use std::path::Path;
 use std::ptr;
+use std::rc::Rc;
 
 use anyhow::{bail, Context, Result};
 use esp_idf_svc::sys::{self, esp};
@@ -703,5 +704,27 @@ impl Storage {
                 .with_context(|| format!("promote {NOTES_TMP} -> {NOTES}"))?;
             Ok(Recovery::PromotedTmp)
         }
+    }
+}
+
+// ---- app::Storage port adapter --------------------------------------------
+
+/// [`app::Storage`] over the SD/FAT [`Storage`]. Shared (`Rc`) with the git sync
+/// + system adapters, which reach the same card and its dirty journal — all on
+/// the single-threaded UI task, so `Rc` (not `Arc`) suffices.
+pub struct SdStorage(pub Rc<Storage>);
+
+impl app::Storage for SdStorage {
+    fn save_path(&self, path: &str, contents: &str) -> anyhow::Result<()> {
+        self.0.save_path(path, contents)
+    }
+    fn load_path(&self, path: &str) -> anyhow::Result<String> {
+        self.0.load_path(path)
+    }
+    fn delete_path(&self, path: &str) -> anyhow::Result<()> {
+        self.0.delete_path(path)
+    }
+    fn record_last_file(&self, path: &str) {
+        self.0.record_last_file(path)
     }
 }

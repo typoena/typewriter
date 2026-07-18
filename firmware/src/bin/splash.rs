@@ -14,7 +14,7 @@
 //! doc named as Spike 9's only risk. A raster logo is deferred to v1.0 polish.
 //!
 //! EPD bring-up mirrors `main.rs` (SPI2, SCK 12 · DIN/MOSI 11 · CS 7 · DC 6 ·
-//! RST 5 · BUSY 4), driving the shared [`firmware::epd`] driver. Flash with
+//! RST 5 · BUSY 4), driving the shared [`firmware::drivers::screen_epd`] driver. Flash with
 //! `just flash-splash`. Needs no `.env`.
 
 use esp_idf_svc::hal::delay::FreeRtos;
@@ -25,7 +25,7 @@ use esp_idf_svc::hal::spi::{Dma, SpiBusDriver, SpiDriver};
 use esp_idf_svc::hal::units::FromValueType;
 
 use display::Frame;
-use firmware::epd::Epd;
+use firmware::drivers::screen_epd::Epd;
 
 /// Injected by build.rs so serial output identifies the exact build.
 const BUILD_TAG: &str = concat!("build ", env!("BUILD_TIME"), " @", env!("BUILD_GIT"));

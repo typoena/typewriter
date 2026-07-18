@@ -45,7 +45,7 @@ use esp_idf_svc::nvs::EspDefaultNvsPartition;
 use esp_idf_svc::sntp::{EspSntp, SyncStatus};
 use esp_idf_svc::sys::{self, esp};
 use esp_idf_svc::wifi::{BlockingWifi, EspWifi};
-use firmware::net::connect_wifi;
+use firmware::drivers::wifi_esp::connect_wifi;
 use git2::build::{CheckoutBuilder, RepoBuilder};
 use git2::{
     CertificateCheckStatus, Commit, Cred, CredentialType, FetchOptions, IndexAddOption,
