@@ -71,9 +71,19 @@ fn prefs_to_toml_round_trips_through_parse() {
         theme: "dark".into(),
         auto_sync: "5m".into(),
         scroll_margin: 3,
+        fast_partial: true,
         timezone: "CET-1CEST,M3.5.0,M10.5.0/3".into(),
     };
     assert_eq!(Prefs::parse(&p.to_toml()), p);
+}
+
+#[test]
+fn prefs_parse_reads_fast_partial_and_defaults_off() {
+    assert!(!Prefs::default().fast_partial); // experimental — off unless asked
+    assert!(Prefs::parse("fast_partial = true\n").fast_partial);
+    assert!(!Prefs::parse("fast_partial = false\n").fast_partial);
+    // A non-bool value leaves it at the (off) default rather than reading false.
+    assert!(!Prefs::parse("fast_partial = sometimes\n").fast_partial);
 }
 
 #[test]

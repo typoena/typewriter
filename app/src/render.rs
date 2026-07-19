@@ -33,6 +33,14 @@ use hal::Screen;
 /// mid-sentence).
 pub const FULL_REFRESH_EVERY: u32 = 64;
 
+/// The [`FULL_REFRESH_EVERY`] cadence when the experimental fast partial waveform
+/// (`Prefs::fast_partial`) is active — halved, because a shorter custom LUT ghosts
+/// faster and is not guaranteed DC-balanced, so the clean full refresh that
+/// re-launders accumulated charge has to come around sooner. Guardrail 2 of the
+/// fast-waveform experiment (the panel-damage mitigation reMarkable relies on too:
+/// fast dirty flips during motion, a DC-balanced clean pass when idle).
+pub const FULL_REFRESH_EVERY_FAST: u32 = 32;
+
 /// How long typing must pause before the Insert-mode caret is shown. There is no
 /// caret while actively typing (it would ghost under windowed refresh); it
 /// reappears once you settle. 2 s, not shorter: at 750 ms ordinary mid-sentence
@@ -154,6 +162,9 @@ impl<S: Screen> Panel<S> {
         // Suppress the Insert bar caret while typing (fast, no ghost); Normal and
         // View render their caret regardless of this flag.
         let insert_cursor_on = ed.mode() != Mode::Insert;
+        // The experimental fast partial waveform is scoped to the additive path
+        // below (guardrail 1); read live so a bench toggle takes effect at once.
+        let fast_partial = ed.prefs().fast_partial;
         let prev_scroll = ed.scroll_top();
         ed.draw_into(&mut self.back, insert_cursor_on);
         let scrolled = ed.scroll_top() != prev_scroll;
@@ -199,7 +210,12 @@ impl<S: Screen> Panel<S> {
         let (result, refresh) = if self.force_full {
             (self.screen.display_frame(self.back.bytes()), "FULL")
         } else if additive {
-            (self.screen.display_frame_partial_window(self.back.bytes(), y0, y1 - y0 + 1), "windowed")
+            let h = y1 - y0 + 1;
+            if fast_partial {
+                (self.screen.display_frame_partial_window_fast(self.back.bytes(), y0, h), "windowed-fast")
+            } else {
+                (self.screen.display_frame_partial_window(self.back.bytes(), y0, h), "windowed")
+            }
         } else {
             (self.screen.display_frame_partial_window(self.back.bytes(), 0, HEIGHT), "full-area")
         };
@@ -327,7 +343,12 @@ impl<S: Screen> Panel<S> {
     /// painted (or attempted to — the caller should `continue`), `false` when not
     /// yet due.
     pub fn longevity_full(&mut self, ed: &mut Editor, last_activity: Instant) -> bool {
-        if !(self.partials_since_full >= FULL_REFRESH_EVERY
+        let every = if ed.prefs().fast_partial {
+            FULL_REFRESH_EVERY_FAST
+        } else {
+            FULL_REFRESH_EVERY
+        };
+        if !(self.partials_since_full >= every
             && last_activity.elapsed().as_millis() >= CURSOR_DEBOUNCE_MS)
         {
             return false;
@@ -406,6 +427,94 @@ pub fn changed_rows(a: &[u8], b: &[u8]) -> Option<(u16, u16)> {
         }
     }
     first.map(|f| (f, last))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use editor::Prefs;
+    use hal::Key;
+    use std::cell::RefCell;
+    use std::convert::Infallible;
+    use std::rc::Rc;
+
+    /// A [`Screen`] that records which refresh method fired, in order, so a test can
+    /// assert the fast waveform is reached only on the additive per-keystroke path.
+    #[derive(Clone, Default)]
+    struct RecordScreen(Rc<RefCell<Vec<&'static str>>>);
+    impl Screen for RecordScreen {
+        type Error = Infallible;
+        fn display_frame(&mut self, _fb: &[u8]) -> Result<(), Infallible> {
+            self.0.borrow_mut().push("full");
+            Ok(())
+        }
+        fn display_frame_partial_window(&mut self, _fb: &[u8], _y0: u16, _h: u16) -> Result<(), Infallible> {
+            self.0.borrow_mut().push("partial");
+            Ok(())
+        }
+        fn display_frame_partial_window_fast(&mut self, _fb: &[u8], _y0: u16, _h: u16) -> Result<(), Infallible> {
+            self.0.borrow_mut().push("partial-fast");
+            Ok(())
+        }
+    }
+
+    type Log = Rc<RefCell<Vec<&'static str>>>;
+
+    /// A panel on a fresh empty editor with `fast_partial` set as given, already in
+    /// Insert mode with the boot/entry paints drained from the log.
+    fn insert_panel(fast: bool) -> (Panel<RecordScreen>, Editor, Log) {
+        let log: Log = Rc::new(RefCell::new(Vec::new()));
+        let mut ed = Editor::with_text(String::new());
+        ed.set_prefs(Prefs { fast_partial: fast, ..Prefs::default() });
+        let mut panel = Panel::new(RecordScreen(log.clone()), &mut ed).expect("boot paint");
+        ed.handle(Key::Char('i')); // Normal -> Insert
+        panel.render_batch(&mut ed, Mode::Normal, 1); // caret-suppression transition
+        (panel, ed, log)
+    }
+
+    /// Append `c` at the caret in Insert mode and return the refresh(es) it drove.
+    fn type_char(panel: &mut Panel<RecordScreen>, ed: &mut Editor, log: &Log, c: char) -> Vec<&'static str> {
+        log.borrow_mut().clear();
+        ed.handle(Key::Char(c));
+        panel.render_batch(ed, Mode::Insert, 1);
+        log.borrow().clone()
+    }
+
+    #[test]
+    fn fast_partial_pref_routes_the_additive_keystroke_to_the_fast_waveform() {
+        let (mut panel, mut ed, log) = insert_panel(true);
+        type_char(&mut panel, &mut ed, &log, 'a'); // prime past the entry transition
+        type_char(&mut panel, &mut ed, &log, 'b');
+        // A clean append at end of line — purely additive — takes the fast waveform.
+        assert_eq!(type_char(&mut panel, &mut ed, &log, 'c'), ["partial-fast"]);
+    }
+
+    #[test]
+    fn without_the_pref_the_same_keystroke_takes_the_ordinary_partial() {
+        let (mut panel, mut ed, log) = insert_panel(false);
+        type_char(&mut panel, &mut ed, &log, 'a');
+        type_char(&mut panel, &mut ed, &log, 'b');
+        assert_eq!(type_char(&mut panel, &mut ed, &log, 'c'), ["partial"]);
+    }
+
+    #[test]
+    fn fast_waveform_never_fires_off_the_additive_path() {
+        // Guardrail 1: even with the pref on, a non-additive edit (a delete, which
+        // erases ink) must take the clean full-area partial, never the fast one.
+        let (mut panel, mut ed, log) = insert_panel(true);
+        type_char(&mut panel, &mut ed, &log, 'a');
+        type_char(&mut panel, &mut ed, &log, 'b');
+        type_char(&mut panel, &mut ed, &log, 'c');
+        log.borrow_mut().clear();
+        ed.handle(Key::Backspace); // erase 'c' -> wide erase -> not additive
+        panel.render_batch(&mut ed, Mode::Insert, 1);
+        let paints = log.borrow().clone();
+        assert!(!paints.is_empty(), "the delete should have repainted");
+        assert!(
+            !paints.contains(&"partial-fast"),
+            "a delete must not use the fast waveform; got {paints:?}"
+        );
+    }
 }
 
 /// Bounding box (x0, x1, y0, y1 — pixels, inclusive) of the ink *erased* going

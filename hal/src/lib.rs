@@ -42,6 +42,21 @@ pub trait Screen {
         y0: u16,
         h: u16,
     ) -> Result<(), Self::Error>;
+
+    /// Like [`display_frame_partial_window`](Screen::display_frame_partial_window),
+    /// but drives an *accelerated* waveform when the panel has one (the render
+    /// engine calls this only for the per-keystroke windowed-additive repaint, and
+    /// only when the `fast_partial` pref is on). The default delegates to the plain
+    /// partial, so a panel without a custom fast waveform — or a test double — is
+    /// simply not accelerated rather than needing its own implementation.
+    fn display_frame_partial_window_fast(
+        &mut self,
+        fb: &[u8],
+        y0: u16,
+        h: u16,
+    ) -> Result<(), Self::Error> {
+        self.display_frame_partial_window(fb, y0, h)
+    }
 }
 
 /// The keyboard as an event source: decoded key events plus attach state.

@@ -54,6 +54,27 @@ pub struct Prefs {
     /// at `(ROWS - 1) / 2` so it can never squeeze the caret out. Honoured in
     /// Normal/Insert/Visual; View-mode viewport nav is unaffected.
     pub scroll_margin: usize,
+    /// **Experimental, off by default.** Use a hand-authored fast partial-refresh
+    /// waveform (an A2-style LUT written to the SSD1683 via command `0x32`) for the
+    /// per-keystroke windowed-additive repaint, instead of the panel's factory OTP
+    /// partial waveform. The factory partial's BUSY time (~540 ms) is the typing
+    /// latency floor and is *not* reducible any other way (SPI clock, RAM-settle,
+    /// temperature index and gate-scan windowing were all tried and refuted — see
+    /// `firmware/src/drivers/screen_epd.rs`); a shorter custom LUT is the only lever
+    /// left, and the one reMarkable rides for its "fast during motion" ink.
+    ///
+    /// The cost is real: a shorter waveform ghosts more, and a badly DC-balanced one
+    /// can, over many cycles, *permanently* damage the panel. The three guardrails:
+    /// (1) it is scoped to the additive windowed path only — full-area partials,
+    /// deletes, scrolls, cards and full refreshes keep the factory waveform;
+    /// (2) the panel-longevity full refresh runs twice as often while it is on
+    /// (`FULL_REFRESH_EVERY_FAST` in `app::render`); (3) this switch, default off.
+    /// Honoured by the host's render engine (`app::Panel`), not the pure core.
+    ///
+    /// Keep it `false` in the committed `.typoena.toml` — flip it on the bench
+    /// device's SD copy only, so it never rides `:gp` to every device before the
+    /// waveform is validated (BUSY time measured, ghosting/longevity soak passed).
+    pub fast_partial: bool,
     /// The device timezone, as a **POSIX TZ string** (e.g. Paris:
     /// `CET-1CEST,M3.5.0,M10.5.0/3`). Applied at boot by the host
     /// (`setenv("TZ", …)` + `tzset()`), so `localtime_r` — and thus the `:inbox`
@@ -77,6 +98,7 @@ impl Default for Prefs {
             theme: "light".into(),
             auto_sync: "10m".into(),
             scroll_margin: 2,
+            fast_partial: false,
             timezone: String::new(),
         }
     }
@@ -126,6 +148,11 @@ impl Prefs {
                         p.scroll_margin = n;
                     }
                 }
+                "fast_partial" => {
+                    if let Some(b) = parse_bool(val) {
+                        p.fast_partial = b;
+                    }
+                }
                 "timezone" => p.timezone = val.trim_matches('"').to_string(),
                 _ => {}
             }
@@ -148,6 +175,9 @@ impl Prefs {
              theme = \"{}\"\n\
              auto_sync = \"{}\"\n\
              scroll_margin = {}\n\
+             # Experimental fast partial-refresh waveform — leave false unless\n\
+             # validating the custom LUT on a bench device (see Prefs::fast_partial).\n\
+             fast_partial = {}\n\
              # POSIX TZ (e.g. CET-1CEST,M3.5.0,M10.5.0/3); empty = UTC.\n\
              timezone = \"{}\"\n",
             self.save_on_idle,
@@ -157,6 +187,7 @@ impl Prefs {
             self.theme,
             self.auto_sync,
             self.scroll_margin,
+            self.fast_partial,
             self.timezone,
         )
     }

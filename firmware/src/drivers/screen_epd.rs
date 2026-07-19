@@ -66,6 +66,89 @@ const PARTIAL_TEMP: Option<[u8; 2]> = None;
 /// corruption/ghosting ever appears. Log: docs/tradeoff-curves/epd-refresh-latency.md.
 const RAM_SETTLE_MS: u32 = 0;
 
+/// Frame count of the main drive phase in [`FAST_PARTIAL_LUT`] — the speed↔contrast
+/// tuning knob for the fast partial. Waveshare's stock value is `0x0F` (15 frames);
+/// lower is faster but drives the ink less fully. **Held at stock `0x0F` until the
+/// waveform actually renders ink** — the 2026-07-19 bench run showed the fast
+/// partial not darkening pixels at all (see [`FAST_PARTIAL_LUT`]), so cutting frames
+/// is premature; this becomes the speed knob only once the recipe drives cleanly.
+const FAST_PHASE0_FRAMES: u8 = 0x0F;
+
+/// EXPERIMENTAL fast partial-refresh waveform — the reMarkable-style "A2" lever.
+/// Written to the SSD1683 LUT register (`0x32`) before the per-keystroke additive
+/// repaint (via [`Epd::update_part_fast`]) *instead of* the factory OTP partial
+/// waveform, whose ~540 ms BUSY time is the typing-latency floor and is not
+/// reducible any other way (see `PARTIAL_TEMP` and `update_part`'s gate-scan note
+/// — both closed). A shorter, custom LUT is the only remaining lever.
+///
+/// **Provenance:** the first 153 bytes of Waveshare's official `WF_PARTIAL_1IN54_0`
+/// partial waveform for the SSD1680/1681/1683 family (`EPD_1in54_V2.c`,
+/// github.com/waveshareteam/e-Paper). It is DC-balanced by construction (a vendor
+/// partial waveform), which is what bounds — but does not eliminate — the panel
+/// longevity risk.
+///
+/// **Bench log (2026-07-19), two runs, both `fast_partial = true`, both FAILED:**
+/// (1) LUT only, voltages left at OTP — the waveform ran (~490 ms, ≈ factory) but did
+/// NOT darken the ink: text invisible during `windowed-fast`, appearing only when a
+/// factory-waveform repaint (idle caret / longevity full) landed. (2) Completed the
+/// recipe — also wrote the accompanying `0x3F/0x03/0x04/0x2C` voltages (below) — and
+/// it *still* did not render ink (same ~490 ms). So `0x32`+`0xCF` is genuinely live,
+/// but the Waveshare 1.54" waveform does not drive THIS panel's pixels. Notably
+/// GxEPD2 also ships OTP-only for the GDEY0579T93 (no custom LUT anywhere), so this
+/// is off the beaten path for this panel.
+///
+/// **Conclusion — do not keep guessing at LUT internals.** The factory OTP partial
+/// (~490 ms) is the floor unless the *real* GDEY0579T93 fast/partial waveform is
+/// obtained from Good Display (LUT bytes or a `.wbf`); drop those bytes in here, and
+/// only then is tuning [`FAST_PHASE0_FRAMES`] meaningful. Kept behind `fast_partial`
+/// (default off) as ready scaffolding for that waveform, not a working feature.
+///
+/// **Only the 153-byte waveform is written.** The array's trailing 6 config bytes
+/// (`0x02,0x17,0x41,0xB0,0x32,0x28` → registers `0x3F` end-option, `0x03` gate,
+/// `0x04` source, `0x2C` VCOM) are **intentionally NOT sent**: they are tuned for a
+/// 200×200 1.54" panel, and this panel's correct gate/source/VCOM are loaded from
+/// its own OTP at reset (which `update_part`'s comment warns must not be clobbered).
+/// So this changes only the *waveform shape/timing*, never the drive voltages.
+///
+/// **NOT VALIDATED ON HARDWARE.** Before any longevity soak: confirm both panel
+/// halves paint identically (mismatch ⇒ the slave `0x32|0x80` LUT write or the
+/// cascade is wrong), read the actual BUSY time off the `windowed-fast` trace, and
+/// watch for residual ghosting after a full refresh (⇒ back this out). Gated behind
+/// the `fast_partial` pref (default off); a full refresh reloads the OTP waveform,
+/// so nothing here persists past the next clean pass.
+const FAST_PARTIAL_LUT: [u8; 153] = [
+    // LUT0..4 voltage groups (5 × 12) — VS levels per phase.
+    0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //
+    0x80, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //
+    0x40, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //
+    0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //
+    // Phase timing (12 × 7): frame counts + repeats. Group 0's first byte is the
+    // main drive phase's frame count — the dominant term in BUSY time — pulled out
+    // to FAST_PHASE0_FRAMES as the speed↔contrast tuning knob. Group 1 adds two
+    // 1-frame touch-up phases.
+    FAST_PHASE0_FRAMES, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //
+    0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, //
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //
+    0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x00, 0x00, 0x00,
+];
+
+/// `0x22` (Display Update Control 2) value for the fast partial: enable clock +
+/// analog, DISPLAY in Mode 2 using the LUT *already written* by `0x32`, then power
+/// down — crucially **without** the load-temperature / load-LUT-from-OTP bits that
+/// the factory partial's `0xFF` sets (which would overwrite `FAST_PARTIAL_LUT` with
+/// the OTP waveform). Matches Waveshare's `TurnOnDisplayPart` for this family.
+const FAST_PART_UPDATE: u8 = 0xCF;
+
 pub struct Epd<'d> {
     spi: SpiBusDriver<'d, SpiDriver<'d>>,
     dc: PinDriver<'d, Output>,
@@ -313,6 +396,45 @@ impl<'d> Epd<'d> {
         Ok(())
     }
 
+    /// EXPERIMENTAL fast partial (see [`FAST_PARTIAL_LUT`]): identical to
+    /// [`update_part`](Self::update_part) except it loads the short custom waveform
+    /// via `0x32` and triggers with [`FAST_PART_UPDATE`] (`0xCF`) so the panel
+    /// displays with *that* LUT rather than reloading the ~540 ms OTP one. The LUT
+    /// is written to **both** controllers (`0x32` master, `0x32|0x80` slave): each
+    /// half has its own waveform SRAM, so writing only the master would leave the
+    /// left half on its OTP waveform and the two halves would ghost differently.
+    /// Reached only from the `fast_partial`-gated windowed-additive path.
+    fn update_part_fast(&mut self, y0: u16, h: u16) -> Result<(), EspError> {
+        self.set_ram_area(0, y0, WIDTH / 2, h, 0x03, 0x80)?; // slave
+        self.set_ram_area(0, y0, WIDTH / 2, h, 0x03, 0x00)?; // master
+        for target in [0x80u8, 0x00u8] {
+            self.cmd(0x32 | target)?; // write LUT register (waveform phases)
+            self.data(&FAST_PARTIAL_LUT)?;
+            // The rest of Waveshare's recipe that FAST_PARTIAL_LUT's level codes
+            // assume (array bytes 153-158): LUT-end option + the gate/source/VCOM
+            // drive voltages. Omitting these (first bench run) left the waveform
+            // unable to darken the ink. A factory full/partial reloads the OTP
+            // waveform incl. its own voltages, so these don't leak past a clean pass.
+            self.cmd(0x3F | target)?; // option for LUT end
+            self.data(&[0x02])?;
+            self.cmd(0x03 | target)?; // gate driving voltage
+            self.data(&[0x17])?;
+            self.cmd(0x04 | target)?; // source driving voltage (VSH1, VSH2, VSL)
+            self.data(&[0x41, 0xB0, 0x32])?;
+            self.cmd(0x2C | target)?; // VCOM
+            self.data(&[0x28])?;
+        }
+        self.cmd(0x3C)?; // border waveform control
+        self.data(&[0x80])?; // VCOM
+        self.cmd(0x21)?; // display update control 1
+        self.data(&[0x00, 0x10])?; // RED normal, cascade
+        self.cmd(0x22)?; // display update control 2
+        self.data(&[FAST_PART_UPDATE])?; // 0xCF: display with the LUT just written
+        self.cmd(0x20)?; // master activation
+        self.wait_while_busy(2000)?;
+        Ok(())
+    }
+
     /// Fill the whole panel with one value and full-refresh.
     /// `0xFF` = white, `0x00` = black. Port of GxEPD2 `clearScreen`.
     pub fn clear_screen(&mut self, value: u8) -> Result<(), EspError> {
@@ -401,11 +523,37 @@ impl<'d> Epd<'d> {
         y0: u16,
         h: u16,
     ) -> Result<(), EspError> {
+        self.partial_window(fb, y0, h, false)
+    }
+
+    /// The experimental fast-waveform twin of
+    /// [`display_frame_partial_window`](Self::display_frame_partial_window): same
+    /// windowed sequence, but the transition runs the short custom LUT
+    /// ([`update_part_fast`](Self::update_part_fast)) instead of the OTP partial.
+    /// The render engine calls this only for the per-keystroke additive repaint and
+    /// only when the `fast_partial` pref is on. See [`FAST_PARTIAL_LUT`].
+    pub fn display_frame_partial_window_fast(
+        &mut self,
+        fb: &[u8],
+        y0: u16,
+        h: u16,
+    ) -> Result<(), EspError> {
+        self.partial_window(fb, y0, h, true)
+    }
+
+    /// Shared body of the two windowed-partial methods above. `fast` selects the
+    /// custom-LUT waveform; everything else — the RAM-bank writes and the
+    /// post-refresh resync — is identical and kept here in one place.
+    fn partial_window(&mut self, fb: &[u8], y0: u16, h: u16, fast: bool) -> Result<(), EspError> {
         assert_eq!(fb.len(), FB_BYTES, "framebuffer must be 99 x 272 bytes");
         assert!(h > 0 && y0 + h <= HEIGHT, "row window out of range");
         self.wait_ready()?;
         self.write_frame_bank(0x24, fb, y0, h)?; // current = new
-        self.update_part(y0, h)?; // transition previous -> current
+        if fast {
+            self.update_part_fast(y0, h)?; // transition previous -> current
+        } else {
+            self.update_part(y0, h)?;
+        }
         self.write_frame_bank(0x26, fb, y0, h)?; // resync both banks…
         self.write_frame_bank(0x24, fb, y0, h)?; // …post ping-pong
         Ok(())
@@ -431,5 +579,14 @@ impl hal::Screen for Epd<'_> {
         h: u16,
     ) -> Result<(), Self::Error> {
         Epd::display_frame_partial_window(self, fb, y0, h)
+    }
+
+    fn display_frame_partial_window_fast(
+        &mut self,
+        fb: &[u8],
+        y0: u16,
+        h: u16,
+    ) -> Result<(), Self::Error> {
+        Epd::display_frame_partial_window_fast(self, fb, y0, h)
     }
 }
