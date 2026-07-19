@@ -75,10 +75,21 @@ struct PendingAuth {
 /// boot path to install (`set_card_conf`). Blocks the boot; the editor only
 /// exists after this returns. An `Err` is terminal (main `boot_halt`s with
 /// it) — today that includes reaching the not-yet-built repo step.
+///
+/// NOTE: this code is compiled at `opt-level = 2`, not the workspace-wide `"s"`
+/// — see the `[profile.release.package.firmware]` block in Cargo.toml. `run` is
+/// an enormous function, and at `"s"` the Xtensa backend miscompiled it: spilled
+/// argument slots and by-value struct copies were left reading `0xa5a5a5a5`
+/// (FreeRTOS stack-fill), a LoadProhibited boot loop on every card entering the
+/// wizard. The fault relocated with every codegen change (arg order/count,
+/// inline hints, by-ref vs by-value) but never cleared at `"s"`; the opt-level
+/// override is what fixes it. The signature is still kept lean — `start` by
+/// reference, the radio singletons owned only briefly in `build_radio` — which
+/// is good practice regardless, but it is not what makes the crash go away.
 pub fn run(
     epd: &mut Epd,
     storage: &Storage,
-    start: conf::Conf,
+    start: &conf::Conf,
     setup: bool,
     sys_loop: &EspSystemEventLoop,
     nvs: &EspDefaultNvsPartition,
@@ -89,16 +100,25 @@ pub fn run(
     // dirty flag (unpublished-work journal) only sharpens the factory-reset
     // warning, so it's read once at construction.
     let mut wiz = if setup {
-        Wizard::setup(start, storage.has_dirty())
+        Wizard::setup(start.clone(), storage.has_dirty())
+    } else if *start == conf::Conf::default() && !storage.repo_present() {
+        // A blank/foreign card the person brought — nothing Typoena on it. Gate
+        // on consent before we touch it; accepting wipes it and dedicates it.
+        // A power-pull mid-onboarding writes conf fields, so a resume no longer
+        // matches this and skips the gate (falls to `resume` below).
+        Wizard::adopt_blank_card()
     } else {
-        Wizard::resume(start)
+        Wizard::resume(start.clone())
     };
     let mut frame = Frame::new_white();
     let mut queue: Vec<Effect> = wiz.pending().into_iter().collect();
     let mut first_paint = true;
     let mut dirty = true;
 
-    // Radio state for the whole run (see module docs).
+    // Radio state for the whole run (see module docs). Built lazily, the first
+    // time an effect needs Wi-Fi (below), from the owned `sys_loop`/`nvs` +
+    // reborrowed modem — never from a threaded reference (see run's doc comment
+    // / `build_radio`).
     let (wifi_modem, _) = modem.split_reborrow();
     let mut wifi_modem = Some(wifi_modem);
     let mut wifi: Option<BlockingWifi<EspWifi<'_>>> = None;
@@ -152,13 +172,30 @@ pub fn run(
 
         if !queue.is_empty() {
             let fx = queue.remove(0);
+            // Bring the radio up on demand, the first time an effect needs it.
+            // Done here — not lazily inside the handlers — so `build_radio` is
+            // fed the owned `sys_loop`/`nvs` locals directly (moved by value),
+            // and no singleton *reference* is threaded through the handler call
+            // chain. That threading is what the Xtensa codegen defect in run's
+            // doc comment mishandles.
+            if wifi.is_none()
+                && matches!(
+                    fx,
+                    Effect::ScanWifi | Effect::TestWifi { .. } | Effect::StartAuth
+                )
+            {
+                let m = wifi_modem
+                    .take()
+                    .context("radio unavailable (a previous Wi-Fi init failed)")?;
+                wifi = Some(build_radio(m, sys_loop.clone(), nvs.clone())?);
+            }
             match fx {
                 Effect::WriteConf(c) => {
                     storage.write_conf(&c.render())?;
                     log::info!("wizard: conf persisted");
                 }
                 Effect::ScanWifi => {
-                    let ev = match scan_wifi(&mut wifi, &mut wifi_modem, sys_loop, nvs) {
+                    let ev = match scan_wifi(wifi.as_mut().expect("radio built")) {
                         Ok(nets) => {
                             log::info!("wizard: scan found {} network(s)", nets.len());
                             Event::WifiScan(nets)
@@ -172,9 +209,7 @@ pub fn run(
                     dirty = true;
                 }
                 Effect::TestWifi { ssid, pass } => {
-                    let ev = match join_wifi(
-                        &mut wifi, &mut wifi_modem, sys_loop, nvs, &ssid, &pass,
-                    ) {
+                    let ev = match join_wifi(wifi.as_mut().expect("radio built"), &ssid, &pass) {
                         Ok(()) => Event::WifiOk,
                         Err(e) => {
                             log::warn!("wizard: join failed: {e:#}");
@@ -186,14 +221,8 @@ pub fn run(
                 }
                 Effect::StartAuth => {
                     pending_auth = None;
-                    let ev = match start_auth(
-                        &mut wifi,
-                        &mut wifi_modem,
-                        sys_loop,
-                        nvs,
-                        &mut clock_synced,
-                        wiz.conf(),
-                    ) {
+                    let ev =
+                        match start_auth(wifi.as_mut().expect("radio built"), &mut clock_synced, wiz.conf()) {
                         Ok(dc) => {
                             log::info!(
                                 "wizard: device flow started — code {} (expires in {}s)",
@@ -301,6 +330,41 @@ pub fn run(
                             dirty = true;
                         }
                     }
+                }
+                Effect::WipeCard => {
+                    // Dedicate the card: erase every file on it, then walk into
+                    // Wi-Fi (WipeCardDone) — unlike FactoryReset, no reboot. The
+                    // Wiping screen is already painted (the consent Enter set it);
+                    // wipe_card repaints its one progress line through `paint`.
+                    log::info!("wizard: dedicate — erasing the whole card");
+                    let result = {
+                        let mut paint = |line: &str| {
+                            wiz.set_wiping(line);
+                            wiz.draw_into(&mut frame);
+                            let _ = epd.display_frame_partial_window(frame.bytes(), 0, HEIGHT);
+                        };
+                        storage.wipe_card(&mut paint)
+                    };
+                    match result {
+                        Ok(()) => {
+                            log::info!("wizard: card erased — dedicated to Typoena");
+                            queue.extend(wiz.event(Event::WipeCardDone));
+                        }
+                        Err(e) => {
+                            log::warn!("wizard: card wipe failed: {e:#}");
+                            queue.extend(wiz.event(Event::WipeFailed(format!("{e:#}"))));
+                        }
+                    }
+                    dirty = true;
+                }
+                Effect::Decline => {
+                    // Consent declined. Leave the card untouched and stop: main()
+                    // boot_halts on this Err (idle with a message, no reboot loop).
+                    log::info!("wizard: setup declined — card left untouched");
+                    bail!(
+                        "You chose not to set this card up for Typoena.\n\
+                         Power off and insert your Typoena card."
+                    );
                 }
                 Effect::Finish => return Ok(wiz.conf().clone()),
             }
@@ -434,38 +498,42 @@ fn clone_worker(req_rx: Receiver<CloneReq>, msg_tx: std::sync::mpsc::Sender<Clon
     }
 }
 
-/// Build the persistent `EspWifi` from the reborrowed modem on first use.
-/// Idempotent: later calls (scan, join, re-join) reuse the same radio.
-fn ensure_radio<'d>(
-    wifi: &mut Option<BlockingWifi<EspWifi<'d>>>,
-    wifi_modem: &mut Option<WifiModem<'d>>,
-    sys_loop: &EspSystemEventLoop,
-    nvs: &EspDefaultNvsPartition,
-) -> Result<()> {
-    if wifi.is_none() {
-        let m = wifi_modem
-            .take()
-            .context("radio unavailable (a previous Wi-Fi init failed)")?;
-        *wifi = Some(BlockingWifi::wrap(
-            EspWifi::new(m, sys_loop.clone(), Some(nvs.clone()))?,
-            sys_loop.clone(),
-        )?);
-    }
-    Ok(())
+/// Build the persistent radio once, in its own non-inlined frame with the
+/// event-loop / NVS singletons **owned** rather than threaded down as
+/// references — the shape that dodges the Xtensa spilled-reference crash (see
+/// `run`'s doc comment; this mirrors the flat `wifi_tls` spike). `EspWifi` keeps
+/// its own `Arc` clones of both, so the originals are free to drop on return.
+#[inline(never)]
+fn build_radio<'d>(
+    modem: WifiModem<'d>,
+    sys_loop: EspSystemEventLoop,
+    nvs: EspDefaultNvsPartition,
+) -> Result<BlockingWifi<EspWifi<'d>>> {
+    // Internal DRAM at the moment Wi-Fi comes up. esp_wifi_init needs a
+    // contiguous internal (DMA-capable) block; the 96 KB clone worker already
+    // holds one, so this is where a starved pool would bite (see the
+    // SPIRAM_TRY_ALLOCATE_WIFI_LWIP note in sdkconfig.defaults).
+    let (int_free, int_largest) = unsafe {
+        use esp_idf_svc::sys::{
+            heap_caps_get_free_size, heap_caps_get_largest_free_block, MALLOC_CAP_INTERNAL,
+        };
+        (
+            heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+            heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
+        )
+    };
+    log::info!(
+        "wizard: bringing up the Wi-Fi radio — internal DRAM free {int_free} B (largest block {int_largest} B)"
+    );
+    let esp_wifi = EspWifi::new(modem, sys_loop.clone(), Some(nvs))?;
+    Ok(BlockingWifi::wrap(esp_wifi, sys_loop)?)
 }
 
 /// Scan for nearby networks so the SSID can be picked, not typed. Leaves the
 /// radio built-but-stopped so the join path's `start()` runs from a clean
 /// state. Returns SSIDs deduped and strongest-first, hidden (blank) ones
 /// dropped.
-fn scan_wifi<'d>(
-    wifi: &mut Option<BlockingWifi<EspWifi<'d>>>,
-    wifi_modem: &mut Option<WifiModem<'d>>,
-    sys_loop: &EspSystemEventLoop,
-    nvs: &EspDefaultNvsPartition,
-) -> Result<Vec<String>> {
-    ensure_radio(wifi, wifi_modem, sys_loop, nvs)?;
-    let w = wifi.as_mut().expect("radio built");
+fn scan_wifi<'d>(w: &mut BlockingWifi<EspWifi<'d>>) -> Result<Vec<String>> {
     // Scanning needs the radio started in station mode; a default client
     // config is enough — we read beacons, never associate here.
     w.set_configuration(&Configuration::Client(ClientConfiguration::default()))?;
@@ -490,18 +558,9 @@ fn scan_wifi<'d>(
     Ok(best.into_iter().map(|(s, _)| s).collect())
 }
 
-/// Build the radio if needed, then (re)associate with the given credentials.
-/// The `EspWifi` persists across calls; only the association changes.
-fn join_wifi<'d>(
-    wifi: &mut Option<BlockingWifi<EspWifi<'d>>>,
-    wifi_modem: &mut Option<WifiModem<'d>>,
-    sys_loop: &EspSystemEventLoop,
-    nvs: &EspDefaultNvsPartition,
-    ssid: &str,
-    pass: &str,
-) -> Result<()> {
-    ensure_radio(wifi, wifi_modem, sys_loop, nvs)?;
-    let w = wifi.as_mut().expect("radio built");
+/// (Re)associate the already-built radio with the given credentials. The
+/// `EspWifi` persists across calls; only the association changes.
+fn join_wifi<'d>(w: &mut BlockingWifi<EspWifi<'d>>, ssid: &str, pass: &str) -> Result<()> {
     if w.is_connected().unwrap_or(false) {
         // Re-testing (new creds after a failure, or :setup later): start clean.
         let _ = w.disconnect();
@@ -513,30 +572,16 @@ fn join_wifi<'d>(
 }
 
 /// Network preamble + `POST login/device/code`. The Wi-Fi step normally ran
-/// just before, but a resume can land here directly — ensure the radio with
-/// the conf's credentials, sync the clock once, then start the flow.
+/// just before, but a resume can land here directly — (re)join with the conf's
+/// credentials if not already associated, sync the clock once, then start the
+/// flow.
 fn start_auth<'d>(
-    wifi: &mut Option<BlockingWifi<EspWifi<'d>>>,
-    wifi_modem: &mut Option<WifiModem<'d>>,
-    sys_loop: &EspSystemEventLoop,
-    nvs: &EspDefaultNvsPartition,
+    w: &mut BlockingWifi<EspWifi<'d>>,
     clock_synced: &mut bool,
     conf: &conf::Conf,
 ) -> Result<github::DeviceCode> {
-    let connected = wifi
-        .as_mut()
-        .map(|w| w.is_connected().unwrap_or(false))
-        .unwrap_or(false);
-    if !connected {
-        join_wifi(
-            wifi,
-            wifi_modem,
-            sys_loop,
-            nvs,
-            &conf.wifi_ssid,
-            &conf.wifi_pass,
-        )
-        .context("joining Wi-Fi")?;
+    if !w.is_connected().unwrap_or(false) {
+        join_wifi(w, &conf.wifi_ssid, &conf.wifi_pass).context("joining Wi-Fi")?;
     }
     if !*clock_synced {
         sync_clock().context("syncing the clock (TLS needs it)")?;

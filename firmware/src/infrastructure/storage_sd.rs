@@ -501,6 +501,42 @@ impl Storage {
         Self::remove_tree(Path::new(REPO_DIR)).context("removing the old repo")
     }
 
+    /// Erase the ENTIRE card — every top-level entry under [`MOUNT`], not just
+    /// Typoena's own files (that's [`Storage::factory_reset`]). Backs the
+    /// wizard's "dedicate this card" consent (`Effect::WipeCard`): a person's
+    /// own blank or foreign card is wiped clean before it becomes a Typoena
+    /// card. Leaves the FAT volume mounted (entries removed, filesystem intact)
+    /// so onboarding writes straight into it. `progress` gets one coarse line
+    /// for the panel; idempotent, and FAT-safe via [`Storage::remove_tree`].
+    pub fn wipe_card(&self, progress: &mut dyn FnMut(&str)) -> Result<()> {
+        progress("erasing everything on the card");
+        let entries = match fs::read_dir(MOUNT) {
+            Ok(e) => e,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+            Err(e) => return Err(e).with_context(|| format!("read_dir {MOUNT}")),
+        };
+        // Collect before deleting: mutating a directory while its read_dir
+        // handle is open is fragile on FatFS, and this keeps one dir FD live.
+        let paths: Vec<_> = entries.flatten().map(|e| e.path()).collect();
+        for path in paths {
+            // stat, not the dirent d_type — esp-idf decodes readdir types with
+            // the wrong table (see `remove_tree`); metadata is reliable.
+            let is_dir = fs::metadata(&path).map(|m| m.is_dir()).unwrap_or(false);
+            if is_dir {
+                Self::remove_tree(&path)?;
+            } else {
+                match fs::remove_file(&path) {
+                    Ok(()) => {}
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(e) => return Err(e).with_context(|| format!("unlink {}", path.display())),
+                }
+            }
+        }
+        // Nothing unpublished can survive a full wipe.
+        *self.dirty.borrow_mut() = Dirty::default();
+        Ok(())
+    }
+
     /// `fs::remove_dir_all` replacement for FAT. std's version trusts the
     /// dirent file type, and the prebuilt std decodes esp-idf's DT constants
     /// with the generic-unix table (files read as fifos, directories as char

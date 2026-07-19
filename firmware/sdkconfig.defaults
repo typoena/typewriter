@@ -52,6 +52,19 @@ CONFIG_SPIRAM_USE_MALLOC=y
 # with the file-list interning that returns ~180 KB to internal.
 CONFIG_SPIRAM_MALLOC_RESERVE_INTERNAL=65536
 
+# Wi-Fi + LWIP buffers to PSRAM (2026-07-19). NOTE: this was FIRST added to chase
+# a LoadProhibited boot loop when the wizard brought the radio up, on the theory
+# that esp_wifi_init couldn't get a contiguous INTERNAL (DMA-capable) block. That
+# was a MISDIAGNOSIS — the real fault was an opt-level="s" Xtensa miscompilation
+# of the huge wizard_io::run (fixed by the firmware-package opt-level=2 override
+# in Cargo.toml), not a failed alloc. The flag is KEPT anyway: internal DRAM is
+# genuinely tight when the wizard brings the radio up (largest free internal
+# block ~63 KB, measured on device, with the 96 KB clone worker resident), and
+# Wi-Fi's DMA buffers must come from contiguous internal RAM. Letting Wi-Fi/LWIP
+# allocate from PSRAM first leaves that internal headroom for the DMA-only
+# buffers. Small throughput cost, but onboarding/sync isn't throughput-bound.
+CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP=y
+
 # FatFS fast seek (sync-latency root cause, 2026-07-12). Without it, lseek
 # resolves by walking the file's FAT cluster chain over SPI — forward from the
 # current position, from the CHAIN HEAD on any backward seek. sd_bench measured

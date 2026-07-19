@@ -126,7 +126,10 @@ fn main() -> anyhow::Result<()> {
             // the very steps a blank card needs (and, on the author's device,
             // mask the whole flow by jumping straight to the repo step). `:setup`
             // (configured card, marker set) opens the reset menu instead.
-            match firmware::infrastructure::wizard_io::run(&mut epd, &storage, card, setup_requested && !unconfigured, &sys_loop, &nvs, &mut modem) {
+            // `run` is compiled at opt-level 2 to dodge a size-opt Xtensa
+            // miscompile (see its doc comment / Cargo.toml). main keeps its own
+            // `sys_loop`/`nvs` for the net thread below and lends references.
+            match firmware::infrastructure::wizard_io::run(&mut epd, &storage, &card, setup_requested && !unconfigured, &sys_loop, &nvs, &mut modem) {
                 Ok(c) => c,
                 Err(e) => boot_halt(&mut epd, "Setup stopped", &format!("{e:#}")),
             }

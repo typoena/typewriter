@@ -70,6 +70,15 @@ pub enum Effect {
     /// conf, markers) and reboot into first boot. The driver runs the wipe and
     /// restarts; only a failure comes back (`WipeFailed`).
     FactoryReset,
+    /// Erase the ENTIRE card — every entry under `/sd`, not just Typoena's own
+    /// files (that's `FactoryReset`) — then report back. The "dedicate this
+    /// card" step when a person brings their own blank/foreign card and
+    /// consents. Unlike `FactoryReset` the driver does NOT reboot: on
+    /// `WipeCardDone` the wizard walks straight into Wi-Fi; `WipeFailed` on error.
+    WipeCard,
+    /// The user declined at the consent screen (Esc). The driver leaves the
+    /// card untouched and halts with a message — nothing is written or erased.
+    Decline,
     /// Wizard finished — fall through to the normal boot path.
     Finish,
 }
@@ -104,14 +113,25 @@ pub enum Event {
     CloneFailed(String),
     /// The factory-reset wipe failed (a delete errored). The driver reboots on
     /// success (a wiped card can't return to a menu), so only failure reports
-    /// back — the wizard shows it on the reset menu to retry.
+    /// back — the wizard shows it on the reset menu to retry. Also reported when
+    /// the dedicate whole-card wipe (`Effect::WipeCard`) fails — the wizard
+    /// falls back to the consent screen so the user can retry or decline.
     WipeFailed(String),
+    /// The dedicate whole-card wipe (`Effect::WipeCard`) succeeded — the card is
+    /// blank and claimed, so the wizard begins the linear flow at Wi-Fi. (Factory
+    /// reset reboots on success instead, so it has no matching "done" event.)
+    WipeCardDone,
 }
 
 /// The wizard's current screen.
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Screen {
-    /// Waiting on `ScanWifi` (the first screen on a blank card).
+    /// Consent gate — the first screen on a blank/foreign card the person
+    /// brought themselves (see [`Wizard::adopt_blank_card`]). Enter erases the
+    /// card and dedicates it to Typoena ([`Effect::WipeCard`] → Wi-Fi); Esc
+    /// declines ([`Effect::Decline`]) and the driver halts without touching it.
+    Consent,
+    /// Waiting on `ScanWifi` (the first screen on an already-claimed blank card).
     WifiScanning,
     /// Picking an SSID from the scan. Typing filters; Enter selects (or
     /// rescans when nothing matches); Esc drops to manual entry for a hidden
@@ -243,6 +263,25 @@ impl Wizard {
         Wizard::resume(conf::Conf::default())
     }
 
+    /// First boot on a blank card the person brought themselves: gate on
+    /// consent before touching it. The driver picks this over [`resume`] when
+    /// the card carries no `typoena.conf` and no `/sd/repo` — a genuine blank or
+    /// foreign card. Accepting erases the card and dedicates it to Typoena, then
+    /// runs the normal Wi-Fi → sign-in → clone flow; declining halts without
+    /// writing anything. Resume-after-power-pull and `:setup` never land here —
+    /// once the flow writes any conf field the card is no longer blank.
+    pub fn adopt_blank_card() -> Wizard {
+        Wizard {
+            conf: conf::Conf::default(),
+            screen: Screen::Consent,
+            notice: None,
+            show_pass: true,
+            mode: Mode::FirstBoot,
+            dirty: false,
+            repo_on_disk: None,
+        }
+    }
+
     /// The conf as built so far — the driver reads this on `Effect::Finish`
     /// to hand the completed config to the normal boot path.
     pub fn conf(&self) -> &conf::Conf {
@@ -344,6 +383,19 @@ impl Wizard {
         // `&mut self.screen` match below without a second borrow of `self`.
         let setup = self.mode == Mode::Setup;
         match &mut self.screen {
+            Screen::Consent => match k {
+                // Accept: dedicate the card. Erase it, then start Wi-Fi. Reuses
+                // the Wiping screen; the driver reports back `WipeCardDone`.
+                Key::Enter => {
+                    self.screen = Screen::Wiping {
+                        progress: String::from("erasing the card"),
+                    };
+                    vec![Effect::WipeCard]
+                }
+                // Decline: leave the card untouched and stop.
+                Key::Escape => vec![Effect::Decline],
+                _ => vec![],
+            },
             Screen::WifiEdit { field } => {
                 let f = if *field == 0 {
                     conf::Field::WifiSsid
@@ -845,14 +897,24 @@ impl Wizard {
                 self.pending().into_iter().collect()
             }
             Event::WipeFailed(reason) => {
-                // A partial wipe still reads as unconfigured at boot, so the
-                // conf is deleted last; a mid-wipe failure here means little
-                // was lost. Back to the menu with the reason so it can retry.
-                self.notice = Some(format!("reset failed: {reason}"));
-                self.screen = Screen::SetupMenu {
-                    sel: SETUP_WIPE_ROW,
+                // A partial wipe still reads as unconfigured at boot, so nothing
+                // boots half-erased. `:setup` factory reset returns to the menu
+                // to retry; a first-boot dedicate wipe returns to the consent
+                // screen so the user can retry or decline.
+                self.notice = Some(format!("erase failed: {reason}"));
+                self.screen = if self.mode == Mode::Setup {
+                    Screen::SetupMenu {
+                        sel: SETUP_WIPE_ROW,
+                    }
+                } else {
+                    Screen::Consent
                 };
                 vec![]
+            }
+            Event::WipeCardDone => {
+                // Card erased and dedicated — begin the linear flow at Wi-Fi.
+                self.screen = Screen::WifiScanning;
+                self.pending().into_iter().collect()
             }
         }
     }
@@ -874,6 +936,13 @@ impl Wizard {
         };
 
         match &self.screen {
+            Screen::Consent => {
+                line(f, 0, "Make this your Typoena card?", ink);
+                line(f, 2, "  This will ERASE everything on the SD card", ink);
+                line(f, 3, "  and set it up for Typoena.", ink);
+                line(f, 5, "  This cannot be undone.", ink);
+                hint(f, "Enter erases & sets up - Esc cancels");
+            }
             Screen::WifiEdit { field } => {
                 line(f, 0, "Welcome to Typoena - Wi-Fi", ink);
                 let pw = if self.show_pass {

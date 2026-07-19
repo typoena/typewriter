@@ -723,3 +723,54 @@ fn wrap_words_hard_splits_an_overlong_word() {
     assert!(lines.iter().all(|l| l.chars().count() <= 74));
     assert_eq!(lines.concat(), long);
 }
+
+/// A blank card the person brought opens on the consent gate and waits for a
+/// key — nothing is scanned or touched until they accept.
+#[test]
+fn blank_card_gates_on_consent() {
+    let w = Wizard::adopt_blank_card();
+    // Unlike `first_boot()` (which pends ScanWifi), consent waits for a choice.
+    assert_eq!(w.pending(), None);
+    // And it renders without panicking.
+    let mut f = Frame::new_white();
+    w.draw_into(&mut f);
+}
+
+/// Accepting the consent erases the whole card, then — once the driver reports
+/// the wipe done — walks into the normal Wi-Fi scan.
+#[test]
+fn consent_accept_wipes_then_starts_wifi() {
+    let mut w = Wizard::adopt_blank_card();
+    assert_eq!(w.key(Key::Enter), vec![Effect::WipeCard]);
+    // Driver finished the wipe → the linear flow begins at Wi-Fi.
+    assert_eq!(w.event(Event::WipeCardDone), vec![Effect::ScanWifi]);
+}
+
+/// Declining leaves the card untouched: the wizard asks the driver to abort,
+/// and (crucially) emits no wipe/write effect.
+#[test]
+fn consent_decline_aborts() {
+    let mut w = Wizard::adopt_blank_card();
+    assert_eq!(w.key(Key::Escape), vec![Effect::Decline]);
+}
+
+/// A failed wipe drops back to the consent screen (first-boot mode), not the
+/// `:setup` reset menu — proven by the consent Enter still emitting WipeCard.
+#[test]
+fn consent_wipe_failure_returns_to_consent() {
+    let mut w = Wizard::adopt_blank_card();
+    assert_eq!(w.key(Key::Enter), vec![Effect::WipeCard]);
+    assert!(w.event(Event::WipeFailed("FR_DENIED".into())).is_empty());
+    // Back on consent: Enter retries the wipe (a menu would emit nothing here).
+    assert_eq!(w.key(Key::Enter), vec![Effect::WipeCard]);
+}
+
+/// The consent screen and the erase-in-progress screen both render.
+#[test]
+fn consent_screens_draw() {
+    let mut f = Frame::new_white();
+    let mut w = Wizard::adopt_blank_card();
+    w.draw_into(&mut f); // consent
+    w.key(Key::Enter); // → Wiping
+    w.draw_into(&mut f); // erasing
+}
