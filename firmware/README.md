@@ -8,10 +8,10 @@ context.
 ## Current state
 
 **Modal editor (vim modes) — modes verified 2026-07-05.** The firmware is now a
-small vim-style modal text editor. [`src/editor.rs`](src/editor.rs) owns the
+small vim-style modal text editor. The [`editor` crate](../editor/src/lib.rs) owns the
 buffer, caret, motions, and per-mode rendering; [`src/main.rs`](src/main.rs) is
 the hardware loop that drains keystrokes, redraws, and picks a refresh strategy;
-[`src/usb_kbd.rs`](src/usb_kbd.rs) decodes editing chords and a dual-role Caps
+[`src/drivers/keyboard_usb.rs`](src/drivers/keyboard_usb.rs) decodes editing chords and a dual-role Caps
 key. The buffer is pure ASCII, so a byte offset doubles as the caret's character
 index (Tab expands to spaces on insert).
 
@@ -67,9 +67,9 @@ task stack for the mbedtls handshake — a one-time esp-idf reconfigure on the
 next build.
 
 **Spike 3 — SD card (FAT) on dedicated SPI3: verified 2026-07-11.** A separate
-binary — [`src/bin/sd_fat.rs`](src/bin/sd_fat.rs), flashed with `just flash-sd` —
-is now a thin on-device harness over the real
-[`firmware::persistence`](src/persistence.rs) module: it mounts the card, reports
+binary — [`src/bin/sd_bench.rs`](src/bin/sd_bench.rs), flashed with `just flash-bench` —
+is a thin on-device harness over the real SD storage adapter
+([`src/infrastructure/storage_sd.rs`](src/infrastructure/storage_sd.rs), `app::Storage`): it mounts the card, reports
 FAT usage, and round-trips an atomic save/load (write `*.tmp` → fsync → unlink →
 rename → read-back). Per ADR-012 the SD runs on its **own SPI3 host** —
 **SCK 14 · MOSI 15 · MISO 13 · SD CS 10** — leaving the EPD alone on SPI2.
@@ -85,21 +85,21 @@ atomic round-trip byte-identical. Two findings baked into the code:
   [Spike 3 postmortem](../docs/postmortems/2026-07-05-spike3-sd-cmd59.md).
 - **FatFS rename ≠ POSIX rename.** `f_rename` won't overwrite an existing
   target (returns `FR_EXIST`), so the atomic save unlinks the destination first.
-  `firmware::persistence` pairs this with `*.tmp` boot-recovery
-  (`Storage::recover`): if a `*.tmp` is found _alongside_ the target the crash
+  `storage_sd` pairs this with `*.tmp` boot-recovery (`recover` at mount): if a
+  `*.tmp` is found _alongside_ the target the crash
   may have been mid-write, so it keeps the committed file and discards the tmp;
   it only promotes the tmp when the target was already unlinked. Long filenames
   (`CONFIG_FATFS_LFN_HEAP`) are required for the two-dot `*.md.tmp` name.
 
 **Arbitration resolved (ADR-012):** the EPD driver holds an exclusive SPI2 lock
-for its whole lifetime, and persistence runs on its own thread, so a shared bus
+for its whole lifetime, and storage runs on its own thread, so a shared bus
 would need an EPD rewrite plus a cross-thread mutex on the save path. Instead the
-SD gets its own SPI3 — the EPD stays untouched, no arbitration. Remaining before
-persistence lands in `main.rs`: wire the atomic save (unlink-then-rename +
-`*.tmp` boot-recovery) into a `persistence` module.
+SD gets its own SPI3 — the EPD stays untouched, no arbitration. The atomic save
+(unlink-then-rename + `*.tmp` boot-recovery) has since landed as the `storage_sd`
+adapter behind `app::Storage`.
 
 **Spike 5 — partial refresh + typing: verified 2026-07-04.** `main.rs` wires
-the keyboard to the panel: [`src/usb_kbd.rs`](src/usb_kbd.rs) feeds decoded
+the keyboard to the panel: [`src/drivers/keyboard_usb.rs`](src/drivers/keyboard_usb.rs) feeds decoded
 key-downs (US layout, edge-detected) into a queue, and the main loop keeps a
 wrapped, scrolling text buffer that it draws with a **partial refresh**
 (`Epd::display_frame_partial`) per keystroke batch, plus a periodic full
@@ -110,7 +110,7 @@ partial refresh (drive only the edited line's rows) to cut per-keystroke
 latency.
 
 **Spike 4 — USB host keyboard: verified 2026-07-04.**
-[`src/usb_kbd.rs`](src/usb_kbd.rs) drives the ESP-IDF USB Host Library directly
+[`src/drivers/keyboard_usb.rs`](src/drivers/keyboard_usb.rs) drives the ESP-IDF USB Host Library directly
 through the raw `esp-idf-sys` bindings (no managed HID class driver), enumerates
 an attached keyboard, claims the boot-keyboard interface, switches it to boot
 protocol, and polls the interrupt-IN endpoint — decoding each 8-byte report into
@@ -124,7 +124,7 @@ DevKitC-1 v1.0 (keep a 5 V power cable only as a brownout fallback for
 higher-power/RGB devices).
 
 **Spike 2 — EPD: verified 2026-07-04.** The GDEY0579T93 e-paper panel is
-driven through the thin dual-SSD1683 driver in [`src/epd.rs`](src/epd.rs)
+driven through the thin dual-SSD1683 driver in [`src/drivers/screen_epd.rs`](src/drivers/screen_epd.rs)
 (ported from GxEPD2's `GxEPD2_579_GDEY0579T93`). Verified on the bench rig over
 4 MHz SPI:
 
