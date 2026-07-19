@@ -28,11 +28,13 @@ fn main() {
     // runtime and prints a clear message, so the *editor* build never has to
     // carry Wi-Fi creds. Source them from firmware/.env (loaded by `just`).
     //
-    // The TW_REMOTE_URL / TW_GH_USER / TW_PAT / TW_AUTHOR_* vars back Spike 7's
-    // on-device push (src/bin/git_push.rs). env!() embeds a value only in a
-    // binary that references it, so the editor binary carries none of these.
-    // NOTE: TW_PAT ends up in the git_push image — fine for the bench spike, but
-    // a product must not bake the PAT into flash (ADR-005).
+    // The TW_REMOTE_URL / TW_GH_USER / TW_TOKEN / TW_AUTHOR_* vars back the
+    // product firmware's git publish config (src/infrastructure/net.rs) as the
+    // `BAKED_*` fallbacks for the card's typoena.conf. env!() bakes a value only
+    // into a binary that references it, so the bench bins carry none of these.
+    // NOTE: a baked TW_TOKEN lands in the flash image — fine for a personal dev
+    // flash, but a shipped product must not bake the token (ADR-005); the
+    // card-provisioned typoena.conf is the real path.
     for var in [
         "TW_WIFI_SSID",
         "TW_WIFI_PASS",
@@ -55,15 +57,15 @@ fn main() {
         }
     }
 
-    // A git-feature build with an empty publish config used to be refused here
+    // A full build with an empty publish config used to be refused here
     // (env!() only bakes what `just` dotenv-loads from firmware/.env; a bare
-    // `cargo build --features git` silently produced a firmware whose `:sync`
-    // could never work — bit the 2026-07-13 flash). Since the runtime conf
+    // `cargo build --features full` silently produced a firmware whose `:gp` /
+    // `:gl` could never work — bit the 2026-07-13 flash). Since the runtime conf
     // (v0.9 onboarding slice 0) the card's /sd/typoena.conf overrides the
-    // baked values per field, so an unbaked git build is legitimate — it just
+    // baked values per field, so an unbaked full build is legitimate — it just
     // needs a provisioned card. Warn instead of panic: the dev-flash foot-gun
     // stays visible, the card-provisioned path stays buildable.
-    if std::env::var("CARGO_FEATURE_GIT").is_ok() {
+    if std::env::var("CARGO_FEATURE_FULL").is_ok() {
         let missing: Vec<&str> = ["TW_WIFI_SSID", "TW_REMOTE_URL", "TW_GH_USER", "TW_TOKEN"]
             .into_iter()
             .filter(|v| {
