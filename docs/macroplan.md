@@ -79,6 +79,13 @@ delivered = 2026-07-17
 learning = "Delivered same-day — an unplanned insert after v0.7, specced/built/host-tested/on-device-verified in one session (firmware 0.7.5, 5 focus + 245 editor + 29 keymap tests). Silent 25-min block on a monotonic clock with no live countdown (e-ink can't show one cheaply); the rest card drops at the next typing pause, or a +2 min grace cap — proven on device when a continuous-typing block force-broke at 27 s (25 + 2). Resume/quit moved from a bare c / q+Esc to the Ctrl-C / Ctrl-Q chords after a bench run judged a single key too easy to fumble behind the full-screen curtain; the host also drops the rest of the key batch on exit so a bump can't reach the buffer. :focusdebug (25-second clock) made the same-day on-device check practical."
 
 [[feature]]
+name = "v0.7.7 OTA firmware update"
+start = 2026-07-19
+original = 2026-07-19
+delivered = 2026-07-19
+learning = "Delivered 2026-07-19 — an unplanned insert that RESOLVES the v1.x 'firmware auto-update' open question (raised 2026-07-14) well ahead of its pre-v1.0 deadline. `:update` GETs typoena.dev/firmware/latest.txt and, if newer, streams typoena-<ver>.bin into the inactive slot of an A/B layout (partitions-ota.csv: factory + ota_0 + ota_1 + otadata) via esp-idf OTA, then reboots into it. Proven on hardware across two back-to-back installs (0.7.7→0.7.8→0.7.9, exercising both slot directions). The load-bearing risk was device-side TLS, settled by git.apoena.dev's LE→ISRG Root X1 being in the esp-idf FULL CA bundle (validated on-device, twice). Release hosting was SPLIT after weighing one-platform: the installer stays on GitHub (its /releases/latest/download shortcut, no token), firmware releases live on Gitea git.apoena.dev — the host the device's TLS must trust; nginx on typoena.dev 302-redirects the .bin to the Gitea release asset so binaries never enter the site repo, and `just publish-firmware` cuts the release + writes latest.txt (commit-first for a reproducible tag). A/B rollback (CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE) is enforced on customer units by `just ship`. The 0.7.9 payload that proved it also shipped :about (a version splash), :update naming the running version, and the active filename in the side panel — firmware now 0.7.9."
+
+[[feature]]
 name = "v0.8 battery + sleep"
 start = 2026-11-02
 original = 2026-11-30
@@ -99,7 +106,7 @@ week = 2026-06-29
 requires = ["v0.1 it writes, it pushes"]
 ```
 
-## Status — synced 2026-07-17
+## Status — synced 2026-07-19
 
 The editor **core** has been built 2–3 versions ahead of the device
 **releases**, and is now **extracted into a host-testable `editor` crate** (plus
@@ -160,6 +167,16 @@ same-day insert specced/built/verified in one session: a silent-timer Pomodoro
 the next typing pause, dismissed by the `Ctrl-C` (continue) / `Ctrl-Q` (quit)
 chords — the grace cap force-broke a continuous-typing block at 27 s on device.
 `:focusdebug` gives a 25-second clock for testing.
+**v0.7.7 OTA firmware update is DELIVERED 2026-07-19** (firmware now **0.7.9**),
+verified on-device across two back-to-back over-the-air installs
+(0.7.7→0.7.8→0.7.9). `:update` pulls a newer image from `typoena.dev/firmware`
+(nginx 302 → a Gitea release asset) into the inactive A/B slot and reboots into
+it — resolving the v1.x "firmware auto-update" open question. Release hosting is
+split: the installer stays on GitHub, firmware releases live on Gitea (the host
+the device's TLS trusts, via ISRG Root X1 in the esp-idf CA bundle). `just ship`
+enforces the rollback bootloader for customer units. Shipped alongside: the
+`:about` version splash, the version in the up-to-date notice, and the active
+filename in the side panel.
 
 Marks: `[x]` done in core · `[~]` partially done · `[ ]` not started. An
 inline `(✓)` marks the done half of a split item.
@@ -243,6 +260,19 @@ Unplanned same-day insert after v0.7, on the
 [v0.2.5](v0.2.5-international-input.md) `.5` precedent.
 Detail: [v0.7.5-focus-mode.md](v0.7.5-focus-mode.md).
 
+## v0.7.7 — OTA firmware update — [x]
+
+Over-the-air update: `:update` pulls a newer image from `typoena.dev/firmware`
+(nginx 302 → a Gitea release asset) into the inactive slot of an A/B partition
+layout (`partitions-ota.csv`) and reboots into it; `just publish-firmware` cuts
+the release + version pointer, `just ship` bakes the rollback bootloader for
+customer units. Installer releases stay on GitHub, firmware releases live on
+Gitea (the host the device's TLS trusts). Shipped with the `:about` version
+splash, the version named in the up-to-date notice, and the active filename in
+the side panel. **DELIVERED 2026-07-19** (firmware 0.7.9), verified on hardware
+across two back-to-back installs. Resolves the v1.x "firmware auto-update" open
+question (below); rationale there.
+
 ## v0.8 — Power: battery + sleep — [ ]
 
 Bench current-draw measurement, 18650 + charge board, per-sync Wi-Fi teardown,
@@ -268,19 +298,17 @@ Post-1.0 ideas, not committed to any release (10.3" panel, multiple remotes,
 writing stats, BLE-HID fallback, firmware auto-update). Detail:
 [v1.x-stretch.md](v1.x-stretch.md).
 
-**Firmware auto-update (open question, added 2026-07-14).** Devices now ship
-**pre-flashed** from manufacturing, and the [installer](../installer/DESIGN.md)
-only provisions the SD card — so field updates can't lean on a USB reflash. How
-a device pulls a new firmware build is unresolved; candidates:
-
-- **OTA over Wi-Fi** — the device fetches a signed image and self-flashes via
-  esp-idf OTA. Needs a dual-app partition layout (`ota_0`/`ota_1` + `otadata` —
-  a change from today's single-app + `storage` table), image signing/trust, a
-  version manifest with rollback, and somewhere to host images.
-- **SD-drop update** — a `firmware.bin` placed on the card (by a future
-  installer action) is verified + applied on boot. No OTA server, fits the
-  SD-centric model, but still needs signing + a safe apply/rollback path.
-
-Either way it's a **device-side** concern, not the installer's job. The
-mechanism should be settled **before v1.0 hardware is mass-flashed**: OTA needs
-two app slots, so the partition layout is locked in at flash time.
+**Firmware auto-update — RESOLVED + DELIVERED 2026-07-19** (shipped as **v0.7.7**,
+well ahead of the pre-v1.0 deadline). Chose **OTA over Wi-Fi**: `:update` fetches a
+version manifest (`typoena.dev/firmware/latest.txt`) and, if newer, streams
+`typoena-<ver>.bin` into the inactive slot of an A/B layout (`partitions-ota.csv`:
+factory + `ota_0` + `ota_1` + `otadata`) via esp-idf OTA and reboots into it.
+`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE` gives rollback, enforced on customer units
+by `just ship` (which refuses to flash without the rollback bootloader). Images are
+hosted on the **Gitea** release for `typoena/typewriter` (git.apoena.dev — the
+device validates its LE→ISRG Root X1 chain against the esp-idf FULL CA bundle);
+nginx on typoena.dev 302-redirects the `.bin` there, so binaries never touch the
+site repo. The **SD-drop alternative wasn't needed.** Not yet done: image signing
+(the Gitea release + HTTPS is the trust boundary for now) — a v1.0/v1.x hardening
+item. Verified on hardware across two back-to-back installs; see the v0.7.7 entry
+above.
