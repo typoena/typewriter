@@ -7,7 +7,7 @@ use esp_idf_svc::hal::spi::config::{Config, DriverConfig};
 use esp_idf_svc::hal::spi::{Dma, SpiBusDriver, SpiDriver};
 use esp_idf_svc::hal::units::FromValueType;
 
-use app::{file_stem, FileIndex, Panel, Runtime};
+use app::{FileIndex, Panel, Runtime};
 use display::Frame;
 use editor::{Editor, Prefs, Scope, Snippets, LOCAL_DIR, PREFS_PATH, SNIPPETS_PATH};
 use firmware::drivers::clock_esp::{self, EspClock};
@@ -186,10 +186,6 @@ fn main() -> anyhow::Result<()> {
     // is set). Boots in Normal mode with the caret on the last character (the
     // resume point) — press `i`/`a`/`o` to write.
     let mut ed = Editor::with_file(boot_path.clone(), boot_scope, saved);
-    // Confirm the boot-load on the panel (no serial console in normal use):
-    // "loaded <name>" using the note's filename without its suffix (notes.md ->
-    // notes). Cleared by the first keystroke, like any snackbar.
-    ed.set_notice(format!("loaded {}", file_stem(&boot_path)));
     ed.set_prefs(prefs);
     // The pure editor core has no build metadata; feed it the running firmware
     // version so `:about` can show it (same const the OTA check compares).

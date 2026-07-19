@@ -377,8 +377,6 @@ impl<S: Screen> Runtime<S> {
         match self.storage.load_path(&path) {
             Ok(text) => {
                 log::info!("opened {path} ({} bytes, {scope:?})", text.len());
-                let name = file_stem(&path);
-                self.ed.set_notice(format!("loaded {name}"));
                 self.ed.install_loaded(path, scope, text);
             }
             Err(e) => {
