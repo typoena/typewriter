@@ -355,6 +355,31 @@ wifi-seed sd_volume="":
     echo "seeded $conf (Wi-Fi only) — wizard resumes at sign-in" >&2
     just _eject "$vol"
 
+# DEBUG-ONLY: reproduce the "foreign card" boot behaviour. Reformats a card to a
+# blank FAT32 volume and drops a single hello.txt ("Hello World") — nothing else.
+# That is ISO with an unrelated card inserted by mistake: it mounts, but has no
+# repo/, no typoena.conf and no .typoena-* markers, so the boot gate reads it as
+# unconfigured (main.rs) and enters the first-boot wizard, which powers the radio
+# up ("looking for Wi-Fi"). Reuses `wipe` (removable-only detection + y/N confirm,
+# so it can't touch the internal disk), then writes the file and ejects. Assumes a
+# single card in the reader (like `wifi-seed`); name it if more than one removable
+# volume is mounted:
+#   just repro-foreign-card
+#   just repro-foreign-card SDCARD
+repro-foreign-card sd_volume="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -n "{{sd_volume}}" ]; then
+        just wipe "{{sd_volume}}" --no-eject
+    else
+        just wipe --no-eject
+    fi
+    # The wipe relabels the card, so re-resolve by auto-detect, not the old name.
+    vol="$(just _card | tail -n1)"
+    printf 'Hello World\n' > "$vol/hello.txt"
+    echo "wrote $vol/hello.txt — card now mimics a foreign (non-Typoena) card" >&2
+    just _eject "$vol"
+
 # Reformat a card to an empty FAT32 volume and eject — a blank slate for testing
 # the first-boot wizard (no repo/, no typoena.conf, no .typoena-dirty). Runs the
 # installer's headless `--wipe`: it prints exactly what's about to be erased
