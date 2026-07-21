@@ -129,6 +129,52 @@ importance column, §3's H8/H12 ordering), both fixed and ledgered.
 
 ---
 
+## D2 — Refresh area is not a latency lever
+
+**Opened 2026-07-21 · OPEN.**
+
+**The claim** (the bench): H2 "refresh area per keystroke" is priced as a top
+*latency* characteristic — §6 ranks it #1, and its basement Σ (177) sits second
+only to H1 — on the premise that a smaller refreshed region is faster. The
+2026-07-21 custom-LUT bench shows refresh time is **area-independent**: a
+full-area partial (~272 rows) and a one-line windowed band (~20 rows) land within
+~35 ms of each other, because the SSD1683 runs the *whole* waveform regardless of
+how many rows carry new pixels. Windowing the Y-band saves only the SPI-transfer
+term (~0.34 ms/row); the latency lever is the waveform LUT (its FR frame-rate
+byte, 420 → 265 ms), not the area. So H2's rank rests on a premise that is false
+on this panel.
+
+**What the house says instead:** H2 is the #1 §6 budget row and a top-Σ
+characteristic, scored strong against the sub-second-typing WHATs as if shrinking
+the refreshed region is what buys responsiveness.
+
+**Evidence:** [`tradeoff-curves/epd-refresh-latency.md`](tradeoff-curves/epd-refresh-latency.md)
+— windowed one-line band vs full-area within ~35 ms across the whole sweep; the FR
+byte alone moves latency 420 → 265 ms; phase-count trims and the charge-pump
+keep-hot lever were both near-noops. This only confirms the area-independent cost
+model already in that doc's header (the 2026-07-16 gate-scan spike had refuted
+MUX-proportional timing; the custom-LUT work refutes area-proportional timing the
+same way).
+
+**The reconciliation (H2 survives; its *reason* changes).** Windowing is still
+worth doing — but for **visual disturbance**, not speed: a one-line band flickers
+only the touched line instead of strobing the whole page, a real flow/ghosting
+quality, and it bounds the SPI term and eases the H3 full-refresh cadence. H2 is a
+legitimate, *met* target; it is simply mis-filed as a latency driver. The honest
+fix is to re-read H2 as a disturbance-containment characteristic and let the
+latency WHATs lean on the waveform (H1) instead — which drops H2's
+latency-weighted rank while keeping the row.
+
+**Trigger to resolve:** the next House-1 re-score taken for its own reasons must
+decide whether H2's cells point at latency or at disturbance, and recompute the
+basement Σ / §6 rank accordingly. Early trigger: `fast_partial` graduating to
+default — at that point typing latency is provably owned by the custom waveform,
+and any residual H2 latency weighting is dead. Recorded from the
+[§8 ledger](qfd-changelog.md#8-inconsistencies-spotted-and-fixed) entry that
+flagged it.
+
+---
+
 ## How to keep this page honest
 
 - One entry per challenge, D-numbered, dated, stamped OPEN or RESOLVED,

@@ -296,7 +296,8 @@ Quality carry-over: **graduate the fast-partial typing waveform** (custom `0x32`
 LUT, ~495 → ~265 ms per keystroke) from the default-off `fast_partial` opt-in to
 on-by-default — the last lever on H1, the one unmet v0.1 latency target. Landed on
 `main` 2026-07-21 behind the flag; gated on a longevity + cold soak (`0x08` spends
-the vendor drive margin). Target tracked in [`qfd.md`](qfd.md). Note: the same
+the vendor drive margin). Target tracked in [`qfd.md`](qfd.md); bench data in
+[`tradeoff-curves/epd-refresh-latency.md`](tradeoff-curves/epd-refresh-latency.md). Note: the same
 custom waveform is a candidate for the **≤ 3 s boot splash lever** — the boot's
 ~630 ms full-area partial measured ~300 ms on the custom LUT at the bench — if it
 validates cold.

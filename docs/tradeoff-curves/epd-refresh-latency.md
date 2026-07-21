@@ -13,7 +13,8 @@
 > scroll/gutter spikes.
 >
 > Tradeoff-curves index: [`README.md`](README.md). Docs index:
-> [`../README.md`](../README.md). Driver:
+> [`../README.md`](../README.md). QFD budget (§6, H1/H4 rows):
+> [`../qfd-budget.md`](../qfd-budget.md#6-critical-performance-budget). Driver:
 > [`../../firmware/src/epd.rs`](../../firmware/src/epd.rs). Bench origin:
 > Spikes 5 + 8 ([`../spikes.md`](../spikes.md)); measured points from the
 > 2026-07-16

@@ -383,8 +383,8 @@ README, the product/technical docs, and [ADR-003] are all updated to ~13 lines
   (Watched/Verdict/fallback) and the hub's H1 open-gap bullet; data in
   [`tradeoff-curves/epd-refresh-latency.md`](tradeoff-curves/epd-refresh-latency.md).
   The dead "windowed erase" fallback was retired with it. **Open follow-on:** this
-  undercuts the premise that H2 (refresh area) is a latency driver — a
-  [house-vs-product](house-vs-product.md) question, not re-scored here.
+  undercuts the premise that H2 (refresh area) is a latency driver — now opened as
+  [house-vs-product](house-vs-product.md#d2--refresh-area-is-not-a-latency-lever) **D2**.
 
 [ADR-001]: adr.md#adr-001-language-and-runtime--rust-on-esp-idf-rs-std
 [ADR-002]: adr.md#adr-002-ui-strategy--custom-widgets-on-embedded-graphics-not-ratatui
