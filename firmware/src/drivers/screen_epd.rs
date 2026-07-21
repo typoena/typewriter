@@ -95,24 +95,26 @@ const RAM_SETTLE_MS: u32 = 0;
 /// This array plus [`Epd::update_part_fast`]'s register sequence is a faithful port
 /// of the vendor recipe (`EPD_Part_init_LUT` / `Epaper_Partial`), voltages included.
 ///
-/// **NOT YET VALIDATED ON HARDWARE.** Before any longevity soak: confirm both panel
-/// halves paint identically (a mismatch ⇒ the slave `0x32|0x80` write or the cascade
-/// is wrong), read the actual BUSY time off the `windowed-fast` trace, and watch for
-/// residual ghosting after a full refresh (⇒ back this out). Gated behind the
-/// `fast_partial` pref (default off); a full refresh reloads the OTP waveform, so
-/// nothing here persists past the next clean pass.
-// Trimmed from Good Display's `LUT_DATA_part` (preserved verbatim in
-// `reference/gdey0579t93-fp-lut/Display_EPD_W21.c`) to cut per-keystroke latency.
-// Each 7-byte row is one phase: byte[0] = frame count, byte[1..3] = packed 2-bit
-// level codes, byte[5] = repeat. Waveform BUSY time ∝ the number of active
-// (non-zero-frame) rows. Good Display's own 快刷/"fast" waveform (`LUT_DATA1`) speeds
-// up by zeroing whole phase-rows (frame count 0x01 → 0x00), so we do the same here.
+/// **VALIDATED ON HARDWARE (2026-07-21).** Both panel halves paint identically,
+/// windowed-fast BUSY ~266 ms (vs the ~495 ms factory partial floor), ink solid
+/// black, no ghosting after the periodic full refresh — full write-up and the
+/// FR-byte sweep in `docs/tradeoff-curves/epd-refresh-latency.md`. Still gated behind
+/// the `fast_partial` pref (default off): a longevity soak and a cold-temperature
+/// check are outstanding — the speed comes from spending the vendor's drive margin,
+/// which shrinks when cold. A full refresh reloads the OTP waveform, so nothing here
+/// persists past the next clean pass.
+// Adapted from Good Display's `LUT_DATA_part` (preserved verbatim in
+// `reference/gdey0579t93-fp-lut/Display_EPD_W21.c`). Each 7-byte row is one phase:
+// byte[0] = frame count, byte[1..3] = packed 2-bit level codes, byte[5] = repeat.
 //
-// Iteration 1 (2026-07-21): the weakest *tail* phase of each of the 4 groups — the
-// near-noop `0x01,0x01,0x00…` single-sub-step follow-ups — is zeroed (marked TRIMMED),
-// taking 12 active phases → 8 (~⅓ fewer frames) while keeping every real drive phase.
-// If the bench shows this still darkens with no new ghosting, next step is zeroing the
-// remaining `0x01,0x01` follow-ups (g1r1, g4r1) down to the 6 real drive phases.
+// The weakest tail phase of each of the 4 groups — the near-noop `0x01,0x01,0x00…`
+// single-sub-step follow-ups — is zeroed (marked TRIMMED). NOTE (bench 2026-07-21):
+// this phase-trim turned out to be a near-noop — it moved windowed-fast only
+// ~430→~420 ms (~2%), because BUSY time here is NOT proportional to active-phase count
+// (each phase ≈ 2.5 ms; phase count dominates *full* refreshes, not the short partial).
+// The real latency lever was the FR frame-rate byte below. The trim is kept only
+// because it's harmless; revert it for the pristine 12-phase vendor waveform if that's
+// ever preferred (re-validate darkening if you do).
 const FAST_PARTIAL_LUT: [u8; 233] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -161,6 +163,31 @@ const FAST_PARTIAL_LUT: [u8; 233] = [
 /// the factory partial's `0xFF` sets (which would overwrite `FAST_PARTIAL_LUT` with
 /// the OTP waveform). Matches Waveshare's `TurnOnDisplayPart` for this family.
 const FAST_PART_UPDATE: u8 = 0xCF;
+
+/// Keep-hot variant of [`FAST_PART_UPDATE`]: `0xCF` minus the disable-analog (`0x02`)
+/// and disable-clock (`0x01`) bits, so the charge pump and oscillator stay powered
+/// after the refresh instead of ramping down. The next fast partial then skips the
+/// booster soft-start (bit `0x40`, enable-analog, is a no-op when it's already on).
+const FAST_PART_UPDATE_HOT: u8 = 0xCC;
+
+/// EXPERIMENT (2026-07-21) — "keep-hot" charge-pump lever, easy to revert.
+///
+/// Each fast partial powers the ±15 V charge pump up (booster soft-start) and back
+/// down via [`FAST_PART_UPDATE`] (`0xCF`), paying that ramp on *every* keystroke.
+/// With this `true`, fast partials use [`FAST_PART_UPDATE_HOT`] (`0xCC`) instead: the
+/// pump stays energized, so keystrokes 2..N of a burst skip the ramp (reMarkable
+/// A2-style). It can't stay hot indefinitely — the every-32 full refresh and any
+/// factory/idle refresh (`0xFF`/full, which carry the power-down bits) bring it back
+/// down on a pause or streak end, so hot time is bounded to an active typing burst.
+///
+/// **What it tests:** does windowed-fast drop from keystroke #2 onward (i.e. was the
+/// ramp a real share of the ~266 ms), with no band corruption from writing registers
+/// while powered and no extra ghosting over a ~32-partial streak? **Cost if kept:**
+/// the pump draws current while typing and holding the rails is a mild
+/// longevity/thermal tax — a proper idle power-off is needed before this graduates
+/// past a bench test. **Revert:** flip to `false` (restores exact `0xCF` behaviour),
+/// or revert the commit.
+const FAST_PART_KEEP_HOT: bool = true;
 
 pub struct Epd<'d> {
     spi: SpiBusDriver<'d, SpiDriver<'d>>,
@@ -449,7 +476,11 @@ impl<'d> Epd<'d> {
         self.cmd(0x21)?; // display update control 1
         self.data(&[0x00, 0x10])?; // RED normal, cascade
         self.cmd(0x22)?; // display update control 2
-        self.data(&[FAST_PART_UPDATE])?; // 0xCF: display with the LUT just written
+        // 0xCF: display with the LUT just written, then power the pump down. With
+        // FAST_PART_KEEP_HOT, use 0xCC (no power-down) so the next keystroke's refresh
+        // reuses the already-ramped pump. See FAST_PART_KEEP_HOT.
+        let trigger = if FAST_PART_KEEP_HOT { FAST_PART_UPDATE_HOT } else { FAST_PART_UPDATE };
+        self.data(&[trigger])?;
         self.cmd(0x20)?; // master activation
         self.wait_while_busy(2000)?;
         Ok(())
