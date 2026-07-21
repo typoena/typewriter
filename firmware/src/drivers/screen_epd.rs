@@ -170,24 +170,23 @@ const FAST_PART_UPDATE: u8 = 0xCF;
 /// booster soft-start (bit `0x40`, enable-analog, is a no-op when it's already on).
 const FAST_PART_UPDATE_HOT: u8 = 0xCC;
 
-/// EXPERIMENT (2026-07-21) — "keep-hot" charge-pump lever, easy to revert.
+/// "Keep-hot" charge-pump lever — **bench-tested 2026-07-21, no win, left off.**
 ///
 /// Each fast partial powers the ±15 V charge pump up (booster soft-start) and back
-/// down via [`FAST_PART_UPDATE`] (`0xCF`), paying that ramp on *every* keystroke.
-/// With this `true`, fast partials use [`FAST_PART_UPDATE_HOT`] (`0xCC`) instead: the
-/// pump stays energized, so keystrokes 2..N of a burst skip the ramp (reMarkable
-/// A2-style). It can't stay hot indefinitely — the every-32 full refresh and any
-/// factory/idle refresh (`0xFF`/full, which carry the power-down bits) bring it back
-/// down on a pause or streak end, so hot time is bounded to an active typing burst.
+/// down via [`FAST_PART_UPDATE`] (`0xCF`). Setting this `true` switches fast partials to
+/// [`FAST_PART_UPDATE_HOT`] (`0xCC`), leaving the pump energized so keystrokes 2..N of a
+/// burst skip the ramp (reMarkable A2-style); the every-32 full refresh and any
+/// factory/idle refresh power it back down, bounding hot time to an active burst.
 ///
-/// **What it tests:** does windowed-fast drop from keystroke #2 onward (i.e. was the
-/// ramp a real share of the ~266 ms), with no band corruption from writing registers
-/// while powered and no extra ghosting over a ~32-partial streak? **Cost if kept:**
-/// the pump draws current while typing and holding the rails is a mild
-/// longevity/thermal tax — a proper idle power-off is needed before this graduates
-/// past a bench test. **Revert:** flip to `false` (restores exact `0xCF` behaviour),
-/// or revert the commit.
-const FAST_PART_KEEP_HOT: bool = true;
+/// **Tested on device and reverted.** With it on, windowed-fast stayed flat at ~240 ms
+/// regardless of key count, and — the decisive check — the first partial after a
+/// power-down full refresh (~239 ms) was no slower than mid-burst partials (~240 ms).
+/// There was no ramp penalty to skip: the ~240 ms is waveform BUSY, not charge-pump
+/// soft-start (consistent with the FR sweep, and it retires the old "the floor is all
+/// charge-pump ramp" guess). The screen stayed clean, so `0xCC` is safe — just pointless
+/// here, and keeping the pump hot costs rail draw on Insert-mode pauses and would need a
+/// real idle power-off to ship. Left wired as a one-line toggle for a future A/B.
+const FAST_PART_KEEP_HOT: bool = false;
 
 pub struct Epd<'d> {
     spi: SpiBusDriver<'d, SpiDriver<'d>>,
