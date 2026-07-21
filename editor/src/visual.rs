@@ -29,11 +29,16 @@ impl Editor {
                 self.exit_visual();
                 return;
             }
-            // Cmd-p works from every mode: drop the selection (as Esc would)
-            // and open the palette.
-            Key::Palette => {
+            // Cmd-p / Cmd-Shift-p work from every mode: drop the selection (as
+            // Esc would) and open the palette — the file list, or `>` command
+            // mode for Cmd-Shift-p.
+            Key::Palette | Key::CommandPalette => {
                 self.exit_visual();
-                self.open_palette();
+                if key == Key::CommandPalette {
+                    self.open_command_palette();
+                } else {
+                    self.open_palette();
+                }
                 return;
             }
             // Enter/Backspace/etc. carry no Visual meaning; drop any count.

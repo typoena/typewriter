@@ -167,7 +167,7 @@ impl Prefs {
     pub fn to_toml(&self) -> String {
         format!(
             "# Typoena editor preferences — hand-editable, git-tracked.\n\
-             # Edit here, or change live from the Cmd-P palette (type `>`).\n\
+             # Edit here, or change live from the command palette (Cmd-Shift-P).\n\
              save_on_idle = {}\n\
              format_on_save = {}\n\
              line_numbers = {}\n\

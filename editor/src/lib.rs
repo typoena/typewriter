@@ -728,10 +728,10 @@ impl Editor {
             self.snippet_stops.clear();
         }
 
-        // Cmd-p mid-change (e.g. during an insert session) aborts the `.`
-        // recording — a palette round-trip (file switch, `>` command) is not a
-        // repeatable edit, and replaying it from `.` would reopen the palette.
-        if key == Key::Palette {
+        // Cmd-p / Cmd-Shift-p mid-change (e.g. during an insert session) aborts
+        // the `.` recording — a palette round-trip (file switch, `>` command) is
+        // not a repeatable edit, and replaying it from `.` would reopen the palette.
+        if matches!(key, Key::Palette | Key::CommandPalette) {
             self.dot_recording = None;
         }
 
@@ -824,15 +824,20 @@ impl Editor {
             // without leaving Insert); unreachable here, but the match is
             // exhaustive.
             Key::Save => {}
-            // Cmd-p works from every mode: acts like Esc (ending the insert
-            // session, caret onto the last inserted char), then opens the
-            // palette. Closing it lands in Normal, as Esc would have.
-            Key::Palette => {
+            // Cmd-p / Cmd-Shift-p work from every mode: act like Esc (ending the
+            // insert session, caret onto the last inserted char), then open the
+            // palette — the file list, or `>` command mode for Cmd-Shift-p.
+            // Closing it lands in Normal, as Esc would have.
+            Key::Palette | Key::CommandPalette => {
                 self.mode = Mode::Normal;
                 if self.caret > self.line_start(self.caret) {
                     self.caret = self.prev_char(self.caret);
                 }
-                self.open_palette();
+                if key == Key::CommandPalette {
+                    self.open_command_palette();
+                } else {
+                    self.open_palette();
+                }
             }
             Key::Escape => {
                 self.mode = Mode::Normal;
@@ -894,10 +899,15 @@ impl Editor {
                 self.redo();
                 return;
             }
-            // Cmd-p: open the file palette (abandoning any pending command).
-            Key::Palette => {
+            // Cmd-p / Cmd-Shift-p: open the palette (abandoning any pending
+            // command) — the file list, or `>` command mode for Cmd-Shift-p.
+            Key::Palette | Key::CommandPalette => {
                 self.reset_pending();
-                self.open_palette();
+                if key == Key::CommandPalette {
+                    self.open_command_palette();
+                } else {
+                    self.open_palette();
+                }
                 return;
             }
             // Esc and other non-character events cancel any pending command.
@@ -1120,11 +1130,16 @@ impl Editor {
                 self.cmdline.clear();
                 self.mode = Mode::Normal;
             }
-            // Cmd-p works from every mode: abandon the half-typed `:`/`/` line
-            // (as Esc would) and open the palette.
-            Key::Palette => {
+            // Cmd-p / Cmd-Shift-p work from every mode: abandon the half-typed
+            // `:`/`/` line (as Esc would) and open the palette — the file list,
+            // or `>` command mode for Cmd-Shift-p.
+            Key::Palette | Key::CommandPalette => {
                 self.cmdline.clear();
-                self.open_palette();
+                if key == Key::CommandPalette {
+                    self.open_command_palette();
+                } else {
+                    self.open_palette();
+                }
             }
             Key::DeleteWord => {
                 // Readline Ctrl-W: drop trailing spaces, then the word before the
@@ -1161,7 +1176,7 @@ impl Editor {
             "inbox" | "in" => self.open_inbox_today(),
             "oldest" | "old" => self.open_oldest_inbox(),
             "delete" | "d" => self.request_delete(),
-            "settings" => self.open_settings(),
+            "settings" => self.open_command_palette(),
             "fmt" => self.format_buffer(),
             "pub" | "publish" => self.publish_active(),
             "w" | "wq" | "x" => self.write_active(),
@@ -1299,11 +1314,16 @@ impl Editor {
                 self.mode = Mode::Normal;
                 self.pending_g = false;
             }
-            // Cmd-p works from every mode; leaving View for the palette (and
-            // then Normal on close), exactly as Esc-then-Cmd-p would.
-            Key::Palette => {
+            // Cmd-p / Cmd-Shift-p work from every mode; leaving View for the
+            // palette (and then Normal on close), exactly as Esc-then-Cmd-p
+            // would — the file list, or `>` command mode for Cmd-Shift-p.
+            Key::Palette | Key::CommandPalette => {
                 self.pending_g = false;
-                self.open_palette();
+                if key == Key::CommandPalette {
+                    self.open_command_palette();
+                } else {
+                    self.open_palette();
+                }
             }
             _ => {}
         }

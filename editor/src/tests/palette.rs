@@ -580,6 +580,38 @@ fn settings_command_opens_the_palette_in_command_mode() {
 }
 
 #[test]
+fn cmd_shift_p_opens_the_palette_in_command_mode() {
+    // Cmd-Shift-P lands on the same `>` surface as `:settings`, one chord away.
+    let mut e = palette_editor(&["/sd/repo/notes.md"]);
+    e.handle(Key::CommandPalette);
+    assert_eq!(e.mode(), Mode::Palette);
+    assert!(e.palette_command_mode()); // `>` already set
+    assert_eq!(e.palette_command_matches().len(), PALETTE_CMDS.len());
+}
+
+#[test]
+fn cmd_shift_p_toggles_the_palette_closed() {
+    let mut e = palette_editor(&["/sd/repo/notes.md"]);
+    e.handle(Key::CommandPalette);
+    e.handle(Key::CommandPalette); // same chord closes
+    assert_eq!(e.mode(), Mode::Normal);
+}
+
+#[test]
+fn cmd_shift_p_opens_command_mode_from_insert_ending_the_session() {
+    // Like Cmd-P from Insert: end the session (caret onto the last inserted
+    // char), but land in `>` command mode rather than the file list.
+    let mut e = typed("hi");
+    e.handle(Key::CommandPalette);
+    assert_eq!(e.mode(), Mode::Palette);
+    assert!(e.palette_command_mode());
+    assert_eq!(e.caret, 1); // caret dropped onto the last inserted char, as Esc does
+    e.handle(Key::Escape);
+    assert_eq!(e.mode(), Mode::Normal); // closing lands in Normal, not back in Insert
+    assert_eq!(e.text, "hi");
+}
+
+#[test]
 fn draw_in_command_mode_does_not_panic() {
     let mut e = palette_type(&["/sd/repo/notes.md"], ">");
     let _ = e.draw(true);
@@ -789,4 +821,36 @@ fn e_command_is_retired() {
     ex(&mut e, "e /sd/repo/b.md");
     assert_eq!(e.path(), "/sd/repo/a.md"); // unchanged
     assert!(e.take_effects().is_empty()); // nothing queued
+}
+
+#[test]
+fn font_command_cycles_through_all_font_options() {
+    // Enter on the Font row rotates the pref through `FONT_OPTIONS` and wraps,
+    // like the other preset settings (theme/auto_sync).
+    let mut e = palette_type(&["/sd/repo/a.md"], ">font");
+    assert_eq!(e.prefs().font, "default");
+    e.handle(Key::Enter);
+    assert_eq!(e.prefs().font, "jetbrains-mono");
+    // The remaining options, then a wrap back to the head.
+    for _ in 0..(display::FONT_OPTIONS.len() - 1) {
+        e.handle(Key::Enter);
+    }
+    assert_eq!(e.prefs().font, "default");
+}
+
+/// Any ink (bit 0 = black) in the writing column (x < 600, clear of the side
+/// panel) across a pixel-row band — used to assert the font-preview row paints.
+fn writing_ink_in_band(frame: &display::Frame, y0: usize, y1: usize) -> bool {
+    let b = frame.bytes();
+    (y0..y1).any(|y| (0..600).any(|x| (b[y * display::FB_BYTES_W + x / 8] >> (7 - (x % 8))) & 1 == 0))
+}
+
+#[test]
+fn palette_previews_only_the_selected_font() {
+    // The Font row reserves the row above the hint (y 232..252 on the 272px panel)
+    // for a sample line in the selected font; other settings leave it blank.
+    let mut e = palette_type(&["/sd/repo/a.md"], ">font");
+    assert!(writing_ink_in_band(&e.draw(true), 232, 252), "Font row should show a preview");
+    let mut e = palette_type(&["/sd/repo/a.md"], ">theme");
+    assert!(!writing_ink_in_band(&e.draw(true), 232, 252), "non-font settings show no preview");
 }

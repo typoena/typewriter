@@ -156,10 +156,12 @@ impl Editor {
         self.palette_step = PaletteStep::List;
     }
 
-    /// `:settings` — open the palette straight into `>` command mode (the
-    /// settings list), so the prefs are reachable in one command instead of
-    /// `Cmd-P` then `>`. Same surface, same stay-open toggle behaviour.
-    pub(crate) fn open_settings(&mut self) {
+    /// Open the palette straight into `>` command mode (the command palette:
+    /// actions plus the live settings list), so it is reachable in one gesture
+    /// instead of `Cmd-P` then `>`. The shared landing point for both the
+    /// `:settings` command and the `Cmd-Shift-P` chord ([`Key::CommandPalette`]).
+    /// Same surface as `Cmd-P`, same stay-open toggle behaviour.
+    pub(crate) fn open_command_palette(&mut self) {
         self.mode = Mode::Palette;
         self.palette_query = ">".to_string();
         self.palette_sel = 0;
@@ -236,8 +238,8 @@ impl Editor {
                     self.palette_open_selected();
                 }
             }
-            // Esc, or Cmd-P again, closes the palette.
-            Key::Escape | Key::Palette => self.close_palette(),
+            // Esc, or either palette chord again, closes the palette.
+            Key::Escape | Key::Palette | Key::CommandPalette => self.close_palette(),
             // Redo has no meaning here; Cmd-S is handled in `handle` before
             // dispatch; Ctrl-C is a focus-break key. All no-ops in the palette
             // (unreachable/inert here, but the match must be exhaustive).
@@ -292,7 +294,7 @@ impl Editor {
                 self.close_palette();
                 self.new_file(&name);
             }
-            Key::Escape | Key::Palette => self.close_palette(),
+            Key::Escape | Key::Palette | Key::CommandPalette => self.close_palette(),
             // No list to move over in this step; Cmd-S is handled upstream in
             // `handle`, Ctrl-C is a focus-break key (both inert here, but the
             // match must be exhaustive).

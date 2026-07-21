@@ -42,6 +42,12 @@ pub enum Key {
     /// each first bailing out as Esc would); **inside** the palette the same
     /// chord closes it (toggle). Esc also closes.
     Palette,
+    /// Cmd+Shift+P — open the palette straight into `>` command mode (the command
+    /// palette: actions plus the live settings list), VS Code "Show All Commands"
+    /// style. The same surface the `:settings` command reaches, one chord away.
+    /// Like [`Palette`](Key::Palette) it works from every mode and the same chord
+    /// (or Esc) closes it.
+    CommandPalette,
     /// Cmd+S — save the active buffer, like `:w`. Fires from **every** mode
     /// without changing it (the editor guards it behind the dirty flag so a
     /// habitual repeat tap on an unchanged buffer costs no SD write).
@@ -170,6 +176,7 @@ fn translate(usage: u8, shift: bool, ctrl: bool, cmd: bool) -> Option<Key> {
         0x18 if ctrl => return Some(Key::HalfPageUp), // Ctrl+U, half-page up
         0x15 if ctrl => return Some(Key::Redo),       // Ctrl+R, redo
         0x13 if ctrl => return Some(Key::Up),   // Ctrl+P, move up (vim CTRL-P)
+        0x13 if cmd && shift => return Some(Key::CommandPalette), // Cmd+Shift+P, command palette
         0x13 if cmd => return Some(Key::Palette), // Cmd+P, file palette
         0x16 if cmd => return Some(Key::Save),   // Cmd+S, save (like :w)
         0x11 if ctrl => return Some(Key::Down), // Ctrl+N, move down (vim CTRL-N)
@@ -421,6 +428,9 @@ mod tests {
         assert_eq!(translate(0x15, false, true, false), Some(Key::Redo)); // Ctrl+R
         assert_eq!(translate(0x13, false, true, false), Some(Key::Up)); // Ctrl+P, up
         assert_eq!(translate(0x13, false, false, true), Some(Key::Palette)); // Cmd+P, palette
+        // Cmd+Shift+P is the command palette; adding Shift must not fall back to
+        // plain Cmd+P (the shift arm is listed first, so it wins).
+        assert_eq!(translate(0x13, true, false, true), Some(Key::CommandPalette)); // Cmd+Shift+P
         assert_eq!(translate(0x11, false, true, false), Some(Key::Down)); // Ctrl+N, down
         assert_eq!(translate(0x11, false, false, true), None); // Cmd+N reserved (:enew, v0.5)
         // Without a modifier these are ordinary letters, not intents.
