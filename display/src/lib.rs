@@ -15,6 +15,9 @@ use embedded_graphics::text::{Alignment, Baseline, Text, TextStyleBuilder};
 mod glyphs;
 pub use glyphs::{blit_glyph, extra_glyph, Glyph};
 
+pub mod fonts;
+pub use fonts::{body_font, FONT_OPTIONS};
+
 pub const WIDTH: u16 = 792;
 pub const HEIGHT: u16 = 272;
 
