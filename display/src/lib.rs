@@ -10,7 +10,6 @@ use embedded_graphics::mono_font::iso_8859_15::FONT_10X20;
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::BinaryColor;
 use embedded_graphics::prelude::*;
-use embedded_graphics::primitives::{Circle, PrimitiveStyleBuilder};
 use embedded_graphics::text::{Alignment, Baseline, Text, TextStyleBuilder};
 
 mod glyphs;
@@ -58,27 +57,30 @@ impl Frame {
         Self { buf: vec![0x00; FB_BYTES] }
     }
 
-    /// The Typoena boot splash (Spike 9): the wordmark centred inside a stroked
-    /// circle on a white frame. Pure `embedded-graphics`, so it renders the same
-    /// on the host (the preview) as it does through the `Epd` driver at boot.
-    /// `main.rs` shows this once at startup, before the editor opens.
+    /// The Typoena boot splash: the lowercase "typoena" wordmark centred on a
+    /// white frame. Pure `embedded-graphics`, so it renders the same on the host
+    /// (the preview) as it does through the `Epd` driver at boot. `main.rs` shows
+    /// this once at startup (async full refresh, overlapping the SD mount + note
+    /// load); the first editor frame then partial-refreshes over it, and the
+    /// one-shot boot-cleanup full refresh launders the residual ghost at the first
+    /// typing pause (see `app::Panel`).
     pub fn splash() -> Self {
         let mut f = Self::new_white();
-        f.draw_badge();
+        f.draw_wordmark();
         f
     }
 
-    /// The `:reboot` offboarding screen: the same circle + wordmark as
+    /// The `:reboot` offboarding screen: the same "typoena" wordmark as
     /// [`splash`](Self::splash) with a "restarting..." subtitle. Painted with a
     /// blocking full refresh just before `esp_restart()`, so the bistable panel
-    /// holds it across the whole reboot and the badge simply carries over into
+    /// holds it across the whole reboot and the wordmark simply carries over into
     /// the boot splash — the restart reads as one continuous motion, not a freeze.
     pub fn reboot() -> Self {
         let mut f = Self::new_white();
-        f.draw_badge();
+        f.draw_wordmark();
 
-        // One line below the badge: the circle bottom sits at HEIGHT/2 + 100 =
-        // 236 px, leaving room for a FONT_10X20 line in the 36 px clearance.
+        // A subtitle near the bottom edge, well clear of the centred wordmark
+        // (baseline ≈ HEIGHT/2), with room for one FONT_10X20 line.
         let char_style = MonoTextStyle::new(&FONT_10X20, BinaryColor::On);
         let text_style = TextStyleBuilder::new()
             .alignment(Alignment::Center)
@@ -96,30 +98,22 @@ impl Frame {
         f
     }
 
-    /// Draw the Typoena badge — the "typoena" wordmark centred inside a stroked
-    /// circle — onto this frame. Shared by [`splash`](Self::splash) and
-    /// [`reboot`](Self::reboot) so the boot and restart screens are pixel-identical
-    /// bar the subtitle, keeping a `:reboot` visually seamless into boot.
-    fn draw_badge(&mut self) {
-        // Badge sized to leave a comfortable margin inside the 272 px panel
-        // height (diameter 200 → 36 px clear top and bottom).
+    /// Draw the lowercase "typoena" wordmark, centred on the panel, onto this
+    /// frame. Shared by [`splash`](Self::splash) and [`reboot`](Self::reboot) so
+    /// the boot and restart screens are pixel-identical bar the subtitle, keeping
+    /// a `:reboot` visually seamless into boot.
+    ///
+    /// Deliberately just the wordmark — no badge/circle. The boot splash is
+    /// painted, then the first editor frame partial-refreshes over it, and a
+    /// partial can't fully drive ink back to paper: the less ink the splash
+    /// leaves, the less it ghosts under your opening text. The small residual is
+    /// then laundered by the one-shot boot-cleanup full refresh (see `app::Panel`).
+    fn draw_wordmark(&mut self) {
         const WORDMARK: &str = "typoena";
-        const CIRCLE_DIAMETER: u32 = 200;
-        const STROKE_WIDTH: u32 = 4;
 
         let center = Point::new(WIDTH as i32 / 2, HEIGHT as i32 / 2);
 
-        let stroke = PrimitiveStyleBuilder::new()
-            .stroke_color(BinaryColor::On) // black ink
-            .stroke_width(STROKE_WIDTH)
-            .build();
-        Circle::with_center(center, CIRCLE_DIAMETER)
-            .into_styled(stroke)
-            .draw(self)
-            .unwrap(); // Frame's DrawTarget error is Infallible
-
-        // Centre the wordmark on the panel centre in both axes, so it sits in
-        // the middle of the circle regardless of string length.
+        // Centre the wordmark on the panel centre in both axes.
         let char_style = MonoTextStyle::new(&FONT_10X20, BinaryColor::On);
         let text_style = TextStyleBuilder::new()
             .alignment(Alignment::Center)
