@@ -124,7 +124,7 @@ below — this table is the standing menu; the log records what each flash showe
 | Lever                                | Touches waveform? | Moves *perceived* per-stroke latency? | Risk                                                          | Status                                    |
 | ------------------------------------ | ----------------- | ------------- | ------------------------------------------------------------ | ----------------------------------------- |
 | Custom partial LUT via `0x32`        | **yes — authored** | **Yes — the only lever that does.** ~100–200 ms reported on similar panels | ghosting, DC balance/longevity, cold-temperature margin (reference waveform now obtained) | **validated 2026-07-21 — 495→266 ms windowed via real vendor `LUT_DATA_part` + FR `0x08`; see FR sweep below** |
-| Charge-pump keep-hot (`0xCC` vs `0xCF`) | no — trigger + power state | maybe — skips the booster ramp on keystrokes 2..N of a burst; upside uncertain (ramp is a smaller share of the ~266 ms than first assumed) | pump draws while typing; holding the ±15 V rails is a mild longevity/thermal tax; register writes while powered could glitch bands | **untried — testable behind `FAST_PART_KEEP_HOT`, 2026-07-21** |
+| Charge-pump keep-hot (`0xCC` vs `0xCF`) | no — trigger + power state | **none measured** — the ramp it skips isn't a real slice of the ~240 ms (first partial after power-down ≈ mid-burst) | pump draws while typing; holding the ±15 V rails is a mild longevity/thermal tax; register writes while powered could glitch bands (none observed) | **tested + reverted 2026-07-21** — toggle kept, `FAST_PART_KEEP_HOT = false` |
 | SPI clock 4 → 20 MHz                 | no                | full-area only — measured **−122 ms** (~693→~571 ms, now ≈ windowed); typing flat | signal integrity — 20 MHz clean in test but at panel ceiling on jumpers | **shipped 2026-07-17** — see log            |
 | `set_ram_area` settle delay 2 → 0 ms | no                | **yes — the typing path**: windowed **−70 ms** (~565→~495), full-area −44 ms | too-short latch would garble bands / add ghosting — panel clean, user-attested | **shipped 2026-07-17** — `delay_ms(2)` was a whole `vTaskDelay(1)` tick; see log |
 | ~~Async partial + deferred bank resync~~ | no — pure firmware | no — frees the editor loop during BUSY, not the eye | bank-toggle ordering (this panel is treacherous — [postmortem](../postmortems/2026-07-16-partial-refresh-bank-toggle.md)) | **closed 2026-07-17** — not worth it post-20 MHz (see below) |
@@ -410,23 +410,35 @@ device-confirmed 2026-07-21).** Per-keystroke windowed typing on the custom LUT 
 and the first lever ever to break below it. Not yet merged to main; longevity soak +
 cold check outstanding.
 
-### Next candidate — charge-pump keep-hot (queued, untried)
+### Charge-pump keep-hot — tested, no win (2026-07-21)
 
-FR trimmed the *waveform* portion of the refresh; the *power-cycle* portion is still
-fully there. Trigger `0xCF` powers the ±15 V charge pump **up** (booster soft-start),
-runs the waveform, then powers it **down** — on every keystroke. Keep-hot uses `0xCC`
-(same trigger minus the disable-analog `0x02` + disable-clock `0x01` bits) so the pump
-stays energized and keystrokes 2..N of a burst skip the ramp. It's orthogonal to FR and
-stacks with it; the every-32 full refresh and any factory/idle refresh (which carry the
-power-down bits) bound the hot time to an active burst, so it can't stay energized
-indefinitely.
+FR trimmed the *waveform* portion of the refresh; the *power-cycle* portion is separate.
+Trigger `0xCF` powers the ±15 V charge pump **up** (booster soft-start), runs the
+waveform, then powers it **down** — on every keystroke. Keep-hot (`0xCC`, same trigger
+minus the disable-analog `0x02` + disable-clock `0x01` bits) leaves the pump energized so
+keystrokes 2..N of a burst would skip the ramp. Wired behind `const FAST_PART_KEEP_HOT`
+in [`screen_epd.rs`](../../firmware/src/drivers/screen_epd.rs).
 
-Wired behind `const FAST_PART_KEEP_HOT` in
-[`screen_epd.rs`](../../firmware/src/drivers/screen_epd.rs) (flip to `false` to revert).
-**Honest expectation:** smaller than the FR win — the original "the floor is all
-charge-pump ramp" guess was disproved when FR removed ~155 ms of *frame* time, so the
-ramp is a smaller slice of the remaining ~266 ms. Measure keystroke #2+ vs #1 in a burst;
-watch for band corruption (writing registers while powered) and streak ghosting. Needs a
-real idle power-off before it could ship — the const is a bench toggle, not a shippable
-power-state machine.
+**Result: no measurable benefit — reverted.** With it on, windowed-fast held flat at
+~240 ms (235–244 ms) across a 40+ partial burst, independent of how many keys each refresh
+absorbed. The decisive test is the first partial *after* a power-down full refresh: if the
+ramp mattered, it would be slower than mid-burst partials. It wasn't —
+
+| transition (full → windowed) | first windowed after full | mid-burst |
+|---|---|---|
+| #16 → #17 | 236 ms | 242–243 ms |
+| #21 → #22 | 235 ms | 241 ms |
+| #30 → #31 | 244 ms | 240 ms |
+| #46 → #47 | 244 ms | 240 ms |
+
+First-after-full averaged ~239 ms, mid-burst ~240 ms. **There is no ramp penalty to
+skip** — the ~240 ms is waveform BUSY, not charge-pump soft-start, exactly as the FR sweep
+implied (and this retires the original "the floor is all charge-pump ramp" guess for
+good). The screen stayed clean — no band corruption, no extra streak ghosting — so `0xCC`
+is *safe*, just pointless here. Against zero upside, keeping the pump hot costs rail draw
+during Insert-mode pauses and would need a real idle power-off before shipping, so
+`FAST_PART_KEEP_HOT` is left `false`; the toggle stays wired for a future same-session
+A/B. (One loose end: this run read ~240 ms where the committed `0x08` baseline was logged
+at ~265 ms — a *cross-run* gap that within-run data can't distinguish from panel-temp /
+run-to-run variance, so it's not credited to keep-hot.)
 
