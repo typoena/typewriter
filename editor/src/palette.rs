@@ -13,6 +13,44 @@ pub(crate) fn palette_label(path: &str) -> &str {
     path.strip_prefix("/sd/").unwrap_or(path)
 }
 
+/// Display-friendly rendering of a file's **basename**: drop a trailing `.md`
+/// (markdown), keep a leading `YYYY-MM-DD` date intact (its hyphens are date
+/// structure, not word gaps), and turn the remaining hyphens into spaces. Purely
+/// cosmetic — the real path is untouched and matching still runs on the raw
+/// [`palette_label`], so search and file-open are unaffected. Examples:
+/// `2026-07-21-je-dois-parler.md` → `2026-07-21 je dois parler`;
+/// `standup-notes.md` → `standup notes`; `notes.md` → `notes`.
+pub(crate) fn friendly_filename(name: &str) -> String {
+    let stem = name.strip_suffix(".md").unwrap_or(name);
+    let date = date_prefix_len(stem);
+    let (head, tail) = stem.split_at(date);
+    format!("{head}{}", tail.replace('-', " "))
+}
+
+/// Length of a leading `YYYY-MM-DD` date (always 10) when `s` opens with one
+/// followed by `-` or end-of-string, else 0. Byte-indexed: the pattern is pure
+/// ASCII, and a multibyte lead byte at index 10 simply won't equal `b'-'`.
+fn date_prefix_len(s: &str) -> usize {
+    let b = s.as_bytes();
+    let dated = b.len() >= 10
+        && b[0].is_ascii_digit()
+        && b[1].is_ascii_digit()
+        && b[2].is_ascii_digit()
+        && b[3].is_ascii_digit()
+        && b[4] == b'-'
+        && b[5].is_ascii_digit()
+        && b[6].is_ascii_digit()
+        && b[7] == b'-'
+        && b[8].is_ascii_digit()
+        && b[9].is_ascii_digit()
+        && (b.len() == 10 || b[10] == b'-');
+    if dated {
+        10
+    } else {
+        0
+    }
+}
+
 /// A `>` palette command — a real action registry, not a settings box (v0.6).
 /// Three dispatch shapes, distinguished by [`PaletteCmd::kind`]:
 /// - a **[one-shot](CmdKind::OneShot)** ([`Format`](PaletteCmd::Format),
@@ -635,4 +673,30 @@ impl Editor {
 
     // --- Visual mode -------------------------------------------------------
 
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn friendly_filename_drops_md_keeps_date_and_spaces_hyphens() {
+        // Dated note: date kept intact, title de-hyphenated, `.md` dropped.
+        assert_eq!(
+            friendly_filename("2026-07-21-je-dois-parler.md"),
+            "2026-07-21 je dois parler"
+        );
+        // Plain hyphenated name.
+        assert_eq!(friendly_filename("standup-notes.md"), "standup notes");
+        // No hyphens, `.md` still dropped.
+        assert_eq!(friendly_filename("notes.md"), "notes");
+        // Non-markdown extension is preserved (only `.md` is dropped).
+        assert_eq!(friendly_filename("my-config.toml"), "my config.toml");
+        // A bare date is left whole.
+        assert_eq!(friendly_filename("2026-07-21.md"), "2026-07-21");
+        // The scratch-buffer placeholder is untouched.
+        assert_eq!(friendly_filename("[no name]"), "[no name]");
+        // A leading number that is NOT a full date de-hyphenates normally.
+        assert_eq!(friendly_filename("2026-notes.md"), "2026 notes");
+    }
 }

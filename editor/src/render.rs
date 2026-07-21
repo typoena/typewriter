@@ -46,6 +46,11 @@ pub(crate) const PANEL_COLS: usize = (WIDTH as usize - PANEL_X as usize) / PANEL
 /// can't run down into the bottom mode strip. Four PANEL_CH rows ≈ 60 chars,
 /// enough for any current message.
 pub(crate) const NOTICE_MAX_LINES: usize = 4;
+/// Cap on how many wrapped lines the active filename takes in the side panel, so a
+/// pathological name can't crowd out the word count / notice below it. Three
+/// PANEL_CH rows ≈ 45 chars — enough for a dated title like `2026-07-21 je dois
+/// parler de outer wilds`.
+pub(crate) const FILENAME_MAX_LINES: usize = 3;
 /// Tab stop, in spaces. Tabs never enter the buffer — they expand on insert so
 /// the buffer stays 1 char = 1 column.
 pub(crate) const TAB: &str = "    ";
@@ -505,39 +510,47 @@ impl Editor {
 
         let style = MonoTextStyle::new(&FONT_9X15, BinaryColor::On);
 
-        // Active file name (basename with suffix) on the top line — the file you're
-        // looking at — or `[no name]` for an unnamed scratch buffer. Clamped to the
-        // panel width so a long name can't run past the right edge.
+        // Active file name on the top line(s) — the file you're looking at, made
+        // friendlier (`friendly_filename`: leading date kept, hyphens → spaces,
+        // `.md` dropped) — or `[no name]` for an unnamed scratch buffer. Wrapped to
+        // the panel width rather than truncated, so a long title stays readable;
+        // capped at `FILENAME_MAX_LINES` so it can't crowd out the rows below.
         let name = self
             .path
             .rsplit('/')
             .next()
             .filter(|s| !s.is_empty())
             .unwrap_or("[no name]");
-        let name: String = name.chars().take(PANEL_COLS).collect();
-        Text::with_baseline(&name, Point::new(PANEL_X, 2), style, Baseline::Top)
-            .draw(f)
-            .unwrap();
+        let name_lines = wrap_text(&friendly_filename(name), PANEL_COLS);
+        let name_rows = name_lines.len().min(FILENAME_MAX_LINES);
+        for (i, line) in name_lines.iter().take(FILENAME_MAX_LINES).enumerate() {
+            let y = 2 + i as i32 * PANEL_CH;
+            Text::with_baseline(line, Point::new(PANEL_X, y), style, Baseline::Top)
+                .draw(f)
+                .unwrap();
+        }
 
-        // Word count on the next line, from the throttled snapshot (never per
-        // keystroke).
+        // Word count on the line below the (possibly wrapped) name, from the
+        // throttled snapshot (never per keystroke).
+        let words_y = 2 + name_rows as i32 * PANEL_CH;
         let words = format!("{} words", self.shown_words);
-        Text::with_baseline(&words, Point::new(PANEL_X, 2 + PANEL_CH), style, Baseline::Top)
+        Text::with_baseline(&words, Point::new(PANEL_X, words_y), style, Baseline::Top)
             .draw(f)
             .unwrap();
 
-        // Transient notice ("snackbar"), just under the word count: the last
+        // Transient notice ("snackbar"), a line under the word count: the last
         // save/push result. Word-wrapped to the panel width (so a message like
         // "save FAILED - retry :w" keeps its actionable tail instead of clipping
         // mid-word) and capped at a few lines so it can't reach the bottom mode
         // strip; cleared on the next keystroke.
         if let Some(msg) = &self.notice {
+            let notice_top = words_y + PANEL_CH + 2;
             for (i, line) in wrap_text(msg, PANEL_COLS)
                 .into_iter()
                 .take(NOTICE_MAX_LINES)
                 .enumerate()
             {
-                let y = 2 + 2 * PANEL_CH + 2 + i as i32 * PANEL_CH;
+                let y = notice_top + i as i32 * PANEL_CH;
                 Text::with_baseline(&line, Point::new(PANEL_X, y), style, Baseline::Top)
                     .draw(f)
                     .unwrap();
@@ -855,7 +868,14 @@ impl Editor {
                 } else if command_mode {
                     self.command_label(PALETTE_CMDS[idx])
                 } else {
-                    palette_label(self.file_at(idx)).chars().take(max_chars).collect()
+                    // Prettify the basename only (`friendly_filename`), keeping any
+                    // scope/dir prefix as-is so the date check anchors on the name.
+                    let raw = palette_label(self.file_at(idx));
+                    let pretty = match raw.rsplit_once('/') {
+                        Some((dir, base)) => format!("{dir}/{}", friendly_filename(base)),
+                        None => friendly_filename(raw),
+                    };
+                    pretty.chars().take(max_chars).collect()
                 };
                 if row == sel {
                     // Reverse video: black fill across the column, white glyphs.
