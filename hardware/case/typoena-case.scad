@@ -79,12 +79,50 @@ deck_L    = (D - 2*corner_r) / cos(theta);   // deck length along the slope
 screen_cy = deck_L/2;                        // centre it
 boss_r    = 3.4;                             // M2 self-tap boss for the bracket
 
-// ---- ports on the back wall  (ESP32-S3-DevKitC-1 edge) --------------------
-port_z   = 7;      // height of the port centres off the desk   << MEASURE >>
-usbc_w   = 9.6;  usbc_h = 3.6;               // USB-C opening (with clearance)
-sd_w     = 12;   sd_h   = 2.4;               // microSD slot
-// X positions of the three openings along the back << MEASURE to your board >>
-port_x   = [W/2 - 15, W/2, W/2 + 17];        // usb-c (kbd), usb-c (power), µSD
+// ---- mounting, boards & battery (defined here: the ports below depend on it)
+bp_t           = 2.6;    // baseplate thickness
+standoff_h     = 3;      // board standoff height — keep LOW so 22 mm PCB 1 clears the deck
+standoff_pilot = 0.8;    // pilot Ø1.6 for an M2 self-tapper (PCB holes are Ø2)
+pcb_t          = 1.6;    // PCB thickness (for port-height maths)
+// PCB 1 = ESP32 devkit + e-ink driver + MT3608 boost. 70(X) x 50(Y), back-LEFT:
+// short FPC to the deck's left slot, and the 22 mm Dupont/header side sits under
+// the tall REAR of the wedge. Rigid board is only 10 mm; 22 mm is the vertical
+// F-F jumpers. Its own USB-C is reached by opening the case — no wall cutout.
+pcb1_x0 = 4;             pcb1_x1 = pcb1_x0 + 70;   // X  4 .. 74
+pcb1_y0 = 46;            pcb1_y1 = pcb1_y0 + 50;   // Y 46 .. 96  (behind screen mid)
+pcb1_h  = 22;            // tallest point (rigid stack + vertical Dupont)
+// PCB 2 = µSD + 2x USB-C + TP4056. 80(X) x 20(Y), along the BACK wall, right end;
+// connectors overhang its back edge by 8 mm to meet the wall.
+pcb2_x1 = W - wall - 6;  pcb2_x0 = pcb2_x1 - 80;   // X ~87.6 .. 167.6
+pcb2_y1 = D - wall - 8;  pcb2_y0 = pcb2_y1 - 20;   // back edge 8 mm off the wall
+// corner holes, centres 2 mm in from each edge (Ø2 hole, 1 mm pad)
+pcb1_holes = [[pcb1_x0+2,pcb1_y0+2],[pcb1_x1-2,pcb1_y0+2],
+              [pcb1_x0+2,pcb1_y1-2],[pcb1_x1-2,pcb1_y1-2]];
+pcb2_holes = [[pcb2_x0+2,pcb2_y0+2],[pcb2_x1-2,pcb2_y0+2],
+              [pcb2_x0+2,pcb2_y1-2],[pcb2_x1-2,pcb2_y1-2]];
+// LiPo 3700 mAh (96 x 33.5 x 10.3), flat across the FRONT — dead wedge space,
+// CG low + forward. Leads exit toward the charger (back-right). << confirm cell >>
+bat_w = 96;  bat_d = 33.5;  bat_h = 10.3;
+bat_y0 = wall + 4;                             // front edge just off the front wall
+
+// ---- ports on the back wall  (I/O board = PCB 2) --------------------------
+// PCB 2 lies flat at the back-right; its connectors overhang the board's back
+// edge by 8 mm and face out through the BACK wall (horizontal insertion). The
+// µSD/reset end faces the case's RIGHT wall, so from the +X (right) end inward
+// the order is: reset, µSD, keyboard, charge.
+// Openings measured off the real parts:
+usbc_w   = 8.0;  usbc_h = 2.5;               // USB-C shell opening (W x H)
+sd_w     = 13.0; sd_h   = 2.0;               // microSD slot (W x H)
+usbc_cz  = 3.5;                              // USB-C opening centre, above PCB top
+sd_cz    = 2.0;                              // µSD slot ("the gap") centre, above PCB top
+pcb2_z   = bp_t + standoff_h + pcb_t;        // PCB 2 top face height off the floor
+// per-port centre heights off the floor       [charge, keyboard, µSD]
+port_z   = [pcb2_z+usbc_cz, pcb2_z+usbc_cz, pcb2_z+sd_cz];
+// PCB 2 is flipped vs how you view it: the charge end sits inward (low X), the
+// µSD/reset end faces the RIGHT wall. Same 8/7/5 gaps, measured from the LEFT
+// board edge (pcb2_x0):
+//   charge : 8 gap + 8/2 -> 12.0   keyboard: +8+7+8/2 -> 27.0   µSD: +8+5+13/2 -> 42.5
+port_x   = [pcb2_x0+12, pcb2_x0+27, pcb2_x0+42.5];   // charge, keyboard, µSD
 
 // ---- reset button (momentary wired to EN/GND) -----------------------------
 // Our OWN switch, soldered to the board's EN + GND header pins — NOT the
@@ -95,26 +133,15 @@ port_x   = [W/2 - 15, W/2, W/2 + 17];        // usb-c (kbd), usb-c (power), µSD
 // not worth a fat-fingerable button on a writing appliance.
 rst_btn  = true;             // set false to omit the reset hole entirely
 rst_d    = 7.2;              // through-hole Ø for the switch barrel   << MEASURE >>
-rst_x    = W/2 + 40;         // X along the back wall (past the µSD @ +17)  << MEASURE >>
-rst_z    = 12;               // centre height off the desk             << MEASURE >>
+rst_x    = pcb2_x0 + 55;     // µSD side, toward the RIGHT wall (past the µSD @ +42.5)
+rst_z    = pcb2_z + 4;       // a touch above the port row
 
 // ---- baseplate / chassis --------------------------------------------------
-bp_t       = 2.6;  // baseplate thickness
 bp_gap     = 0.5;  // clearance so it drops into the shell
 foot_r     = 7;    // round feet (the little typewriter feet)
 foot_h     = 3.5;
 post_r     = 4.2;  // corner screw posts inside the shell (M2.5 self-tap)
 post_pilot = 1.15;
-
-// board mounting standoffs on the baseplate  << MEASURE hole positions >>
-standoff_h     = 6;
-standoff_pilot = 1.15;
-// ESP32-S3-DevKitC-1 is ~70 x 28 mm; these are PLACEHOLDER hole coords:
-esp_holes  = [[W/2-33, 30],[W/2+33, 30],[W/2-33, 54],[W/2+33, 54]];
-// DESPI-C579 breakout sits in the cavity on the LEFT, under the FPC exit; SPI
-// wires (MOSI/SCLK/CS/DC/RST/BUSY + 3V3/GND) run from here across to the ESP32.
-// PLACEHOLDER hole coords << MEASURE >>:
-brk_holes  = [[22, 40],[22, 66]];
 
 // ---- colours (for the assembled render) -----------------------------------
 C_body   = "#B6CEB4";
@@ -204,11 +231,11 @@ module screen_cuts() {
 }
 
 module port_cuts() {
-    // USB-C x2 + microSD through the back wall (y = D)
+    // USB-C (charge, keyboard) + microSD through the BACK wall (y = D)
     for (i=[0:2]) {
         pw = (i==2) ? sd_w   : usbc_w;
         ph = (i==2) ? sd_h   : usbc_h;
-        translate([port_x[i], D-wall-1, port_z])
+        translate([port_x[i], D-wall-1, port_z[i]])
             rotate([-90,0,0]) linear_extrude(wall+2)
                 offset(r=0.8) square([pw-1.6, ph-1.6], center=true);
     }
@@ -281,15 +308,18 @@ module baseplate() {
             // round feet underneath
             for (fx=[corner_r+6, W-corner_r-6], fy=[corner_r+6, D-corner_r-6])
                 translate([fx, fy, -foot_h]) cylinder(h=foot_h+0.1, r=foot_r);
-            // board standoffs on top
-            for (h = concat(esp_holes, brk_holes))
+            // board standoffs on top (PCB 1 back-left + PCB 2 back-right)
+            for (h = concat(pcb1_holes, pcb2_holes))
                 translate([h[0], h[1], bp_t]) cylinder(h=standoff_h, r=3);
+            // battery cage nibs (front LiPo; foam/VHB tape does the rest)
+            for (cx=[W/2-bat_w/2-1, W/2+bat_w/2+1], cy=[bat_y0-1, bat_y0+bat_d+1])
+                translate([cx, cy, bp_t]) cylinder(h=5, r=1.6);
         }
         // corner screw clearance (into the body posts)
         for (px=[corner_r+3, W-corner_r-3], py=[corner_r+3, D-corner_r-3])
             translate([px, py, -foot_h-1]) cylinder(h=bp_t+foot_h+2, r=1.6);
         // standoff pilot holes
-        for (h = concat(esp_holes, brk_holes))
+        for (h = concat(pcb1_holes, pcb2_holes))
             translate([h[0], h[1], bp_t-1]) cylinder(h=standoff_h+2, r=standoff_pilot);
         // cable / connector relief at the back
         translate([W/2, D-wall-3, -1]) cube([30, 8, bp_t+2], center=false);
@@ -302,6 +332,25 @@ module baseplate() {
 module ghost_screen() {
     on_deck() translate([screen_off, screen_cy+screen_off, -lip_t-G_t/2])
         color(C_screen) cube([G_w, G_h, G_t], center=true);
+}
+// LiPo lying flat on the baseplate at the front
+module ghost_battery() {
+    translate([W/2, bat_y0+bat_d/2, bp_t+bat_h/2])
+        color("#3f7d4f") cube([bat_w, bat_d, bat_h], center=true);
+}
+// a board slab on its standoffs + a translucent envelope for its tall parts
+module ghost_pcb(x0, y0, x1, y1, htot) {
+    w = x1-x0; d = y1-y0;
+    translate([(x0+x1)/2, (y0+y1)/2, bp_t+standoff_h]) color("#2f6f4f") {
+        linear_extrude(pcb_t) square([w, d], center=true);
+        translate([0,0,pcb_t]) %linear_extrude(htot-pcb_t)
+            square([w*0.7, d*0.7], center=true);
+    }
+}
+module ghost_boards() {
+    ghost_battery();
+    ghost_pcb(pcb1_x0, pcb1_y0, pcb1_x1, pcb1_y1, pcb1_h);   // back-left, tall
+    ghost_pcb(pcb2_x0, pcb2_y0, pcb2_x1, pcb2_y1, 8);        // back-right, low I/O
 }
 module placed_bracket() {
     on_deck() translate([screen_off, screen_cy+screen_off,
@@ -329,6 +378,7 @@ module plan_assembly() {
     ghost_screen();
     placed_foam();
     placed_bracket();
+    ghost_boards();
     translate([0,0,-0.01]) color(C_plate) baseplate();
 }
 // the two halves of the horizontal cut at plan_z
@@ -349,6 +399,7 @@ if (show == "assembled") {
     color(C_body)   case_body();
     ghost_screen();
     placed_bracket();
+    ghost_boards();
     translate([0,0,-0.01]) color(C_plate) baseplate();
 } else if (show == "body") {
     color(C_body) case_body();
