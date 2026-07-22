@@ -1,2 +1,3 @@
 # generated mesh exports — regenerate with `just stl`
 *.stl
+stl.zip

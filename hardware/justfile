@@ -33,8 +33,11 @@ render:
     cd case && openscad -o renders/nameplate.png  {{base}} --camera=0,0,0,62,0,0,0   -D 'show="body"'      typoena-case.scad
     cd case && openscad -o renders/front34.png    {{base}} --camera=0,0,0,72,0,200,0 -D 'show="assembled"' typoena-case.scad
 
-# export STLs for the three printable parts
+# export STLs: 3 printable parts + the full-assembly reference, then bundle
+# the printable parts into stl.zip for handoff
 stl:
-    cd case && openscad -o body.stl      -D 'show="body"'      typoena-case.scad
-    cd case && openscad -o bracket.stl   -D 'show="bracket"'   typoena-case.scad
-    cd case && openscad -o baseplate.stl -D 'show="baseplate"' typoena-case.scad
+    cd case && openscad -o body.stl         -D 'show="body"'      typoena-case.scad
+    cd case && openscad -o bracket.stl      -D 'show="bracket"'   typoena-case.scad
+    cd case && openscad -o baseplate.stl    -D 'show="baseplate"' typoena-case.scad
+    cd case && openscad -o typoena-case.stl -D 'show="assembled"' typoena-case.scad
+    cd case && zip -qj stl.zip body.stl bracket.stl baseplate.stl
