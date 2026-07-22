@@ -108,8 +108,8 @@ bat_y0 = wall + 4;                             // front edge just off the front 
 // ---- ports on the back wall  (I/O board = PCB 2) --------------------------
 // PCB 2 lies flat at the back-right; its connectors overhang the board's back
 // edge by 8 mm and face out through the BACK wall (horizontal insertion). The
-// µSD/reset end faces the case's RIGHT wall, so from the +X (right) end inward
-// the order is: reset, µSD, keyboard, charge.
+// µSD/power end faces the case's RIGHT wall, so from the +X (right) end inward
+// the order is: power switch, µSD, keyboard, charge.
 // Openings measured off the real parts:
 usbc_w   = 8.0;  usbc_h = 2.5;               // USB-C shell opening (W x H)
 sd_w     = 13.0; sd_h   = 2.0;               // microSD slot (W x H)
@@ -119,22 +119,23 @@ pcb2_z   = bp_t + standoff_h + pcb_t;        // PCB 2 top face height off the fl
 // per-port centre heights off the floor       [charge, keyboard, µSD]
 port_z   = [pcb2_z+usbc_cz, pcb2_z+usbc_cz, pcb2_z+sd_cz];
 // PCB 2 is flipped vs how you view it: the charge end sits inward (low X), the
-// µSD/reset end faces the RIGHT wall. Same 8/7/5 gaps, measured from the LEFT
+// µSD/power end faces the RIGHT wall. Same 8/7/5 gaps, measured from the LEFT
 // board edge (pcb2_x0):
 //   charge : 8 gap + 8/2 -> 12.0   keyboard: +8+7+8/2 -> 27.0   µSD: +8+5+13/2 -> 42.5
 port_x   = [pcb2_x0+12, pcb2_x0+27, pcb2_x0+42.5];   // charge, keyboard, µSD
 
-// ---- reset button (momentary wired to EN/GND) -----------------------------
-// Our OWN switch, soldered to the board's EN + GND header pins — NOT the
-// DevKitC's on-board buttons (top-actuated and buried once the board lies flat
-// on its standoffs). It sits on the back wall, out past the µSD, so it's never
-// hit while typing. BOOT is left off on purpose: on the S3, auto-download
-// (UART-bridge DTR/RTS or the native USB-Serial-JTAG) makes it recovery-only —
-// not worth a fat-fingerable button on a writing appliance.
-rst_btn  = true;             // set false to omit the reset hole entirely
-rst_d    = 7.2;              // through-hole Ø for the switch barrel   << MEASURE >>
-rst_x    = pcb2_x0 + 55;     // µSD side, toward the RIGHT wall (past the µSD @ +42.5)
-rst_z    = pcb2_z + 4;       // a touch above the port row
+// ---- power on/off switch (latching push button, inline in the battery feed) --
+// A push-on / push-off (latching) button that makes/breaks the battery-side power
+// feed — press once to power up, again to cut it, so the machine is genuinely OFF
+// between sessions instead of idling on the LiPo. NOT wired to EN/GND (that would
+// be a momentary reset): it sits inline on the power rail. Panel-mounts through the
+// back wall, out past the µSD toward the RIGHT wall, so it's never hit while typing.
+// No reset/BOOT button is exposed — on the S3 both are recovery-only (auto-download
+// handles flashing), so like the ESP32's own USB-C they're reached by opening up.
+pwr_btn  = true;             // set false to omit the switch hole entirely
+pwr_d    = 7.2;              // through-hole Ø for the switch barrel   << MEASURE >>
+pwr_x    = pcb2_x0 + 55;     // µSD side, toward the RIGHT wall (past the µSD @ +42.5)
+pwr_z    = pcb2_z + 4;       // a touch above the port row
 
 // ---- baseplate / chassis --------------------------------------------------
 bp_gap     = 0.5;  // clearance so it drops into the shell
@@ -246,11 +247,11 @@ module port_cuts() {
     }
 }
 
-// reset switch mounting hole through the back wall (y = D)
-module reset_cut() {
-    if (rst_btn)
-        translate([rst_x, D-wall-1, rst_z])
-            rotate([-90,0,0]) cylinder(h=wall+2, r=rst_d/2);
+// power switch mounting hole through the back wall (y = D)
+module power_cut() {
+    if (pwr_btn)
+        translate([pwr_x, D-wall-1, pwr_z])
+            rotate([-90,0,0]) cylinder(h=wall+2, r=pwr_d/2);
 }
 
 // engraved nameplate on the DECK, in the band between the front edge and the
@@ -272,7 +273,7 @@ module case_body() {
         }
         screen_cuts();
         port_cuts();
-        reset_cut();
+        power_cut();
         nameplate();                 // engrave (comment out for a blank face)
     }
 }
