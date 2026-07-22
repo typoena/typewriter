@@ -192,11 +192,16 @@ module body_cavity() {
     }
 }
 
-// 4 corner posts the baseplate screws up into
+// baseplate screw posts: two at the FRONT corners + one at the BACK centre.
+// The back corners are taken by the PCB 1 / PCB 2 standoffs, so a corner post
+// there would clash — the third post drops into the gap between the two boards.
+post_xy = [[corner_r+3,          corner_r+3],     // front-left
+           [W-corner_r-3,        corner_r+3],     // front-right
+           [(pcb1_x1+pcb2_x0)/2, D-corner_r-3]];  // back-centre, in the board gap
 module corner_posts() {
-    for (px=[corner_r+3, W-corner_r-3], py=[corner_r+3, D-corner_r-3]) {
-        h = (py < D/2) ? Hf-top_wall : Hb-top_wall;
-        translate([px, py, 0]) difference() {
+    for (p = post_xy) {
+        h = (p[1] < D/2) ? Hf-top_wall : Hb-top_wall;
+        translate([p[0], p[1], 0]) difference() {
             cylinder(h=h, r=post_r);
             translate([0,0,-1]) cylinder(h=h+2, r=post_pilot);
         }
@@ -315,9 +320,9 @@ module baseplate() {
             for (cx=[W/2-bat_w/2-1, W/2+bat_w/2+1], cy=[bat_y0-1, bat_y0+bat_d+1])
                 translate([cx, cy, bp_t]) cylinder(h=5, r=1.6);
         }
-        // corner screw clearance (into the body posts)
-        for (px=[corner_r+3, W-corner_r-3], py=[corner_r+3, D-corner_r-3])
-            translate([px, py, -foot_h-1]) cylinder(h=bp_t+foot_h+2, r=1.6);
+        // screw clearance up into the body posts (2 front corners + 1 back centre)
+        for (p = post_xy)
+            translate([p[0], p[1], -foot_h-1]) cylinder(h=bp_t+foot_h+2, r=1.6);
         // standoff pilot holes
         for (h = concat(pcb1_holes, pcb2_holes))
             translate([h[0], h[1], bp_t-1]) cylinder(h=standoff_h+2, r=standoff_pilot);

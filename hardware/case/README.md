@@ -134,24 +134,26 @@ from below — far easier than fishing screws inside a shell.
   (foam / VHB tape does the rest). The shallow front of the wedge is dead space
   for the tall board stack anyway, and the cell — the heaviest part — keeps the
   centre of gravity low and forward, so the machine sits steady as you type.
-- The baseplate screws **up into 4 corner posts** in the shell.
+- The baseplate screws **up into three posts** — two at the front corners plus
+  one in the back gap between the boards (the back corners are taken by the board
+  standoffs, so a post there would clash).
 - A **cable relief** notch at the back lets the keyboard's USB-C cable exit and
   route around to the front.
 
-![The baseplate — standoffs for PCB 1 (back-left) and PCB 2 (back-right), cage nibs for the front battery, corner screw clearances; mount at the bench, then close from below](renders/baseplate.png)
+![The baseplate — standoffs for PCB 1 (back-left) and PCB 2 (back-right), cage nibs for the front battery, screw clearances (2 front + 1 back-centre); mount at the bench, then close from below](renders/baseplate.png)
 
 Exploded horizontal section (`show="plan"`) — the deck/screen half lifts off
 the cavity half so you see both at once: PCB 1 back-left, PCB 2 back-right along
-the wall, the battery flat across the front, the four corner posts, and the port
+the wall, the battery flat across the front, the three screw posts, and the port
 openings in the back wall.
 
-![Exploded plan section: deck/screen half lifted above the cavity half — the two boards, the front battery, corner posts, back-wall ports](renders/plan.png)
+![Exploded plan section: deck/screen half lifted above the cavity half — the two boards, the front battery, screw posts, back-wall ports](renders/plan.png)
 
 Or inspect each half alone — `plan_up` (the deck/lid, shown from below) and
 `plan_down` (the cavity):
 
 ![Top half (plan_up) — deck underside: the screen in its recess and the bracket bosses](renders/plan-up.png)
-![Bottom half (plan_down) — the cavity: PCB 1 back-left, PCB 2 back-right, battery front, corner posts, back-wall ports](renders/plan-down.png)
+![Bottom half (plan_down) — the cavity: PCB 1 back-left, PCB 2 back-right, battery front, screw posts, back-wall ports](renders/plan-down.png)
 
 ### Assembly order
 
@@ -161,7 +163,7 @@ Or inspect each half alone — `plan_up` (the deck/lid, shown from below) and
    the LiPo into its front nibs.
 3. Connect the FPC (screen → PCB 1's driver) through the slot; run the PCB 1 ↔
    PCB 2 ribbon and the battery leads to the charger.
-4. Screw the baseplate up into the corner posts.
+4. Screw the baseplate up into the three posts.
 
 ## Tune first
 
