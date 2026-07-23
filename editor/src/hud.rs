@@ -21,9 +21,10 @@ impl Editor {
     ///
     /// * **File** (top-anchored): the active file name, then the word count with
     ///   a trailing `*` when the buffer has unsaved edits.
-    /// * **Sync** (below the file tier, after a gap): the buffer [`Scope`]
-    ///   (`Tracked`/`Local` — whether it syncs at all), and beneath it the
-    ///   transient push/pull/save `notice` ("snackbar") when one is present.
+    /// * **Sync** (below the file tier, after a gap): a `Local` flag when the
+    ///   buffer never leaves the device (`Tracked` is the silent default), and
+    ///   beneath it the transient push/pull/save `notice` ("snackbar") when one
+    ///   is present.
     /// * **Vim** (bottom-anchored): the focus marker, the mode indicator +
     ///   pending-command echo, and a keyboard-disconnect flag / snippet hint just
     ///   above the mode line.
@@ -79,19 +80,19 @@ impl Editor {
             .unwrap();
 
         // ── Sync tier ────────────────────────────────────────────────────────
-        // One blank row below the file tier. The buffer scope is the persistent
-        // signal — whether this file syncs at all (`:gp` is refused in Local) —
-        // so it anchors the tier even with no notice. There is no ahead/behind
-        // state to show: push/pull results only ever arrive as the transient
-        // notice below.
+        // One blank row below the file tier. `Tracked` is the default and syncs
+        // normally, so it stays silent; only a `Local` buffer — which never
+        // leaves the device (`:gp` is refused) — earns a persistent flag. The
+        // row is reserved either way: `scope_y` anchors both the notice and the
+        // companion-collision math below, so the snackbar sits at a stable
+        // height regardless of scope. There is no ahead/behind state to show:
+        // push/pull results only ever arrive as the transient notice below.
         let scope_y = words_y + 2 * PANEL_CH;
-        let scope_label = match self.scope {
-            Scope::Tracked => "Tracked",
-            Scope::Local => "Local",
-        };
-        Text::with_baseline(scope_label, Point::new(PANEL_X, scope_y), style, Baseline::Top)
-            .draw(f)
-            .unwrap();
+        if self.scope == Scope::Local {
+            Text::with_baseline("Local", Point::new(PANEL_X, scope_y), style, Baseline::Top)
+                .draw(f)
+                .unwrap();
+        }
 
         // Transient notice ("snackbar") directly under the scope: the last
         // save/push/pull result. Word-wrapped to the panel width (so a message
