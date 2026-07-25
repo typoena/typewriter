@@ -144,14 +144,6 @@ pub(crate) enum PaletteStep {
 }
 
 
-/// Query length (chars) at which the file palette searches the full file list.
-/// Shorter queries show only the recents ([`MRU_MAX`]) — the list is a
-/// recursive walk of the card, and one char can't rank hundreds of paths
-/// usefully. `>` commands and `$` snippets are short curated lists, so the
-/// threshold does not apply to them.
-pub(crate) const PALETTE_MIN_QUERY: usize = 2;
-
-
 impl Editor {
     /// `Ctrl-P` — open the file palette: empty query (full list, recents first),
     /// selection on the first row.
@@ -321,14 +313,11 @@ impl Editor {
     }
 
     /// The palette's filtered, ranked result as indices into [`files`](Self::files).
-    /// Base order is MRU-first (recents in use order, then the rest as sorted). A
-    /// non-empty query keeps only fuzzy matches and stable-sorts them by score, so
-    /// equal scores keep their MRU/base position. See [`fuzzy_score`].
-    ///
-    /// Below [`PALETTE_MIN_QUERY`] chars the candidate set is the recents only:
-    /// the file list is a recursive walk of the whole card, too long to page
-    /// through unranked, but the MRU keeps quick-switch (`Cmd-P`, `Enter`) one
-    /// keystroke away. Two typed chars reveal the full list.
+    /// Base order is MRU-first (recents in use order, then the rest as sorted), so
+    /// an empty query already shows the whole card — the file you were just in on
+    /// top, everything else browsable alphabetically below. A non-empty query keeps
+    /// only fuzzy matches and stable-sorts them by score, so equal scores keep
+    /// their MRU/base position. See [`fuzzy_score`].
     pub(crate) fn palette_matches(&self) -> Vec<usize> {
         let mut order: Vec<usize> = Vec::with_capacity(self.file_count());
         for r in &self.recent {
@@ -336,11 +325,11 @@ impl Editor {
                 order.push(i);
             }
         }
-        if self.palette_query.chars().count() >= PALETTE_MIN_QUERY {
-            for i in 0..self.file_count() {
-                if !order.contains(&i) {
-                    order.push(i);
-                }
+        // Only the MRU prefix can already hold an index, so scan just that.
+        let recents = order.len();
+        for i in 0..self.file_count() {
+            if !order[..recents].contains(&i) {
+                order.push(i);
             }
         }
         if self.palette_query.is_empty() {

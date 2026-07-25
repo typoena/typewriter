@@ -62,8 +62,7 @@ pub(crate) struct Buffer {
 pub(crate) const MAX_RESIDENT: usize = 3;
 
 /// Recent-files (MRU) list length — how many opens the palette remembers; they
-/// are the whole result list below [`PALETTE_MIN_QUERY`] chars and float to the
-/// top above it. Far more than [`MAX_RESIDENT`] (recency
+/// float to the top of the file list. Far more than [`MAX_RESIDENT`] (recency
 /// outlives residency: a file evicted from memory is still recently *used*), but
 /// bounded so the list can't grow without limit over a long session.
 pub(crate) const MRU_MAX: usize = 16;

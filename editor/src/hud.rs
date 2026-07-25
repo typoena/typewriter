@@ -455,10 +455,6 @@ impl Editor {
                 "(no command)"
             } else if self.file_spans.is_empty() {
                 "(no files on card)"
-            } else if self.palette_query.chars().count() < PALETTE_MIN_QUERY {
-                // No recents yet and the query is below the search threshold —
-                // the full list needs 2+ chars.
-                "(type to search)"
             } else {
                 "(no match)"
             };

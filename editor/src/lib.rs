@@ -353,9 +353,8 @@ pub struct Editor {
     /// key batch. See [`Effect`].
     requests: Vec<Effect>,
     /// Every openable file, as absolute paths, fed by the host at boot (a
-    /// recursive walk of `/sd/repo` and `/sd/local`). The palette fuzzy-filters
-    /// this once the query reaches [`PALETTE_MIN_QUERY`] chars; empty until the
-    /// host feeds it.
+    /// recursive walk of `/sd/repo` and `/sd/local`). The palette lists and
+    /// fuzzy-filters this; empty until the host feeds it.
     ///
     /// **Interned**: one newline-joined blob plus byte spans, not a
     /// `Vec<String>`. On the device 1099 paths as individual `String`s cost

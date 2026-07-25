@@ -287,28 +287,28 @@ fn backspace_on_an_empty_query_closes_the_palette() {
 }
 
 #[test]
-fn short_query_lists_recents_only() {
+fn empty_query_lists_the_full_card_recents_first() {
     let mut e = palette_editor(&["/sd/repo/b.md", "/sd/repo/a.md", "/sd/repo/c.md"]);
-    // No opens yet: below the search threshold there is nothing to show.
-    assert!(palette_labels(&e).is_empty());
-    // Open c.md through the palette; it becomes the recents-only result.
+    // No opens yet: the whole card in sorted base order.
+    assert_eq!(palette_labels(&e), vec!["repo/a.md", "repo/b.md", "repo/c.md"]);
+    // Open c.md through the palette; it floats to the top of the same list.
     e.handle(Key::Palette);
     for ch in "c.md".chars() {
         e.handle(Key::Char(ch));
     }
     e.handle(Key::Enter);
     e.take_effects(); // drop the queued Load; we only care about the MRU
-    assert_eq!(palette_labels(&e), vec!["repo/c.md"]);
+    assert_eq!(palette_labels(&e), vec!["repo/c.md", "repo/a.md", "repo/b.md"]);
 }
 
 #[test]
-fn two_char_query_reveals_the_full_file_list() {
+fn one_char_query_filters_the_full_file_list() {
     let mut e = palette_editor(&["/sd/repo/b.md", "/sd/repo/a.md", "/sd/repo/c.md"]);
     e.handle(Key::Palette);
-    e.handle(Key::Char('m')); // one char: still recents-only (none yet)
+    e.handle(Key::Char('a')); // one char already searches the full list
+    assert_eq!(palette_labels(&e), vec!["repo/a.md"]);
+    e.handle(Key::Char('x')); // "ax": no subsequence match anywhere
     assert!(e.palette_matches().is_empty());
-    e.handle(Key::Char('d')); // "md": the full list, fuzzy-ranked
-    assert_eq!(palette_labels(&e), vec!["repo/a.md", "repo/b.md", "repo/c.md"]);
 }
 
 #[test]
@@ -334,10 +334,10 @@ fn recents_float_above_the_full_list_on_a_matching_query() {
 fn draw_in_palette_mode_does_not_panic() {
     let mut e = palette_editor(&["/sd/repo/a.md", "/sd/local/j.md"]);
     e.handle(Key::Palette);
-    let _ = e.draw(true); // empty query, no recents: "(type to search)"
-    e.handle(Key::Char('j')); // one char, still below the threshold
+    let _ = e.draw(true); // empty query: the full sorted list
+    e.handle(Key::Char('j')); // one char: the ranked list
     let _ = e.draw(true);
-    e.handle(Key::Char('m')); // at the threshold: the ranked list
+    e.handle(Key::Char('m')); // two: still ranked
     let _ = e.draw(true);
     // Empty file list: the "(no files on card)" path must also be safe.
     let mut empty = Editor::new();
