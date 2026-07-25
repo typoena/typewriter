@@ -82,6 +82,7 @@ pub(crate) enum PaletteCmd {
     AutoSync,
     Companion,
     Face,
+    FastPartial,
 }
 
 /// How a [`PaletteCmd`] behaves on Enter — see [`PaletteCmd::kind`].
@@ -113,7 +114,7 @@ impl PaletteCmd {
 
 /// The palette command list, in display order (empty `>` query shows them all):
 /// the actions first, the settings after.
-pub(crate) const PALETTE_CMDS: [PaletteCmd; 16] = [
+pub(crate) const PALETTE_CMDS: [PaletteCmd; 17] = [
     PaletteCmd::NewFile,
     PaletteCmd::Format,
     PaletteCmd::Push,
@@ -130,6 +131,7 @@ pub(crate) const PALETTE_CMDS: [PaletteCmd; 16] = [
     PaletteCmd::AutoSync,
     PaletteCmd::Companion,
     PaletteCmd::Face,
+    PaletteCmd::FastPartial,
 ];
 
 /// Which step the palette is showing. Most of its life it is a
@@ -389,6 +391,7 @@ impl Editor {
             PaletteCmd::AutoSync => format!("auto sync: {}", self.prefs.auto_sync),
             PaletteCmd::Companion => format!("companion: {}", on(self.prefs.companion)),
             PaletteCmd::Face => format!("face: {}", self.prefs.face),
+            PaletteCmd::FastPartial => format!("fast partial: {}", on(self.prefs.fast_partial)),
         }
     }
 
@@ -562,6 +565,7 @@ impl Editor {
                 self.prefs.open_last_on_boot = !self.prefs.open_last_on_boot
             }
             PaletteCmd::Companion => self.prefs.companion = !self.prefs.companion,
+            PaletteCmd::FastPartial => self.prefs.fast_partial = !self.prefs.fast_partial,
             PaletteCmd::ScrollMargin => {
                 self.prefs.scroll_margin =
                     next_usize_option(self.prefs.scroll_margin, &SCROLL_MARGIN_OPTIONS)
