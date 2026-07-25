@@ -63,12 +63,6 @@ pub(crate) const FACE_SCALE: i32 = 2;
 /// A notice long enough to wrap into the box wins over the face (see
 /// [`Editor::draw_panel`]).
 pub(crate) const FACE_Y: i32 = 124;
-/// Scale for the *wobbled* face (the level one uses [`FACE_SCALE`]). A square
-/// rotated by θ grows its footprint by `|cosθ| + |sinθ|`, worst-case ≈ 1.225 at
-/// the ±15° ends of the wobble; 48 px × 1.5 × 1.225 ≈ 88 px, plus the rotated
-/// blit's block border, still fits the 96 px box — so a leaning Typo never spills
-/// into the tiers above or below.
-pub(crate) const FACE_TILT_SCALE: f32 = 1.5;
 /// Tab stop, in spaces. Tabs never enter the buffer — they expand on insert so
 /// the buffer stays 1 char = 1 column.
 pub(crate) const TAB: &str = "    ";
