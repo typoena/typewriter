@@ -376,25 +376,32 @@ impl<'d> Epd<'d> {
         Ok(())
     }
 
-    /// Port of GxEPD2 `refresh(false)` → `_Update_Full` (fast full update).
+    /// Port of GxEPD2 `refresh(false)` → `_Update_Full`, upgraded to Display Mode 1
+    /// (`0xF7`) so it fully develops every pixel (see [`kick_update_full`]).
     fn update_full(&mut self) -> Result<(), EspError> {
         self.kick_update_full()?;
-        self.wait_while_busy(2500)?; // full_refresh_time ≈ 2200 ms
+        self.wait_while_busy(2500)?; // Mode 1 at forced 100°C ≈ 1–1.5 s; cap generous
         Ok(())
     }
 
-    /// The command half of `update_full`: starts the full-refresh waveform
-    /// (~2.2 s) and returns while it runs. The caller owns the eventual BUSY
-    /// wait before any further controller traffic.
+    /// The command half of `update_full`: starts the full-refresh waveform (Mode 1,
+    /// ~1–1.5 s at the forced 100°C) and returns while it runs. The caller owns the
+    /// eventual BUSY wait before any further controller traffic.
     fn kick_update_full(&mut self) -> Result<(), EspError> {
         self.set_ram_area(0, 0, WIDTH / 2, HEIGHT, 0x03, 0x80)?; // slave
         self.set_ram_area(0, 0, WIDTH / 2, HEIGHT, 0x03, 0x00)?; // master
         self.cmd(0x21)?; // display update control 1
         self.data(&[0x40, 0x10])?; // bypass RED as 0, cascade
-        self.cmd(0x1A)?; // temperature register (fast full update)
+        self.cmd(0x1A)?; // temperature register — forced 100°C to shorten the waveform
         self.data(&[0x64, 0x00])?;
         self.cmd(0x22)?;
-        self.data(&[0xD7])?; // fast full update
+        // 0xF7 = Display Mode 1 (full multi-phase waveform): develops *every* pixel
+        // and clears ghosting, so subtle sprite overlays (Typo's mood brows/eyes)
+        // come through — unlike 0xD7 (Mode 2, fast) which skipped development phases
+        // and left thin low-contrast pixels faint. The forced 100°C above keeps
+        // Mode 1 down to ~1–1.5 s (vs a cold ~2.2 s) and leaves the temp register
+        // hot for the partials that follow, so full-area/windowed stay fast.
+        self.data(&[0xF7])?; // full update, Display Mode 1 (was 0xD7 fast/Mode 2)
         self.cmd(0x20)?; // master activation
         Ok(())
     }

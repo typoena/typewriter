@@ -435,8 +435,8 @@ pub struct Editor {
     version: String,
     /// Typo's current face on the side panel. The host's render engine drives it
     /// off the e-ink refresh cycle via [`set_companion_mood`](Self::set_companion_mood)
-    /// (frustrated as ghosting builds, a rotating humor into each full-refresh
-    /// frame); the core itself only sets it on a word-count milestone. Pure
+    /// (a rotating humor into each full-refresh frame); the core itself only sets
+    /// it on a word-count milestone. Pure
     /// state — changing it never queues an effect or repaint; it rides whatever
     /// paint comes next.
     companion_mood: typo::Mood,

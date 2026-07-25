@@ -8,13 +8,12 @@
 //! per [`Mood`].
 //!
 //! Moods ride the e-ink refresh cycle, so every swap is free or already paid for:
-//! [`Mood::Frustrated`] appears at a typing pause once ghosting has built up
-//! (the pause repaint is a full-area partial anyway — the dust lands on *his*
-//! feathers, the screen's residue, never blamed on the writer), and one of the
-//! six [`POOL`] humors is drawn into each *earned* full-refresh frame, rotating
-//! so the flash never plays the same beat twice (the boot-splash cleanup flash is
-//! the one exception — Typo stays neutral there, greeting nobody mid-anticipation
-//! before a word is written). The host render engine (`app::Panel`)
+//! one of the [`POOL`] faces (his Neutral rest and the humors) is drawn
+//! into each *earned* full-refresh frame, rotating so the flash never plays the
+//! same beat twice (the boot-splash cleanup flash is the one exception — Typo
+//! stays neutral there, greeting nobody mid-anticipation before a word is
+//! written). [`Mood::Frustrated`] sits outside that rotation — reachable only by
+//! pinning it through the `face` pref. The host render engine (`app::Panel`)
 //! owns those transitions; the editor only stores the current mood and paints it.
 
 use crate::Frame;
@@ -56,18 +55,20 @@ pub enum Mood {
     /// dust on his feathers.
     Frustrated,
     Anticipation,
-    Wink,
     Curious,
     Determined,
     Zen,
     Note,
 }
 
-/// The post-flash humor pool: after every full refresh the host rotates to the
-/// next of these six, so the flash always lands on a fresh take on "keep going".
+/// The faces Typo cycles through on full refreshes: his plain **Neutral** rest
+/// plus the humors. After every full refresh the host rotates to the next (via a
+/// shuffle bag), so writing rolls through the whole cast — a fresh take on "keep
+/// going" *and* a calm resting beat — none repeating until every face has shown.
+/// (Boot and the empty page still pin Neutral directly.)
 pub const POOL: [Mood; 6] = [
+    Mood::Neutral,
     Mood::Anticipation,
-    Mood::Wink,
     Mood::Curious,
     Mood::Determined,
     Mood::Zen,
@@ -78,11 +79,10 @@ pub const POOL: [Mood; 6] = [
 /// every mood by name, so the `>` palette can pin Typo to one face — to preview
 /// each on demand instead of waiting for a full refresh to roll it up, or to
 /// keep a favourite. Mirrors `display::FONT_OPTIONS`; order is the cycle order.
-pub const FACE_OPTIONS: [&str; 9] = [
+pub const FACE_OPTIONS: [&str; 8] = [
     "random",
     "neutral",
     "anticipation",
-    "wink",
     "curious",
     "determined",
     "zen",
@@ -99,7 +99,6 @@ impl Mood {
         Some(match name {
             "neutral" => Mood::Neutral,
             "anticipation" => Mood::Anticipation,
-            "wink" => Mood::Wink,
             "curious" => Mood::Curious,
             "determined" => Mood::Determined,
             "zen" => Mood::Zen,
@@ -114,7 +113,6 @@ impl Mood {
             Mood::Neutral => &sprites::NEUTRAL,
             Mood::Frustrated => &sprites::FRUSTRATED,
             Mood::Anticipation => &sprites::ANTICIPATION,
-            Mood::Wink => &sprites::WINK,
             Mood::Curious => &sprites::CURIOUS,
             Mood::Determined => &sprites::DETERMINED,
             Mood::Zen => &sprites::ZEN,

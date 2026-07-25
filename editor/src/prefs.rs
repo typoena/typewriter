@@ -216,7 +216,7 @@ impl Prefs {
              # Typo, the side-panel companion (faces, empty-file card, milestones).\n\
              companion = {}\n\
              # Typo's face: \"random\" (a fresh humor each full refresh) or a pinned\n\
-             # mood — neutral, anticipation, wink, curious, determined, zen, note.\n\
+             # mood — neutral, anticipation, curious, determined, zen, note.\n\
              face = \"{}\"\n\
              # POSIX TZ (e.g. CET-1CEST,M3.5.0,M10.5.0/3); empty = UTC.\n\
              timezone = \"{}\"\n",

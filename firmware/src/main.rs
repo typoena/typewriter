@@ -226,7 +226,11 @@ fn main() -> anyhow::Result<()> {
     // owns the EPD and both reused framebuffers (a repaint never allocates — a
     // background `:gp` can take the heap to the floor); every repaint goes
     // through it. See [`app::Panel`].
-    let panel = Panel::new(epd, &mut ed)?;
+    let mut panel = Panel::new(epd, &mut ed)?;
+    // Seed Typo's humor shuffle with hardware entropy so the face order differs
+    // run to run — otherwise every boot replays the same fixed sequence. Host
+    // builds skip this and stay deterministic for the tests.
+    panel.reseed_humor(unsafe { esp_idf_svc::sys::esp_random() });
 
     // Boot-time measurement (the ≤ 5 s v0.1 / ≤ 3 s v1.0 target). Two clocks, and
     // they disagree by ~1.4 s here, so report both. `esp_log_timestamp()` counts

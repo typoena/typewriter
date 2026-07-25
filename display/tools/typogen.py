@@ -192,7 +192,9 @@ def build(tmpdir):
         faces left, so his inner brow / beak side is to the LEFT (−x). Every
         change is deliberately BOLD: at 96 px on e-ink a 2 px catchlight or a
         thin brow vanishes, so eyes resize by whole radii and brows/lids run
-        3 px thick, each mood reading at a glance."""
+        3 px thick (the zen / determined lines run 5 px — a bare line is the
+        first thing the partial-refresh fade eats between full refreshes, so
+        those two carry extra mass), each mood reading at a glance."""
         g = flip(copy(base))
         if mood == 'neutral':
             return g
@@ -212,15 +214,6 @@ def build(tmpdir):
             sparkle(g, sx(2), sy(18), 3)
             sparkle(g, sx(45), sy(4), 3)
             return g
-        if mood == 'wink':                              # one eye shut in a big grin-arc
-            disc(g, ecx, ecy, er + 2, 0)                # clear the eye out
-            a = er + 2
-            for i in range(-a, a + 1):                  # bold upturned arc, 3 px thick
-                yy = ecy + (a - abs(i)) // 2
-                for d in range(3):
-                    px(g, ecx + i, yy - d)
-            sparkle(g, sx(44), sy(5), 2)
-            return g
         if mood == 'curious':                           # engaged interest, not a frown
             disc(g, ecx, ecy, er + 1)                   # bright, alive eye
             catchlight(g, max(1, er // 3))
@@ -230,19 +223,19 @@ def build(tmpdir):
             brow(g, ecx + er // 3, by, ecx + er + 1, by + 3, t=3)
             stamp(g, w - len(QUESTION[0]) - sx(1), sy(1), QUESTION)   # ? behind his head
             return g
-        if mood == 'determined':                        # locked in: heavy level brow, eye wide open
-            hbar(g, ecx - er - 1, ecx + er + 1, ecy - er - 1, t=3)
+        if mood == 'determined':                        # locked in: bold level brow over an open eye
+            hbar(g, ecx - er - 1, ecx + er + 1, ecy - er - 3, t=3)  # in the white gap: clear of both crown and eye
             return g
         if mood == 'zen':                               # eyes softly, evenly shut
             disc(g, ecx, ecy, er + 2, 0)                # clear the eye out
-            hbar(g, ecx - er - 1, ecx + er + 1, ecy, t=3)  # a calm, flat closed line
+            hbar(g, ecx - er - 2, ecx + er + 2, ecy - 1, t=5)  # a calm, thick closed line — 5 px to hold up as it fades
             return g
         if mood == 'note':                              # whistling at the fresh page
-            stamp(g, sx(1), sy(15), NOTE)               # ♪ in the clear pocket under the tip
+            stamp(g, sx(1), sy(17), NOTE)               # ♪ dropped clear of the beak, a gap under the tip
             return g
         raise ValueError(mood)
 
-    moods = ['neutral', 'frustrated', 'anticipation', 'wink', 'curious',
+    moods = ['neutral', 'frustrated', 'anticipation', 'curious',
              'determined', 'zen', 'note']
     # BODY is the boot splash only (unflipped); it can run bigger than the 96 px
     # face box, so it uses the larger `splash` cut. The faces stay on `base`.

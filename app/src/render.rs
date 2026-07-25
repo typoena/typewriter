@@ -132,18 +132,18 @@ pub struct Panel<S: Screen> {
     force_full: bool,
     /// Monotonic refresh counter, for the serial trace.
     updates: u32,
-    /// Typo's post-flash humor **shuffle bag** ([`typo::POOL`]): a random
-    /// permutation of the six, played in order and reshuffled when exhausted, so
-    /// every earned FULL refresh brings a fresh humor and no two consecutive
-    /// flashes repeat a beat — the guard even holds across a reshuffle (the new
-    /// bag never opens on the humor the old one closed on). `rng` is a tiny
+    /// Typo's post-flash **shuffle bag** ([`typo::POOL`]): a random permutation of
+    /// the faces — his Neutral rest and the humors — played in order and
+    /// reshuffled when exhausted, so every FULL refresh brings a fresh face and no
+    /// two consecutive flashes repeat one — the guard even holds across a reshuffle
+    /// (the new bag never opens on the face the old one closed on). `rng` is a tiny
     /// xorshift; `bag_pos` starts past the end so the first draw shuffles;
     /// `last_humor` is the seam guard. All inert while a `face` pref pins a mood —
     /// that overrides the rotation outright (see [`companion_pool_mood`]).
     ///
     /// [`companion_pool_mood`]: Self::companion_pool_mood
     rng: u32,
-    bag: [typo::Mood; 6],
+    bag: [typo::Mood; typo::POOL.len()],
     bag_pos: usize,
     last_humor: typo::Mood,
 }
@@ -182,6 +182,21 @@ impl<S: Screen> Panel<S> {
         })
     }
 
+    /// Perturb the humor shuffle with real boot entropy, so Typo's face order
+    /// differs run to run instead of replaying the fixed [`HUMOR_SEED`] sequence
+    /// every boot. Firmware calls this once, right after [`new`](Self::new), with
+    /// `esp_random()`; host builds skip it and keep the deterministic seed the
+    /// tests depend on. A zero seed is ignored — xorshift32 is stuck at zero, and
+    /// `esp_random()` can (astronomically rarely) return it — so the fixed seed
+    /// stands in. The bag isn't touched here: it's already exhausted, so it
+    /// reshuffles from this seed the first time [`next_humor`](Self::next_humor)
+    /// draws (the first earned flash), making the very first humor run-unique.
+    pub fn reseed_humor(&mut self, seed: u32) {
+        if seed != 0 {
+            self.rng = seed;
+        }
+    }
+
     /// Typo's refresh-cycle transitions — the whole reason the faces are free:
     /// they are only ever swapped into a frame whose repaint is already paid for.
     ///
@@ -199,11 +214,15 @@ impl<S: Screen> Panel<S> {
         }
         let humor = self.next_humor();
         ed.set_companion_mood(humor);
+        log::info!("humor face: {humor:?}"); // rides the FULL refresh logged next
     }
 
-    /// Seed for the humor [`bag`](Self::bag)'s xorshift. Fixed, so the sequence is
-    /// deterministic (host-testable) — the *within-session* variety comes from the
-    /// bag reshuffling as it empties, not from boot entropy.
+    /// Default seed for the humor [`bag`](Self::bag)'s xorshift — the fixed
+    /// fallback, so host builds replay a deterministic sequence (the tests depend
+    /// on it). Firmware overrides it per boot via [`reseed_humor`](Self::reseed_humor)
+    /// (`esp_random`), so the face order varies run to run on the device; the
+    /// within-session variety on top of that comes from the bag reshuffling as it
+    /// empties.
     const HUMOR_SEED: u32 = 0xC0FF_EE17;
 
     /// xorshift32 — a few instructions, no crate pulled onto the xtensa build.
@@ -239,20 +258,6 @@ impl<S: Screen> Panel<S> {
         humor
     }
 
-    /// At a typing-pause repaint (already a silent full-area partial): once
-    /// ghosting has built past **half** the full-refresh budget, Typo turns
-    /// frustrated — at the residue dusting *his* feathers, never at the writer.
-    /// He stays that way until the longevity flash launders the panel and the
-    /// pool rotation above answers with a humor.
-    fn companion_ghost_mood(&mut self, ed: &mut Editor) {
-        // A pinned `face` pref holds that face through the pause too — no frown.
-        if ed.prefs().companion
-            && typo::Mood::from_name(&ed.prefs().face).is_none()
-            && self.partials_since_full >= self.full_budget(ed) / 2
-        {
-            ed.set_companion_mood(typo::Mood::Frustrated);
-        }
-    }
 
     /// Repaint after a batch of keystrokes. Renders the editor into `back`, then
     /// paints only the band that changed: a purely additive Insert edit (no
@@ -516,7 +521,9 @@ impl<S: Screen> Panel<S> {
         ed.refresh_stats();
         // The boot-cleanup flash only launders the splash ghost: Typo keeps his
         // neutral face so the writer isn't greeted mid-anticipation before writing
-        // a word. The pool starts on the first *earned* full refresh.
+        // a word. Every full refresh after that — longevity *or* deep-idle — rides
+        // a fresh humor, so stepping away and back is one more chance to see the
+        // rotation, not a reset.
         if !boot_cleanup {
             self.companion_pool_mood(ed); // the humor rides the flash, for free
         }
@@ -555,7 +562,6 @@ impl<S: Screen> Panel<S> {
             return false;
         }
         ed.refresh_stats();
-        self.companion_ghost_mood(ed); // this repaint is whole-panel already
         ed.draw_into(&mut self.back, true);
         if let Err(e) = self.screen.display_frame_partial_window(self.back.bytes(), 0, HEIGHT) {
             log::warn!("caret repaint FAILED ({e}); full refresh next");
@@ -750,7 +756,7 @@ mod tests {
     }
 
     #[test]
-    fn every_full_refresh_draws_typo_a_fresh_humor_from_the_shuffle_bag() {
+    fn every_full_refresh_draws_typo_a_fresh_face_from_the_shuffle_bag() {
         let (mut panel, mut ed, _log) = insert_panel(false);
         let paused = Instant::now() - Duration::from_millis(CURSOR_DEBOUNCE_MS as u64 + 100);
 
@@ -759,7 +765,7 @@ mod tests {
         assert!(panel.longevity_full(&mut ed, paused));
         assert_eq!(ed.companion_mood(), typo::Mood::Neutral);
 
-        // Three bags' worth of earned full-refresh humors.
+        // Three bags' worth of earned full-refresh faces.
         let n = typo::POOL.len();
         let mut seq = Vec::new();
         for _ in 0..(n * 3) {
@@ -768,17 +774,19 @@ mod tests {
             seq.push(ed.companion_mood());
         }
 
-        // No two consecutive flashes repeat a beat — and the guard holds across
-        // every reshuffle seam, not just within a bag.
-        assert_ne!(seq[0], typo::Mood::Neutral, "first humor isn't the boot face");
+        // No two consecutive flashes repeat a face — and the guard holds across
+        // every reshuffle seam, not just within a bag. The seam guard also keeps
+        // the first draw off the boot Neutral (`last_humor` starts Neutral), so we
+        // never flash Neutral straight back onto the neutral boot face.
+        assert_ne!(seq[0], typo::Mood::Neutral, "first face isn't the boot face");
         for w in seq.windows(2) {
-            assert_ne!(w[0], w[1], "consecutive humors must differ");
+            assert_ne!(w[0], w[1], "consecutive faces must differ");
         }
-        // Each bag (every n draws) is a full permutation: all six humors appear,
-        // none twice, before any repeats.
+        // Each bag (every n draws) is a full permutation: every face — the humors
+        // *and* Neutral — appears, none twice, before any repeats.
         for bag in seq.chunks(n) {
-            for humor in typo::POOL.iter() {
-                assert!(bag.contains(humor), "{humor:?} missing from a bag");
+            for face in typo::POOL.iter() {
+                assert!(bag.contains(face), "{face:?} missing from a bag");
             }
         }
     }
@@ -805,21 +813,22 @@ mod tests {
     }
 
     #[test]
-    fn typo_turns_frustrated_at_a_pause_once_ghosting_passes_half_the_budget() {
+    fn a_deep_idle_break_advances_the_face_rotation() {
         let (mut panel, mut ed, _log) = insert_panel(false);
         let paused = Instant::now() - Duration::from_millis(CURSOR_DEBOUNCE_MS as u64 + 100);
+        let deep = Instant::now() - Duration::from_millis(DEEP_IDLE_MS as u64 + 100);
 
-        // Below half the budget the pause repaint leaves the face alone.
-        panel.partials_since_full = FULL_REFRESH_EVERY / 2 - 1;
-        panel.cursor_shown = false;
-        assert!(panel.caret_if_due(&mut ed, paused), "caret was due");
-        assert_eq!(ed.companion_mood(), typo::Mood::Neutral, "light ghosting: no frown");
+        // Clear the one-shot boot-cleanup flash (Neutral by design — pre-first-word).
+        assert!(panel.longevity_full(&mut ed, paused));
+        assert_eq!(ed.companion_mood(), typo::Mood::Neutral);
 
-        // At half the budget the same free repaint carries the frustrated face.
-        panel.partials_since_full = FULL_REFRESH_EVERY / 2;
-        panel.cursor_shown = false;
-        assert!(panel.caret_if_due(&mut ed, paused));
-        assert_eq!(ed.companion_mood(), typo::Mood::Frustrated);
+        // Light editing then a genuine break: the deep-idle full refresh draws from
+        // the bag like any earned flash — it isn't frozen. The first draw is
+        // seam-guarded off the boot Neutral, so stepping away and back advances the
+        // rotation rather than re-showing the neutral boot face.
+        panel.partials_since_full = 1; // below the budget → the "deep-idle" reason
+        assert!(panel.longevity_full(&mut ed, deep), "deep pause launders + rotates");
+        assert_ne!(ed.companion_mood(), typo::Mood::Neutral, "deep-idle advanced off boot Neutral");
     }
 
     #[test]
