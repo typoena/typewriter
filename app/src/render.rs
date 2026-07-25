@@ -116,12 +116,6 @@ pub struct Panel<S: Screen> {
     /// Partial refreshes since the last full one — [`Panel::longevity_full`]
     /// fires when this reaches [`FULL_REFRESH_EVERY`].
     partials_since_full: u32,
-    /// One-shot: the first editor frame is a partial painted over the boot
-    /// splash, so a full refresh at the first typing pause launders the residual
-    /// wordmark ghost. Armed in [`Panel::new`], cleared the first time
-    /// [`Panel::longevity_full`] fires — independent of the partial-count cadence,
-    /// so the ghost clears within a second or two of boot, not after 64 partials.
-    boot_cleanup_pending: bool,
     /// Whether the caret is currently on the panel. Drives whether an
     /// erase-in-one-cell edit counts as additive (the debounced caret bar being
     /// re-suppressed), and is reset to `true` after any whole-panel repaint.
@@ -160,9 +154,9 @@ impl<S: Screen> Panel<S> {
     /// any boot-error screen, then hands it over here once the first editor frame
     /// is ready — after which every panel op goes through the returned `Panel`.
     ///
-    /// Arms [`boot_cleanup_pending`](Self::boot_cleanup_pending): this first paint
-    /// is a partial over the splash wordmark, so a full refresh at the first
-    /// typing pause is scheduled to wipe its residual ghost.
+    /// This first paint is a partial over the splash wordmark; its residual ghost
+    /// proved invisible on the bench, so no cleanup refresh is scheduled — the
+    /// ordinary longevity/deep-idle cadence launders it along with everything else.
     pub fn new(mut screen: S, ed: &mut Editor) -> Result<Self, S::Error> {
         let shown = ed.draw(true);
         screen.display_frame_partial_window(shown.bytes(), 0, HEIGHT)?;
@@ -171,7 +165,6 @@ impl<S: Screen> Panel<S> {
             shown,
             back: Frame::new_white(),
             partials_since_full: 0,
-            boot_cleanup_pending: true,
             cursor_shown: true, // the initial render includes the caret
             force_full: false,
             updates: 0,
@@ -483,56 +476,34 @@ impl<S: Screen> Panel<S> {
         }
     }
 
-    /// Deferred full refresh, at a typing pause — three triggers share this one
+    /// Deferred full refresh, at a typing pause — two triggers share this one
     /// mechanism (and the caret draw, so a pause costs one flash, not flash + caret
     /// pass):
-    ///   * **boot-splash cleanup** — the one-shot
-    ///     [`boot_cleanup_pending`](Self::boot_cleanup_pending) flag, at the first
-    ///     short pause, to wipe the residual splash-wordmark ghost.
     ///   * **longevity** — [`FULL_REFRESH_EVERY`] partials accumulated, at a short
     ///     pause, to re-launder accumulated charge.
     ///   * **deep idle** — *any* ghosting after a genuine break
     ///     ([`DEEP_IDLE_MS`]), so you return from stepping away to a clean panel.
-    /// All defer to a pause because the ~2 s flash must never land mid-typing; the
+    /// Both defer to a pause because the ~2 s flash must never land mid-typing; the
     /// partial counter only advances on keystroke repaints, so promoting in-band
     /// would mean it could ONLY land mid-sentence. Returns `true` if it painted (or
     /// attempted to — the caller should `continue`), `false` when not yet due.
     pub fn longevity_full(&mut self, ed: &mut Editor, last_activity: Instant) -> bool {
         let every = self.full_budget(ed);
         let elapsed = last_activity.elapsed().as_millis();
-        let due = (self.boot_cleanup_pending && elapsed >= CURSOR_DEBOUNCE_MS)
-            || (self.partials_since_full >= every && elapsed >= CURSOR_DEBOUNCE_MS)
+        let due = (self.partials_since_full >= every && elapsed >= CURSOR_DEBOUNCE_MS)
             || (self.partials_since_full > 0 && elapsed >= DEEP_IDLE_MS);
         if !due {
             return false;
         }
-        // Capture the reason before the refresh clears the flag / resets the count.
-        let boot_cleanup = self.boot_cleanup_pending;
-        let reason = if boot_cleanup {
-            "boot-splash cleanup"
-        } else if self.partials_since_full >= every {
-            "longevity"
-        } else {
-            "deep-idle"
-        };
-        // One-shot regardless of the refresh outcome: on a failed paint `force_full`
-        // is armed below, so the next paint is a full refresh that cleans it anyway.
-        self.boot_cleanup_pending = false;
+        let reason = if self.partials_since_full >= every { "longevity" } else { "deep-idle" };
         ed.refresh_stats();
-        // The boot-cleanup flash only launders the splash ghost: Typo keeps his
-        // neutral face so the writer isn't greeted mid-anticipation before writing
-        // a word. Every full refresh after that — longevity *or* deep-idle — rides
-        // a fresh humor, so stepping away and back is one more chance to see the
-        // rotation, not a reset.
-        if !boot_cleanup {
-            self.companion_pool_mood(ed); // the humor rides the flash, for free
-        }
+        self.companion_pool_mood(ed); // the humor rides the flash, for free
         ed.draw_into(&mut self.back, true);
         self.updates += 1;
         let t0 = Instant::now();
         // fast_partial residue survives the ordinary full refresh but not the
         // laundering one (~1.9 s vs ~0.5 s) — see `Epd::display_frame_clean`.
-        let cleaning = ed.prefs().fast_partial && !boot_cleanup;
+        let cleaning = ed.prefs().fast_partial;
         let result = if cleaning {
             self.screen.display_frame_clean(self.back.bytes())
         } else {
@@ -704,28 +675,22 @@ mod tests {
     }
 
     #[test]
-    fn boot_splash_ghost_is_cleared_by_one_shot_full_refresh_at_first_pause() {
-        // Panel::new paints the first editor frame as a partial *over* the boot
-        // splash wordmark, arming the one-shot cleanup. At the first typing pause
-        // (activity older than the debounce) longevity_full fires a FULL refresh to
-        // launder the residual ghost — even with no partials accumulated yet.
+    fn boot_frame_is_a_partial_and_a_clean_panel_never_flashes() {
+        // Panel::new paints the first editor frame as a partial over the boot
+        // splash (the ~1.3 s cold-boot save) — its residual wordmark ghost proved
+        // invisible on the bench, so no cleanup flash is scheduled: with zero
+        // partials accumulated, neither a short pause nor a deep break repaints.
         let log: Log = Rc::new(RefCell::new(Vec::new()));
         let mut ed = Editor::with_text(String::new());
         let mut panel = Panel::new(RecordScreen(log.clone()), &mut ed).expect("boot paint");
         assert_eq!(log.borrow().clone(), ["partial"], "boot frame is a partial over the splash");
 
+        log.borrow_mut().clear();
         let paused = Instant::now() - Duration::from_millis(CURSOR_DEBOUNCE_MS as u64 + 100);
-
-        // First pause: the armed cleanup fires a full refresh despite 0 partials.
-        log.borrow_mut().clear();
-        assert!(panel.longevity_full(&mut ed, paused), "cleanup should paint at the first pause");
-        assert_eq!(log.borrow().clone(), ["full"], "boot cleanup is a full refresh");
-
-        // One-shot: a second pause does not re-fire (flag cleared, and the partial
-        // count is nowhere near the longevity cadence).
-        log.borrow_mut().clear();
-        assert!(!panel.longevity_full(&mut ed, paused), "cleanup must not repeat");
-        assert!(log.borrow().is_empty(), "no second full refresh: {:?}", log.borrow());
+        let deep = Instant::now() - Duration::from_millis(DEEP_IDLE_MS as u64 + 100);
+        assert!(!panel.longevity_full(&mut ed, paused), "clean panel: no flash at a pause");
+        assert!(!panel.longevity_full(&mut ed, deep), "clean panel: no flash at deep idle");
+        assert!(log.borrow().is_empty(), "no paint: {:?}", log.borrow());
     }
 
     #[test]
@@ -744,7 +709,6 @@ mod tests {
     #[test]
     fn deep_idle_launders_light_ghosting_only_after_a_long_break() {
         let (mut panel, mut ed, log) = insert_panel(false);
-        panel.boot_cleanup_pending = false; // isolate from the boot one-shot
         panel.partials_since_full = 3; // light ghosting, well below the budget
         log.borrow_mut().clear();
 
@@ -768,11 +732,6 @@ mod tests {
     fn every_full_refresh_draws_typo_a_fresh_face_from_the_shuffle_bag() {
         let (mut panel, mut ed, _log) = insert_panel(false);
         let paused = Instant::now() - Duration::from_millis(CURSOR_DEBOUNCE_MS as u64 + 100);
-
-        // Boot-cleanup full only launders the splash ghost — Typo stays neutral,
-        // so the writer isn't greeted mid-anticipation before writing a word.
-        assert!(panel.longevity_full(&mut ed, paused));
-        assert_eq!(ed.companion_mood(), typo::Mood::Neutral);
 
         // Three bags' worth of earned full-refresh faces.
         let n = typo::POOL.len();
@@ -827,8 +786,8 @@ mod tests {
         let paused = Instant::now() - Duration::from_millis(CURSOR_DEBOUNCE_MS as u64 + 100);
         let deep = Instant::now() - Duration::from_millis(DEEP_IDLE_MS as u64 + 100);
 
-        // Clear the one-shot boot-cleanup flash (Neutral by design — pre-first-word).
-        assert!(panel.longevity_full(&mut ed, paused));
+        // A short pause with a clean panel does nothing — no boot one-shot anymore.
+        assert!(!panel.longevity_full(&mut ed, paused));
         assert_eq!(ed.companion_mood(), typo::Mood::Neutral);
 
         // Light editing then a genuine break: the deep-idle full refresh draws from
@@ -846,6 +805,7 @@ mod tests {
         ed.set_prefs(Prefs { companion: false, ..Prefs::default() });
         let paused = Instant::now() - Duration::from_millis(CURSOR_DEBOUNCE_MS as u64 + 100);
 
+        panel.partials_since_full = FULL_REFRESH_EVERY;
         assert!(panel.longevity_full(&mut ed, paused), "the flash itself still runs");
         panel.partials_since_full = FULL_REFRESH_EVERY / 2;
         panel.cursor_shown = false;
