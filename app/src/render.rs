@@ -53,9 +53,10 @@ pub const CURSOR_DEBOUNCE_MS: u128 = 2000;
 /// think or walked away, not just paused mid-sentence. At this point
 /// [`Panel::longevity_full`] launders *any* accumulated ghosting with a full
 /// refresh, even below the [`FULL_REFRESH_EVERY`] budget: the flash is unobtrusive
-/// when you are not typing, and you return to a clean panel. 30 s, comfortably
-/// past the 2 s caret debounce so an ordinary think-pause never triggers it.
-pub const DEEP_IDLE_MS: u128 = 30_000;
+/// when you are not typing, and you return to a clean panel. 10 s, comfortably
+/// past the 2 s caret debounce so an ordinary mid-sentence pause never triggers
+/// it, but short enough that a clean panel is waiting whenever you glance back.
+pub const DEEP_IDLE_MS: u128 = 10_000;
 
 /// Focus mode (Pomodoro) block length: 25 minutes of writing before the rest
 /// card drops. Silent — never shown as a live countdown (an e-ink no-go, and the
