@@ -420,6 +420,27 @@ fn fmt_stays_in_core_and_asks_the_host_for_nothing() {
 }
 
 #[test]
+fn fmt_keeps_the_caret_column_instead_of_snapping_to_the_line_start() {
+    // Line 0 has trailing spaces, so format_markdown actually rewrites the buffer;
+    // the caret sits mid-word on the untouched line below and must stay put rather
+    // than jump to the start of its line.
+    let mut e = Editor::with_file(
+        "/sd/repo/notes.md".into(),
+        Scope::Tracked,
+        "first line   \nsecond line here".into(),
+    );
+    e.caret = "first line   \n".len() + 7; // after "second " on row 1
+    e.handle(Key::Char(':'));
+    for c in "fmt".chars() {
+        e.handle(Key::Char(c));
+    }
+    e.handle(Key::Enter);
+    assert_eq!(e.text(), "first line\nsecond line here"); // trailing spaces trimmed
+    assert_eq!(e.caret, "first line\n".len() + 7); // same column, not the line start
+    assert_eq!(e.mode(), Mode::Normal); // and formatting never touches the mode
+}
+
+#[test]
 fn unknown_command_is_ignored() {
     let (e, effs) = command("q"); // quit is deliberately unimplemented
     assert!(effs.is_empty());

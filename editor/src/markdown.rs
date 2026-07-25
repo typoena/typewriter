@@ -217,11 +217,16 @@ impl Editor {
     pub(crate) fn format_buffer(&mut self) {
         self.checkpoint(); // `:fmt` (and format-on-save) is undoable
         let row = self.text[..self.caret].bytes().filter(|&b| b == b'\n').count();
+        let col = self.caret - self.line_start(self.caret); // byte offset within the line
         self.text = format_markdown(&self.text);
-        // Land the caret at the start of the same logical line, clamped.
+        // Land the caret on the same logical line, at the same column when it
+        // still fits. Formatting keeps the writer's line breaks (no paragraph
+        // reflow), so for ordinary prose the caret lands exactly where it was; a
+        // line that was rewritten (table padding, list-marker normalization)
+        // clamps to its new end.
         let total = self.text.bytes().filter(|&b| b == b'\n').count() + 1;
         let target = row.min(total - 1);
-        self.caret = if target == 0 {
+        let line_start = if target == 0 {
             0
         } else {
             // Byte after the `target`-th newline; end of buffer if there are
@@ -234,6 +239,12 @@ impl Editor {
                 .map(|(i, _)| i + 1)
                 .unwrap_or(self.text.len())
         };
+        let mut caret = (line_start + col).min(self.line_end(line_start));
+        // A rewritten line's byte layout can shift; snap back to a char boundary.
+        while caret > line_start && !self.text.is_char_boundary(caret) {
+            caret -= 1;
+        }
+        self.caret = caret;
     }
 
 }
