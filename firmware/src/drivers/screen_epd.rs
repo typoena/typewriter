@@ -134,9 +134,10 @@ pub struct Epd<'d> {
     /// before sending further controller traffic.
     refresh_pending: bool,
     /// The custom fast-partial recipe ([`FAST_PARTIAL_LUT`] + drive voltages)
-    /// is resident in the controllers. Factory `0xFF` partials do NOT displace
-    /// it (scrolls doubled on the weakened waveform, 2026-07-25), so
-    /// [`update_part`](Self::update_part) evicts it first.
+    /// is resident in the controllers. Load-LUT activations do NOT displace it
+    /// (scrolls doubled on the weakened waveform, 2026-07-25), so every
+    /// non-fast refresh runs [`evict_fast_recipe`](Self::evict_fast_recipe)
+    /// before its RAM writes.
     fast_lut_loaded: bool,
 }
 
@@ -356,12 +357,6 @@ impl<'d> Epd<'d> {
     /// clobbering the write-only OTP gate config — refuted on hardware, see
     /// docs/postmortems/2026-07-16-gate-scan-spike-refuted.md.
     fn update_part(&mut self, y0: u16, h: u16) -> Result<(), EspError> {
-        if self.fast_lut_loaded {
-            // Evict the custom recipe, or this partial runs on the weakened
-            // fast waveform and doubles big moves (Ctrl-U/D scrolls, 2026-07-25).
-            self.reload_otp_lut()?;
-            self.fast_lut_loaded = false;
-        }
         self.set_ram_area(0, y0, WIDTH / 2, h, 0x03, 0x80)?; // slave
         self.set_ram_area(0, y0, WIDTH / 2, h, 0x03, 0x00)?; // master
         self.cmd(0x3C)?; // border waveform control
@@ -418,6 +413,22 @@ impl<'d> Epd<'d> {
         self.cmd(0x20)?; // master activation
         self.wait_while_busy(2000)?;
         self.fast_lut_loaded = true; // resident until update_part evicts it (or a re-init)
+        Ok(())
+    }
+
+    /// Evict a resident fast-partial recipe by reloading the factory OTP
+    /// waveform, if one is loaded; a no-op otherwise. Factory partials run on
+    /// the weakened custom waveform without this (doubled Ctrl-U/D scrolls,
+    /// 2026-07-25). Must run BEFORE the refresh's RAM-bank writes: its master
+    /// activation between the `0x24` band write and the display made the
+    /// partial drive toward the *previous* frame — a backspaced char stayed on
+    /// the panel and became undrivable once the resync rewrote both banks
+    /// (2026-07-26).
+    fn evict_fast_recipe(&mut self) -> Result<(), EspError> {
+        if self.fast_lut_loaded {
+            self.reload_otp_lut()?;
+            self.fast_lut_loaded = false;
+        }
         Ok(())
     }
 
@@ -481,6 +492,10 @@ impl<'d> Epd<'d> {
     pub fn display_frame(&mut self, fb: &[u8]) -> Result<(), EspError> {
         assert_eq!(fb.len(), FB_BYTES, "framebuffer must be 99 x 272 bytes");
         self.wait_ready()?;
+        // A resident fast recipe survives 0xD7's load-LUT (same finding as the
+        // factory-partial eviction), so a full while it is loaded would run the
+        // flash on the typing waveform.
+        self.evict_fast_recipe()?;
         self.write_frame_bank(0x26, fb, 0, HEIGHT)?; // previous
         self.write_frame_bank(0x24, fb, 0, HEIGHT)?; // current
         self.update_full()?;
@@ -512,6 +527,7 @@ impl<'d> Epd<'d> {
     pub fn display_frame_async(&mut self, fb: &[u8]) -> Result<(), EspError> {
         assert_eq!(fb.len(), FB_BYTES, "framebuffer must be 99 x 272 bytes");
         self.wait_ready()?;
+        self.evict_fast_recipe()?; // same hazard as display_frame
         self.write_frame_bank(0x26, fb, 0, HEIGHT)?; // previous
         self.write_frame_bank(0x24, fb, 0, HEIGHT)?; // current
         self.kick_update_full()?;
@@ -562,6 +578,9 @@ impl<'d> Epd<'d> {
         assert_eq!(fb.len(), FB_BYTES, "framebuffer must be 99 x 272 bytes");
         assert!(h > 0 && y0 + h <= HEIGHT, "row window out of range");
         self.wait_ready()?;
+        if !fast {
+            self.evict_fast_recipe()?; // before the bank write — see its doc
+        }
         self.write_frame_bank(0x24, fb, y0, h)?; // current = new
         if fast {
             self.update_part_fast(y0, h)?; // transition previous -> current
