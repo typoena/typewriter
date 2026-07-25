@@ -339,7 +339,7 @@ impl Editor {
     /// prompt with a block caret. Then a rule, the fuzzy-ranked file list (the
     /// selected row in reverse video), and a key hint on the bottom row. The list
     /// scrolls to keep the selection visible. Body font (FONT_10X20) throughout.
-    /// The whole column repaints, so the host renders this as one full-area
+    /// The whole column repaints, so the host renders this as one area
     /// partial — the Spike 11 transient-panel refresh worth eyeballing for
     /// e-ink ghosting.
     pub(crate) fn draw_palette(&self, f: &mut Frame) {

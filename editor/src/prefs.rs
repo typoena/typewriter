@@ -75,7 +75,7 @@ pub struct Prefs {
     ///
     /// The cost is real: a shorter waveform ghosts more, and a badly DC-balanced one
     /// can, over many cycles, *permanently* damage the panel. The three guardrails:
-    /// (1) it is scoped to the additive windowed path only — full-area partials,
+    /// (1) it is scoped to the additive windowed path only — area partials,
     /// deletes, scrolls, cards and full refreshes keep the factory waveform;
     /// (2) the panel-longevity full refresh runs twice as often while it is on
     /// (`FULL_REFRESH_EVERY_FAST` in `app::render`); (3) this switch, default off.

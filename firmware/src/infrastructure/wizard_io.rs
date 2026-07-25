@@ -158,7 +158,7 @@ pub fn run(
         // Paint before executing: waiting screens ("Joining Wi-Fi…",
         // "contacting github.com…") must be visible while their effect blocks
         // below. First paint is a full refresh (clears the splash cleanly),
-        // the rest ride the ~630 ms full-area partial like live typing does.
+        // the rest ride the ~630 ms area partial like live typing does.
         if dirty {
             wiz.draw_into(&mut frame);
             if first_paint {

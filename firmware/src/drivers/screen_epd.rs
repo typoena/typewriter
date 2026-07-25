@@ -47,7 +47,7 @@ const SPI_CHUNK: usize = 4096;
 /// Results log: docs/tradeoff-curves/epd-refresh-latency.md.
 ///
 /// CLOSED 2026-07-17: swept hot `[0x7F,0x00]` and cold `[0x19,0x00]` against the
-/// `[0x64,0x00]` default — windowed stayed ~565 ms and full-area ~690 ms at
+/// `[0x64,0x00]` default — windowed stayed ~565 ms and area ~690 ms at
 /// *every* value. The partial waveform's BUSY time is temperature-independent
 /// here (the `0x18`←`0x80` internal sensor overrides the register, or the OTP
 /// partial LUT simply has one fixed schedule). Not a lever. Left as `None`
@@ -56,11 +56,11 @@ const SPI_CHUNK: usize = 4096;
 const PARTIAL_TEMP: Option<[u8; 2]> = None;
 
 /// Settle delay after each RAM-window set in `set_ram_area`. A partial refresh
-/// issues 8 of these (both windowed and full-area paths). The original port slept
+/// issues 8 of these (both windowed and area paths). The original port slept
 /// `delay_ms(2)` here — but at `CONFIG_FREERTOS_HZ = 100` that rounds *up* to
 /// `vTaskDelay(1)`, one 10 ms tick, blocking to the next tick boundary: 0–10 ms
 /// each, not 2 ms. Eight per refresh cost ~40 ms average. Shipped at 0 on
-/// 2026-07-17 (verified clean, −70 ms windowed / −44 ms full-area): an e-ink
+/// 2026-07-17 (verified clean, −70 ms windowed / −44 ms area): an e-ink
 /// controller latches the RAM-window address when the SPI transaction completes,
 /// so there is nothing to wait for. Raise to 1 (a full tick) only if band
 /// corruption/ghosting ever appears. Log: docs/tradeoff-curves/epd-refresh-latency.md.
@@ -400,7 +400,7 @@ impl<'d> Epd<'d> {
         // come through — unlike 0xD7 (Mode 2, fast) which skipped development phases
         // and left thin low-contrast pixels faint. The forced 100°C above keeps
         // Mode 1 down to ~1–1.5 s (vs a cold ~2.2 s) and leaves the temp register
-        // hot for the partials that follow, so full-area/windowed stay fast.
+        // hot for the partials that follow, so area/windowed stay fast.
         self.data(&[0xF7])?; // full update, Display Mode 1 (was 0xD7 fast/Mode 2)
         self.cmd(0x20)?; // master activation
         Ok(())

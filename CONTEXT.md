@@ -134,6 +134,61 @@ modal full-screen help/config view that swaps in over the editor — a later
 release, see [`docs/spikes.md`](docs/spikes.md) Spike 11). Always qualify:
 _side panel_ vs _transient panel_.
 
+### Refresh cycle
+
+How the e-paper repaints. Three layers: the two driver **waveforms** (physics),
+the render engine's **scope** choice for a partial, and the **triggers** that
+schedule a full refresh. Terms below are one-to-one — each names exactly one
+thing. The engine logs the chosen paint as one of `FULL` / `windowed` /
+`windowed-fast` / `area`.
+
+**Full refresh**:
+The whole-panel Mode-1 flash (`0xF7`). Develops _every_ pixel and clears
+accumulated ghosting; ~1–1.5 s. The only paint that launders the panel. Driver:
+`display_frame` → `update_full`. Logged `FULL`.
+_Avoid_: attaching "full" to any partial — see **area**, retired for exactly that.
+
+**Partial refresh**:
+The fast differential waveform (`0xFF`, ~0.5–0.65 s): only pixels that differ
+from the on-screen image transition, so it leaves faint ghosting a later **full
+refresh** clears. Never launders. Driver: `update_part`. Has two **scopes**:
+
+- **Windowed**:
+  A partial over only the rows that changed since the last frame — the
+  per-keystroke typing path. Logged `windowed` (or `windowed-fast` with the
+  experimental custom-LUT waveform, `Prefs::fast_partial`).
+
+- **Area**:
+  A partial over the whole panel height (all rows), for an edit that erases or
+  moves ink — delete, scroll, mode switch, theme flip — where a **windowed**
+  partial would leave ghost fragments of the vacated ink. Logged `area`.
+  _Avoid_: **full-area** (retired 2026-07-25 — it carried "full" but is a
+  _partial_, colliding with **full refresh**).
+
+**Idle full refresh**:
+A **full refresh** the render engine defers to a typing pause rather than firing
+mid-keystroke (the flash must never land mid-sentence). Mechanism:
+`Panel::longevity_full`. Fires on one of three **triggers**, named in the log as
+`idle FULL refresh (<trigger>)`:
+
+- **Boot-splash cleanup** — one-shot, launders the boot wordmark ghost at the
+  first pause.
+- **Longevity** — the periodic budget trigger: after `FULL_REFRESH_EVERY`
+  partials, re-launder accumulated charge.
+- **Deep-idle** — any accumulated ghosting after a genuine break
+  (`DEEP_IDLE_MS`, 10 s).
+
+_Avoid_: using **deep-idle** and **idle full refresh** interchangeably —
+deep-idle is _one_ of the three triggers, not the path itself.
+_Note_: `longevity` names both the budget **trigger** and (loosely) the code
+method `longevity_full` that serves all three triggers; in the domain, `longevity`
+is the trigger — the method name is an internal overlap, not a second meaning.
+
+A **full refresh** can also be forced _outside_ the idle path — a card transition
+(Rest / `:about`), a buffer switch past half the budget, or failed-paint
+recovery. Those are not **idle full refreshes**; they ride a transition the user
+already expects, so the flash is unsurprising there.
+
 ## Relationships
 
 - A **File** belongs to exactly one scope (**Tracked** or **Local**), fixed at

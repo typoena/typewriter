@@ -3,7 +3,7 @@
 //! panel through one copy of the hard-won refresh logic.
 //!
 //! [`Panel`] owns the [`Screen`] and the two reused framebuffers, and encapsulates
-//! every paint the editor loop performs: the windowed/additive/full-area
+//! every paint the editor loop performs: the windowed/additive/area
 //! decision for an edit batch ([`Panel::render_batch`]), the debounced Insert
 //! caret ([`Panel::caret_if_due`]), the periodic panel-longevity full refresh
 //! ([`Panel::longevity_full`]), the focus-mode rest card ([`Panel::rest_if_due`]),
@@ -150,7 +150,7 @@ pub struct Panel<S: Screen> {
 
 impl<S: Screen> Panel<S> {
     /// First editor render — the moment the boot splash disappears. Draws the
-    /// opening frame and paints it as a full-area *partial* (~630 ms) rather than
+    /// opening frame and paints it as a area *partial* (~630 ms) rather than
     /// a second full refresh: the partial first waits out the splash's waveform
     /// (`wait_ready`, which the boot work overlapped), so the splash→editor swap
     /// rides the partial and shaves ~1.3 s off cold boot. Allocates both
@@ -262,7 +262,7 @@ impl<S: Screen> Panel<S> {
     /// Repaint after a batch of keystrokes. Renders the editor into `back`, then
     /// paints only the band that changed: a purely additive Insert edit (no
     /// cursor, no scroll) takes the fast windowed partial; anything else —
-    /// deletes, caret moves, scrolling, mode switches — takes a clean full-area
+    /// deletes, caret moves, scrolling, mode switches — takes a clean area
     /// partial; a `force_full` recovery or leaving the Rest curtain takes a FULL
     /// refresh. `prev_mode` is the mode captured before the batch (to detect
     /// leaving Rest); `keys` is only for the trace. On a paint failure the frame
@@ -318,7 +318,7 @@ impl<S: Screen> Panel<S> {
         // re-suppressed as typing resumes — its ghost risk is negligible, and
         // promoting it made every post-pause keystroke drive the whole panel. Any
         // wider erase (a backspaced glyph spans the caret's cell plus its own)
-        // still falls back to the clean full-area pass.
+        // still falls back to the clean area pass.
         let additive = ed.mode() == Mode::Insert
             && !scrolled
             && match erase_bbox(self.shown.bytes(), self.back.bytes(), y0, y1) {
@@ -339,7 +339,7 @@ impl<S: Screen> Panel<S> {
                 (self.screen.display_frame_partial_window(self.back.bytes(), y0, h), "windowed")
             }
         } else {
-            (self.screen.display_frame_partial_window(self.back.bytes(), 0, HEIGHT), "full-area")
+            (self.screen.display_frame_partial_window(self.back.bytes(), 0, HEIGHT), "area")
         };
         let ms = t0.elapsed().as_millis();
         if let Err(e) = result {
@@ -404,7 +404,7 @@ impl<S: Screen> Panel<S> {
         true
     }
 
-    /// Repaint the whole panel with a silent full-area partial (caret shown),
+    /// Repaint the whole panel with a silent area partial (caret shown),
     /// for a notice that arrived while idle — no keystroke will come to trigger a
     /// repaint. Returns `true` (the caller should `continue`); on a paint failure
     /// it arms `force_full` for the next paint.
@@ -422,7 +422,7 @@ impl<S: Screen> Panel<S> {
 
     /// Repaint only if the freshly-drawn frame actually differs from what's on
     /// the panel — for a background file-list update, which is only visible
-    /// through the (usually closed) palette overlay, so a no-op full-area partial
+    /// through the (usually closed) palette overlay, so a no-op area partial
     /// would be a pointless ~630 ms panel drive. Caret visibility is preserved
     /// (not forced on), so this can't reveal a debounced Insert caret early.
     pub fn repaint_if_changed(&mut self, ed: &mut Editor) -> bool {
@@ -474,7 +474,7 @@ impl<S: Screen> Panel<S> {
     /// so it is a free moment to launder accumulated ghosting — masking the ~2 s
     /// flash behind an expected transition instead of spending it on a standalone
     /// idle pass. Only once ghosting has built past half the longevity budget, so
-    /// rapid browsing right after a clean pass stays on the fast full-area partial.
+    /// rapid browsing right after a clean pass stays on the fast area partial.
     /// The runtime calls this right after servicing an `Effect::Load`, before the
     /// switch repaint runs through [`render_batch`](Self::render_batch).
     pub fn full_refresh_on_switch(&mut self, ed: &Editor) {
@@ -549,7 +549,7 @@ impl<S: Screen> Panel<S> {
 
     /// Debounced caret, Insert mode only: once typing has paused long enough,
     /// bring the bar caret back and refresh the panel word count with a silent
-    /// full-area partial (no flash). Returns `true` when the caret was due (it
+    /// area partial (no flash). Returns `true` when the caret was due (it
     /// painted, or tried and armed `force_full`), `false` when nothing was due —
     /// in which case the caller should briefly yield the CPU. The platform sleep
     /// is the composition root's concern, kept out of this pure render engine.
@@ -678,7 +678,7 @@ mod tests {
     #[test]
     fn fast_waveform_never_fires_off_the_additive_path() {
         // Guardrail 1: even with the pref on, a non-additive edit (a delete, which
-        // erases ink) must take the clean full-area partial, never the fast one.
+        // erases ink) must take the clean area partial, never the fast one.
         let (mut panel, mut ed, log) = insert_panel(true);
         type_char(&mut panel, &mut ed, &log, 'a');
         type_char(&mut panel, &mut ed, &log, 'b');
@@ -722,7 +722,7 @@ mod tests {
     #[test]
     fn file_switch_promotes_to_a_full_refresh_only_once_ghosting_has_accumulated() {
         let (mut panel, ed, _log) = insert_panel(false);
-        // Just below half the budget: a switch stays on the fast full-area partial.
+        // Just below half the budget: a switch stays on the fast area partial.
         panel.partials_since_full = FULL_REFRESH_EVERY / 2 - 1;
         panel.full_refresh_on_switch(&ed);
         assert!(!panel.force_full, "light ghosting: no gratuitous full refresh on switch");
@@ -848,7 +848,7 @@ mod tests {
 /// Bounding box (x0, x1, y0, y1 — pixels, inclusive) of the ink *erased* going
 /// from frame `a` to `b` within rows `y0..=y1`, or `None` when the change only
 /// adds ink. Windowed partial refresh renders added ink cleanly but leaves
-/// ghosts where ink is erased, so erasing edits fall back to a clean full-area
+/// ghosts where ink is erased, so erasing edits fall back to a clean area
 /// partial — except an erase confined to one character cell with the caret on
 /// screen, which the caller reads as the debounced caret bar being re-suppressed.
 /// Bit convention: 1 = white, 0 = black ink.

@@ -43,7 +43,7 @@ fn main() -> anyhow::Result<()> {
     )?;
     // EPD SPI clock. Was 4 MHz; the panel (SSD1683) takes 10–20 MHz, and this
     // clock only affects the pixel clock-out, not the waveform BUSY time — so it
-    // trims the pre-kick band write (~43 ms full-area at 4 MHz) off perceived
+    // trims the pre-kick band write (~43 ms area at 4 MHz) off perceived
     // latency on the erase/caret/scroll path. Sweep higher (16/20 MHz) only
     // while watching the panel for signal-integrity glitches (garbled/missing
     // bands). See docs/tradeoff-curves/epd-refresh-latency.md.
@@ -219,7 +219,7 @@ fn main() -> anyhow::Result<()> {
     // First editor render — the moment the splash disappears. Everything
     // mandatory is ready here: SD mounted, note loaded, prefs applied, input
     // running (the palette walk continues in the background). `Panel::new` draws
-    // the opening frame and paints it as a full-area *partial* (~630 ms) that
+    // the opening frame and paints it as a area *partial* (~630 ms) that
     // first waits out the splash's waveform (which the boot work above
     // overlapped), so the splash→editor swap rides the partial instead of a
     // second full refresh — shaving ~1.3 s off cold boot. From here the panel

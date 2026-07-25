@@ -581,7 +581,7 @@ impl Editor {
     /// buffer's baseline, post "5,000 words!" and give Typo the anticipation
     /// face. Runs inside [`refresh_stats`](Self::refresh_stats), so it fires at a
     /// typing pause / non-Insert action — moments whose repaint is already a
-    /// full-area partial — never per keystroke, and never interrupts typing.
+    /// area partial — never per keystroke, and never interrupts typing.
     /// Each threshold fires at most once per buffer session (the baseline
     /// ratchets), and a buffer loaded already past a threshold starts baselined
     /// there (see [`milestone`](Self::milestone)).
