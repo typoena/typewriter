@@ -570,3 +570,37 @@ kick.) The clean fires on every idle-full trigger while `fast_partial` is on; if
   If doubling persists at ~527 ms, the remaining suspect is the custom drive voltages,
   which the bare load-LUT may not restore — escalate then, not before.
 
+### Eviction must precede the RAM writes — the stayed-backspace bug (2026-07-26)
+
+The eviction above shipped *inside* `update_part`, i.e. **after** `partial_window` had
+already written the new band into `0x24`. That put a master activation (`0x22 ← 0x91`,
+`0x20`) between the band write and the display — and that activation toggles the
+controller's `0x24`/`0x26` ping-pong, exactly like the display activations the
+2026-07-16 postmortem resyncs against. The first factory partial after fast typing
+therefore diffed *swapped* banks and drove the band toward the **previous** frame:
+
+- **Symptom:** a backspaced char stayed on the panel ("the 4 stays even after
+  backspacing it"); DeleteWord left the removed text behind; typed chars went invisible;
+  a later different char in a lied-about cell painted the XOR of both glyphs (the
+  overlapping-strokes photos). The post-refresh both-bank resync then stamped the
+  *correct* frame into RAM, so no later partial could ever drive the ghost pixels —
+  frozen until the next full. Sessions read as "incoherent after one full refresh out of
+  two" because each episode started at the first post-typing area partial and ended at
+  the next laundering full.
+- **Log signature:** the failing erase sat precisely on the seam — `windowed-fast #30`
+  paints the char, Backspace → `area #31` (the eviction partial) fails to remove it.
+  Erases through non-eviction seams (area-after-area, after a `+clean` full) were clean.
+- **Fix:** `evict_fast_recipe` runs at the top of `partial_window`, **before any bank
+  write**; plain fulls (`display_frame`, `display_frame_async`) evict too — `0xD7`'s
+  load-LUT doesn't displace a resident recipe any more than `0xFF`'s does, so a
+  force-full/rest-card/file-switch flash while resident would have run on the typing
+  waveform. (`display_frame_clean` already laundered via reset + init.)
+- **Confirmed on device 2026-07-26:** backspaced chars erase properly, block cursor
+  develops after Esc, timings unchanged (fast ~263 ms, area ~525 ms, clean ~1.86 s).
+
+**Rule:** no master activation may ever sit between a refresh's RAM-bank writes and its
+display kick — any `0x20`, even a bare load-LUT, flips the ping-pong and inverts the
+diff. Load recipes/LUTs either before the writes or as part of the display kick itself
+(`update_part_fast` is safe for this reason: its `0x32` writes are plain register
+traffic, no activation until the trigger).
+
