@@ -44,11 +44,10 @@ pub trait Screen {
     ) -> Result<(), Self::Error>;
 
     /// Like [`display_frame_partial_window`](Screen::display_frame_partial_window),
-    /// but drives an *accelerated* waveform when the panel has one (the render
-    /// engine calls this only for the per-keystroke windowed-additive repaint, and
-    /// only when the `fast_partial` pref is on). The default delegates to the plain
-    /// partial, so a panel without a custom fast waveform — or a test double — is
-    /// simply not accelerated rather than needing its own implementation.
+    /// but on an *accelerated* waveform when the panel has one (called only for
+    /// the `fast_partial`-gated per-keystroke additive repaint). Defaults to the
+    /// plain partial, so a panel without a fast waveform — or a test double — is
+    /// simply not accelerated.
     fn display_frame_partial_window_fast(
         &mut self,
         fb: &[u8],
@@ -60,11 +59,10 @@ pub trait Screen {
 
     /// Like [`display_frame`](Screen::display_frame), but *laundering*: the
     /// panel's strongest ghost-scrubbing refresh, whatever that costs (on the
-    /// e-paper driver it's a panel re-init plus a boot-grade full refresh,
-    /// ~1.9 s). The render engine calls this for the idle full refresh when the
-    /// `fast_partial` pref is on — that waveform's residue survives the ordinary
-    /// full refresh. The default delegates to the plain full refresh, so a panel
-    /// without the fast waveform — or a test double — just isn't special-cased.
+    /// e-paper driver, a panel re-init plus boot-grade full refresh, ~1.9 s).
+    /// Called for the idle full refresh when `fast_partial` is on — that
+    /// waveform's residue survives the ordinary full refresh. Defaults to the
+    /// plain full refresh.
     fn display_frame_clean(&mut self, fb: &[u8]) -> Result<(), Self::Error> {
         self.display_frame(fb)
     }

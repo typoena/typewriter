@@ -530,10 +530,8 @@ impl<S: Screen> Panel<S> {
         ed.draw_into(&mut self.back, true);
         self.updates += 1;
         let t0 = Instant::now();
-        // `fast_partial`'s residue survives the ordinary mid-session full refresh
-        // (Typo's half-eye) but not the boot one. The laundering variant is a
-        // software power-cycle of the panel plus that boot-grade full refresh
-        // (~1.9 s vs ~0.5 s) — see `Epd::display_frame_clean` for the evidence.
+        // fast_partial residue survives the ordinary full refresh but not the
+        // laundering one (~1.9 s vs ~0.5 s) — see `Epd::display_frame_clean`.
         let cleaning = ed.prefs().fast_partial && !boot_cleanup;
         let result = if cleaning {
             self.screen.display_frame_clean(self.back.bytes())

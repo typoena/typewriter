@@ -17,10 +17,9 @@ use esp_idf_svc::hal::gpio::{Input, Output, PinDriver};
 use esp_idf_svc::hal::spi::{SpiBusDriver, SpiDriver};
 use esp_idf_svc::sys::EspError;
 
-// Panel geometry and the drawable `Frame` now live in the `display` crate, so
-// the editor can render onto them off the xtensa target. Re-exported here so
-// `epd::HEIGHT`, `epd::FB_BYTES`, etc. keep resolving for main.rs and the driver
-// code below, and so the driver need not know they were relocated.
+// Panel geometry and the drawable `Frame` live in the `display` crate (so the
+// editor can render off the xtensa target); re-exported so `epd::HEIGHT` etc.
+// keep resolving.
 pub use display::{FB_BYTES, FB_BYTES_W, HEIGHT, WIDTH};
 
 /// Each controller drives one half. SSD1683 X is byte-addressed; 396 px
@@ -31,90 +30,40 @@ const CTRL_BYTES: usize = CTRL_BYTES_W * HEIGHT as usize; // 50 * 272 = 13600
 /// Max bytes per SPI transfer; matches the DMA size configured in `main`.
 const SPI_CHUNK: usize = 4096;
 
-/// EXPERIMENT (2026-07-17): temperature value written to the `0x1A` register
-/// before each *partial* update, to test whether a hotter OTP LUT shortens the
-/// ~543 ms partial-waveform floor. The partial's `0x22 ← 0xFF` reloads temp+LUT
-/// from this register every refresh; `init()` already leaves it at `[0x64,0x00]`
-/// (~100), which is the shipping baseline — so `Some([0x64,0x00])` is the
-/// control and higher values sweep for a faster-indexed LUT.
+/// Temperature override written to `0x1A` before each partial; `None` = leave
+/// init's `[0x64, 0x00]`, no per-partial write.
 ///
-/// This is NOT a custom/authored waveform (still a factory OTP LUT, just a
-/// different temperature index), so the DC-balance/longevity risks of the
-/// `0x32` path don't apply — the only cost is ghosting if a hot LUT under-drives
-/// at room temperature. Fully reversible: set to `None` to restore the honest
-/// behaviour (register left at init's `[0x64,0x00]`, no per-partial rewrite).
-///
-/// Results log: docs/tradeoff-curves/epd-refresh-latency.md.
-///
-/// CLOSED 2026-07-17: swept hot `[0x7F,0x00]` and cold `[0x19,0x00]` against the
-/// `[0x64,0x00]` default — windowed stayed ~565 ms and area ~690 ms at
-/// *every* value. The partial waveform's BUSY time is temperature-independent
-/// here (the `0x18`←`0x80` internal sensor overrides the register, or the OTP
-/// partial LUT simply has one fixed schedule). Not a lever. Left as `None`
-/// (honest baseline, no per-partial register write); the scaffolding stays only
-/// so the closed result is self-documenting next to the driver.
+/// CLOSED 2026-07-17: hot/cold sweeps never moved BUSY time — the OTP partial
+/// LUT is temperature-independent here, not a latency lever. Scaffolding kept so
+/// the closed result stays next to the driver. Log:
+/// docs/tradeoff-curves/epd-refresh-latency.md.
 const PARTIAL_TEMP: Option<[u8; 2]> = None;
 
-/// Settle delay after each RAM-window set in `set_ram_area`. A partial refresh
-/// issues 8 of these (both windowed and area paths). The original port slept
-/// `delay_ms(2)` here — but at `CONFIG_FREERTOS_HZ = 100` that rounds *up* to
-/// `vTaskDelay(1)`, one 10 ms tick, blocking to the next tick boundary: 0–10 ms
-/// each, not 2 ms. Eight per refresh cost ~40 ms average. Shipped at 0 on
-/// 2026-07-17 (verified clean, −70 ms windowed / −44 ms area): an e-ink
-/// controller latches the RAM-window address when the SPI transaction completes,
-/// so there is nothing to wait for. Raise to 1 (a full tick) only if band
-/// corruption/ghosting ever appears. Log: docs/tradeoff-curves/epd-refresh-latency.md.
+/// Settle after each RAM-window set (8 per partial refresh). The GxEPD2 port's
+/// `delay_ms(2)` rounded up to a whole 10 ms FreeRTOS tick (~40 ms/refresh);
+/// the controller latches the window when the SPI transaction completes, so 0
+/// is safe (verified 2026-07-17, −70 ms windowed). Raise to 1 tick only if band
+/// corruption ever appears. Log: docs/tradeoff-curves/epd-refresh-latency.md.
 const RAM_SETTLE_MS: u32 = 0;
 
-/// Fast partial-refresh waveform for the GDEY0579T93 (SSD1683) — the per-keystroke
-/// typing-latency lever. Written to the LUT register (`0x32`) before each additive
-/// partial repaint (via [`Epd::update_part_fast`]) *instead of* the factory OTP
-/// partial waveform, whose ~540 ms BUSY time is the typing-latency floor and is not
-/// reducible any other way (see `PARTIAL_TEMP` and `update_part`'s gate-scan note —
-/// both closed). A shorter, custom LUT is the only remaining lever.
+/// Fast partial-refresh waveform — the per-keystroke typing-latency lever.
+/// Loaded into `0x32` by [`Epd::update_part_fast`] instead of the factory OTP
+/// partial (~495 ms BUSY floor → ~265 ms windowed, validated on hardware
+/// 2026-07-21). Still gated behind the `fast_partial` pref: longevity soak and
+/// cold-temperature check outstanding — the speed spends the vendor's drive
+/// margin, which shrinks when cold. Full narrative and FR sweep:
+/// docs/tradeoff-curves/epd-refresh-latency.md.
 ///
-/// **Provenance:** `LUT_DATA_part` (the array tagged `5.79`) from Good Display's
-/// official GDEY0579T93 reference driver `Display_EPD_W21.c`, archive
-/// `S-GDEY0579T93-FP(LUT)-20250814` (received 2026-07-21). This is the panel's *own*
-/// partial waveform, and it replaces the earlier Waveshare 1.54"/SSD1681 guess that
-/// never darkened the ink (see below).
+/// Provenance: Good Display's own `LUT_DATA_part` for this panel, preserved
+/// verbatim in `reference/gdey0579t93-fp-lut/Display_EPD_W21.c`.
 ///
-/// **Layout (233 bytes, all used).** Bytes `[0..227)` are the phase/timing table
-/// written to `0x32` (this includes the FR/XON bytes at `[224..227)`). The trailing 6
-/// are drive config, sent to their own registers by [`Epd::update_part_fast`]:
-/// `[227]` EOPT → `0x3F`, `[228]` VGH → `0x03`, `[229..232)` VSH1/VSH2/VSL → `0x04`,
-/// `[232]` VCOM → `0x2C`. Per-phase frame counts live inside each 7-byte group row
-/// (the `0x18/0x58/0x98/0x41/0x81` TP fields); tune those, not a single knob, once
-/// BUSY time actually needs cutting.
-///
-/// **Why the earlier attempt failed (2026-07-19 bench), now explained by the
-/// reference:** the 153-byte Waveshare LUT was wrong on every axis for this panel —
-/// wrong length (`0x32` expects 227 bytes here), wrong phase content, wrong drive
-/// voltages (`EOPT`/`VSH2`/`VCOM`), and it omitted the `0x37` display-option write.
-/// `0x32`+`0xCF` was genuinely live, but that waveform could not drive these pixels.
-/// This array plus [`Epd::update_part_fast`]'s register sequence is a faithful port
-/// of the vendor recipe (`EPD_Part_init_LUT` / `Epaper_Partial`), voltages included.
-///
-/// **VALIDATED ON HARDWARE (2026-07-21).** Both panel halves paint identically,
-/// windowed-fast BUSY ~266 ms (vs the ~495 ms factory partial floor), ink solid
-/// black, no ghosting after the periodic full refresh — full write-up and the
-/// FR-byte sweep in `docs/tradeoff-curves/epd-refresh-latency.md`. Still gated behind
-/// the `fast_partial` pref (default off): a longevity soak and a cold-temperature
-/// check are outstanding — the speed comes from spending the vendor's drive margin,
-/// which shrinks when cold. A full refresh reloads the OTP waveform, so nothing here
-/// persists past the next clean pass.
-// Adapted from Good Display's `LUT_DATA_part` (preserved verbatim in
-// `reference/gdey0579t93-fp-lut/Display_EPD_W21.c`). Each 7-byte row is one phase:
-// byte[0] = frame count, byte[1..3] = packed 2-bit level codes, byte[5] = repeat.
-//
-// The weakest tail phase of each of the 4 groups — the near-noop `0x01,0x01,0x00…`
-// single-sub-step follow-ups — is zeroed (marked TRIMMED). NOTE (bench 2026-07-21):
-// this phase-trim turned out to be a near-noop — it moved windowed-fast only
-// ~430→~420 ms (~2%), because BUSY time here is NOT proportional to active-phase count
-// (each phase ≈ 2.5 ms; phase count dominates *full* refreshes, not the short partial).
-// The real latency lever was the FR frame-rate byte below. The trim is kept only
-// because it's harmless; revert it for the pristine 12-phase vendor waveform if that's
-// ever preferred (re-validate darkening if you do).
+/// Layout (233 bytes): `[0..227)` is the `0x32` phase table — 7-byte phase rows,
+/// byte[0] = frame count, bytes[1..3] = packed 2-bit level codes, byte[5] =
+/// repeat; FR/XON at `[224..227)`. The trailing 6 are drive config fanned out to
+/// their own registers by `update_part_fast`: EOPT (`0x3F`), VGH (`0x03`),
+/// VSH1/VSH2/VSL (`0x04`), VCOM (`0x2C`).
+// The weakest tail phase of each group is zeroed (TRIMMED) — a measured ~2%
+// near-noop, kept only because it's harmless. The FR byte is the real lever.
 const FAST_PARTIAL_LUT: [u8; 233] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -148,44 +97,30 @@ const FAST_PARTIAL_LUT: [u8; 233] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    // FR, XON — FR is the frame-rate lever (higher = faster frames). Bench 2026-07-21:
-    // vendor default 0x04 = ~420 ms; 0x08 = ~266 ms windowed-fast, still solid black,
-    // no ghosting after the idle full refresh (~37% faster). Trades ink migration per
-    // frame for speed; keep the fastest value that still fully darkens this panel.
+    // FR, XON — FR scales the waveform clock: vendor 0x04 ≈ 420 ms, 0x08 ≈ 265 ms
+    // windowed, still solid black. Non-monotonic; don't raise past 0x08 blind.
     0x08, 0x00, 0x00,
     // EOPT, VGH, VSH1, VSH2, VSL, VCOM
     0x06, 0x17, 0x41, 0xA8, 0x32, 0x00,
 ];
 
 /// `0x22` (Display Update Control 2) value for the fast partial: enable clock +
-/// analog, DISPLAY in Mode 2 using the LUT *already written* by `0x32`, then power
-/// down — crucially **without** the load-temperature / load-LUT-from-OTP bits that
-/// the factory partial's `0xFF` sets (which would overwrite `FAST_PARTIAL_LUT` with
-/// the OTP waveform). Matches Waveshare's `TurnOnDisplayPart` for this family.
+/// analog, DISPLAY in Mode 2 with the LUT *already written* via `0x32`, power
+/// down — crucially **without** the load-temp / load-LUT-from-OTP bits of the
+/// factory partial's `0xFF`, which would overwrite [`FAST_PARTIAL_LUT`].
 const FAST_PART_UPDATE: u8 = 0xCF;
 
-/// Keep-hot variant of [`FAST_PART_UPDATE`]: `0xCF` minus the disable-analog (`0x02`)
-/// and disable-clock (`0x01`) bits, so the charge pump and oscillator stay powered
-/// after the refresh instead of ramping down. The next fast partial then skips the
-/// booster soft-start (bit `0x40`, enable-analog, is a no-op when it's already on).
+/// [`FAST_PART_UPDATE`] minus the disable-analog (`0x02`) and disable-clock
+/// (`0x01`) bits: the charge pump and oscillator stay powered after the refresh.
 const FAST_PART_UPDATE_HOT: u8 = 0xCC;
 
-/// "Keep-hot" charge-pump lever — **bench-tested 2026-07-21, no win, left off.**
+/// Keep the ±15 V charge pump energized between fast partials (`0xCC` instead
+/// of `0xCF`) so burst keystrokes skip the booster soft-start.
 ///
-/// Each fast partial powers the ±15 V charge pump up (booster soft-start) and back
-/// down via [`FAST_PART_UPDATE`] (`0xCF`). Setting this `true` switches fast partials to
-/// [`FAST_PART_UPDATE_HOT`] (`0xCC`), leaving the pump energized so keystrokes 2..N of a
-/// burst skip the ramp (reMarkable A2-style); the every-32 full refresh and any
-/// factory/idle refresh power it back down, bounding hot time to an active burst.
-///
-/// **Tested on device and reverted.** With it on, windowed-fast stayed flat at ~240 ms
-/// regardless of key count, and — the decisive check — the first partial after a
-/// power-down full refresh (~239 ms) was no slower than mid-burst partials (~240 ms).
-/// There was no ramp penalty to skip: the ~240 ms is waveform BUSY, not charge-pump
-/// soft-start (consistent with the FR sweep, and it retires the old "the floor is all
-/// charge-pump ramp" guess). The screen stayed clean, so `0xCC` is safe — just pointless
-/// here, and keeping the pump hot costs rail draw on Insert-mode pauses and would need a
-/// real idle power-off to ship. Left wired as a one-line toggle for a future A/B.
+/// Bench 2026-07-21: no win — the first partial after a power-down was no slower
+/// than mid-burst, so the ~240 ms floor is waveform BUSY, not pump ramp. Safe but
+/// pointless, and holding the rails costs idle draw. Left as a toggle for a
+/// future A/B. Log: docs/tradeoff-curves/epd-refresh-latency.md.
 const FAST_PART_KEEP_HOT: bool = false;
 
 pub struct Epd<'d> {
@@ -198,12 +133,10 @@ pub struct Epd<'d> {
     /// be running. Every public display call waits it out (`wait_ready`)
     /// before sending further controller traffic.
     refresh_pending: bool,
-    /// The custom fast-partial recipe ([`FAST_PARTIAL_LUT`] + its drive
-    /// voltages) is resident in the controllers. Plain `0xFF` partials do NOT
-    /// displace it (bench: fallback partials ran at custom-LUT speed), so
-    /// [`update_part`](Self::update_part) checks this and reloads the factory
-    /// OTP waveform first — a whole-page move (Ctrl-U/D scroll) on the weakened
-    /// custom waveform leaves a visible double of the moved text (2026-07-25).
+    /// The custom fast-partial recipe ([`FAST_PARTIAL_LUT`] + drive voltages)
+    /// is resident in the controllers. Factory `0xFF` partials do NOT displace
+    /// it (scrolls doubled on the weakened waveform, 2026-07-25), so
+    /// [`update_part`](Self::update_part) evicts it first.
     fast_lut_loaded: bool,
 }
 
@@ -395,11 +328,10 @@ impl<'d> Epd<'d> {
     /// (~2.2 s) and returns while it runs. The caller owns the eventual BUSY
     /// wait before any further controller traffic.
     ///
-    /// `0x21 ← 0x40` bypasses the RED/"previous" bank as 0. Do NOT try running
-    /// this kick with the RED bank participating (`0x21 ← 0x00`) to force
-    /// per-pixel transitions: bench 2026-07-25, both bank orderings came out
-    /// photo-negative and corrupted subsequent partials — Mode 1 RED-normal has
-    /// undocumented bank-role/parity semantics on this panel.
+    /// `0x21 ← 0x40` bypasses the RED/"previous" bank as 0. Do NOT run this
+    /// kick with the RED bank participating (`0x21 ← 0x00`): both bank
+    /// orderings came out photo-negative and corrupted subsequent partials
+    /// (2026-07-25, v4/v5 in docs/tradeoff-curves/epd-refresh-latency.md).
     fn kick_update_full(&mut self) -> Result<(), EspError> {
         self.set_ram_area(0, 0, WIDTH / 2, HEIGHT, 0x03, 0x80)?; // slave
         self.set_ram_area(0, 0, WIDTH / 2, HEIGHT, 0x03, 0x00)?; // master
@@ -413,27 +345,20 @@ impl<'d> Epd<'d> {
         Ok(())
     }
 
-    /// Port of GxEPD2 `_Update_Part` — the partial-update waveform. No full
+    /// Port of GxEPD2 `_Update_Part` — the partial-update waveform: no full
     /// flashing; only pixels that differ between the "previous" (`0x26`) and
-    /// "current" (`0x24`) banks transition. Much faster than a full refresh
-    /// but leaves faint ghosting that a periodic full refresh clears.
-    /// `y0`/`h` restrict the RAM window (and thus the SPI transfer) to a
-    /// horizontal band of rows; the *waveform* still drives the whole panel.
+    /// "current" (`0x24`) banks transition. `y0`/`h` restrict the RAM window
+    /// (and thus the SPI transfer) to a band of rows; the *waveform* still
+    /// drives the whole panel.
     ///
-    /// Do NOT try to restrict the gate scan to the band (driver output
-    /// control `0x01` MUX + gate scan start `0x0F`) — spiked and refuted on
-    /// hardware 2026-07-16: a 20-gate scan still took 571 ms (vs 543 ms for
-    /// the default full scan), so the waveform's BUSY time does not scale
-    /// with MUX here, and writing `0x01` with the datasheet POR scan-order
-    /// byte mirrored the panel vertically — the real gate config is loaded
-    /// from panel OTP at reset and can't be read back, so any `0x01` write
-    /// risks clobbering it for zero gain.
+    /// Do NOT try to restrict the gate scan to the band (`0x01` MUX + `0x0F`
+    /// scan start): BUSY time doesn't scale with MUX, and writing `0x01` risks
+    /// clobbering the write-only OTP gate config — refuted on hardware, see
+    /// docs/postmortems/2026-07-16-gate-scan-spike-refuted.md.
     fn update_part(&mut self, y0: u16, h: u16) -> Result<(), EspError> {
         if self.fast_lut_loaded {
-            // Evict the resident custom fast-partial recipe first: this factory
-            // partial otherwise runs on the weakened custom waveform (`0xFF`
-            // doesn't displace it), which doubles moved text on big edits —
-            // hard ghosting on Ctrl-U/D scrolls, user-confirmed 2026-07-25.
+            // Evict the custom recipe, or this partial runs on the weakened
+            // fast waveform and doubles big moves (Ctrl-U/D scrolls, 2026-07-25).
             self.reload_otp_lut()?;
             self.fast_lut_loaded = false;
         }
@@ -444,9 +369,8 @@ impl<'d> Epd<'d> {
         self.cmd(0x21)?; // display update control 1
         self.data(&[0x00, 0x10])?; // RED normal, cascade
         if let Some(temp) = PARTIAL_TEMP {
-            // EXPERIMENT: override the LUT temperature index for this partial.
-            // The 0x22←0xFF kick below includes load-temp + load-LUT, so this
-            // takes effect on the very next activation. See PARTIAL_TEMP.
+            // Closed experiment — see PARTIAL_TEMP. The 0xFF kick below reloads
+            // temp+LUT, so this takes effect on this activation.
             self.cmd(0x1A)?; // write to temperature register
             self.data(&temp)?;
         }
@@ -457,23 +381,17 @@ impl<'d> Epd<'d> {
         Ok(())
     }
 
-    /// EXPERIMENTAL fast partial (see [`FAST_PARTIAL_LUT`]): identical to
-    /// [`update_part`](Self::update_part) except it loads the panel's own custom
-    /// partial waveform via `0x32` and triggers with [`FAST_PART_UPDATE`] (`0xCF`) so the panel
-    /// displays with *that* LUT rather than reloading the ~540 ms OTP one. The LUT
-    /// is written to **both** controllers (`0x32` master, `0x32|0x80` slave): each
-    /// half has its own waveform SRAM, so writing only the master would leave the
-    /// left half on its OTP waveform and the two halves would ghost differently.
-    /// Reached only from the `fast_partial`-gated windowed-additive path.
+    /// [`update_part`](Self::update_part)'s fast twin: loads [`FAST_PARTIAL_LUT`]
+    /// via `0x32` and triggers with [`FAST_PART_UPDATE`] so the panel displays
+    /// with *that* LUT instead of reloading the ~540 ms OTP one. Reached only
+    /// from the `fast_partial`-gated windowed-additive path.
     fn update_part_fast(&mut self, y0: u16, h: u16) -> Result<(), EspError> {
         self.set_ram_area(0, y0, WIDTH / 2, h, 0x03, 0x80)?; // slave
         self.set_ram_area(0, y0, WIDTH / 2, h, 0x03, 0x00)?; // master
-        // FAST_PARTIAL_LUT bytes [0..LUT) are the 0x32 phase table (incl. FR/XON);
-        // the trailing 6 are drive config fanned out to their own registers below.
-        // Both controllers get the whole recipe — each half has its own waveform
-        // SRAM *and* charge pump, so a master-only write leaves the left half on its
-        // OTP waveform/voltages and the two halves ghost differently. This mirrors
-        // Good Display's `Epaper_Partial` recipe (0x32, 0x3F, 0x03, 0x04, 0x2C, 0x37).
+        // The whole recipe goes to BOTH controllers — each half has its own
+        // waveform SRAM and charge pump; a master-only write would leave the left
+        // half on the OTP waveform and the two halves would ghost differently.
+        // Mirrors Good Display's `Epaper_Partial` (0x32, 0x3F, 0x03, 0x04, 0x2C, 0x37).
         const LUT: usize = 227;
         for target in [0x80u8, 0x00u8] {
             self.cmd(0x32 | target)?; // LUT register (waveform phases + FR/XON)
@@ -486,20 +404,15 @@ impl<'d> Epd<'d> {
             self.data(&FAST_PARTIAL_LUT[LUT + 2..LUT + 5])?;
             self.cmd(0x2C | target)?; // VCOM
             self.data(&[FAST_PARTIAL_LUT[LUT + 5]])?;
-            // 0x37 display-option: omitting this was one of the 2026-07-19 defects.
-            self.cmd(0x37 | target)?;
+            self.cmd(0x37 | target)?; // display option — required (its omission broke the 2026-07-19 attempt)
             self.data(&[0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00])?;
         }
-        // Border: left at the known-good 0x80 (the vendor custom-LUT recipe uses
-        // 0xC0 — a cosmetic edge knob to try only if the border misbehaves).
+        // Border kept at the known-good 0x80 (the vendor recipe uses 0xC0).
         self.cmd(0x3C)?; // border waveform control
         self.data(&[0x80])?;
         self.cmd(0x21)?; // display update control 1
         self.data(&[0x00, 0x10])?; // RED normal, cascade
         self.cmd(0x22)?; // display update control 2
-        // 0xCF: display with the LUT just written, then power the pump down. With
-        // FAST_PART_KEEP_HOT, use 0xCC (no power-down) so the next keystroke's refresh
-        // reuses the already-ramped pump. See FAST_PART_KEEP_HOT.
         let trigger = if FAST_PART_KEEP_HOT { FAST_PART_UPDATE_HOT } else { FAST_PART_UPDATE };
         self.data(&[trigger])?;
         self.cmd(0x20)?; // master activation
@@ -575,17 +488,11 @@ impl<'d> Epd<'d> {
     }
 
     /// [`display_frame`](Self::display_frame)'s *laundering* variant: a software
-    /// power-cycle (panel reset + re-init) followed by the plain full refresh.
-    /// The boot full refresh is the one refresh proven to scrub fast-partial
-    /// residue (every reflash-reboot rendered Typo solid over the previous
-    /// session's ghost — e-ink is bistable, so that residue was still physically
-    /// there); mid-session fulls run the same commands but *can't* (the
-    /// half-eye), so the laundering power lives in the controller state partials
-    /// overwrite — the `0xFF`-loaded temperature band and/or the custom `0x32`
-    /// LUT in waveform SRAM. Rather than pick which, restore all of it: this is
-    /// byte-for-byte the boot bring-up. ~1.9 s (~0.1 s reset+init + the
-    /// boot-grade ~1.8 s waveform). Full narrative:
-    /// `docs/tradeoff-curves/epd-refresh-latency.md`.
+    /// power-cycle (panel reset + re-init) followed by the plain full refresh,
+    /// ~1.9 s. Restores the boot state that partials overwrite — the
+    /// sensor-loaded temperature band and the `0x32` waveform SRAM — which is
+    /// what lets the boot full scrub fast-partial residue while a mid-session
+    /// full can't. Narrative: docs/tradeoff-curves/epd-refresh-latency.md.
     pub fn display_frame_clean(&mut self, fb: &[u8]) -> Result<(), EspError> {
         assert_eq!(fb.len(), FB_BYTES, "framebuffer must be 99 x 272 bytes");
         self.wait_ready()?;
@@ -618,14 +525,11 @@ impl<'d> Epd<'d> {
     /// for those rows — true after any `display_frame`, `clear_screen`, or a
     /// prior partial covering them. Writes the new rows to `0x24`, runs the
     /// partial waveform over just that band, then re-writes the band to BOTH
-    /// banks. Both, not just `0x26`: the controller ping-pongs its two RAM
+    /// banks (GxEPD2's `writeImageAgain`): the controller ping-pongs its RAM
     /// buffers on a Mode-2 display, so post-refresh the bank addressed as
-    /// `0x24` is the stale one. Syncing only `0x26` (this driver's original
-    /// port, until 2026-07-16) left `0x24` two frames old outside each
-    /// update's band, and the next partial drove the panel back toward it —
-    /// on the panel, lines/chars from the previous batches flapped in and out
-    /// while typing fast. GxEPD2's `writeImageAgain` (same panel) writes
-    /// `0x26` then `0x24` after every partial refresh; this is that sequence.
+    /// `0x24` is the stale one — syncing only `0x26` left content flapping
+    /// while typing fast, see
+    /// docs/postmortems/2026-07-16-partial-refresh-bank-toggle.md.
     /// `fb` is always the full frame; only the given rows are used.
     pub fn display_frame_partial_window(
         &mut self,

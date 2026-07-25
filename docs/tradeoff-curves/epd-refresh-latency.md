@@ -345,7 +345,11 @@ partial waveform.
 *non-waveform* terms (SPI, settle) and bottoms out at the ~495 ms partial-waveform
 floor. The one thing that moves the floor itself is authoring the `0x32` waveform —
 parked for a year: we had no reference waveform for this panel and a hand-guessed
-one (Waveshare 1.54″) never darkened the ink. Good Display supplied the real
+one (Waveshare 1.54″) never darkened the ink. (The reference later explained that
+2026-07-19 failure: the Waveshare LUT was wrong on every axis — 153 bytes where
+this panel's `0x32` takes 227, wrong phase content, wrong drive voltages, and it
+omitted the `0x37` display-option write. The `0x32`+`0xCF` register path itself
+was live all along.) Good Display supplied the real
 `LUT_DATA_part` on 2026-07-21 (archive `S-GDEY0579T93-FP(LUT)`, kept verbatim in
 [`../../firmware/reference/gdey0579t93-fp-lut/`](../../firmware/reference/gdey0579t93-fp-lut/)),
 which unblocked it. Gated behind the `fast_partial` pref; only the additive Insert
