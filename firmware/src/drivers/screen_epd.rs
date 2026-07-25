@@ -198,6 +198,13 @@ pub struct Epd<'d> {
     /// be running. Every public display call waits it out (`wait_ready`)
     /// before sending further controller traffic.
     refresh_pending: bool,
+    /// The custom fast-partial recipe ([`FAST_PARTIAL_LUT`] + its drive
+    /// voltages) is resident in the controllers. Plain `0xFF` partials do NOT
+    /// displace it (bench: fallback partials ran at custom-LUT speed), so
+    /// [`update_part`](Self::update_part) checks this and reloads the factory
+    /// OTP waveform first — a whole-page move (Ctrl-U/D scroll) on the weakened
+    /// custom waveform leaves a visible double of the moved text (2026-07-25).
+    fast_lut_loaded: bool,
 }
 
 impl<'d> Epd<'d> {
@@ -208,7 +215,7 @@ impl<'d> Epd<'d> {
         cs: PinDriver<'d, Output>,
         busy: PinDriver<'d, Input>,
     ) -> Self {
-        Self { spi, dc, rst, cs, busy, refresh_pending: false }
+        Self { spi, dc, rst, cs, busy, refresh_pending: false, fast_lut_loaded: false }
     }
 
     /// Wait out a refresh started by `display_frame_async`, if one is still
@@ -289,6 +296,7 @@ impl<'d> Epd<'d> {
         self.cmd(0x20)?;
         FreeRtos::delay_ms(10);
         self.wait_while_busy(100)?;
+        self.fast_lut_loaded = false; // reset + OTP reload evicted any custom recipe
         Ok(())
     }
 
@@ -421,6 +429,14 @@ impl<'d> Epd<'d> {
     /// from panel OTP at reset and can't be read back, so any `0x01` write
     /// risks clobbering it for zero gain.
     fn update_part(&mut self, y0: u16, h: u16) -> Result<(), EspError> {
+        if self.fast_lut_loaded {
+            // Evict the resident custom fast-partial recipe first: this factory
+            // partial otherwise runs on the weakened custom waveform (`0xFF`
+            // doesn't displace it), which doubles moved text on big edits —
+            // hard ghosting on Ctrl-U/D scrolls, user-confirmed 2026-07-25.
+            self.reload_otp_lut()?;
+            self.fast_lut_loaded = false;
+        }
         self.set_ram_area(0, y0, WIDTH / 2, h, 0x03, 0x80)?; // slave
         self.set_ram_area(0, y0, WIDTH / 2, h, 0x03, 0x00)?; // master
         self.cmd(0x3C)?; // border waveform control
@@ -488,6 +504,21 @@ impl<'d> Epd<'d> {
         self.data(&[trigger])?;
         self.cmd(0x20)?; // master activation
         self.wait_while_busy(2000)?;
+        self.fast_lut_loaded = true; // resident until update_part evicts it (or a re-init)
+        Ok(())
+    }
+
+    /// Reload the factory OTP waveform, replacing a resident custom recipe — the
+    /// same bare load-LUT activation `init()` ends with (RAM banks untouched, so
+    /// the differential "previous image" survives; ~15 ms). If scroll-doubling
+    /// ever persists past this, the remaining suspect is the custom drive
+    /// voltages (`0x3F`/`0x03`/`0x04`/`0x2C`), which this may not restore.
+    fn reload_otp_lut(&mut self) -> Result<(), EspError> {
+        self.cmd(0x22)?; // display update control 2
+        self.data(&[0x91])?; // load temp, load LUT (B/W), disable clock
+        self.cmd(0x20)?; // master activation
+        FreeRtos::delay_ms(10);
+        self.wait_while_busy(100)?;
         Ok(())
     }
 

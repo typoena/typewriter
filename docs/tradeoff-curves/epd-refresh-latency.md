@@ -550,10 +550,19 @@ kick.) The clean fires on every idle-full trigger while `fast_partial` is on; if
 - *Momentary gray screen* — almost certainly the clean's own waveform caught mid-phase:
   the boot-grade schedule passes through whole-screen gray states that the 545 ms fast
   full never showed. Expected; only worth revisiting if it appears *outside* a `+clean`.
-- *Doubled content around a save* — one sighting, possibly tied to a `Ctrl-U`/`Ctrl-D`
-  half-page scroll (user's lead): a scroll moves every line through one `area` partial —
-  the heaviest possible differential — and when the fallback partials are riding the
-  reused custom fast LUT, that weaker waveform can leave a one-beat double of the moved
-  text. Self-healed on the next refresh. If it recurs without a scroll, suspect instead
-  the first `area` partial after a clean and check the post-reset bank state.
+- ~~*Doubled content around a save*~~ — **reproduced and root-caused (2026-07-25):**
+  `Ctrl-U`/`Ctrl-D` half-page scrolls double *hard* (user-confirmed). A scroll moves every
+  line through one `area` partial — the heaviest possible differential — and the fallback
+  partials were riding the resident custom fast recipe (`0xFF` doesn't displace the `0x32`
+  LUT or its drive voltages; that's why post-typing areas ran ~300 ms instead of ~527 ms).
+  The weakened waveform can't fully erase a whole page of moved ink → doubles.
+  **Fix:** the driver now tracks `fast_lut_loaded` and `update_part` evicts the custom
+  recipe first via a bare OTP load-LUT activation (`0x22 ← 0x91`, the same one `init()`
+  ends with; RAM banks untouched, ~15 ms). Typing keeps the ~265 ms fast path; scrolls,
+  deletes, and mode switches go back to the pre-fast_partial ~527 ms OTP partial that
+  never doubled. This retires the "fallbacks reuse the custom LUT" *bonus* (~300 ms areas)
+  recorded in the FR-sweep section — it was never tuned-for, and it was the double's
+  cause. Verification is in the log: post-typing `area` should read ~527 ms, not ~300 ms.
+  If doubling persists at ~527 ms, the remaining suspect is the custom drive voltages,
+  which the bare load-LUT may not restore — escalate then, not before.
 
