@@ -407,16 +407,9 @@ impl Editor {
     }
 
     /// Enter in `>` command mode, dispatched by the selected command's
-    /// [`kind`](PaletteCmd::kind):
-    /// - a **[toggle](CmdKind::Toggle)** flips its pref and the palette **stays
-    ///   open** (flip several in a row; the label updates in place);
-    /// - a **[one-shot](CmdKind::OneShot)** (`format`/`push`) runs and **closes**
-    ///   — an action switches you back to writing, a toggle does not;
-    /// - a **[parameterised](CmdKind::Param)** command (`new file`) opens the
-    ///   filename input step ([`begin_new_file_step`](Self::begin_new_file_step)).
-    ///
-    /// A no-op on an empty result set (nothing selected), staying open so the
-    /// query can be fixed.
+    /// [`kind`](PaletteCmd::kind) — the open/close behaviour of each shape is
+    /// documented on [`PaletteCmd`]. A no-op on an empty result set (nothing
+    /// selected), staying open so the query can be fixed.
     pub(crate) fn palette_run_command(&mut self) {
         let Some(&ci) = self.palette_command_matches().get(self.palette_sel) else {
             return;

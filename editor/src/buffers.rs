@@ -511,13 +511,11 @@ impl Editor {
     // --- File palette (Ctrl-P) ---------------------------------------------
 
     /// Feed the palette its file list as **one newline-joined blob** of
-    /// absolute paths, enumerated by the host from `/sd/repo` and `/sd/local`.
-    /// This is the device's entry point: a single large `String` lands in
-    /// PSRAM (allocations ≥ 16 KB cross the SPIRAM-malloc threshold), where
-    /// the same list as 1099 individual `String`s measured 182 KB of internal
-    /// DRAM. Spans are sorted + deduped for a stable base order; the MRU
-    /// floats recents above it. The palette is a pure view over this — nothing
-    /// is read from disk until a file is actually opened.
+    /// absolute paths, enumerated by the host from `/sd/repo` and `/sd/local` —
+    /// the blob form is a DRAM constraint, see [`Editor::file_blob`]. Spans are
+    /// sorted + deduped for a stable base order; the MRU floats recents above
+    /// it. The palette is a pure view over this — nothing is read from disk
+    /// until a file is actually opened.
     pub fn set_file_list_joined(&mut self, blob: String) {
         let mut spans: Vec<(u32, u32)> = Vec::new();
         let mut start = 0u32;
