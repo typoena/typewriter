@@ -1332,39 +1332,30 @@ fn pull_once(paths: &BTreeSet<String>) -> Result<PullOutcome> {
 /// tree-to-tree diff directly: write each added/modified blob, unlink each
 /// deleted path, and touch nothing else. Returns the number of files changed.
 ///
-/// This is `checkout_tree`'s job, done the splice way. libgit2's SAFE checkout
-/// iterates the whole **working directory** (readdir over SPI on every one of
-/// ~1100 files) to decide what's dirty — the same O(tree) wall the splice
-/// commit exists to avoid, and what actually killed the first on-device ff
-/// attempt (2026-07-14): the walk ran with fetch memory still resident,
-/// internal DRAM hit zero, and esp-idf's spi_master null-derefs on its own
-/// failed-DMA-alloc path. The tree-to-tree diff never touches the workdir:
-/// identical subtree OIDs are skipped wholesale, so both the diff and the
-/// apply are O(changed).
+/// This is `checkout_tree`'s job, done the splice way: do NOT swap libgit2's
+/// SAFE checkout back in — it readdirs the whole working directory over SPI
+/// (O(tree), the wall the splice commit exists to avoid) and OOM'd internal
+/// DRAM on the first on-device ff attempt (2026-07-14; spi_master null-derefs
+/// on failed DMA alloc, see docs/postmortems/2026-07-11-editor-freeze-spi-dma-
+/// oom-during-sync.md). The tree-to-tree diff skips identical subtree OIDs
+/// wholesale, so diff and apply are both O(changed).
 ///
-/// Safety belt (what SAFE's rehash gave us, kept O(changed)): before touching
-/// anything, every to-be-overwritten/deleted file whose disk content no longer
-/// hashes to the OLD tree's blob aborts the pull — those are edits made behind
-/// git's back (e.g. desktop edits directly on the card), and clobbering them
-/// silently is worse than refusing. The check reads only the files the pull
-/// wants to change; device-side saves are covered by the pre-fetch commit in
-/// [`pull_once`] (which makes the card match HEAD before the diff runs).
+/// Safety belt (SAFE's rehash, kept O(changed)): before touching anything,
+/// any to-be-overwritten/deleted file whose disk content no longer hashes to
+/// the OLD tree's blob aborts the pull — edits made behind git's back (e.g.
+/// desktop edits directly on the card) must not be clobbered. Device-side
+/// saves are already covered by the pre-fetch commit in [`pull_once`].
 ///
 /// Writes are unlink + tmp + rename (FAT f_rename won't overwrite), so a
-/// power-pull mid-apply leaves at worst a `.gltmp` orphan and a half-applied
-/// working copy with the ref NOT yet moved — the next `:gl` re-applies
-/// idempotently on the same diff.
+/// power-pull mid-apply leaves at worst a `.gltmp` orphan with the ref NOT
+/// yet moved — the next `:gl` re-applies idempotently.
 ///
-/// Media paths are invisible to both passes (skip-media-in-apply, 2026-07-14;
-/// see docs/notes/git-sync-images-and-repo-size.md). The device never renders
-/// them, and writing one means materializing the whole blob in RAM — history
-/// holds 16 MB PNGs and a 38 MB mp3 against 8 MB of PSRAM, so a pulled image
-/// was the one OOM path left in `:gl`. The blobs still arrive in `.git` via
-/// the fetch (streamed, cheap); only the working-tree copy is skipped, so the
-/// card's media files go stale/absent relative to HEAD. That's safe on the
-/// commit side because the splice stages explicit journal paths — a missing
-/// image can never be committed as a deletion. The belt hash skips them too:
-/// hashing a stale 16 MB image would be the same OOM by another door.
+/// Media paths are invisible to both passes — writing one materializes the
+/// whole blob in RAM (16 MB PNGs vs 8 MB PSRAM, the one OOM path left in
+/// `:gl`), and the belt hash skips them for the same reason. Blobs still
+/// arrive in `.git` via the fetch; only the working-tree copy is skipped,
+/// which is commit-safe because the splice stages explicit journal paths.
+/// Full rationale: docs/notes/git-sync-images-and-repo-size.md.
 fn apply_tree_diff(repo: &Repository, head: Oid, theirs: Oid) -> Result<usize> {
     use git2::Delta;
 
