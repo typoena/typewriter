@@ -530,7 +530,17 @@ impl<S: Screen> Panel<S> {
         ed.draw_into(&mut self.back, true);
         self.updates += 1;
         let t0 = Instant::now();
-        if let Err(e) = self.screen.display_frame(self.back.bytes()) {
+        // `fast_partial`'s residue survives the ordinary mid-session full refresh
+        // (Typo's half-eye) but not the boot one. The laundering variant is a
+        // software power-cycle of the panel plus that boot-grade full refresh
+        // (~1.9 s vs ~0.5 s) — see `Epd::display_frame_clean` for the evidence.
+        let cleaning = ed.prefs().fast_partial && !boot_cleanup;
+        let result = if cleaning {
+            self.screen.display_frame_clean(self.back.bytes())
+        } else {
+            self.screen.display_frame(self.back.bytes())
+        };
+        if let Err(e) = result {
             log::warn!("idle FULL refresh #{} FAILED ({e}); full refresh next", self.updates);
             self.force_full = true;
             self.partials_since_full = 0;
@@ -538,8 +548,9 @@ impl<S: Screen> Panel<S> {
         }
         self.partials_since_full = 0;
         log::info!(
-            "idle FULL refresh #{} ({reason}): {} ms",
+            "idle FULL refresh #{} ({reason}{}): {} ms",
             self.updates,
+            if cleaning { " +clean" } else { "" },
             t0.elapsed().as_millis()
         );
         std::mem::swap(&mut self.shown, &mut self.back);

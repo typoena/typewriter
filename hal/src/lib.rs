@@ -57,6 +57,17 @@ pub trait Screen {
     ) -> Result<(), Self::Error> {
         self.display_frame_partial_window(fb, y0, h)
     }
+
+    /// Like [`display_frame`](Screen::display_frame), but *laundering*: the
+    /// panel's strongest ghost-scrubbing refresh, whatever that costs (on the
+    /// e-paper driver it's a panel re-init plus a boot-grade full refresh,
+    /// ~1.9 s). The render engine calls this for the idle full refresh when the
+    /// `fast_partial` pref is on — that waveform's residue survives the ordinary
+    /// full refresh. The default delegates to the plain full refresh, so a panel
+    /// without the fast waveform — or a test double — just isn't special-cased.
+    fn display_frame_clean(&mut self, fb: &[u8]) -> Result<(), Self::Error> {
+        self.display_frame(fb)
+    }
 }
 
 /// The keyboard as an event source: decoded key events plus attach state.

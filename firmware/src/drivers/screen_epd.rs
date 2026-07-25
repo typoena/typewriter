@@ -376,32 +376,31 @@ impl<'d> Epd<'d> {
         Ok(())
     }
 
-    /// Port of GxEPD2 `refresh(false)` → `_Update_Full`, upgraded to Display Mode 1
-    /// (`0xF7`) so it fully develops every pixel (see [`kick_update_full`]).
+    /// Port of GxEPD2 `refresh(false)` → `_Update_Full` (fast full update).
     fn update_full(&mut self) -> Result<(), EspError> {
         self.kick_update_full()?;
-        self.wait_while_busy(2500)?; // Mode 1 at forced 100°C ≈ 1–1.5 s; cap generous
+        self.wait_while_busy(2500)?; // full_refresh_time ≈ 2200 ms
         Ok(())
     }
 
-    /// The command half of `update_full`: starts the full-refresh waveform (Mode 1,
-    /// ~1–1.5 s at the forced 100°C) and returns while it runs. The caller owns the
-    /// eventual BUSY wait before any further controller traffic.
+    /// The command half of `update_full`: starts the full-refresh waveform
+    /// (~2.2 s) and returns while it runs. The caller owns the eventual BUSY
+    /// wait before any further controller traffic.
+    ///
+    /// `0x21 ← 0x40` bypasses the RED/"previous" bank as 0. Do NOT try running
+    /// this kick with the RED bank participating (`0x21 ← 0x00`) to force
+    /// per-pixel transitions: bench 2026-07-25, both bank orderings came out
+    /// photo-negative and corrupted subsequent partials — Mode 1 RED-normal has
+    /// undocumented bank-role/parity semantics on this panel.
     fn kick_update_full(&mut self) -> Result<(), EspError> {
         self.set_ram_area(0, 0, WIDTH / 2, HEIGHT, 0x03, 0x80)?; // slave
         self.set_ram_area(0, 0, WIDTH / 2, HEIGHT, 0x03, 0x00)?; // master
         self.cmd(0x21)?; // display update control 1
         self.data(&[0x40, 0x10])?; // bypass RED as 0, cascade
-        self.cmd(0x1A)?; // temperature register — forced 100°C to shorten the waveform
+        self.cmd(0x1A)?; // temperature register (fast full update)
         self.data(&[0x64, 0x00])?;
         self.cmd(0x22)?;
-        // 0xF7 = Display Mode 1 (full multi-phase waveform): develops *every* pixel
-        // and clears ghosting, so subtle sprite overlays (Typo's mood brows/eyes)
-        // come through — unlike 0xD7 (Mode 2, fast) which skipped development phases
-        // and left thin low-contrast pixels faint. The forced 100°C above keeps
-        // Mode 1 down to ~1–1.5 s (vs a cold ~2.2 s) and leaves the temp register
-        // hot for the partials that follow, so area/windowed stay fast.
-        self.data(&[0xF7])?; // full update, Display Mode 1 (was 0xD7 fast/Mode 2)
+        self.data(&[0xD7])?; // fast full update
         self.cmd(0x20)?; // master activation
         Ok(())
     }
@@ -544,6 +543,29 @@ impl<'d> Epd<'d> {
         Ok(())
     }
 
+    /// [`display_frame`](Self::display_frame)'s *laundering* variant: a software
+    /// power-cycle (panel reset + re-init) followed by the plain full refresh.
+    /// The boot full refresh is the one refresh proven to scrub fast-partial
+    /// residue (every reflash-reboot rendered Typo solid over the previous
+    /// session's ghost — e-ink is bistable, so that residue was still physically
+    /// there); mid-session fulls run the same commands but *can't* (the
+    /// half-eye), so the laundering power lives in the controller state partials
+    /// overwrite — the `0xFF`-loaded temperature band and/or the custom `0x32`
+    /// LUT in waveform SRAM. Rather than pick which, restore all of it: this is
+    /// byte-for-byte the boot bring-up. ~1.9 s (~0.1 s reset+init + the
+    /// boot-grade ~1.8 s waveform). Full narrative:
+    /// `docs/tradeoff-curves/epd-refresh-latency.md`.
+    pub fn display_frame_clean(&mut self, fb: &[u8]) -> Result<(), EspError> {
+        assert_eq!(fb.len(), FB_BYTES, "framebuffer must be 99 x 272 bytes");
+        self.wait_ready()?;
+        self.reset()?;
+        self.init()?;
+        self.write_frame_bank(0x26, fb, 0, HEIGHT)?; // previous
+        self.write_frame_bank(0x24, fb, 0, HEIGHT)?; // current
+        self.update_full()?;
+        Ok(())
+    }
+
     /// `display_frame` minus the wait: writes both RAM banks, starts the
     /// full-refresh waveform (~2.2 s), and returns immediately so the caller
     /// can do other work (SD mount, note load) while the panel paints itself.
@@ -645,5 +667,9 @@ impl hal::Screen for Epd<'_> {
         h: u16,
     ) -> Result<(), Self::Error> {
         Epd::display_frame_partial_window_fast(self, fb, y0, h)
+    }
+
+    fn display_frame_clean(&mut self, fb: &[u8]) -> Result<(), Self::Error> {
+        Epd::display_frame_clean(self, fb)
     }
 }

@@ -102,7 +102,8 @@ calibrated, which is how it survived until the first windowed bench. The
 **Ghosting caps the partial streak.** Partial updates leave faint residue, so a
 full refresh every 64 updates resets clarity and panel state. You can't "always
 partial" — the ~1870 ms tier is a periodic tax paid for longevity, not a mode you
-can retire.
+can retire. (Caveat for the custom `0x32` path: the periodic full refresh does
+**not** fully scrub *fast-partial* residue — see the ghost-accumulation log below.)
 
 **The first cold-boot image must be a full refresh.** After power-on the `0x26`
 "previous" bank holds garbage, and a partial refresh _diffs against it_ — so the
@@ -463,4 +464,96 @@ during Insert-mode pauses and would need a real idle power-off before shipping, 
 A/B. (One loose end: this run read ~240 ms where the committed `0x08` baseline was logged
 at ~265 ms — a *cross-run* gap that within-run data can't distinguish from panel-temp /
 run-to-run variance, so it's not credited to keep-hot.)
+
+### fast_partial ghost accumulation — the OTP full refresh doesn't scrub it (2026-07-25)
+
+The FR sweep above bought the ~265 ms typing floor; this is the **cost side of that
+ledger**, surfaced on `experiment/fast-partial-lut`. It is a *mechanism finding + a
+cost*, not a swept curve — kept here because it decides whether `fast_partial` can
+graduate off the opt-in. Three tiers, held separate on purpose:
+
+**Verified on device (facts).**
+
+- With `fast_partial` **on**, the companion (Typo) face ghosts to a faded "half-eye"
+  after ~2 idle full refreshes: successive humors overlay only a handful of pixels, and
+  the vacated ones don't clear. With `fast_partial` **off**, the same faces render clean —
+  the fault rides the custom LUT, not the sprite. (The sprites were also thickened in
+  `65b9054`; that improved legibility but did **not** fix the fade.)
+- A theme flip — an `area` partial that inverts *every* pixel — visibly clears the ghost.
+- The stock idle full refresh (`0x22`←`0xD7`) does **not** clear it, even repeated. A
+  double full refresh (tried this session) didn't either.
+- The decisive experiment (v2 below, accidental): physically paint the photo **negative**
+  with a partial, then plain-full-refresh the correct frame → the screen came back
+  **"only ghost"** — the negative stayed behind as residue across the whole panel.
+
+**Mechanism (converged over v2 + v3, each failure eliminating a wrong layer).** The
+Mode-1 fast-full kick (`kick_update_full`) sets `0x21 ← 0x40`: **bypass the RED /
+"previous" bank as 0**. The waveform never reads `0x26` at all — every pixel's "from"
+state is forced to *black*, so a target-**white** pixel gets the full black→white drive
+(text erases fine) while a target-**black** pixel takes the weak **black→black** group.
+On a clean panel that group develops fine (boot Typo is always solid); against
+fast-partial residue it's too weak to re-polarize the ink — that's the half-eye, and it
+makes the `FULL_REFRESH_EVERY` "resets clarity" claim above **false for the fast path**.
+v2 (physically painted negative, then plain full) showed it at whole-screen scale: the
+plain full couldn't drive the screen back, and everything stayed ghost.
+
+**The fix — `Epd::display_frame_clean` (driver-level), used by the idle full refresh when
+`fast_partial` is on.** Two ingredients, *both* required: (1) seed the previous bank with
+the frame's **inverse** (streamed, `write_frame_bank_xor` mask `0xFF`); (2) kick the full
+waveform with the RED bank **participating** (`0x21 ← 0x00`, the same RED-normal mode
+every differential partial already runs) instead of bypassed. Every pixel then takes a
+real, strong transition (white→black / black→white) and is fully developed — one
+normal-looking flash, ~same BUSY, **nothing negative ever shown** (the inverse lives only
+in RAM as the waveform's "from" state). Banks resynced to the true frame afterwards.
+
+| Version | Clean pass | Idle-break cost | On device |
+| --- | --- | ---: | --- |
+| v1 — two partials | show invert (partial) → correct (partial) | ~605 ms (measured) | Typo cleared, but **static text faded cumulatively** — partials never fully develop black + custom LUT isn't DC-balanced |
+| v2 — swing + plain full | show invert (partial) → correct (`display_frame`) | ~830 ms | **"only ghost"** — the plain full couldn't drive the panel back from the negative; proved the full refresh doesn't re-drive toward-black |
+| v3 — bank seed only | `0x26` = inverse → plain full kick | ~555 ms (measured) | **inert** — text fine, Typo half-face unchanged; the `0x40` RED-*bypass* means the seeded bank is never read. Localized the bug to the `0x21` kick byte |
+| v4 — seed + RED-normal kick | `0x26` = inverse, `0x24` = frame, `0x21 ← 0x00` | ~555 ms | **photo-negative** (white-on-black) + scroll corruption after — physical=`!fb` vs RAM=`fb` poisoned every following partial diff |
+| v5 — swapped seed | `0x26` = frame, `0x24` = inverse, `0x21 ← 0x00` | 545 ms (measured) | **still photo-negative** + frozen-feeling typing. *Both* bank orderings invert ⇒ Mode 1 RED-normal has further undocumented semantics (likely the buffer ping-pong parity under the `0x24`/`0x26` addressing). **RED-participating path abandoned** — do not reopen it |
+| **v6 — software power-cycle** | panel `reset()` + `init()` + plain `display_frame` | ~1.9 s est. (~0.1 s bring-up + the ~1.8 s boot-grade waveform) | **PENDING flash** |
+
+```
+  idle full-refresh cost (ms), fast_partial ON — cleaning as the tax on the 265 ms floor
+  1900 |                                          ####  v6: power-cycle full (PENDING)
+   830 |                    ####  v2: partial + full   (ghosted everything)
+   605 |            ####  v1: two partials  (faded statics)
+   545 |   ####  plain full / v3 / v4 / v5  (half-eye or photo-negative)
+     0 +--------------------------------------------------→
+        v6 pays real time (~1.9 s) instead of cleverness: it re-runs the panel
+        bring-up and the boot-grade waveform that demonstrably launders.
+```
+
+**Why v6 and why it should hold — the boot observation.** Every reflash-reboot this whole
+saga rendered Typo **solid over the previous session's residue** (e-ink is bistable: the
+ghost was physically present at power-on, and the boot full scrubbed it). And the boot
+full runs **~1770 ms** where mid-session fulls run ~545 ms — *the same `0xD7` command
+path*. So the laundering power lives in controller state that partials later overwrite:
+the temperature band a `0xFF` partial loads from the (self-heating) internal sensor,
+and/or the custom `0x32` LUT sitting in waveform SRAM. v6 doesn't pick a theory — it
+restores *all* boot state (`reset()` + `init()`, ~0.1 s) and then full-refreshes,
+reproducing the known-good refresh byte-for-byte. It also finally answers the standing
+user question "why can't one longer flash just remove the ghosting" — it can; the
+mid-session full was simply never running the long schedule.
+
+**Status: v6 CONFIRMED on device 2026-07-25** — user-attested "solid": Typo's moods
+render fully and rotate, text and side panel stay crisp, partials healthy after each
+clean. (`screen_epd.rs` `display_frame_clean` = reset + init + `display_frame`; all
+RED-normal/seed machinery reverted — `update_full` is back to the stock byte-identical
+kick.) The clean fires on every idle-full trigger while `fast_partial` is on; if the
+~1.9 s break flash grates, restrict it to the `deep-idle` trigger only.
+
+**Watch items (seen once each during the 3 s-trigger bench, not reproducible):**
+
+- *Momentary gray screen* — almost certainly the clean's own waveform caught mid-phase:
+  the boot-grade schedule passes through whole-screen gray states that the 545 ms fast
+  full never showed. Expected; only worth revisiting if it appears *outside* a `+clean`.
+- *Doubled content around a save* — one sighting, possibly tied to a `Ctrl-U`/`Ctrl-D`
+  half-page scroll (user's lead): a scroll moves every line through one `area` partial —
+  the heaviest possible differential — and when the fallback partials are riding the
+  reused custom fast LUT, that weaker waveform can leave a one-beat double of the moved
+  text. Self-healed on the next refresh. If it recurs without a scroll, suspect instead
+  the first `area` partial after a clean and check the post-reset bank state.
 
