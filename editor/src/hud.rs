@@ -129,7 +129,11 @@ impl Editor {
             let notice_end = scope_y + (1 + notice_rows as i32) * PANEL_CH;
             if notice_end <= FACE_Y {
                 let empty = self.text.is_empty();
-                let mood = if empty { typo::Mood::Neutral } else { self.companion_mood };
+                // A pinned `face` pref wins outright — preview a mood, or keep a
+                // favourite. On `"random"` the empty page gets neutral (with the
+                // blank-page nudge below) and a written one wears the rotation.
+                let mood = typo::Mood::from_name(&self.prefs.face)
+                    .unwrap_or(if empty { typo::Mood::Neutral } else { self.companion_mood });
                 let face = mood.face();
                 let fw = face.w as i32 * FACE_SCALE;
                 let fx = PANEL_X + (WIDTH as i32 - PANEL_X - fw) / 2;

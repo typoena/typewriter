@@ -91,6 +91,14 @@ pub struct Prefs {
     /// (the boot splash keeps the brand mark either way; it is painted before
     /// this file is read). For the purists.
     pub companion: bool,
+    /// Which face Typo wears: `"random"` (the default — a shuffle bag over the six
+    /// humors, a fresh one on each full refresh, never the same beat twice) or a
+    /// pinned mood name (`"curious"`, `"zen"`, …) that overrides the rotation so you
+    /// can preview or keep one face. Applied by the host render engine (`app::Panel`);
+    /// an unrecognized value falls back to the rotation via [`typo::Mood::from_name`],
+    /// and it does nothing while [`companion`](Prefs::companion) is off. The palette
+    /// rotates it through [`typo::FACE_OPTIONS`].
+    pub face: String,
     /// The device timezone, as a **POSIX TZ string** (e.g. Paris:
     /// `CET-1CEST,M3.5.0,M10.5.0/3`). Applied at boot by the host
     /// (`setenv("TZ", …)` + `tzset()`), so `localtime_r` — and thus the `:inbox`
@@ -117,6 +125,7 @@ impl Default for Prefs {
             scroll_margin: 2,
             fast_partial: false,
             companion: true,
+            face: "random".into(),
             timezone: String::new(),
         }
     }
@@ -177,6 +186,7 @@ impl Prefs {
                         p.companion = b;
                     }
                 }
+                "face" => p.face = val.trim_matches('"').to_string(),
                 "timezone" => p.timezone = val.trim_matches('"').to_string(),
                 _ => {}
             }
@@ -205,6 +215,9 @@ impl Prefs {
              fast_partial = {}\n\
              # Typo, the side-panel companion (faces, empty-file card, milestones).\n\
              companion = {}\n\
+             # Typo's face: \"random\" (a fresh humor each full refresh) or a pinned\n\
+             # mood — neutral, anticipation, wink, curious, determined, zen, note.\n\
+             face = \"{}\"\n\
              # POSIX TZ (e.g. CET-1CEST,M3.5.0,M10.5.0/3); empty = UTC.\n\
              timezone = \"{}\"\n",
             self.save_on_idle,
@@ -217,6 +230,7 @@ impl Prefs {
             self.scroll_margin,
             self.fast_partial,
             self.companion,
+            self.face,
             self.timezone,
         )
     }

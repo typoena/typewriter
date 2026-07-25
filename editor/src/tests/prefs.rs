@@ -74,6 +74,7 @@ fn prefs_to_toml_round_trips_through_parse() {
         scroll_margin: 3,
         fast_partial: true,
         companion: false,
+        face: "curious".into(),
         timezone: "CET-1CEST,M3.5.0,M10.5.0/3".into(),
     };
     assert_eq!(Prefs::parse(&p.to_toml()), p);
@@ -118,6 +119,14 @@ fn prefs_parse_reads_font_and_defaults_to_builtin() {
     assert_eq!(Prefs::parse("font = \"jetbrains-mono\"\n").font, "jetbrains-mono");
     // The font key is emitted by to_toml, so it survives a `:gp` to other devices.
     assert!(Prefs::default().to_toml().contains("font = \"default\""));
+}
+
+#[test]
+fn prefs_parse_reads_face_and_defaults_to_random() {
+    assert_eq!(Prefs::default().face, "random"); // ship on the shuffle-bag rotation
+    assert_eq!(Prefs::parse("face = \"curious\"\n").face, "curious");
+    // Emitted by to_toml, so a pinned face rides `:gp` to other devices.
+    assert!(Prefs::default().to_toml().contains("face = \"random\""));
 }
 
 #[test]

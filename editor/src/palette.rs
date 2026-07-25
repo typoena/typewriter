@@ -81,6 +81,7 @@ pub(crate) enum PaletteCmd {
     Font,
     AutoSync,
     Companion,
+    Face,
 }
 
 /// How a [`PaletteCmd`] behaves on Enter — see [`PaletteCmd::kind`].
@@ -112,7 +113,7 @@ impl PaletteCmd {
 
 /// The palette command list, in display order (empty `>` query shows them all):
 /// the actions first, the settings after.
-pub(crate) const PALETTE_CMDS: [PaletteCmd; 15] = [
+pub(crate) const PALETTE_CMDS: [PaletteCmd; 16] = [
     PaletteCmd::NewFile,
     PaletteCmd::Format,
     PaletteCmd::Push,
@@ -128,6 +129,7 @@ pub(crate) const PALETTE_CMDS: [PaletteCmd; 15] = [
     PaletteCmd::Font,
     PaletteCmd::AutoSync,
     PaletteCmd::Companion,
+    PaletteCmd::Face,
 ];
 
 /// Which step the palette is showing. Most of its life it is a
@@ -397,6 +399,7 @@ impl Editor {
             PaletteCmd::Font => format!("font: {}", self.prefs.font),
             PaletteCmd::AutoSync => format!("auto sync: {}", self.prefs.auto_sync),
             PaletteCmd::Companion => format!("companion: {}", on(self.prefs.companion)),
+            PaletteCmd::Face => format!("face: {}", self.prefs.face),
         }
     }
 
@@ -589,6 +592,10 @@ impl Editor {
             }
             PaletteCmd::Font => {
                 self.prefs.font = next_option(&self.prefs.font, &display::FONT_OPTIONS).to_string()
+            }
+            PaletteCmd::Face => {
+                self.prefs.face =
+                    next_option(&self.prefs.face, &display::typo::FACE_OPTIONS).to_string()
             }
             // Actions, not prefs: palette_run_command routes them away, so we never
             // arrive here. Return before the SavePrefs/notice below rather than

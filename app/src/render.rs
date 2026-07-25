@@ -132,10 +132,20 @@ pub struct Panel<S: Screen> {
     force_full: bool,
     /// Monotonic refresh counter, for the serial trace.
     updates: u32,
-    /// Where Typo is in his post-flash humor rotation ([`typo::POOL`]): every
-    /// frame painted with a FULL refresh carries the next of the six, so the
-    /// flash never plays the same beat twice. Wraps forever.
-    pool_idx: usize,
+    /// Typo's post-flash humor **shuffle bag** ([`typo::POOL`]): a random
+    /// permutation of the six, played in order and reshuffled when exhausted, so
+    /// every earned FULL refresh brings a fresh humor and no two consecutive
+    /// flashes repeat a beat — the guard even holds across a reshuffle (the new
+    /// bag never opens on the humor the old one closed on). `rng` is a tiny
+    /// xorshift; `bag_pos` starts past the end so the first draw shuffles;
+    /// `last_humor` is the seam guard. All inert while a `face` pref pins a mood —
+    /// that overrides the rotation outright (see [`companion_pool_mood`]).
+    ///
+    /// [`companion_pool_mood`]: Self::companion_pool_mood
+    rng: u32,
+    bag: [typo::Mood; 6],
+    bag_pos: usize,
+    last_humor: typo::Mood,
 }
 
 impl<S: Screen> Panel<S> {
@@ -165,7 +175,10 @@ impl<S: Screen> Panel<S> {
             cursor_shown: true, // the initial render includes the caret
             force_full: false,
             updates: 0,
-            pool_idx: 0,
+            rng: Self::HUMOR_SEED,
+            bag: typo::POOL,
+            bag_pos: typo::POOL.len(), // exhausted → the first pool humor shuffles
+            last_humor: typo::Mood::Neutral,
         })
     }
 
@@ -179,8 +192,51 @@ impl<S: Screen> Panel<S> {
         if !ed.prefs().companion {
             return;
         }
-        ed.set_companion_mood(typo::POOL[self.pool_idx % typo::POOL.len()]);
-        self.pool_idx = self.pool_idx.wrapping_add(1);
+        // A pinned `face` pref owns the mood — leave the bag untouched so it
+        // resumes where it left off when the pref goes back to "random".
+        if typo::Mood::from_name(&ed.prefs().face).is_some() {
+            return;
+        }
+        let humor = self.next_humor();
+        ed.set_companion_mood(humor);
+    }
+
+    /// Seed for the humor [`bag`](Self::bag)'s xorshift. Fixed, so the sequence is
+    /// deterministic (host-testable) — the *within-session* variety comes from the
+    /// bag reshuffling as it empties, not from boot entropy.
+    const HUMOR_SEED: u32 = 0xC0FF_EE17;
+
+    /// xorshift32 — a few instructions, no crate pulled onto the xtensa build.
+    fn next_rand(&mut self) -> u32 {
+        let mut x = self.rng;
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        self.rng = x;
+        x
+    }
+
+    /// The next humor from the shuffle [`bag`](Self::bag): refill and Fisher–Yates
+    /// shuffle when it empties, guarding the seam so the fresh bag never opens on
+    /// the humor the last one closed on. The moods are distinct, so the single
+    /// swap can't reintroduce the clash.
+    fn next_humor(&mut self) -> typo::Mood {
+        if self.bag_pos >= self.bag.len() {
+            self.bag = typo::POOL;
+            for i in (1..self.bag.len()).rev() {
+                let j = self.next_rand() as usize % (i + 1);
+                self.bag.swap(i, j);
+            }
+            if self.bag[0] == self.last_humor {
+                let last = self.bag.len() - 1;
+                self.bag.swap(0, last);
+            }
+            self.bag_pos = 0;
+        }
+        let humor = self.bag[self.bag_pos];
+        self.bag_pos += 1;
+        self.last_humor = humor;
+        humor
     }
 
     /// At a typing-pause repaint (already a silent full-area partial): once
@@ -189,7 +245,11 @@ impl<S: Screen> Panel<S> {
     /// He stays that way until the longevity flash launders the panel and the
     /// pool rotation above answers with a humor.
     fn companion_ghost_mood(&mut self, ed: &mut Editor) {
-        if ed.prefs().companion && self.partials_since_full >= self.full_budget(ed) / 2 {
+        // A pinned `face` pref holds that face through the pause too — no frown.
+        if ed.prefs().companion
+            && typo::Mood::from_name(&ed.prefs().face).is_none()
+            && self.partials_since_full >= self.full_budget(ed) / 2
+        {
             ed.set_companion_mood(typo::Mood::Frustrated);
         }
     }
@@ -690,7 +750,7 @@ mod tests {
     }
 
     #[test]
-    fn every_full_refresh_rotates_typo_through_the_humor_pool() {
+    fn every_full_refresh_draws_typo_a_fresh_humor_from_the_shuffle_bag() {
         let (mut panel, mut ed, _log) = insert_panel(false);
         let paused = Instant::now() - Duration::from_millis(CURSOR_DEBOUNCE_MS as u64 + 100);
 
@@ -699,16 +759,49 @@ mod tests {
         assert!(panel.longevity_full(&mut ed, paused));
         assert_eq!(ed.companion_mood(), typo::Mood::Neutral);
 
-        // Each *earned* full refresh steps the rotation — never the same beat twice.
-        for expect in typo::POOL.iter() {
+        // Three bags' worth of earned full-refresh humors.
+        let n = typo::POOL.len();
+        let mut seq = Vec::new();
+        for _ in 0..(n * 3) {
             panel.partials_since_full = FULL_REFRESH_EVERY;
             assert!(panel.longevity_full(&mut ed, paused));
-            assert_eq!(ed.companion_mood(), *expect);
+            seq.push(ed.companion_mood());
         }
-        // ...and the next wraps back to the first.
-        panel.partials_since_full = FULL_REFRESH_EVERY;
-        assert!(panel.longevity_full(&mut ed, paused));
-        assert_eq!(ed.companion_mood(), typo::POOL[0]);
+
+        // No two consecutive flashes repeat a beat — and the guard holds across
+        // every reshuffle seam, not just within a bag.
+        assert_ne!(seq[0], typo::Mood::Neutral, "first humor isn't the boot face");
+        for w in seq.windows(2) {
+            assert_ne!(w[0], w[1], "consecutive humors must differ");
+        }
+        // Each bag (every n draws) is a full permutation: all six humors appear,
+        // none twice, before any repeats.
+        for bag in seq.chunks(n) {
+            for humor in typo::POOL.iter() {
+                assert!(bag.contains(humor), "{humor:?} missing from a bag");
+            }
+        }
+    }
+
+    #[test]
+    fn a_pinned_face_pref_freezes_the_rotation() {
+        let (mut panel, mut ed, _log) = insert_panel(false);
+        ed.set_prefs(Prefs { face: "zen".into(), ..Prefs::default() });
+        let paused = Instant::now() - Duration::from_millis(CURSOR_DEBOUNCE_MS as u64 + 100);
+
+        // Earned full refreshes don't touch the stored mood — the draw path pins
+        // the face straight from the pref instead (see `editor::hud`).
+        for _ in 0..3 {
+            panel.partials_since_full = FULL_REFRESH_EVERY;
+            assert!(panel.longevity_full(&mut ed, paused));
+        }
+        assert_eq!(ed.companion_mood(), typo::Mood::Neutral, "pinned: bag left alone");
+
+        // ...and the pause frown is suppressed too — a pin means that face, always.
+        panel.partials_since_full = FULL_REFRESH_EVERY / 2;
+        panel.cursor_shown = false;
+        assert!(panel.caret_if_due(&mut ed, paused));
+        assert_eq!(ed.companion_mood(), typo::Mood::Neutral, "pinned: no frown");
     }
 
     #[test]
