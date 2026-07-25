@@ -83,6 +83,34 @@ fn companion_off_silences_milestones() {
     assert_eq!(e.companion_mood(), display::typo::Mood::Neutral);
 }
 
+#[test]
+fn every_mood_change_gives_typo_a_fresh_wobble() {
+    let amplitude = core::f32::consts::FRAC_PI_6 / 2.0; // ±15°
+    let mut e = Editor::with_text("some words".into());
+    // Upright until the first reveal — a freshly-loaded buffer sits level.
+    assert_eq!(e.companion_tilt(), None);
+
+    // Every mood change lands a gentle wobble within ±15°.
+    let mut seen = Vec::new();
+    for _ in 0..8 {
+        e.set_companion_mood(display::typo::Mood::Wink);
+        let a = e.companion_tilt().expect("a mood change wobbles him");
+        assert!(a.abs() <= amplitude + 1e-6, "wobble {a} out of range");
+        seen.push(a);
+    }
+    // Deterministic but varied: the reveal isn't the same beat every time.
+    assert!(seen.windows(2).any(|w| w[0] != w[1]), "the wobble should re-roll");
+}
+
+#[test]
+fn a_milestone_reveal_wobbles_him_too() {
+    let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    assert_eq!(e.companion_tilt(), None, "level on load");
+    write_up_to(&mut e, 500); // crosses the 500-word rung → Anticipation face
+    assert_eq!(e.companion_mood(), display::typo::Mood::Anticipation);
+    assert!(e.companion_tilt().is_some(), "the milestone reveal wobbles him too");
+}
+
 /// Any ink in the *lower half* of Typo's fixed face box? The lower half is
 /// probed because it holds the sprite's belly/beak curves but sits below the
 /// deepest possible notice extent (a 3-row filename + 4-line notice ends at

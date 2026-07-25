@@ -11,8 +11,10 @@
 //! [`Mood::Frustrated`] appears at a typing pause once ghosting has built up
 //! (the pause repaint is a full-area partial anyway — the dust lands on *his*
 //! feathers, the screen's residue, never blamed on the writer), and one of the
-//! six [`POOL`] humors is drawn into each full-refresh frame, rotating so the
-//! flash never plays the same beat twice. The host render engine (`app::Panel`)
+//! six [`POOL`] humors is drawn into each *earned* full-refresh frame, rotating
+//! so the flash never plays the same beat twice (the boot-splash cleanup flash is
+//! the one exception — Typo stays neutral there, greeting nobody mid-anticipation
+//! before a word is written). The host render engine (`app::Panel`)
 //! owns those transitions; the editor only stores the current mood and paints it.
 
 use crate::Frame;
@@ -100,6 +102,62 @@ pub fn blit_sprite(f: &mut Frame, x: i32, y: i32, s: &Sprite, scale: i32) {
                 .draw(f)
                 .unwrap(); // Frame's DrawTarget error is Infallible
             }
+        }
+    }
+}
+
+/// Paint `s` rotated by `angle` radians and uniformly scaled by `scale`, centred
+/// on `(cx, cy)`. Like [`blit_sprite`] it is transparent (only set source bits
+/// leave ink); a fractional `scale` is fine — Typo's tilted face is drawn a touch
+/// smaller than his upright one so the rotated footprint still fits inside the
+/// same panel box. The cheaper axis-aligned [`blit_sprite`] stays the path for
+/// the splash and the untilted face.
+///
+/// Forward-mapped: it stamps each *set source* pixel as a small overlapping
+/// filled block at its rotated position, so every stroke paints and neighbours
+/// stay connected (block side `⌈scale⌉ + 1`) — no dropout, no isolated 1 px marks
+/// the e-paper under-drives.
+///
+/// **Integer-only hot loop.** `sinθ·scale` and `cosθ·scale` are computed once in
+/// float, rounded to 12-bit fixed-point, and the per-pixel transform runs in pure
+/// integer arithmetic. The upright [`blit_sprite`] is integer and renders clean
+/// on-device; the earlier per-pixel *float* version of this loop fragmented the
+/// tilted face on the ESP32-S3 while rendering perfectly on the host — the same
+/// xtensa float-codegen hazard the firmware's `opt-level` pin guards against. Keep
+/// this loop off the FPU.
+pub fn blit_sprite_rotated(f: &mut Frame, cx: i32, cy: i32, s: &Sprite, scale: f32, angle: f32) {
+    /// Fixed-point fraction bits — 12 is ample for a sub-100 px sprite.
+    const FP: i32 = 1 << 12;
+    let (sin, cos) = angle.sin_cos();
+    let cs = (cos * scale * FP as f32).round() as i32; // cosθ·scale, fixed-point
+    let sn = (sin * scale * FP as f32).round() as i32; // sinθ·scale, fixed-point
+    // Neighbouring source pixels land `scale` (axis) to `scale·√2` (diagonal)
+    // apart; a block this size overlaps its neighbour in every direction.
+    let block = scale.ceil() as i32 + 1;
+    let style = PrimitiveStyle::with_fill(BinaryColor::On);
+    let (w, h) = (s.w as i32, s.h as i32);
+    for sy in 0..h {
+        let row = s.rows[sy as usize];
+        // Source-pixel centre offset from the sprite centre, doubled so the +0.5
+        // stays integral: oy2 = 2·(sy + 0.5 − h/2) = 2·sy + 1 − h.
+        let oy2 = 2 * sy + 1 - h;
+        for sx in 0..w {
+            if row >> (w - 1 - sx) & 1 != 1 {
+                continue;
+            }
+            let ox2 = 2 * sx + 1 - w;
+            // Rotate+scale in fixed-point; the /(2·FP) undoes both the doubling
+            // and the fraction. Integer division truncates toward zero — a
+            // sub-pixel bias the overlapping block absorbs.
+            let dx = cx + (ox2 * cs - oy2 * sn) / (2 * FP);
+            let dy = cy + (ox2 * sn + oy2 * cs) / (2 * FP);
+            Rectangle::new(
+                Point::new(dx - block / 2, dy - block / 2),
+                Size::new(block as u32, block as u32),
+            )
+            .into_styled(style)
+            .draw(f)
+            .unwrap();
         }
     }
 }

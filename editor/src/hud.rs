@@ -133,7 +133,18 @@ impl Editor {
                 let face = mood.face();
                 let fw = face.w as i32 * FACE_SCALE;
                 let fx = PANEL_X + (WIDTH as i32 - PANEL_X - fw) / 2;
-                typo::blit_sprite(f, fx, FACE_Y, face, FACE_SCALE);
+                // The blank-page nudge sits right under the face, so an empty
+                // buffer keeps Typo upright and full-size (level caption). Once
+                // there's writing, each reveal gives him a random wobble, drawn
+                // centred on the same box and down-scaled to stay inside it.
+                match if empty { None } else { self.companion_tilt } {
+                    None => typo::blit_sprite(f, fx, FACE_Y, face, FACE_SCALE),
+                    Some(angle) => {
+                        let cx = fx + fw / 2;
+                        let cy = FACE_Y + face.h as i32 * FACE_SCALE / 2;
+                        typo::blit_sprite_rotated(f, cx, cy, face, FACE_TILT_SCALE, angle);
+                    }
+                }
                 // The empty-file nudge, centred under the face. Only when the
                 // rows beneath are actually free: the focus marker and the
                 // NO KBD flag own them when shown (a snippet hint can't — it

@@ -440,6 +440,16 @@ pub struct Editor {
     /// state — changing it never queues an effect or repaint; it rides whatever
     /// paint comes next.
     companion_mood: typo::Mood,
+    /// The random wobble the panel face is drawn at, re-rolled on every mood
+    /// change so each reveal catches Typo at a fresh gentle lean (radians, in
+    /// `[−15°, +15°]`). `None` = upright, before the first change and never rolled
+    /// back to it — so a freshly-loaded buffer shows him full-size and level until
+    /// the first refresh tips him. Pure cosmetic state, rides the next paint.
+    companion_tilt: Option<f32>,
+    /// Deterministic PRNG state behind [`companion_tilt`](Self::companion_tilt) —
+    /// fixed-seeded so the host render is reproducible in tests (the on-device
+    /// wobble reads as random regardless).
+    tilt_rng: u32,
     /// Highest word-count milestone already celebrated for the active buffer,
     /// baselined to the buffer's count on load/switch — so opening a 6k-word
     /// file never celebrates 5k, and hovering around a threshold (delete below,
@@ -490,6 +500,8 @@ impl Editor {
             snippet_stops: Vec::new(),
             snippet_hint: None,
             companion_mood: typo::Mood::Neutral,
+            companion_tilt: None,
+            tilt_rng: 0x9E37_79B9,
             milestone: 0,
             pomodoro_on: false,
             rest_stats: None,
@@ -593,7 +605,7 @@ impl Editor {
         if floor > self.milestone {
             self.milestone = floor;
             self.set_notice(format!("{} words!", group_thousands(floor)));
-            self.companion_mood = typo::Mood::Anticipation;
+            self.set_companion_mood(typo::Mood::Anticipation);
         }
     }
 
@@ -603,12 +615,34 @@ impl Editor {
         self.companion_mood
     }
 
+    /// The lean the panel face is currently drawn at (radians), or `None` while
+    /// upright. Re-rolled by every [`set_companion_mood`](Self::set_companion_mood).
+    /// Exposed for tests.
+    pub fn companion_tilt(&self) -> Option<f32> {
+        self.companion_tilt
+    }
+
     /// Set Typo's face for the next paint. Called by the host render engine at
     /// the moments its repaint is already whole-panel (a full refresh, or the
     /// typing-pause caret repaint) — never mid-typing, so a face swap can never
-    /// knock a windowed keystroke partial off the fast path.
+    /// knock a windowed keystroke partial off the fast path. Each change also
+    /// gives him a fresh random wobble, so a reveal is a new pose, not just a new
+    /// expression.
     pub fn set_companion_mood(&mut self, mood: typo::Mood) {
         self.companion_mood = mood;
+        self.reroll_tilt();
+    }
+
+    /// Pick the next random face wobble in `[−15°, +15°]` — a gentle lean that
+    /// keeps Typo upright and readable, just never dead level twice running. A
+    /// fixed-seeded LCG (Numerical Recipes constants): a cosmetic wobble needs no
+    /// crypto, and a deterministic sequence keeps the host render engine's tests
+    /// reproducible.
+    fn reroll_tilt(&mut self) {
+        self.tilt_rng = self.tilt_rng.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+        let frac = (self.tilt_rng >> 8) as f32 / (1u32 << 24) as f32; // [0, 1)
+        let amplitude = core::f32::consts::FRAC_PI_6 / 2.0; // π/12 = 15°
+        self.companion_tilt = Some(amplitude * (2.0 * frac - 1.0)); // [−15°, +15°)
     }
 
     /// The snippet name inline Tab would expand at the caret right now, or `None`.

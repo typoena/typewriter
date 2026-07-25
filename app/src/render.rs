@@ -442,7 +442,8 @@ impl<S: Screen> Panel<S> {
             return false;
         }
         // Capture the reason before the refresh clears the flag / resets the count.
-        let reason = if self.boot_cleanup_pending {
+        let boot_cleanup = self.boot_cleanup_pending;
+        let reason = if boot_cleanup {
             "boot-splash cleanup"
         } else if self.partials_since_full >= every {
             "longevity"
@@ -453,7 +454,12 @@ impl<S: Screen> Panel<S> {
         // is armed below, so the next paint is a full refresh that cleans it anyway.
         self.boot_cleanup_pending = false;
         ed.refresh_stats();
-        self.companion_pool_mood(ed); // the humor rides the flash, for free
+        // The boot-cleanup flash only launders the splash ghost: Typo keeps his
+        // neutral face so the writer isn't greeted mid-anticipation before writing
+        // a word. The pool starts on the first *earned* full refresh.
+        if !boot_cleanup {
+            self.companion_pool_mood(ed); // the humor rides the flash, for free
+        }
         ed.draw_into(&mut self.back, true);
         self.updates += 1;
         let t0 = Instant::now();
@@ -688,17 +694,18 @@ mod tests {
         let (mut panel, mut ed, _log) = insert_panel(false);
         let paused = Instant::now() - Duration::from_millis(CURSOR_DEBOUNCE_MS as u64 + 100);
 
-        // Boot-cleanup full: the first flash already carries the first humor.
+        // Boot-cleanup full only launders the splash ghost — Typo stays neutral,
+        // so the writer isn't greeted mid-anticipation before writing a word.
         assert!(panel.longevity_full(&mut ed, paused));
-        assert_eq!(ed.companion_mood(), typo::POOL[0]);
+        assert_eq!(ed.companion_mood(), typo::Mood::Neutral);
 
-        // Each further full refresh steps the rotation — never the same beat twice.
-        for expect in typo::POOL.iter().skip(1) {
+        // Each *earned* full refresh steps the rotation — never the same beat twice.
+        for expect in typo::POOL.iter() {
             panel.partials_since_full = FULL_REFRESH_EVERY;
             assert!(panel.longevity_full(&mut ed, paused));
             assert_eq!(ed.companion_mood(), *expect);
         }
-        // ...and the seventh wraps back to the first.
+        // ...and the next wraps back to the first.
         panel.partials_since_full = FULL_REFRESH_EVERY;
         assert!(panel.longevity_full(&mut ed, paused));
         assert_eq!(ed.companion_mood(), typo::POOL[0]);
