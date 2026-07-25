@@ -331,6 +331,19 @@ fn recents_float_above_the_full_list_on_a_matching_query() {
 }
 
 #[test]
+fn palette_reports_a_pending_boot_walk_not_an_empty_card() {
+    // No file list fed yet — the boot walk is still running.
+    let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    assert!(!e.files_walked);
+    e.handle(Key::Palette);
+    let _ = e.draw(true); // the "(reading card...)" branch must be safe
+    // The walk lands — even an empty result means the card is now known.
+    e.set_file_list(Vec::new());
+    assert!(e.files_walked);
+    let _ = e.draw(true); // the "(no files on card)" branch
+}
+
+#[test]
 fn draw_in_palette_mode_does_not_panic() {
     let mut e = palette_editor(&["/sd/repo/a.md", "/sd/local/j.md"]);
     e.handle(Key::Palette);

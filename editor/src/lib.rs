@@ -367,6 +367,12 @@ pub struct Editor {
     /// Byte ranges of each path in [`file_blob`](Self::file_blob), sorted by
     /// the paths they point at (the palette's stable base order).
     file_spans: Vec<(u32, u32)>,
+    /// Whether the host has fed the file list at least once
+    /// ([`set_file_list_joined`](Self::set_file_list_joined)). Distinguishes
+    /// "the boot walk is still running" from "the card really has no files" in
+    /// the palette's empty state — the walk takes seconds on a big tree, and
+    /// `Cmd-P` during it should say so rather than claim an empty card.
+    files_walked: bool,
     /// Recently-opened files, most-recent-first (an MRU), deduped and bounded to
     /// [`MRU_MAX`]. Every `:e`/palette open pushes to the front
     /// ([`note_recent`](Self::note_recent)); it orders the palette when the query
@@ -480,6 +486,7 @@ impl Editor {
             requests: Vec::new(),
             file_blob: String::new(),
             file_spans: Vec::new(),
+            files_walked: false,
             recent: Vec::new(),
             palette_query: String::new(),
             palette_sel: 0,

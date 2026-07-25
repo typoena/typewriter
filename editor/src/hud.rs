@@ -453,6 +453,11 @@ impl Editor {
                 }
             } else if command_mode {
                 "(no command)"
+            } else if !self.files_walked {
+                // The boot walk hasn't reported yet — the card isn't empty,
+                // we just don't know its contents. Self-corrects: the idle
+                // branch repaints when the walk lands.
+                "(reading card...)"
             } else if self.file_spans.is_empty() {
                 "(no files on card)"
             } else {

@@ -532,6 +532,7 @@ impl Editor {
         spans.dedup_by(|&mut (a, b), &mut (c, d)| blob[a as usize..b as usize] == blob[c as usize..d as usize]);
         self.file_blob = blob;
         self.file_spans = spans;
+        self.files_walked = true;
     }
 
     /// [`set_file_list_joined`](Self::set_file_list_joined) from a `Vec` —
