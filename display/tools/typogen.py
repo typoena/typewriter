@@ -83,83 +83,170 @@ def line(g, x0, y0, x1, y1, v=1):
             err += dx; y0 += sy
 
 
-def sparkle(g, x, y):
-    for a, b in ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)):
-        px(g, x + a, y + b)
+def sparkle(g, x, y, r=2):
+    px(g, x, y)
+    for d in range(1, r + 1):
+        px(g, x + d, y)
+        px(g, x - d, y)
+        px(g, x, y + d)
+        px(g, x, y - d)
+
+
+def stamp(g, x, y, rows):
+    """Blit a '#'/space bitmap (a glyph like `?` or a note) at (x, y)."""
+    for dy, row in enumerate(rows):
+        for dx, c in enumerate(row):
+            if c == '#':
+                px(g, x + dx, y + dy)
+
+
+def disc(g, cx, cy, r, v=1):
+    """Filled circle — the shape of Typo's eye, so mood eyes stay round."""
+    for y in range(cy - r, cy + r + 1):
+        for x in range(cx - r, cx + r + 1):
+            if (x - cx) ** 2 + (y - cy) ** 2 <= r * r + 1:
+                px(g, x, y, v)
 
 
 def copy(g):
     return [r[:] for r in g]
 
 
+# Friendly, rounded glyphs, sized for the 96 px grid. `?` floats behind Typo's
+# head when he's curious; the eighth note sits in the pocket under his beak tip
+# when he whistles at a fresh page.
+QUESTION = [
+    " ##### ",
+    "##   ##",
+    "     ##",
+    "    ## ",
+    "   ##  ",
+    "  ##   ",
+    "  ##   ",
+    "       ",
+    "  ##   ",
+    "  ##   ",
+]
+NOTE = [
+    "    ##",
+    "   ###",
+    "  # ##",
+    "    # ",
+    "    # ",
+    "    # ",
+    " ###  ",
+    "####  ",
+    "####  ",
+]
+
+
 def build(tmpdir):
-    # ---- base grids straight from the reference -----------------------------
-    base48 = resample(56, tmpdir)     # trims to ~48x48; eye at cols 13-16, rows 7-10
-    compact = resample(48, tmpdir)    # smaller cut, no additions at all
+    # ---- base grid straight from the reference (~96 px) ---------------------
+    # Overlays below were originally tuned on a 48-grid; kx/ky rescale them onto
+    # whatever the reference now trims to, so a single knob (the resample width)
+    # moves the whole family.
+    base = resample(112, tmpdir)      # ~97x96 — the mirrored mood family
+    splash = resample(143, tmpdir)    # ~124x121 — the bigger unflipped boot mark
+    compact = resample(78, tmpdir)    # tighter cut, no additions at all
 
-    w = len(base48[0])                # flipped x = w-1-x
-    ex = w - 1 - 14                   # eye centre x, flipped (~33); eye rows 7-10
+    w, h = len(base[0]), len(base)    # flipped x = w-1-x
+    kx, ky = w / 48.0, h / 48.0
 
-    def clear_eye(g):
-        for y in range(6, 12):
-            for x in range(ex - 3, ex + 3):
-                px(g, x, y, 0)
+    def sx(v):
+        return round(v * kx)
+
+    def sy(v):
+        return round(v * ky)
+
+    # Locate Typo's eye — the isolated ink dot right of the crown, left of the
+    # beak — so every mood reshapes the reference's OWN round eye instead of
+    # stamping a block over it. Window excludes the crown (<0.60w) and beak
+    # (>0.76w), and the solid upper head (<0.11h).
+    neutral = flip(copy(base))
+    xs, ys = [], []
+    for y in range(round(0.11 * h), round(0.25 * h)):
+        for x in range(round(0.60 * w), round(0.76 * w)):
+            if neutral[y][x]:
+                xs.append(x)
+                ys.append(y)
+    ecx, ecy = (min(xs) + max(xs)) // 2, (min(ys) + max(ys)) // 2
+    er = max(max(xs) - min(xs), max(ys) - min(ys)) // 2   # eye radius (~4)
+
+    def brow(g, x0, y0, x1, y1, t=2):
+        """A brow / lash line `t` px thick — bold enough to read on the panel."""
+        for d in range(t):
+            line(g, x0, y0 + d, x1, y1 + d)
+
+    def hbar(g, x0, x1, y, t=2, v=1):
+        """A thick horizontal bar: a level brow, or a closed-eye line."""
+        for yy in range(y, y + t):
+            for x in range(min(x0, x1), max(x0, x1) + 1):
+                px(g, x, yy, v)
+
+    def catchlight(g, r):
+        """The white spark that turns a filled eye into a bright, alive one."""
+        disc(g, ecx - er // 2, ecy - er // 2, r, 0)
 
     def face(mood):
-        """All moods are pixel overlays on the bare mirrored reference."""
-        g = flip(copy(base48))
+        """All moods are pixel overlays on the bare mirrored reference. Typo
+        faces left, so his inner brow / beak side is to the LEFT (−x). Every
+        change is deliberately BOLD: at 96 px on e-ink a 2 px catchlight or a
+        thin brow vanishes, so eyes resize by whole radii and brows/lids run
+        3 px thick, each mood reading at a glance."""
+        g = flip(copy(base))
         if mood == 'neutral':
             return g
-        if mood == 'frustrated':                    # pre-refresh: ghosting builds
-            for y in range(6, 9):                   # half-lid: keep lowest eye rows
-                for x in range(ex - 3, ex + 3):
+        if mood == 'frustrated':                        # pre-refresh: ghosting builds
+            for y in range(ecy - er, ecy):              # heavy lid drops over the top half
+                for x in range(ecx - er - 1, ecx + er + 2):
                     px(g, x, y, 0)
-            line(g, ex - 4, 4, ex + 2, 5)           # knitted brow
+            brow(g, ecx - er - 2, ecy - er, ecx + er + 2, ecy - er - 3, t=3)  # furrowed, inner-low
             for x, y in ((8, 1), (3, 12), (27, 17), (44, 4), (46, 13), (18, 20)):
-                px(g, x, y)                         # ghost dust on his feathers
+                sparkle(g, sx(x), sy(y), 1)             # ghost dust on his feathers
             return g
         # ---- the post-flash pool: one of these after every full refresh -----
-        if mood == 'anticipation':
-            for y in range(6, 11):                  # wide-open eye
-                for x in range(ex - 2, ex + 3):
-                    px(g, x, y)
-            px(g, ex - 2, 7, 0)                     # catchlight
-            px(g, ex - 1, 7, 0)
-            sparkle(g, 2, 18)
-            sparkle(g, 45, 4)
+        if mood == 'anticipation':                      # eyes wide, buzzing
+            disc(g, ecx, ecy, er + 2)                   # a visibly bigger eye
+            catchlight(g, max(2, er // 2))              # big bright spark
+            brow(g, ecx - er - 1, ecy - er - 5, ecx + er + 1, ecy - er - 5, t=2)  # brow shot up
+            sparkle(g, sx(2), sy(18), 3)
+            sparkle(g, sx(45), sy(4), 3)
             return g
-        if mood == 'wink':
-            clear_eye(g)
-            for x, y in ((ex - 3, 9), (ex - 2, 8), (ex - 1, 8), (ex, 8), (ex + 1, 8), (ex + 2, 9)):
-                px(g, x, y)                         # happy closed arc
-            sparkle(g, 44, 5)
+        if mood == 'wink':                              # one eye shut in a big grin-arc
+            disc(g, ecx, ecy, er + 2, 0)                # clear the eye out
+            a = er + 2
+            for i in range(-a, a + 1):                  # bold upturned arc, 3 px thick
+                yy = ecy + (a - abs(i)) // 2
+                for d in range(3):
+                    px(g, ecx + i, yy - d)
+            sparkle(g, sx(44), sy(5), 2)
             return g
-        if mood == 'curious':                       # "?" floats behind his head
-            q = ["0110", "1001", "0001", "0010", "0100", "0000", "0100"]
-            for dy, row in enumerate(q):
-                for dx, c in enumerate(row):
-                    if c == '1':
-                        px(g, 43 + dx, 1 + dy)
+        if mood == 'curious':                           # engaged interest, not a frown
+            disc(g, ecx, ecy, er + 1)                   # bright, alive eye
+            catchlight(g, max(1, er // 3))
+            by = ecy - er - 5                           # a bold, high, arched brow: the "oh?"
+            brow(g, ecx - er - 1, by + 3, ecx - er // 3, by, t=3)
+            hbar(g, ecx - er // 3, ecx + er // 3, by, t=3)
+            brow(g, ecx + er // 3, by, ecx + er + 1, by + 3, t=3)
+            stamp(g, w - len(QUESTION[0]) - sx(1), sy(1), QUESTION)   # ? behind his head
             return g
-        if mood == 'determined':
-            line(g, ex - 3, 5, ex + 2, 5)           # straight low brow, eye intact
+        if mood == 'determined':                        # locked in: heavy level brow, eye wide open
+            hbar(g, ecx - er - 1, ecx + er + 1, ecy - er - 1, t=3)
             return g
-        if mood == 'zen':
-            clear_eye(g)
-            line(g, ex - 3, 9, ex + 2, 9)           # softly closed eye
+        if mood == 'zen':                               # eyes softly, evenly shut
+            disc(g, ecx, ecy, er + 2, 0)                # clear the eye out
+            hbar(g, ecx - er - 1, ecx + er + 1, ecy, t=3)  # a calm, flat closed line
             return g
-        if mood == 'note':                          # whistling at the fresh page
-            n = ["0010", "0011", "0010", "0110", "1110"]
-            for dy, row in enumerate(n):            # in the clear pocket under the tip
-                for dx, c in enumerate(row):
-                    if c == '1':
-                        px(g, 1 + dx, 17 + dy)
+        if mood == 'note':                              # whistling at the fresh page
+            stamp(g, sx(1), sy(15), NOTE)               # ♪ in the clear pocket under the tip
             return g
         raise ValueError(mood)
 
     moods = ['neutral', 'frustrated', 'anticipation', 'wink', 'curious',
              'determined', 'zen', 'note']
-    sprites = {'body': base48, 'mark_compact': compact}
+    # BODY is the boot splash only (unflipped); it can run bigger than the 96 px
+    # face box, so it uses the larger `splash` cut. The faces stay on `base`.
+    sprites = {'body': splash, 'mark_compact': compact}
     sprites.update({m: face(m) for m in moods})
     return sprites
 

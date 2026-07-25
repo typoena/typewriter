@@ -116,9 +116,10 @@ impl Frame {
     /// laundered by the one-shot boot-cleanup full refresh (see `app::Panel`).
     fn draw_brand(&mut self) {
         const WORDMARK: &str = "typoena";
-        /// Boot-splash sprite scale: 48 px × 3 = 144 px, the size approved on
-        /// the character sheet.
-        const SPLASH_SCALE: i32 = 3;
+        /// Boot-splash sprite scale: the 124 px body drawn 1:1. (It was baked at
+        /// 48 px and tripled to a 144 px block before the crisp rebake; the native
+        /// 124 px cut at 1:1 nearly matches that footprint and reads far sharper.)
+        const SPLASH_SCALE: i32 = 1;
 
         // Stack the sprite over the wordmark and centre the lockup vertically.
         let sprite_px = typo::BODY.h as i32 * SPLASH_SCALE;

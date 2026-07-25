@@ -24,19 +24,23 @@ use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 
 mod sprites;
 
-/// A 1-bit sprite: one `u64` per row, low `w` bits used, high bit (bit `w-1`) =
+/// A 1-bit sprite: one `u128` per row, low `w` bits used, high bit (bit `w-1`) =
 /// leftmost pixel — the same left-to-right literal convention as [`crate::Glyph`].
-/// Set bit = ink.
+/// Set bit = ink. The `u128` row caps width at 128 px; the faces are 96 px, the
+/// (unflipped) boot mark 124 px.
 pub struct Sprite {
     pub w: u16,
     pub h: u16,
-    rows: &'static [u64],
+    rows: &'static [u128],
 }
 
 /// The unmirrored base sprite (faces right, as drawn) — the boot-splash mark.
+/// Baked from a larger cut of the reference (124 px) than the 96 px faces: the
+/// splash has the whole panel, so it takes the extra detail; the side-panel face
+/// box does not.
 pub static BODY: &Sprite = &sprites::BODY;
 
-/// A tighter 40×40 cut of the same mark, for chrome the 48 px body won't fit.
+/// A tighter 67×67 cut of the same mark, for chrome the 124 px boot mark won't fit.
 /// Baked with the family; nothing on-device uses it yet.
 pub static MARK_COMPACT: &Sprite = &sprites::MARK_COMPACT;
 
@@ -70,7 +74,41 @@ pub const POOL: [Mood; 6] = [
     Mood::Note,
 ];
 
+/// The `face` pref's palette cycle: `"random"` (the shuffle-bag default) plus
+/// every mood by name, so the `>` palette can pin Typo to one face — to preview
+/// each on demand instead of waiting for a full refresh to roll it up, or to
+/// keep a favourite. Mirrors `display::FONT_OPTIONS`; order is the cycle order.
+pub const FACE_OPTIONS: [&str; 9] = [
+    "random",
+    "neutral",
+    "anticipation",
+    "wink",
+    "curious",
+    "determined",
+    "zen",
+    "note",
+    "frustrated",
+];
+
 impl Mood {
+    /// The mood a `face` pref string pins to, or `None` for `"random"` — and for
+    /// any unrecognized value, so a hand-typed pref can never leave Typo faceless;
+    /// it just falls back to the random rotation. Inverse of the [`FACE_OPTIONS`]
+    /// names.
+    pub fn from_name(name: &str) -> Option<Mood> {
+        Some(match name {
+            "neutral" => Mood::Neutral,
+            "anticipation" => Mood::Anticipation,
+            "wink" => Mood::Wink,
+            "curious" => Mood::Curious,
+            "determined" => Mood::Determined,
+            "zen" => Mood::Zen,
+            "note" => Mood::Note,
+            "frustrated" => Mood::Frustrated,
+            _ => return None, // "random" or unknown → the shuffle-bag rotation
+        })
+    }
+
     pub fn face(self) -> &'static Sprite {
         match self {
             Mood::Neutral => &sprites::NEUTRAL,

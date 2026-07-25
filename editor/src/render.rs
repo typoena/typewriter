@@ -52,9 +52,10 @@ pub(crate) const NOTICE_MAX_LINES: usize = 4;
 /// PANEL_CH rows ≈ 45 chars — enough for a dated title like `2026-07-21 je dois
 /// parler de outer wilds`.
 pub(crate) const FILENAME_MAX_LINES: usize = 3;
-/// Typo's face on the side panel: the 48 px sprite at this scale (96 px), between
-/// the sync tier and the vim tier.
-pub(crate) const FACE_SCALE: i32 = 2;
+/// Typo's face on the side panel: the 96 px sprite drawn 1:1, between the sync
+/// tier and the vim tier. (Was a 48 px sprite doubled; the native 96 px keeps
+/// the same box but resolves his eye and brows crisply.)
+pub(crate) const FACE_SCALE: i32 = 1;
 /// Fixed top y of the face box. Fixed — never laid out below the (variable)
 /// notice — so a mood swap only ever changes pixels inside the box, and the face
 /// can't jump rows when a notice comes and goes. Below the sync tier's worst-case
