@@ -122,3 +122,7 @@ the case README). Nets crossing the boards:
   `PWR_SENSE`, and optional `CHRG`
 - ⟨TBD⟩ which board hosts the discrete power-path parts (FETs, diodes, latch
   network) — placement not yet decided
+
+## Devkit pinout (board rev v1.0)
+
+![ESP32-S3-DevKitC-1 v1.0 pinout](../firmware/docs/esp32-s3-devkitc-1-v1.0-pinout.jpg)
