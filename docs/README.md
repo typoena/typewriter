@@ -13,6 +13,7 @@
 | Doc                                              | What's in it                                                                                                         |
 | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
 | [`adr.md`](adr.md)                               | Architecture Decision Records — the load-bearing technical choices and why.                                          |
+| [`stack.md`](stack.md)                           | Software stack — layer-by-layer choices with measured costs, and the annotated repo layout.                          |
 | [`v0.1-mvp-product.md`](v0.1-mvp-product.md)     | v0.1 product design — boot, type one file, `Ctrl-S` to save, `Ctrl-G` to push.                                       |
 | [`v0.1-mvp-technical.md`](v0.1-mvp-technical.md) | v0.1 technical design — single Rust binary on `esp-idf-rs`, modules, threads, bring-up order.                        |
 | [`macroplan.md`](macroplan.md)                   | Version-by-version plan; each release is a usable artifact, not a checkpoint.                                        |
