@@ -24,17 +24,17 @@ It is **not** an ICT / bed-of-nails replacement:
   prerequisite below.
 - Opens on a truly floating spare pin are only inferable via its internal pull.
 
-## ⚠️ Hardware prerequisites (validate before trusting two of the tests)
+## :alert-triangle: Hardware prerequisites (validate before trusting two of the tests)
 
 These are wiring facts the firmware cannot compensate for. Confirm them at the
-board, ideally with a multimeter *before first power-on*.
+board, ideally with a multimeter _before first power-on_.
 
 1. **USB-C host (keyboard) — sourced VBUS is the hard requirement, not CC Rp.** The
    S3 OTG exposes only **D+/D−**; it has **no CC pins**, so CC is never handled by
    the ESP32. Empirically, across every bring-up test the gating factor was
    **VBUS**, not CC: the USB-A breakout worked (VBUS hard-wired to the rail), a
    4-pin USB-C breakout worked (VBUS sourced from the board's 5V), and the devkit's
-   native USB-C port stayed **dark** because its VBUS is an *input*, never sourced
+   native USB-C port stayed **dark** because its VBUS is an _input_, never sourced
    outward. The tested keyboard enumerates on VBUS alone (tolerates a floating CC).
    So on the PCB the non-negotiable is: **source 5V onto the C receptacle's VBUS**,
    and route D+/D− (both orientations, A6/B6 & A7/B7) to GPIO20/19. External
@@ -60,14 +60,14 @@ board, ideally with a multimeter *before first power-on*.
 
 Whole-build wiring reference-of-record: [docs/wiring.md](../../docs/wiring.md).
 
-| Function | Bus / pin |
-|---|---|
-| EPD (SSD1683 / GDEY0579T93) | SPI2 — SCK 12, MOSI 11, CS 7, DC 6, RST 5, BUSY 4 |
-| microSD | SPI3 — SCK 14, MOSI 15, MISO 13, CS 10 |
-| USB-C keyboard | native PHY — D− 19, D+ 20, VBUS→5V, CC1/CC2 Rp |
-| Status LED (WS2812) | GPIO 48 (devkit RGB) |
-| Operator confirm | **BOOT button, GPIO 0** (input, pull-up, pressed = low) |
-| Charger status (optional) | GPIO 21 |
+| Function                    | Bus / pin                                               |
+| --------------------------- | ------------------------------------------------------- |
+| EPD (SSD1683 / GDEY0579T93) | SPI2 — SCK 12, MOSI 11, CS 7, DC 6, RST 5, BUSY 4       |
+| microSD                     | SPI3 — SCK 14, MOSI 15, MISO 13, CS 10                  |
+| USB-C keyboard              | native PHY — D− 19, D+ 20, VBUS→5V, CC1/CC2 Rp          |
+| Status LED (WS2812)         | GPIO 48 (devkit RGB)                                    |
+| Operator confirm            | **BOOT button, GPIO 0** (input, pull-up, pressed = low) |
+| Charger status (optional)   | GPIO 21                                                 |
 
 Free for later: GPIO 1, 2, 8, 9 (ADC1), 16/17/18, 38, 39, 40, 41, 42, 47.
 Off-limits: 26–37 (flash + octal PSRAM), 43/44 (console UART), 0/3/45/46 (strapping).
@@ -89,7 +89,7 @@ Off-limits: 26–37 (flash + octal PSRAM), 43/44 (console UART), 0/3/45/46 (stra
    timings. Always attached on the bench.
 2. **WS2812 (GPIO 48) — coarse aggregate, survives a dead panel.** Amber = running,
    blue = waiting on operator, **green = all OK**, **red = ≥1 NOK**.
-3. **EPD panel — checklist mirror,** painted only *after* test #2 passes (the panel
+3. **EPD panel — checklist mirror,** painted only _after_ test #2 passes (the panel
    is itself under test).
 
 ### Operator input (no dedicated buttons on the board)
@@ -103,30 +103,30 @@ completes and the aggregate reflects the auto-checks.
 
 Ordered; each row lists the auto criteria and what a NOK points at.
 
-| # | Check | Auto criteria | NOK → likely fault |
-|---|---|---|---|
-| 1 | **LED** | *(deferred)* drive R→G→B via RMT; then `CONFIRM?` — esp-idf-hal 0.46 replaced the RMT API, so this reports `SKIP` for now (serial + panel carry results) | LED net / GPIO 48 |
-| 2 | **EPD handshake** | reset → BUSY toggles within timeout; `init()` ok; full refresh completes within the ~1.9 s BUSY budget | CS/DC/RST/BUSY/SCK/MOSI open or bridged; BUSY stuck high = RST or BUSY |
-| 3 | **EPD pattern** | checkerboard + seam test (x=396) + text; `CONFIRM?` | pixel noise = CS; missing band = MOSI/SCK; bad seam = dual-controller |
-| 4 | **SD** | mount (`format_if_mount_failed=false`); CMD59/CRC accepted; log negotiated kHz; write→read a blob byte-identical; MISO idle-high (internal pull-up is enough; log if low) | swap/open on 13/14/15/10; MISO low = pull-up |
-| 5 | **USB-C keyboard** | install host lib; enumerate (log VID:PID, expect 19f5:3255); claim boot iface; SET_PROTOCOL(boot)+SET_IDLE(0); poll EP 0x81. Prompt "press a key" → decode. Then "flip the connector, press again" → re-enumerate | no enum = VBUS / **CC Rp** / D+/D−; one orientation only = D pairs or CC not bridged |
-| 6 | **Wi-Fi** | scan → ≥1 AP found (log best RSSI); if creds present, associate + SNTP | antenna / RF |
-| 7 | **Charger / battery** | if `CHRG`→GPIO 21: read state (open-drain, low = charging) and report; else `SKIP`. Manual step: unplug USB → device stays alive = battery+MT3608 path OK | status-pin joint; dead on unplug = boost / battery wiring |
-| 8 | **GPIO short/open** | for each pin marked *isolated* in the expected-net table: drive it high, read all other isolated pins (input pull-down) → any unexpected follower = a bridge; then float + internal pull → read level (open only inferable via the pull). Bus pins skipped (covered functionally). Log "coupling-tested" vs "pull-tested only" honestly | solder bridge between adjacent nets |
+| #   | Check                 | Auto criteria                                                                                                                                                                                                                                                                                                                           | NOK → likely fault                                                                   |
+| --- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| 1   | **LED**               | _(deferred)_ drive R→G→B via RMT; then `CONFIRM?` — esp-idf-hal 0.46 replaced the RMT API, so this reports `SKIP` for now (serial + panel carry results)                                                                                                                                                                                | LED net / GPIO 48                                                                    |
+| 2   | **EPD handshake**     | reset → BUSY toggles within timeout; `init()` ok; full refresh completes within the ~1.9 s BUSY budget                                                                                                                                                                                                                                  | CS/DC/RST/BUSY/SCK/MOSI open or bridged; BUSY stuck high = RST or BUSY               |
+| 3   | **EPD pattern**       | checkerboard + seam test (x=396) + text; `CONFIRM?`                                                                                                                                                                                                                                                                                     | pixel noise = CS; missing band = MOSI/SCK; bad seam = dual-controller                |
+| 4   | **SD**                | mount (`format_if_mount_failed=false`); CMD59/CRC accepted; log negotiated kHz; write→read a blob byte-identical; MISO idle-high (internal pull-up is enough; log if low)                                                                                                                                                               | swap/open on 13/14/15/10; MISO low = pull-up                                         |
+| 5   | **USB-C keyboard**    | install host lib; enumerate (log VID:PID, expect 19f5:3255); claim boot iface; SET_PROTOCOL(boot)+SET_IDLE(0); poll EP 0x81. Prompt "press a key" → decode. Then "flip the connector, press again" → re-enumerate                                                                                                                       | no enum = VBUS / **CC Rp** / D+/D−; one orientation only = D pairs or CC not bridged |
+| 6   | **Wi-Fi**             | scan → ≥1 AP found (log best RSSI); if creds present, associate + SNTP                                                                                                                                                                                                                                                                  | antenna / RF                                                                         |
+| 7   | **Charger / battery** | if `CHRG`→GPIO 21: read state (open-drain, low = charging) and report; else `SKIP`. Manual step: unplug USB → device stays alive = battery+MT3608 path OK                                                                                                                                                                               | status-pin joint; dead on unplug = boost / battery wiring                            |
+| 8   | **GPIO short/open**   | for each pin marked _isolated_ in the expected-net table: drive it high, read all other isolated pins (input pull-down) → any unexpected follower = a bridge; then float + internal pull → read level (open only inferable via the pull). Bus pins skipped (covered functionally). Log "coupling-tested" vs "pull-tested only" honestly | solder bridge between adjacent nets                                                  |
 
 ## Expected-net table (fill from the schematic)
 
 The short/open scan needs each GPIO classified. Bus pins are skipped (their
-functional test covers them); only *isolated* pins are meaningfully scanned.
+functional test covers them); only _isolated_ pins are meaningfully scanned.
 
-| GPIO | Class | Note |
-|---|---|---|
-| 4,5,6,7,11,12 | bus (EPD) | skip — covered by #2/#3 |
-| 10,13,14,15 | bus (SD) | skip — covered by #4 |
-| 19,20 | bus (USB) | skip — covered by #5 |
-| 0 | button | BOOT, reads pull, low on press |
-| 21 | charger | if wired |
-| 48 | LED | skip — covered by #1 |
+| GPIO                               | Class            | Note                                                    |
+| ---------------------------------- | ---------------- | ------------------------------------------------------- |
+| 4,5,6,7,11,12                      | bus (EPD)        | skip — covered by #2/#3                                 |
+| 10,13,14,15                        | bus (SD)         | skip — covered by #4                                    |
+| 19,20                              | bus (USB)        | skip — covered by #5                                    |
+| 0                                  | button           | BOOT, reads pull, low on press                          |
+| 21                                 | charger          | if wired                                                |
+| 48                                 | LED              | skip — covered by #1                                    |
 | 1,2,8,9,16,17,18,38,39,40,41,42,47 | isolated / spare | scan candidates — **confirm which are actually routed** |
 
 ## Build integration
@@ -165,13 +165,13 @@ GPIO read, and the short/open scanner.
   may not come up on this board. Cheap USB-A→C adapters bake in a **56 kΩ Rp (CC→VBUS)**
   for exactly this; adding that one resistor (or a DNP footprint for it) on the PCB
   is cheap insurance if keyboard-independence ever matters.
-  - **Confirmed (breadboard):** the keyboard enumerates *and* decodes keystrokes on
+  - **Confirmed (breadboard):** the keyboard enumerates _and_ decodes keystrokes on
     the CC-less breakout — so on the PCB, sourcing VBUS is sufficient for this
     keyboard. The 56 kΩ Rp stays optional insurance for other keyboards.
 - **Charger status pad.** Is `CHRG` accessible on the HW-373 to wire to GPIO21? If
   not, test #7 stays a manual multimeter check — decide whether to tack on a wire.
 - **MT3608 setpoint.** Confirm the boost output is trimmed to ~5.0V (not drifted high;
-  >5.5V stresses the devkit LDO).
+  > 5.5V stresses the devkit LDO).
 - **TP4056 load-sharing.** Charge-termination is unreliable while the MT3608 draws
   from B+ — a shipping concern, not a bring-up blocker.
 - **Expected-net table.** Fill the isolated/spare GPIO rows from the actual schematic
