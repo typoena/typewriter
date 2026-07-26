@@ -58,6 +58,8 @@ board, ideally with a multimeter *before first power-on*.
 
 ## Target pin map (reused from the devkit, unchanged)
 
+Whole-build wiring reference-of-record: [docs/wiring.md](../../docs/wiring.md).
+
 | Function | Bus / pin |
 |---|---|
 | EPD (SSD1683 / GDEY0579T93) | SPI2 — SCK 12, MOSI 11, CS 7, DC 6, RST 5, BUSY 4 |

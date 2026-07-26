@@ -4,8 +4,9 @@
 > the power-path parts live in
 > [v0.10 — Power switch + power path](v0.10-battery-and-sleep.md#power-switch--power-path--decided-2026-07-26)
 > (status-checked 2026-07-26); this file is the reference-of-record for _what_
-> each part is. Rows marked `⟨ref?⟩` need the exact reference confirmed by
-> Julien.
+> each part is, and [wiring.md](wiring.md) for _how the parts connect_ (pin
+> map, per-subsystem nets, inter-board harness). Rows marked `⟨ref?⟩` need the
+> exact reference confirmed by Julien.
 
 ## Core electronics
 
