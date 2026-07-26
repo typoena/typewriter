@@ -1226,15 +1226,9 @@ impl Editor {
                 }
             }
             Key::DeleteWord => {
-                // Readline Ctrl-W: drop trailing spaces, then the word before the
-                // caret — editing the `:` command line while typing it. Unlike
-                // Backspace, emptying the line does not cancel back to Normal.
-                while self.cmdline.ends_with(' ') {
-                    self.cmdline.pop();
-                }
-                while !self.cmdline.is_empty() && !self.cmdline.ends_with(' ') {
-                    self.cmdline.pop();
-                }
+                // Vim Ctrl-W over the `:` command line. Unlike Backspace,
+                // emptying the line does not cancel back to Normal.
+                kill_word_before_end(&mut self.cmdline);
             }
             // Cmd+Backspace: clear the whole command line, staying in Command.
             Key::DeleteLine => self.cmdline.clear(),

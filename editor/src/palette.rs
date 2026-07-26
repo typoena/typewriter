@@ -199,14 +199,11 @@ impl Editor {
                     self.palette_sel = 0;
                 }
             }
-            // Readline Ctrl-W: drop trailing spaces then the last word.
+            // Vim Ctrl-W: kill the word-class run before the caret. On `>test`
+            // this peels `test` and stops at the `>`; a second stroke then drops
+            // the sigil back to file mode, as Backspace does.
             Key::DeleteWord => {
-                while self.palette_query.ends_with(' ') {
-                    self.palette_query.pop();
-                }
-                while !self.palette_query.is_empty() && !self.palette_query.ends_with(' ') {
-                    self.palette_query.pop();
-                }
+                kill_word_before_end(&mut self.palette_query);
                 self.palette_sel = 0;
             }
             Key::DeleteLine => {
@@ -275,14 +272,7 @@ impl Editor {
                     self.palette_sel = 0;
                 }
             }
-            Key::DeleteWord => {
-                while self.palette_query.ends_with(' ') {
-                    self.palette_query.pop();
-                }
-                while !self.palette_query.is_empty() && !self.palette_query.ends_with(' ') {
-                    self.palette_query.pop();
-                }
-            }
+            Key::DeleteWord => kill_word_before_end(&mut self.palette_query),
             Key::DeleteLine => self.palette_query.clear(),
             Key::Enter => {
                 let name = self.palette_query.trim().to_string();

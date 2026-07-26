@@ -12,6 +12,34 @@ pub(crate) enum Op {
     Yank,
 }
 
+/// Vim word-motion class of a char (`:help word`), the definition every `Ctrl+W`
+/// / `Ctrl+Backspace` delete follows: `0` = blank, `1` = keyword (alphanumeric
+/// or `_`, incl. accented Latin-9 letters), `2` = other non-blank (punctuation).
+/// A "word" is a run of one class; a kill-word eats trailing blanks then one run.
+pub(crate) fn word_class(c: char) -> u8 {
+    if c.is_whitespace() {
+        0
+    } else if c.is_alphanumeric() || c == '_' {
+        1
+    } else {
+        2
+    }
+}
+
+/// Vim `Ctrl+W` over a single-line input whose caret is the end (palette query,
+/// `:` command line): drop trailing spaces/tabs, then the run of one
+/// [`word_class`] before the caret. Punctuation and keyword runs are separate
+/// words, so `>foo` peels `foo` and stops at the `>`.
+pub(crate) fn kill_word_before_end(s: &mut String) {
+    while matches!(s.chars().last(), Some(' ') | Some('\t')) {
+        s.pop();
+    }
+    if let Some(cls) = s.chars().last().map(word_class).filter(|&c| c != 0) {
+        while s.chars().last().map(word_class) == Some(cls) {
+            s.pop();
+        }
+    }
+}
 
 impl Editor {
     pub(crate) fn insert_char(&mut self, c: char) {
@@ -403,17 +431,34 @@ impl Editor {
             })
     }
 
-    /// Insert-mode Ctrl+W / Ctrl+Backspace: delete the word before the caret.
+    /// Insert-mode Ctrl+W / Ctrl+Backspace: delete the [`word_class`] run before
+    /// the caret (Vim `i_CTRL-W`). Eats trailing spaces/tabs first; never crosses
+    /// a newline (line start is a hard stop). Walks whole chars, so accented
+    /// Latin-9 letters count as one keyword run rather than splitting mid-byte.
     pub(crate) fn delete_word_before(&mut self) {
-        let b = self.text.as_bytes();
-        let mut i = self.caret;
-        while i > 0 && (b[i - 1] == b' ' || b[i - 1] == b'\t') {
-            i -= 1;
+        let end = self.caret;
+        let mut i = end;
+        while let Some(c) = self.text[..i].chars().next_back() {
+            if c == ' ' || c == '\t' {
+                i -= c.len_utf8();
+            } else {
+                break;
+            }
         }
-        while i > 0 && !b[i - 1].is_ascii_whitespace() {
-            i -= 1;
+        if let Some(c) = self.text[..i]
+            .chars()
+            .next_back()
+            .filter(|&c| c != '\n' && c != '\r')
+        {
+            let cls = word_class(c);
+            while let Some(c) = self.text[..i].chars().next_back() {
+                if c == '\n' || c == '\r' || word_class(c) != cls {
+                    break;
+                }
+                i -= c.len_utf8();
+            }
         }
-        self.text.replace_range(i..self.caret, "");
+        self.text.replace_range(i..end, "");
         self.caret = i;
     }
 

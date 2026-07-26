@@ -27,6 +27,42 @@ fn enter_splits_the_line() {
     assert_eq!(e.caret, 4);
 }
 
+// ---- Insert-mode Ctrl+W (Vim `i_CTRL-W` word-class deletion) ----
+
+#[test]
+fn ctrl_w_deletes_a_whitespace_word() {
+    let mut e = typed("foo bar");
+    e.handle(Key::DeleteWord);
+    assert_eq!(e.text, "foo "); // drops `bar`, keeps the separating space
+    assert_eq!(e.caret, 4);
+}
+
+#[test]
+fn ctrl_w_stops_at_a_word_class_boundary() {
+    let mut e = typed("foo.bar");
+    e.handle(Key::DeleteWord);
+    assert_eq!(e.text, "foo."); // keyword run `bar`
+    e.handle(Key::DeleteWord);
+    assert_eq!(e.text, "foo"); // punctuation run `.`
+}
+
+#[test]
+fn ctrl_w_deletes_an_accented_word_whole() {
+    let mut e = typed("café");
+    e.handle(Key::DeleteWord);
+    assert_eq!(e.text, ""); // 'é' is a keyword char, not a mid-byte split
+    assert_eq!(e.caret, 0);
+}
+
+#[test]
+fn ctrl_w_does_not_cross_a_newline() {
+    let mut e = typed("foo");
+    e.handle(Key::Enter); // caret at col 0 of the new empty line
+    e.handle(Key::DeleteWord);
+    assert_eq!(e.text, "foo\n"); // the newline is a hard stop
+    assert_eq!(e.caret, 4);
+}
+
 #[test]
 fn enter_in_a_blockquote_continues_the_marker() {
     let mut e = typed("> quote");

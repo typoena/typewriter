@@ -376,6 +376,47 @@ fn backspacing_the_gt_returns_to_file_mode() {
 }
 
 #[test]
+fn ctrl_w_peels_a_word_but_keeps_the_command_sigil() {
+    // The reported wish: `>test` + Ctrl-W clears `test` and lands on `>`, not
+    // out of command mode. `test` (keyword class) stops at the `>` (punctuation).
+    let mut e = palette_type(&["/sd/repo/notes.md"], ">test");
+    e.handle(Key::DeleteWord);
+    assert_eq!(e.palette_query, ">");
+    assert!(e.palette_command_mode()); // still command mode
+}
+
+#[test]
+fn ctrl_w_on_the_bare_sigil_drops_to_file_mode() {
+    // A second stroke, now on `>` alone, peels the punctuation run — the same
+    // peel-back Backspace does, straight out of the Vim word rule.
+    let mut e = palette_type(&["/sd/repo/notes.md"], ">");
+    e.handle(Key::DeleteWord);
+    assert_eq!(e.palette_query, "");
+    assert!(!e.palette_command_mode());
+    assert_eq!(e.mode(), Mode::Palette); // still open, just file mode
+}
+
+#[test]
+fn ctrl_w_stops_at_word_class_boundaries() {
+    let mut e = palette_type(&["/sd/repo/notes.md"], ">foo.bar");
+    e.handle(Key::DeleteWord);
+    assert_eq!(e.palette_query, ">foo."); // keyword run `bar`
+    e.handle(Key::DeleteWord);
+    assert_eq!(e.palette_query, ">foo"); // punctuation run `.`
+    e.handle(Key::DeleteWord);
+    assert_eq!(e.palette_query, ">"); // keyword run `foo`
+}
+
+#[test]
+fn ctrl_w_eats_trailing_space_then_the_prior_word() {
+    let mut e = palette_type(&["/sd/repo/notes.md"], ">foo bar");
+    e.handle(Key::DeleteWord);
+    assert_eq!(e.palette_query, ">foo "); // drops `bar`, keeps the space
+    e.handle(Key::DeleteWord);
+    assert_eq!(e.palette_query, ">"); // trailing space + `foo`
+}
+
+#[test]
 fn command_filter_fuzzy_matches_the_label() {
     let e = palette_type(&["/sd/repo/notes.md"], ">line");
     let matches = e.palette_command_matches();
