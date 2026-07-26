@@ -3,7 +3,8 @@
 > The design record for Typoena — the decisions, specs, and bench write-ups
 > behind the writing appliance. Start with the [ADRs](adr.md) for the
 > load-bearing choices, or the [v0.1 specs](v0.1-mvp-product.md) for what the
-> first release actually does.
+> first release actually does. Building one? The [BOM](bom.md) lists every
+> physical part with its reference.
 >
 > Project overview: [`../README.md`](../README.md).
 
@@ -17,6 +18,7 @@
 | [`macroplan.md`](macroplan.md)                   | Version-by-version plan; each release is a usable artifact, not a checkpoint.                                        |
 | [`typoena-toml.md`](typoena-toml.md)             | `.typoena.toml` reference — the git-tracked editor preferences (auto-save, format-on-save, line numbers, auto-sync). |
 | [`hardware.md`](hardware.md)                     | Part choices for the bench build and the rationale behind them.                                                      |
+| [`bom.md`](bom.md)                               | Whole-project bill of materials — every physical part by subsystem, with its reference.                              |
 
 ## Conventions
 

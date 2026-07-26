@@ -10,7 +10,8 @@ runs on it.
 > `:gl` pull) followed within the week. Firmware is at 0.7.0; next up is v0.8
 > (battery + sleep). Live per-item status:
 > [`docs/macroplan.md`](docs/macroplan.md) · doc index:
-> [`docs/README.md`](docs/README.md) · failure write-ups:
+> [`docs/README.md`](docs/README.md) · build it yourself — full part list:
+> [`docs/bom.md`](docs/bom.md) · failure write-ups:
 > [`docs/postmortems/`](docs/postmortems/README.md) · improvement loops:
 > [`docs/kaizen/`](docs/kaizen/README.md).
 
@@ -45,7 +46,8 @@ the writing posture we want) · **Nuphy wired USB keyboard** with the S3 as USB
 host · **microSD over SPI** · **USB-C wall power** for the MVP, battery in
 v0.8.
 
-Full part table, rationale, and bench status:
+Complete bill of materials with part references: [`docs/bom.md`](docs/bom.md).
+Part rationale and bench status:
 [`docs/hardware.md`](docs/hardware.md). Enclosure — a parametric,
 3D-printable typewriter-body case (OpenSCAD): [`hardware/case/`](hardware/case/README.md).
 
