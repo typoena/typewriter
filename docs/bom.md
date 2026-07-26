@@ -29,12 +29,14 @@ Design + behavior contract + purchase links:
 | Charger board | **HW-373** (TP4056 + DW01A/FS8205A protection, USB-C) | On PCB 2. Bare TP4056 is not a power-path controller — hence the P-FET/Schottky circuit |
 | Boost converter | **MT3608** module, trimmed to ~5 V | On PCB 1. Keep trim ≤ 5.5 V (devkit LDO stress); input peaks ~2 A during refresh + Wi-Fi |
 | Battery | **EEMB 103395** — 1S LiPo 3.7 V 3700 mAh, 10.3 × 33 × 95 mm, JST-PH 2.0 plug ([Amazon](https://www.amazon.fr/dp/B08215B4KK)) | Bought, not yet installed — measure the real cell (incl. lead exit) and fill the scad's `bat_*` `<< MEASURE >>` |
-| Power switch | Latching push button, Ø12 mm panel mount, ≥ 6 A, no LED | Cuts load path only; needs ~20–25 mm body depth behind the panel |
-| P-MOSFET | **AO3401A** (SOT-23, P-ch 30 V 4 A) | Load-sharing switchover |
+| Power button | Momentary push button, Ø12 mm panel mount, no LED (**RUNCCI-YUN** stainless) | Drives the soft-power latch — gate signal only, current rating irrelevant; short press = on (stays on), long-press = clean shutdown + sleeping-Typo off card; ~20 mm body depth |
+| P-MOSFET ×2 | **AO3401A** (SOT-23, P-ch 30 V 4 A) | #1 load-sharing switchover, #2 soft-power latch in the load path |
+| N-MOSFET | **2N7002** (SOT-23) | `PWR_HOLD` GPIO holds the latch gate low; 100k pulldown so a crashed ESP32 releases it |
+| Signal diode | **1N4148** | Button → latch gate pull; keeps `PWR_SENSE` readable |
 | Schottky diode | **SS34** (3 A 40 V; SOD-123F or the easier-to-solder SMA) | Mains → load node feed |
-| Resistor | 100 kΩ (gate pulldown) | Any stock |
+| Resistors / cap | 100 kΩ ×3, 10 kΩ ×1, ≥ 100 nF ×1 | Gate pull-up/pulldowns, `PWR_SENSE` series, press-stretch cap — any stock |
 | Battery connector | **JST-PH 2.0 mm** 2-pin, pre-wired pair | ⚠️ polarity not standardized — verify red = B+ before first plug-in |
-| Switch connector | **JST-XH 2.54 mm** 2-pin, pre-wired pair | Different family from the battery on purpose — can't cross-mate |
+| Button connector | **JST-XH 2.54 mm** 2-pin, pre-wired pair | Different family from the battery on purpose — can't cross-mate |
 | Reed switch (lid close, v0.10) | Not yet picked ⟨ref?⟩ | Deep-sleep wake source; blocked on the hinged-lid decision |
 
 ## Boards & interconnect

@@ -324,10 +324,11 @@ Detail: [v0.9-robustness.md](v0.9-robustness.md).
 ## v0.10 — Power: battery + sleep — [ ]
 
 Bench current-draw measurement, the LiPo power chain (HW-373 + MT3608 per the
-PCB migration) with a latching switch + load-sharing power path (design + BOM
-decided 2026-07-26), per-sync Wi-Fi teardown, light/deep sleep, the `auto_sync`
-runtime (re-homed from v0.7), and a battery indicator. **Not started** beyond
-that power-path decision.
+PCB migration) with a momentary-button soft-power latch + load-sharing power
+path (design + BOM decided 2026-07-26; shutdown paints a sleeping-Typo off
+card so the persistent e-ink shows the power state), per-sync Wi-Fi teardown,
+light/deep sleep, the `auto_sync` runtime (re-homed from v0.7), and a battery
+indicator. **Not started** beyond that power-path decision.
 Detail: [v0.10-battery-and-sleep.md](v0.10-battery-and-sleep.md).
 
 ## v1.0 — Polish — [ ]
