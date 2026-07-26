@@ -88,36 +88,19 @@ VBUS** (the S3 has no CC pins). Details + bench evidence:
 
 ## Power path
 
-Behavior contract, placement invariants, and rationale live in the
-[v0.10 section](v0.10-battery-and-sleep.md#power-switch--power-path--decided-2026-07-26) —
-this is the net list:
-
-```
-USB-C mains ──5V──┬────────────► TP4056 (HW-373) ──B+──► [JST-PH] LiPo 3700 mAh
-                  │                                          │
-                  │ SS34 Schottky                            │ (OUT+, via DW01 FETs)
-                  ▼                                          ▼
-                  ├◄──────────── AO3401 #1 (load share) ◄────┘
-                  │              gate → 5V mains, 100k pulldown
-                  ▼
-            [load node] ──► AO3401 #2 (soft latch) ──► MT3608 ──► 5V rail
-                                 │ gate ─ 100k pull-up → load node (default OFF)
-                                 ├─◄ 1N4148 ◄─ [BTN] momentary button → GND
-                                 └─◄ 2N7002 drain, gate ← PWR_HOLD (100k pulldown)
-                             [BTN] ─ 10k series → PWR_SENSE GPIO (internal pull-up)
-```
-
-The MT3608 output (trimmed ~5.0 V, ≤ 5.5 V) feeds the devkit's **5V pin** and
-the keyboard VBUS; all grounds are common.
+Circuit diagram, behavior contract, and placement invariants live in the
+[v0.10 section](v0.10-battery-and-sleep.md#power-switch--power-path--decided-2026-07-26).
+Not covered there: the MT3608 output (trimmed ~5.0 V, ≤ 5.5 V) feeds the
+devkit's **5V pin** and the keyboard VBUS; all grounds are common.
 
 ### Power / control signals
 
-| Signal        | GPIO  | Wiring                                                                                    |
-| ------------- | ----- | ------------------------------------------------------------------------------------------ |
-| `PWR_HOLD`    | ⟨TBD⟩ | → 2N7002 gate, with 100 kΩ pulldown so a crashed/reset ESP32 releases the latch            |
-| `PWR_SENSE`   | ⟨TBD⟩ | ← button through 10 kΩ series (caps back-feed into the unpowered pin), internal pull-up    |
-| `CHRG`        | 21    | ← HW-373 charge-status pad, one wire, no resistor (optional — pad access unconfirmed)      |
-| Battery sense | ⟨TBD⟩ | Planned (v0.10): 100k/100k divider + 100 nF from the raw cell into ADC1 — or MAX17048 I²C |
+| Signal        | GPIO  | Wiring                                                                |
+| ------------- | ----- | --------------------------------------------------------------------- |
+| `PWR_HOLD`    | ⟨TBD⟩ | → 2N7002 gate (100 kΩ pulldown)                                       |
+| `PWR_SENSE`   | ⟨TBD⟩ | ← button through 10 kΩ series, internal pull-up                       |
+| `CHRG`        | 21    | ← HW-373 charge-status pad, one wire (optional — pad access unconfirmed) |
+| Battery sense | ⟨TBD⟩ | Planned (v0.10): 100k/100k divider + 100 nF into ADC1 — or MAX17048   |
 
 ## Off-board connectors
 
