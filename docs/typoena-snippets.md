@@ -126,7 +126,7 @@ rather than refusing to start over a stray comma.
   edit it in your real editor, copy entries over from Zed, commit, and it reaches
   the device on the next clone/sync. This is deliberately where the heavy editing
   happens; the appliance is for writing, not for maintaining a JSON library.
-- **First-time setup.** [`just init`](../firmware/README.md#provisioning-an-sd-card)
+- **First-time setup.** [`just init`](../firmware/docs/sd-provisioning.md)
   seeds this file from a curated catalog (`firmware/snippets-catalog/`) — you pick
   which snippet groups you want and it `jq`-merges the selected subset into
   `repo/.typoena.snippets.json` (committed on the device's first `:sync`). It
