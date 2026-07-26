@@ -7,8 +7,8 @@ runs on it.
 > **Status: v0.7 shipped, hardware on bench.** v0.1 (MVP — boots, edits,
 > pushes) shipped 2026-07-11; v0.2 through v0.7 (vim navigation and editing,
 > file palette + multi-buffer, Markdown affordances, `/` search, `:gp` push /
-> `:gl` pull) followed within the week. Live per-item status:
-> [`docs/macroplan.md`](docs/macroplan.md).
+> `:gl` pull) followed within the week. Live per-item status: the Macroplan,
+> first link below.
 
 Design & context:
 
@@ -24,10 +24,8 @@ Design & context:
 - [Postmortems](docs/postmortems/README.md) — failure write-ups
 - [Kaizen](docs/kaizen/README.md) — improvement loops
 
-Technical pages:
+Technical pages, one per subsystem:
 
-- [Software stack](docs/stack.md) — layer-by-layer choices with measured
-  costs, and the annotated repo layout
 - [Firmware](firmware/README.md) — build, flash, provisioning, editor setup,
   bring-up spike log
 - [Enclosure](hardware/case/README.md) — parametric, 3D-printable

@@ -4,15 +4,11 @@ Rust crate targeting `xtensa-esp32s3-espidf` — the on-device firmware: a
 vim-style modal editor with git push/pull, OTA updates, and a first-boot
 wizard.
 
-Design & context:
-
-- [Macroplan](../docs/macroplan.md) — the week-by-week delivery plan
-- [QFD](../docs/qfd.md) — the goal-driven design cascade
-  (Goal → Function → How → Component)
-- [Project overview](../README.md) — the product, hardware, and repo map
-- [v0.1 MVP technical design](../docs/v0.1-mvp-technical.md) — architecture
-  and hardware bring-up order
-- [ADRs](../docs/adr.md) — the decision log
+One crate of the [Typoena project](../README.md) — start there for the
+vision, the hardware, and the design record (macroplan, QFD, ADRs, doc
+index). Firmware-specific design:
+[`v0.1-mvp-technical.md`](../docs/v0.1-mvp-technical.md) — module split,
+threads, and the hardware bring-up order.
 
 Technical pages:
 
