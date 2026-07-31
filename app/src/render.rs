@@ -245,7 +245,7 @@ impl<S: Screen> Panel<S> {
             }
             self.bag_pos = 0;
         }
-        let humor = self.bag[self.bag_pos];
+        let humor = self.bag.get(self.bag_pos).copied().unwrap_or(self.last_humor);
         self.bag_pos += 1;
         self.last_humor = humor;
         humor
@@ -575,11 +575,10 @@ impl<S: Screen> Panel<S> {
 /// or `None` if identical. Lets a partial refresh target just the band a
 /// keystroke touched instead of all 272 rows.
 pub fn changed_rows(a: &[u8], b: &[u8]) -> Option<(u16, u16)> {
-    let w = FB_BYTES_W;
     let mut first: Option<u16> = None;
     let mut last = 0u16;
-    for y in 0..HEIGHT as usize {
-        if a[y * w..(y + 1) * w] != b[y * w..(y + 1) * w] {
+    for (y, (row_a, row_b)) in a.chunks_exact(FB_BYTES_W).zip(b.chunks_exact(FB_BYTES_W)).enumerate() {
+        if row_a != row_b {
             first.get_or_insert(y as u16);
             last = y as u16;
         }
@@ -598,9 +597,13 @@ pub fn erase_bbox(a: &[u8], b: &[u8], y0: u16, y1: u16) -> Option<(u16, u16, u16
     let w = FB_BYTES_W;
     let mut bbox: Option<(u16, u16, u16, u16)> = None;
     for y in y0 as usize..=y1 as usize {
-        for xb in 0..w {
+        let row = y * w;
+        let (Some(row_a), Some(row_b)) = (a.get(row..row + w), b.get(row..row + w)) else {
+            break;
+        };
+        for (xb, (&pa, &pb)) in row_a.iter().zip(row_b).enumerate() {
             // Bits set in b but clear in a went black→white — erased ink.
-            let erased = b[y * w + xb] & !a[y * w + xb];
+            let erased = pb & !pa;
             if erased == 0 {
                 continue;
             }

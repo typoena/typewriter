@@ -179,21 +179,21 @@ fn percent_decode(s: &str) -> String {
     let bytes = s.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut i = 0;
-    while i < bytes.len() {
-        match bytes[i] {
+    while let Some(&b) = bytes.get(i) {
+        match b {
             b'+' => {
                 out.push(b' ');
                 i += 1;
             }
-            b'%' if i + 2 < bytes.len() => {
-                let hex = |b: u8| (b as char).to_digit(16);
-                match (hex(bytes[i + 1]), hex(bytes[i + 2])) {
+            b'%' => {
+                let hex = |b: &u8| (*b as char).to_digit(16);
+                match (bytes.get(i + 1).and_then(hex), bytes.get(i + 2).and_then(hex)) {
                     (Some(hi), Some(lo)) => {
                         out.push((hi * 16 + lo) as u8);
                         i += 3;
                     }
                     _ => {
-                        out.push(bytes[i]);
+                        out.push(b);
                         i += 1;
                     }
                 }

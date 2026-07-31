@@ -109,13 +109,12 @@ impl Decoder {
     /// bytes past the six key slots are simply processed too, never indexed
     /// out of range.
     pub fn feed(&mut self, report: &[u8], mut emit: impl FnMut(Key)) {
-        if report.len() < 3 {
-            return;
-        }
-        let mods = report[0];
+        let (mods, current) = match (report.first(), report.get(2..)) {
+            (Some(&m), Some(c)) if !c.is_empty() => (m, c),
+            _ => return, // short report (< 3 bytes)
+        };
         let shift = mods & 0x22 != 0; // LShift 0x02 | RShift 0x20
         let cmd = mods & 0x88 != 0; // LGUI 0x08 | RGUI 0x80
-        let current = &report[2..];
 
         // Caps Lock is a normal key in the boot report (not a modifier bit), so
         // we track its down/up edges here. Held, it acts as Ctrl; tapped alone,
@@ -200,7 +199,7 @@ fn translate(usage: u8, shift: bool, ctrl: bool, cmd: bool) -> Option<Key> {
             const UNSHIFTED: [char; 10] = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
             const SHIFTED: [char; 10] = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')'];
             let i = (usage - 0x1e) as usize;
-            Key::Char(if shift { SHIFTED[i] } else { UNSHIFTED[i] })
+            Key::Char(if shift { *SHIFTED.get(i)? } else { *UNSHIFTED.get(i)? })
         }
         0x28 => Key::Enter,
         0x2a => Key::Backspace,

@@ -199,9 +199,11 @@ impl DrawTarget for Frame {
             if (0..WIDTH as i32).contains(&p.x) && (0..HEIGHT as i32).contains(&p.y) {
                 let idx = p.y as usize * FB_BYTES_W + p.x as usize / 8;
                 let bit = 0x80u8 >> (p.x % 8);
-                match color {
-                    BinaryColor::On => self.buf[idx] &= !bit, // black ink
-                    BinaryColor::Off => self.buf[idx] |= bit, // white paper
+                if let Some(byte) = self.buf.get_mut(idx) {
+                    match color {
+                        BinaryColor::On => *byte &= !bit,  // black ink
+                        BinaryColor::Off => *byte |= bit, // white paper
+                    }
                 }
             }
         }
