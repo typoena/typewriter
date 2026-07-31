@@ -931,7 +931,7 @@ fn splice(repo: &Repository, base: Option<&Tree>, path: &[&str], blob: Option<Oi
             _ => None,
         };
         let new_sub = splice(repo, sub.as_ref(), rest, blob)?;
-        if repo.find_tree(new_sub)?.len() == 0 {
+        if repo.find_tree(new_sub)?.is_empty() {
             let _ = tb.remove(*head); // the remove emptied this directory — prune it
         } else {
             tb.insert(*head, new_sub, 0o040000)

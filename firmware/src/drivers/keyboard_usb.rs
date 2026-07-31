@@ -271,7 +271,7 @@ unsafe extern "C" fn client_event_cb(msg: *const usb_host_client_event_msg_t, _a
 /// waiting in `control_request`.
 unsafe extern "C" fn ctrl_cb(transfer: *mut usb_transfer_t) {
     let status = unsafe { (*transfer).status };
-    CTRL_STATUS.store(status as u32, Ordering::SeqCst);
+    CTRL_STATUS.store(status, Ordering::SeqCst);
     CTRL_DONE.store(true, Ordering::SeqCst);
 }
 
@@ -302,7 +302,7 @@ unsafe extern "C" fn report_cb(transfer: *mut usb_transfer_t) {
             REPORT_INFLIGHT.store(true, Ordering::SeqCst);
         }
     } else {
-        log::info!("interrupt transfer stopped, status {}", t.status as u32);
+        log::info!("interrupt transfer stopped, status {}", t.status);
     }
 }
 
@@ -405,7 +405,7 @@ fn control_request(
 
     let status = CTRL_STATUS.load(Ordering::SeqCst);
     unsafe { usb_host_transfer_free(xfer) };
-    if status == usb_transfer_status_t_USB_TRANSFER_STATUS_COMPLETED as u32 {
+    if status == usb_transfer_status_t_USB_TRANSFER_STATUS_COMPLETED {
         log::info!("{label} ok");
     } else {
         log::warn!("{label} completed with status {status} (continuing)");

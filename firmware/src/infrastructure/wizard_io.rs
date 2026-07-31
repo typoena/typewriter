@@ -554,7 +554,7 @@ fn scan_wifi<'d>(w: &mut BlockingWifi<EspWifi<'d>>) -> Result<Vec<String>> {
             None => best.push((ssid, ap.signal_strength)),
         }
     }
-    best.sort_by(|a, b| b.1.cmp(&a.1));
+    best.sort_by_key(|&(_, rssi)| std::cmp::Reverse(rssi));
     Ok(best.into_iter().map(|(s, _)| s).collect())
 }
 
@@ -651,7 +651,7 @@ fn fetch_repos(token: &str) -> Result<Vec<RepoChoice>> {
             }
         }
     }
-    out.sort_by(|a, b| a.full_name.to_lowercase().cmp(&b.full_name.to_lowercase()));
+    out.sort_by_key(|r| r.full_name.to_lowercase());
     Ok(out)
 }
 

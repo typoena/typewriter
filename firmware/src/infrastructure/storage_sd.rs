@@ -312,7 +312,7 @@ impl Storage {
         unsafe {
             (
                 (*self.card).max_freq_khz as i32,
-                (*self.card).real_freq_khz as i32,
+                (*self.card).real_freq_khz,
             )
         }
     }
@@ -745,9 +745,9 @@ impl Storage {
 
 // ---- app::Storage port adapter --------------------------------------------
 
-/// [`app::Storage`] over the SD/FAT [`Storage`]. Shared (`Rc`) with the git sync
-/// + system adapters, which reach the same card and its dirty journal — all on
-/// the single-threaded UI task, so `Rc` (not `Arc`) suffices.
+/// [`app::Storage`] over the SD/FAT [`Storage`]. Shared (`Rc`) with the git
+/// sync and system adapters, which reach the same card and its dirty journal —
+/// all on the single-threaded UI task, so `Rc` (not `Arc`) suffices.
 pub struct SdStorage(pub Rc<Storage>);
 
 impl app::Storage for SdStorage {
