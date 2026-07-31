@@ -97,6 +97,13 @@ impl<S: Screen> Runtime<S> {
         }
     }
 
+    /// The active buffer for the platform's panic scribe: `Some((path, text))`
+    /// while there are unsaved edits, `None` when clean (a clean buffer needs
+    /// no dump — the file on the card is already current).
+    pub fn scribe_snapshot(&self) -> Option<(&str, &str)> {
+        self.ed.dirty().then(|| (self.ed.path(), self.ed.text()))
+    }
+
     /// Run forever. The only exits are `:reboot`/`:setup`, which restart the
     /// device (so [`System::reboot`] diverges); the loop itself never returns.
     pub fn run(&mut self) -> ! {

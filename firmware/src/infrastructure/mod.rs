@@ -8,6 +8,7 @@
 //! `../typing-machine` reference.
 
 pub mod file_index;
+pub mod panic_scribe;
 pub mod storage_sd;
 
 // The net transport is feature-gated: it pulls libgit2, which the standalone

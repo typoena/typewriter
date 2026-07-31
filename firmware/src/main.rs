@@ -16,6 +16,7 @@ use firmware::drivers::screen_epd::Epd;
 use firmware::drivers::system_esp::EspSystem;
 use firmware::infrastructure::file_index::EspFileWalk;
 use firmware::infrastructure::net::NetService;
+use firmware::infrastructure::panic_scribe;
 use firmware::infrastructure::storage_sd::{SdStorage, Storage, CONF_PATH, NOTES};
 
 /// Injected by build.rs so serial output identifies the exact build.
@@ -283,6 +284,25 @@ fn main() -> anyhow::Result<()> {
         system,
         Box::new(files),
     );
+
+    // A dump from a previous crash is left in place until Julien deals with it;
+    // surface it in the boot log so it isn't silently forgotten.
+    if std::path::Path::new(panic_scribe::EMERGENCY_PATH).exists() {
+        log::warn!(
+            "panic dump from a previous crash present: {}",
+            panic_scribe::EMERGENCY_PATH
+        );
+    }
+    // Arm the panic scribe now that `runtime` has its final address (`run`
+    // borrows it until the device reboots, so it never moves again).
+    panic_scribe::arm(&raw const runtime as *const (), |p| {
+        // SAFETY: `arm`'s contract — only ever called back on THIS thread,
+        // halted at the panic site, so the `&mut` inside `run` is suspended and
+        // the read cannot race. The `'static` stands in for the Epd's true
+        // pin-borrow lifetime: this stack frame never returns.
+        let rt = unsafe { &*(p as *const Runtime<Epd<'static>>) };
+        rt.scribe_snapshot().map(|(path, text)| (path.to_string(), text.to_string()))
+    });
     runtime.run()
 }
 
