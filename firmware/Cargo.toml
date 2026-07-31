@@ -51,6 +51,11 @@ harness = false
 
 [profile.release]
 opt-level = "s"
+# Trap integer overflow instead of wrapping: in caret/layout math a silent wrap
+# is position corruption; a panic reboots into the last idle-save (~1.5 s of
+# typing at worst), which is the better failure. Applies to the whole graph —
+# editor/app path deps included.
+overflow-checks = true
 
 # The onboarding wizard's `run` (src/infrastructure/wizard_io.rs) is an enormous
 # function, and at `opt-level = "s"` the Xtensa backend miscompiled it: spilled
