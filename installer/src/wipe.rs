@@ -657,7 +657,10 @@ fn render_progress(frame: &mut Frame, area: Rect, app: &WipeApp, block: Block) {
         Layout::vertical([Constraint::Length(2), Constraint::Min(0)]).areas(inner);
     frame.render_widget(Paragraph::new(status).wrap(Wrap { trim: false }), top);
     let start = app.log.len().saturating_sub(log.height as usize);
-    let log_lines: Vec<Line> = app.log[start..]
+    let log_lines: Vec<Line> = app
+        .log
+        .get(start..)
+        .unwrap_or_default()
         .iter()
         .map(|l| Line::styled(l.clone(), Style::new().fg(Color::DarkGray)))
         .collect();

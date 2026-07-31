@@ -17,7 +17,7 @@ use crate::preflight::Status;
 /// One frame of the braille spinner for the given tick.
 pub(crate) fn spinner(tick: u64) -> char {
     const FRAMES: [char; 10] = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-    FRAMES[(tick as usize) % FRAMES.len()]
+    FRAMES.get((tick as usize) % FRAMES.len()).copied().unwrap_or('⠋')
 }
 
 /// A spinner + caption line, shown while a background computation runs.
@@ -67,7 +67,7 @@ const EINK_BOX_H: u16 = 7;
 /// the full text width so the centred line never shifts as it fills.
 fn typed_line(text: &str, shown: usize, style: Style, caret: bool) -> Line<'static> {
     let mut spans = vec![
-        Span::styled(text[..shown].to_string(), style), // text is ASCII: byte == char
+        Span::styled(text.get(..shown).unwrap_or(text).to_string(), style), // ASCII: byte == char
         if caret {
             Span::styled(" ", Style::new().add_modifier(Modifier::REVERSED))
         } else {
@@ -619,7 +619,10 @@ fn render_sd_progress(frame: &mut Frame, area: Rect, app: &App, block: Block) {
 
 fn render_sd_log(frame: &mut Frame, area: Rect, app: &App) {
     let start = app.sd_log.len().saturating_sub(area.height as usize);
-    let lines: Vec<Line> = app.sd_log[start..]
+    let lines: Vec<Line> = app
+        .sd_log
+        .get(start..)
+        .unwrap_or_default()
         .iter()
         .map(|l| Line::styled(l.clone(), Style::new().fg(Color::DarkGray)))
         .collect();

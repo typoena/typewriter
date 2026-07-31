@@ -39,11 +39,11 @@ impl Step {
     }
 
     fn next(self) -> Step {
-        Step::ALL[(self.index() + 1).min(Step::ALL.len() - 1)]
+        Step::ALL.get(self.index() + 1).copied().unwrap_or(self)
     }
 
     fn prev(self) -> Step {
-        Step::ALL[self.index().saturating_sub(1)]
+        Step::ALL.get(self.index().saturating_sub(1)).copied().unwrap_or(self)
     }
 }
 
@@ -376,7 +376,8 @@ impl App {
     }
 
     pub fn focused_field(&self) -> Field {
-        Field::ALL[self.focus.min(Field::ALL.len() - 1)]
+        // An over-large focus clamps to the last field.
+        Field::ALL.get(self.focus).or(Field::ALL.last()).copied().unwrap_or(Field::WifiSsid)
     }
 
     /// Whether the current step's forward gate is satisfied, so Enter/Tab may
