@@ -28,6 +28,24 @@ pub const HEIGHT: u16 = 272;
 pub const FB_BYTES_W: usize = (WIDTH / 8) as usize; // 99
 pub const FB_BYTES: usize = FB_BYTES_W * HEIGHT as usize; // 26928
 
+/// Unwrap a `Result` whose error is [`Infallible`](core::convert::Infallible):
+/// the `Ok` is a type-system guarantee, so this can never panic. Use it on
+/// [`Frame`] draw calls instead of `.unwrap()` — same effect, but it states the
+/// proof and keeps `clippy::unwrap_used` meaningful for genuinely fallible
+/// results.
+pub trait InfallibleExt<T> {
+    fn infallible(self) -> T;
+}
+
+impl<T> InfallibleExt<T> for Result<T, core::convert::Infallible> {
+    fn infallible(self) -> T {
+        match self {
+            Ok(v) => v,
+            Err(never) => match never {},
+        }
+    }
+}
+
 /// In-memory 792×272 1-bit frame, drawable via `embedded-graphics`.
 /// `BinaryColor::On` = black ink, `Off` = white paper.
 pub struct Frame {
@@ -99,7 +117,7 @@ impl Frame {
             text_style,
         )
         .draw(&mut f)
-        .unwrap();
+        .infallible();
 
         f
     }
@@ -145,7 +163,7 @@ impl Frame {
             text_style,
         )
         .draw(self)
-        .unwrap();
+        .infallible();
     }
 
     pub fn bytes(&self) -> &[u8] {

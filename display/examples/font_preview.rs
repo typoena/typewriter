@@ -5,7 +5,7 @@
 //!
 //!   cargo run --example font_preview -- /tmp/font_preview.fb
 
-use display::{body_font, Frame, FONT_OPTIONS, FB_BYTES, HEIGHT, WIDTH};
+use display::{body_font, Frame, InfallibleExt, FONT_OPTIONS, FB_BYTES, HEIGHT, WIDTH};
 use embedded_graphics::mono_font::iso_8859_15::FONT_10X20;
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::BinaryColor;
@@ -21,7 +21,7 @@ fn line(f: &mut Frame, label: &str, font_name: &str, y: i32) {
     let text = format!("[{label}] {SAMPLE}");
     Text::with_baseline(&text, Point::new(4, y), style, Baseline::Top)
         .draw(f)
-        .unwrap();
+        .infallible();
 }
 
 fn main() {
@@ -37,6 +37,8 @@ fn main() {
         y += pitch;
     }
 
-    std::fs::File::create(&out).unwrap().write_all(f.bytes()).unwrap();
+    std::fs::File::create(&out)
+        .and_then(|mut file| file.write_all(f.bytes()))
+        .expect("write framebuffer dump");
     eprintln!("wrote {out} ({FB_BYTES} bytes, {WIDTH}x{HEIGHT})");
 }

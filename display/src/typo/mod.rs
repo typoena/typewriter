@@ -16,7 +16,7 @@
 //! pinning it through the `face` pref. The host render engine (`app::Panel`)
 //! owns those transitions; the editor only stores the current mood and paints it.
 
-use crate::Frame;
+use crate::{Frame, InfallibleExt};
 use embedded_graphics::pixelcolor::BinaryColor;
 use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
@@ -136,7 +136,7 @@ pub fn blit_sprite(f: &mut Frame, x: i32, y: i32, s: &Sprite, scale: i32) {
                 )
                 .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
                 .draw(f)
-                .unwrap(); // Frame's DrawTarget error is Infallible
+                .infallible();
             }
         }
     }
