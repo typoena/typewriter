@@ -3,6 +3,12 @@
 
 use super::*;
 
+/// A file-list span's slice of `blob` — [`substr`]'s no-panic contract, in the
+/// `(u32, u32)` form the span table stores.
+fn span_str(blob: &str, s: u32, e: u32) -> &str {
+    substr(blob, s as usize..e as usize)
+}
+
 /// Tracked files live here (the git working copy).
 pub const REPO_DIR: &str = "/sd/repo";
 /// Local files live here (never pushed).
@@ -162,12 +168,13 @@ impl Editor {
         if self.dirty {
             self.write_active();
         }
-        for i in 0..self.parked.len() {
-            if self.parked[i].dirty {
-                let path = self.parked[i].path.clone();
-                let scope = self.parked[i].scope;
-                let contents = self.parked[i].text.clone();
-                self.requests.push(Effect::Save { path, scope, contents });
+        for parked in &self.parked {
+            if parked.dirty {
+                self.requests.push(Effect::Save {
+                    path: parked.path.clone(),
+                    scope: parked.scope,
+                    contents: parked.text.clone(),
+                });
             }
         }
         true
@@ -368,7 +375,7 @@ impl Editor {
     /// (→ open) from "must create it".
     pub(crate) fn file_list_contains(&self, path: &str) -> bool {
         self.file_spans
-            .binary_search_by(|&(s, e)| self.file_blob[s as usize..e as usize].cmp(path))
+            .binary_search_by(|&(s, e)| span_str(&self.file_blob, s, e).cmp(path))
             .is_ok()
     }
 
@@ -471,8 +478,8 @@ impl Editor {
     /// The `i`-th file path in the palette's sorted base order (a slice into
     /// [`file_blob`](Self::file_blob)).
     pub(crate) fn file_at(&self, i: usize) -> &str {
-        let (s, e) = self.file_spans[i];
-        &self.file_blob[s as usize..e as usize]
+        let Some(&(s, e)) = self.file_spans.get(i) else { return "" };
+        span_str(&self.file_blob, s, e)
     }
 
     /// How many files the palette knows about.
@@ -488,7 +495,7 @@ impl Editor {
     pub(crate) fn add_to_file_list(&mut self, path: &str) {
         match self
             .file_spans
-            .binary_search_by(|&(s, e)| self.file_blob[s as usize..e as usize].cmp(path))
+            .binary_search_by(|&(s, e)| span_str(&self.file_blob, s, e).cmp(path))
         {
             Ok(_) => {}
             Err(i) => {
@@ -504,8 +511,7 @@ impl Editor {
     /// host re-walk replaces the whole thing — a few dozen bytes at most.
     pub(crate) fn remove_from_file_list(&mut self, path: &str) {
         let blob = &self.file_blob;
-        self.file_spans
-            .retain(|&(s, e)| &blob[s as usize..e as usize] != path);
+        self.file_spans.retain(|&(s, e)| span_str(blob, s, e) != path);
     }
 
     // --- File palette (Ctrl-P) ---------------------------------------------
@@ -526,8 +532,8 @@ impl Editor {
             }
             start = end + 1; // past the '\n'
         }
-        spans.sort_by(|&(a, b), &(c, d)| blob[a as usize..b as usize].cmp(&blob[c as usize..d as usize]));
-        spans.dedup_by(|&mut (a, b), &mut (c, d)| blob[a as usize..b as usize] == blob[c as usize..d as usize]);
+        spans.sort_by(|&(a, b), &(c, d)| span_str(&blob, a, b).cmp(span_str(&blob, c, d)));
+        spans.dedup_by(|&mut (a, b), &mut (c, d)| span_str(&blob, a, b) == span_str(&blob, c, d));
         self.file_blob = blob;
         self.file_spans = spans;
         self.files_walked = true;

@@ -721,6 +721,16 @@ pub(crate) fn group_thousands(n: usize) -> String {
     out
 }
 
+/// `&s[r]` minus the panic: out of bounds or mid-UTF-8 char yields `""`. The
+/// editor's offsets are char-boundary invariants — the fallback turns a
+/// drifted invariant into a render glitch instead of a mid-keystroke reboot.
+pub(crate) fn substr<R>(s: &str, r: R) -> &str
+where
+    R: core::slice::SliceIndex<str, Output = str>,
+{
+    s.get(r).unwrap_or("")
+}
+
 impl Editor {
     /// Dispatch one decoded key event according to the current mode. Any host
     /// effect a `:` command (or a buffer switch) triggers is pushed to the queue
@@ -1107,7 +1117,7 @@ impl Editor {
                     }
                     e = self.next_char(e);
                 }
-                self.register = self.text[s..e].to_string();
+                self.register = substr(&self.text, s..e).to_string();
                 self.register_linewise = false;
                 (0..n).for_each(|_| self.delete_at_caret());
             }

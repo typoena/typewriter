@@ -38,12 +38,12 @@ impl Editor {
                 } else {
                     self.next_char(self.caret)
                 };
-                match find_fold(&self.text[start..], &pat, ci) {
+                match find_fold(crate::substr(&self.text, start..), &pat, ci) {
                     Some(i) => Some((start + i, false)),
                     None => find_fold(&self.text, &pat, ci).map(|i| (i, true)),
                 }
             } else {
-                match rfind_fold(&self.text[..self.caret], &pat, ci) {
+                match rfind_fold(crate::substr(&self.text, ..self.caret), &pat, ci) {
                     Some(i) => Some((i, false)),
                     None => rfind_fold(&self.text, &pat, ci).map(|i| (i, true)),
                 }

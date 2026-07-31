@@ -110,7 +110,7 @@ fn search_folds_accents_both_ways() {
     let mut e = over("x Été bien"); // 'É' (2 bytes) folds to 'e'
     search(&mut e, "été");
     assert_eq!(e.caret, 2);
-    assert_eq!(&e.text[e.caret..e.caret + 5], "Été");
+    assert_eq!(e.text.get(e.caret..e.caret + 5), Some("Été"));
     e.handle(Key::Char('g'));
     e.handle(Key::Char('g'));
     search(&mut e, "ete"); // bare ascii finds the accented word too
@@ -138,7 +138,7 @@ fn search_lands_on_char_boundaries_in_multibyte_text() {
     let mut e = over("héé ém"); // 'é' is 2 bytes
     search(&mut e, "ém");
     assert_eq!(e.caret, 6); // byte offset of the standalone "ém"
-    assert_eq!(&e.text[e.caret..e.caret + 3], "ém");
+    assert_eq!(e.text.get(e.caret..e.caret + 3), Some("ém"));
 }
 
 #[test]

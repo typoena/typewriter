@@ -32,18 +32,11 @@ pub(crate) fn friendly_filename(name: &str) -> String {
 /// ASCII, and a multibyte lead byte at index 10 simply won't equal `b'-'`.
 fn date_prefix_len(s: &str) -> usize {
     let b = s.as_bytes();
-    let dated = b.len() >= 10
-        && b[0].is_ascii_digit()
-        && b[1].is_ascii_digit()
-        && b[2].is_ascii_digit()
-        && b[3].is_ascii_digit()
-        && b[4] == b'-'
-        && b[5].is_ascii_digit()
-        && b[6].is_ascii_digit()
-        && b[7] == b'-'
-        && b[8].is_ascii_digit()
-        && b[9].is_ascii_digit()
-        && (b.len() == 10 || b[10] == b'-');
+    let Some(head) = b.get(..10) else { return 0 };
+    let dated = head.iter().enumerate().all(|(i, &c)| match i {
+        4 | 7 => c == b'-',
+        _ => c.is_ascii_digit(),
+    }) && matches!(b.get(10), None | Some(&b'-'));
     if dated {
         10
     } else {
@@ -320,7 +313,7 @@ impl Editor {
         // Only the MRU prefix can already hold an index, so scan just that.
         let recents = order.len();
         for i in 0..self.file_count() {
-            if !order[..recents].contains(&i) {
+            if !order.get(..recents).unwrap_or_default().contains(&i) {
                 order.push(i);
             }
         }
@@ -407,7 +400,7 @@ impl Editor {
         let Some(&ci) = self.palette_command_matches().get(self.palette_sel) else {
             return;
         };
-        let cmd = PALETTE_CMDS[ci];
+        let Some(&cmd) = PALETTE_CMDS.get(ci) else { return };
         match cmd.kind() {
             CmdKind::Toggle => self.cycle_pref(cmd),
             CmdKind::OneShot => {
@@ -459,7 +452,7 @@ impl Editor {
         let label = palette_label(&self.path);
         match label.rfind('/') {
             // Everything up to and including the last '/' — the folder.
-            Some(i) => label[..=i].to_string(),
+            Some(i) => crate::substr(label, ..=i).to_string(),
             // A label with no '/' can't happen (every file is under a scope
             // root), but degrade to an empty prompt rather than panic.
             None => String::new(),
@@ -503,9 +496,9 @@ impl Editor {
             // Push each ancestor directory prefix of this file (up to and
             // including each '/'): `repo/notes/foo.md` yields `repo/`, `repo/notes/`.
             let mut start = 0;
-            while let Some(rel) = label[start..].find('/') {
+            while let Some(rel) = crate::substr(label, start..).find('/') {
                 let end = start + rel + 1; // include the '/'
-                let folder = label[..end].to_string();
+                let folder = crate::substr(label, ..end).to_string();
                 if !folders.contains(&folder) {
                     folders.push(folder);
                 }
@@ -648,7 +641,9 @@ impl Editor {
         let Some(&i) = self.palette_snippet_matches().get(self.palette_sel) else {
             return;
         };
-        let body = self.snippets[i].body.clone();
+        let Some(body) = self.snippets.get(i).map(|s| s.body.clone()) else {
+            return;
+        };
         self.close_palette();
         self.checkpoint(); // baseline is the buffer before insertion — undo removes it whole
         self.insert_snippet(&body);

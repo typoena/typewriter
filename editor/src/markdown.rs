@@ -12,21 +12,21 @@ use super::*;
 /// (leading spaces, bullets, digits, `. `, `> ` are all single-byte).
 pub(crate) fn continuation_marker(line: &str) -> Option<(String, usize, bool)> {
     let indent = line.len() - line.trim_start_matches(' ').len();
-    let rest = &line[indent..];
+    let rest = substr(line, indent..);
     for bullet in ["- ", "* ", "+ "] {
         if rest.starts_with(bullet) {
             let cur_len = indent + bullet.len();
-            let content_empty = line[cur_len..].trim().is_empty();
-            return Some((format!("{}{bullet}", &line[..indent]), cur_len, content_empty));
+            let content_empty = substr(line, cur_len..).trim().is_empty();
+            return Some((format!("{}{bullet}", substr(line, ..indent)), cur_len, content_empty));
         }
     }
     // Ordered: <digits>`. ` → continue as the next number.
     let digits = rest.chars().take_while(|c| c.is_ascii_digit()).count();
-    if digits > 0 && rest[digits..].starts_with(". ") {
+    if digits > 0 && substr(rest, digits..).starts_with(". ") {
         let cur_len = indent + digits + 2;
-        let content_empty = line[cur_len..].trim().is_empty();
-        let n: usize = rest[..digits].parse().unwrap_or(0);
-        return Some((format!("{}{}. ", &line[..indent], n + 1), cur_len, content_empty));
+        let content_empty = substr(line, cur_len..).trim().is_empty();
+        let n: usize = substr(rest, ..digits).parse().unwrap_or(0);
+        return Some((format!("{}{}. ", substr(line, ..indent), n + 1), cur_len, content_empty));
     }
     // Blockquote: a run of `>` markers, each with an optional trailing space,
     // continued at the same depth (`> > text` → `> > `). A bare `>` normalizes to
@@ -35,16 +35,16 @@ pub(crate) fn continuation_marker(line: &str) -> Option<(String, usize, bool)> {
         let bytes = rest.as_bytes();
         let mut j = 0;
         let mut depth = 0;
-        while j < bytes.len() && bytes[j] == b'>' {
+        while bytes.get(j) == Some(&b'>') {
             depth += 1;
             j += 1;
-            if j < bytes.len() && bytes[j] == b' ' {
+            if bytes.get(j) == Some(&b' ') {
                 j += 1;
             }
         }
         let cur_len = indent + j;
-        let content_empty = line[cur_len..].trim().is_empty();
-        let next = format!("{}{}", &line[..indent], "> ".repeat(depth));
+        let content_empty = substr(line, cur_len..).trim().is_empty();
+        let next = format!("{}{}", substr(line, ..indent), "> ".repeat(depth));
         return Some((next, cur_len, content_empty));
     }
     None
@@ -73,12 +73,12 @@ pub(crate) fn format_markdown(text: &str) -> String {
     // 2. Reformat pipe-table blocks in place; pass everything else through.
     let mut piped: Vec<String> = Vec::with_capacity(stripped.len());
     let mut i = 0;
-    while i < stripped.len() {
-        if let Some(len) = table_block_len(&stripped[i..]) {
-            piped.extend(format_table(&stripped[i..i + len]));
-            i += len;
+    while let Some(tail) = stripped.get(i..).filter(|t| !t.is_empty()) {
+        if let Some(len) = table_block_len(tail) {
+            piped.extend(format_table(tail.get(..len).unwrap_or_default()));
+            i += len.max(1);
         } else {
-            piped.push(stripped[i].clone());
+            piped.extend(tail.first().cloned());
             i += 1;
         }
     }
@@ -131,11 +131,14 @@ pub(crate) fn is_separator_row(line: &str) -> bool {
 /// If `lines[0..]` starts a pipe table (header row + separator row + data rows),
 /// return its length in lines; else `None`.
 pub(crate) fn table_block_len(lines: &[String]) -> Option<usize> {
-    if lines.len() < 2 || !lines[0].contains('|') || !is_separator_row(&lines[1]) {
+    let (Some(header), Some(sep)) = (lines.first(), lines.get(1)) else {
+        return None;
+    };
+    if !header.contains('|') || !is_separator_row(sep) {
         return None;
     }
     let mut n = 2;
-    while n < lines.len() && !lines[n].is_empty() && lines[n].contains('|') {
+    while lines.get(n).is_some_and(|l| !l.is_empty() && l.contains('|')) {
         n += 1;
     }
     Some(n)
@@ -145,7 +148,10 @@ pub(crate) fn table_block_len(lines: &[String]) -> Option<usize> {
 /// rebuild the separator row, honoring per-column alignment colons.
 pub(crate) fn format_table(block: &[String]) -> Vec<String> {
     let rows: Vec<Vec<String>> = block.iter().map(|l| table_cells(l)).collect();
-    let aligns: Vec<Align> = rows[1]
+    let aligns: Vec<Align> = rows
+        .get(1)
+        .map(Vec::as_slice)
+        .unwrap_or_default()
         .iter()
         .map(|c| match (c.starts_with(':'), c.ends_with(':')) {
             (true, true) => Align::Center,
@@ -163,7 +169,9 @@ pub(crate) fn format_table(block: &[String]) -> Vec<String> {
             continue; // the separator's own width doesn't constrain the column
         }
         for (ci, cell) in row.iter().enumerate() {
-            width[ci] = width[ci].max(cell.chars().count());
+            if let Some(w) = width.get_mut(ci) {
+                *w = (*w).max(cell.chars().count());
+            }
         }
     }
     let align_of = |ci: usize| aligns.get(ci).copied().unwrap_or(Align::None);
@@ -173,7 +181,7 @@ pub(crate) fn format_table(block: &[String]) -> Vec<String> {
         .map(|(ri, row)| {
             let cells: Vec<String> = (0..ncols)
                 .map(|ci| {
-                    let w = width[ci];
+                    let w = width.get(ci).copied().unwrap_or(3);
                     if ri == 1 {
                         match align_of(ci) {
                             Align::Left => format!(":{}", "-".repeat(w - 1)),
@@ -216,7 +224,7 @@ impl Editor {
     /// line (buffer length changes, so exact restoration isn't possible).
     pub(crate) fn format_buffer(&mut self) {
         self.checkpoint(); // `:fmt` (and format-on-save) is undoable
-        let row = self.text[..self.caret].bytes().filter(|&b| b == b'\n').count();
+        let row = substr(&self.text, ..self.caret).bytes().filter(|&b| b == b'\n').count();
         let col = self.caret - self.line_start(self.caret); // byte offset within the line
         self.text = format_markdown(&self.text);
         // Land the caret on the same logical line, at the same column when it

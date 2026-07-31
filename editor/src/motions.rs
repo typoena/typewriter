@@ -34,32 +34,28 @@ impl Editor {
     /// Offset of the start of the line containing `pos`.
     pub(crate) fn line_start(&self, pos: usize) -> usize {
         let b = self.text.as_bytes();
-        let mut i = pos;
-        while i > 0 && b[i - 1] != b'\n' {
-            i -= 1;
-        }
-        i
+        b.get(..pos)
+            .and_then(|head| head.iter().rposition(|&c| c == b'\n'))
+            .map_or(0, |nl| nl + 1)
     }
 
     /// Offset of the end of the line containing `pos` (the `\n`, or buffer end).
     pub(crate) fn line_end(&self, pos: usize) -> usize {
         let b = self.text.as_bytes();
-        let mut i = pos;
-        while i < b.len() && b[i] != b'\n' {
-            i += 1;
-        }
-        i
+        b.get(pos..)
+            .and_then(|tail| tail.iter().position(|&c| c == b'\n'))
+            .map_or(b.len(), |off| pos + off)
     }
 
     /// Byte offset one character right of `i`, clamped to the buffer end. `i`
     /// must be a char boundary (every caret position is one).
     pub(crate) fn next_char(&self, i: usize) -> usize {
-        self.text[i..].chars().next().map_or(i, |c| i + c.len_utf8())
+        substr(&self.text, i..).chars().next().map_or(i, |c| i + c.len_utf8())
     }
 
     /// Byte offset one character left of `i`, clamped to 0.
     pub(crate) fn prev_char(&self, i: usize) -> usize {
-        self.text[..i].chars().next_back().map_or(i, |c| i - c.len_utf8())
+        substr(&self.text, ..i).chars().next_back().map_or(i, |c| i - c.len_utf8())
     }
 
     /// Byte offset `col` characters into the text starting at `start`, clamped
@@ -96,7 +92,7 @@ impl Editor {
 
     pub(crate) fn move_down(&mut self) {
         let ls = self.line_start(self.caret);
-        let col = self.text[ls..self.caret].chars().count();
+        let col = substr(&self.text, ls..self.caret).chars().count();
         let le = self.line_end(self.caret);
         if le >= self.text.len() {
             return; // already on the last line
@@ -111,7 +107,7 @@ impl Editor {
         if ls == 0 {
             return; // already on the first line
         }
-        let col = self.text[ls..self.caret].chars().count();
+        let col = substr(&self.text, ls..self.caret).chars().count();
         let prev_start = self.line_start(ls - 1);
         let prev_end = ls - 1; // the '\n' that ends the previous line
         self.caret = self.advance_chars(prev_start, col, prev_end);
@@ -131,7 +127,7 @@ impl Editor {
         }
         let (row, col) = self.caret_rc(&lay);
         let target = (row as isize + delta).clamp(0, lay.len() as isize - 1) as usize;
-        let line = &lay[target];
+        let Some(line) = lay.get(target) else { return };
         let row_end = line.start + line.text.len();
         self.caret = self.advance_chars(line.start, col, row_end);
     }
@@ -139,12 +135,11 @@ impl Editor {
     /// Start of the next whitespace-delimited word after `from`.
     pub(crate) fn word_forward_pos(&self, from: usize) -> usize {
         let b = self.text.as_bytes();
-        let n = b.len();
         let mut i = from;
-        while i < n && !b[i].is_ascii_whitespace() {
+        while b.get(i).is_some_and(|c| !c.is_ascii_whitespace()) {
             i += 1;
         }
-        while i < n && b[i].is_ascii_whitespace() {
+        while b.get(i).is_some_and(u8::is_ascii_whitespace) {
             i += 1;
         }
         i
@@ -154,10 +149,10 @@ impl Editor {
     pub(crate) fn word_back_pos(&self, from: usize) -> usize {
         let b = self.text.as_bytes();
         let mut i = from;
-        while i > 0 && b[i - 1].is_ascii_whitespace() {
+        while i > 0 && b.get(i - 1).is_some_and(u8::is_ascii_whitespace) {
             i -= 1;
         }
-        while i > 0 && !b[i - 1].is_ascii_whitespace() {
+        while i > 0 && b.get(i - 1).is_some_and(|c| !c.is_ascii_whitespace()) {
             i -= 1;
         }
         i
@@ -173,7 +168,7 @@ impl Editor {
         }
         let mut last = from;
         let mut in_word = false;
-        for (off, c) in self.text[start..].char_indices() {
+        for (off, c) in substr(&self.text, start..).char_indices() {
             if c.is_ascii_whitespace() {
                 if in_word {
                     break;

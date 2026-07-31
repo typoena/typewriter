@@ -93,17 +93,17 @@ pub(crate) fn strip_stop_labels(body: &str) -> String {
     let mut out = String::with_capacity(body.len());
     let mut i = 0;
     while i < body.len() {
-        if b[i] == b'$' && i + 1 < body.len() && b[i + 1] == b'{' {
+        if b.get(i) == Some(&b'$') && b.get(i + 1) == Some(&b'{') {
             // Read the digits right after "${".
             let mut j = i + 2;
-            while j < body.len() && b[j].is_ascii_digit() {
+            while b.get(j).is_some_and(u8::is_ascii_digit) {
                 j += 1;
             }
             // A numbered placeholder `${<digits>…}` → `$<digits>`, dropping the rest.
             if j > i + 2 {
-                if let Some(close) = body[j..].find('}') {
+                if let Some(close) = crate::substr(body, j..).find('}') {
                     out.push('$');
-                    out.push_str(&body[i + 2..j]);
+                    out.push_str(crate::substr(body, i + 2..j));
                     i = j + close + 1;
                     continue;
                 }
@@ -113,7 +113,7 @@ pub(crate) fn strip_stop_labels(body: &str) -> String {
             i += 1;
             continue;
         }
-        let Some(c) = body[i..].chars().next() else { break };
+        let Some(c) = crate::substr(body, i..).chars().next() else { break };
         out.push(c);
         i += c.len_utf8();
     }
@@ -132,13 +132,13 @@ pub(crate) fn parse_snippet_body(body: &str) -> (String, Vec<usize>) {
     let mut stops: Vec<(u32, usize)> = Vec::new(); // (stop number, offset in `literal`)
     let mut i = 0;
     while i < body.len() {
-        if b[i] == b'$' {
+        if b.get(i) == Some(&b'$') {
             let mut j = i + 1;
-            while j < body.len() && b[j].is_ascii_digit() {
+            while b.get(j).is_some_and(u8::is_ascii_digit) {
                 j += 1;
             }
             if j > i + 1 {
-                let num: u32 = body[i + 1..j].parse().unwrap_or(0);
+                let num: u32 = crate::substr(body, i + 1..j).parse().unwrap_or(0);
                 stops.push((num, literal.len()));
                 i = j;
                 continue;
@@ -147,7 +147,7 @@ pub(crate) fn parse_snippet_body(body: &str) -> (String, Vec<usize>) {
             i += 1;
             continue;
         }
-        let Some(c) = body[i..].chars().next() else { break };
+        let Some(c) = crate::substr(body, i..).chars().next() else { break };
         literal.push(c);
         i += c.len_utf8();
     }

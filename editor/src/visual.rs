@@ -163,7 +163,7 @@ impl Editor {
     /// The register contents for a selection span: charwise is the raw slice;
     /// linewise gets a synthesised trailing newline (as `yy`/`dd` store lines).
     pub(crate) fn selection_text(&self, s: usize, e: usize, line: bool) -> String {
-        let mut block = self.text[s..e].to_string();
+        let mut block = crate::substr(&self.text, s..e).to_string();
         if line && !block.ends_with('\n') {
             block.push('\n');
         }

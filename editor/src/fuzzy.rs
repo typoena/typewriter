@@ -28,9 +28,9 @@ pub(crate) fn fuzzy_score(query: &str, text: &str) -> Option<i32> {
     let mut prev_matched = false;
     let mut prev: Option<char> = None;
     for (i, tc) in text.chars().enumerate() {
-        let hit = qi < q.len()
-            && (tc.eq_ignore_ascii_case(&q[qi])
-                || (q[qi] == ' ' && matches!(tc, '/' | '_' | '-' | '.' | ' ')));
+        let hit = q.get(qi).is_some_and(|&qc| {
+            tc.eq_ignore_ascii_case(&qc) || (qc == ' ' && matches!(tc, '/' | '_' | '-' | '.' | ' '))
+        });
         if hit {
             score += 1;
             let boundary =
@@ -61,7 +61,7 @@ pub(crate) fn fuzzy_score(query: &str, text: &str) -> Option<i32> {
 pub(crate) fn find_fold(hay: &str, pat: &str, ci: bool) -> Option<usize> {
     hay.char_indices()
         .map(|(i, _)| i)
-        .find(|&i| starts_with_fold(&hay[i..], pat, ci))
+        .find(|&i| starts_with_fold(crate::substr(hay, i..), pat, ci))
 }
 
 /// [`find_fold`], but the *last* match — the backward (`N`) direction.
@@ -69,7 +69,7 @@ pub(crate) fn rfind_fold(hay: &str, pat: &str, ci: bool) -> Option<usize> {
     hay.char_indices()
         .map(|(i, _)| i)
         .rev()
-        .find(|&i| starts_with_fold(&hay[i..], pat, ci))
+        .find(|&i| starts_with_fold(crate::substr(hay, i..), pat, ci))
 }
 
 /// Whether `s` begins with `pat` under [`fold`].

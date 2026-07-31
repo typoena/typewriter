@@ -100,14 +100,14 @@ impl Editor {
     /// boundary) or at 0.
     pub(crate) fn word_before_caret(&self) -> Option<(usize, &str)> {
         let b = self.text.as_bytes();
-        if self.caret == 0 || b[self.caret - 1].is_ascii_whitespace() {
+        if self.caret == 0 || b.get(self.caret - 1).is_none_or(u8::is_ascii_whitespace) {
             return None;
         }
         let mut start = self.caret;
-        while start > 0 && !b[start - 1].is_ascii_whitespace() {
+        while start > 0 && b.get(start - 1).is_some_and(|c| !c.is_ascii_whitespace()) {
             start -= 1;
         }
-        Some((start, &self.text[start..self.caret]))
+        Some((start, substr(&self.text, start..self.caret)))
     }
 
     /// Inline Tab-expansion: if the word immediately before the caret is exactly a
@@ -139,7 +139,9 @@ impl Editor {
         let le = self.line_end(self.caret);
         if self.caret == le {
             let ls = self.line_start(self.caret);
-            if let Some((next, cur_len, content_empty)) = continuation_marker(&self.text[ls..le]) {
+            if let Some((next, cur_len, content_empty)) =
+                continuation_marker(substr(&self.text, ls..le))
+            {
                 if content_empty {
                     // Empty item/quote: drop the marker, leaving a blank line.
                     self.text.replace_range(ls..ls + cur_len, "");
@@ -162,8 +164,7 @@ impl Editor {
 
     /// `x` — delete the char under the caret (never a newline).
     pub(crate) fn delete_at_caret(&mut self) {
-        let b = self.text.as_bytes();
-        if self.caret < b.len() && b[self.caret] != b'\n' {
+        if self.text.as_bytes().get(self.caret).is_some_and(|&c| c != b'\n') {
             self.text.remove(self.caret);
             // Keep the caret on a char: if it fell off the line end, step back.
             if self.caret >= self.line_end(self.caret) && self.caret > self.line_start(self.caret) {
@@ -193,7 +194,7 @@ impl Editor {
         self.checkpoint();
         let ls = self.line_start(self.caret);
         let le = self.line_end(self.caret);
-        self.register = format!("{}\n", &self.text[ls..le]); // linewise, like dd
+        self.register = format!("{}\n", substr(&self.text, ls..le)); // linewise, like dd
         self.register_linewise = true;
         self.text.replace_range(ls..le, "");
         self.caret = ls;
@@ -211,7 +212,7 @@ impl Editor {
             let le = self.line_end(e);
             e = if le < self.text.len() { le + 1 } else { le };
         }
-        let mut block = self.text[ls..e].to_string();
+        let mut block = substr(&self.text, ls..e).to_string();
         if !block.ends_with('\n') {
             block.push('\n'); // the last line has no trailing newline; add one
         }
@@ -288,7 +289,7 @@ impl Editor {
     pub(crate) fn apply_op(&mut self, op: Op, start: usize, end: usize) {
         let s = start.min(end);
         let e = start.max(end).min(self.text.len());
-        self.register = self.text[s..e].to_string();
+        self.register = substr(&self.text, s..e).to_string();
         self.register_linewise = false;
         if op == Op::Yank {
             self.caret = s;
@@ -331,26 +332,26 @@ impl Editor {
         }
         let pos = self.caret.min(n - 1);
         let ws = |c: u8| c == b' ' || c == b'\t';
-        let target_ws = ws(b[pos]);
+        let target_ws = b.get(pos).copied().is_some_and(ws);
         let same = |c: u8| ws(c) == target_ws && c != b'\n';
         let mut s = pos;
-        while s > 0 && same(b[s - 1]) {
+        while s > 0 && b.get(s - 1).copied().is_some_and(same) {
             s -= 1;
         }
         let mut e = pos + 1;
-        while e < n && same(b[e]) {
+        while b.get(e).copied().is_some_and(same) {
             e += 1;
         }
         if around && !target_ws {
             let mut a = e;
-            while a < n && ws(b[a]) {
+            while b.get(a).copied().is_some_and(ws) {
                 a += 1;
             }
             if a > e {
                 return (s, a);
             }
             let mut ls = s;
-            while ls > 0 && ws(b[ls - 1]) {
+            while ls > 0 && b.get(ls - 1).copied().is_some_and(ws) {
                 ls -= 1;
             }
             return (ls, e);
@@ -371,7 +372,7 @@ impl Editor {
         let mut depth = 0i32;
         let mut i = start;
         let open_idx = loop {
-            let ch = b[i];
+            let Some(&ch) = b.get(i) else { break None };
             if ch == close && i != start {
                 depth += 1;
             } else if ch == open {
@@ -389,10 +390,7 @@ impl Editor {
         let mut depth = 0i32;
         let mut j = open_idx + 1;
         let close_idx = loop {
-            if j >= n {
-                break None;
-            }
-            let ch = b[j];
+            let Some(&ch) = b.get(j) else { break None };
             if ch == open {
                 depth += 1;
             } else if ch == close {
@@ -416,17 +414,21 @@ impl Editor {
         let b = self.text.as_bytes();
         let ls = self.line_start(self.caret);
         let le = self.line_end(self.caret);
-        let quotes: Vec<usize> = (ls..le).filter(|&i| b[i] == q).collect();
+        let quotes: Vec<usize> = (ls..le).filter(|&i| b.get(i) == Some(&q)).collect();
         // Pair them left-to-right; take the first pair closing at/after the
         // caret (a trailing unpaired quote falls off `chunks_exact`).
         quotes
             .chunks_exact(2)
-            .find(|pair| self.caret <= pair[1])
-            .map(|pair| {
+            .filter_map(|pair| match pair {
+                &[open, close] => Some((open, close)),
+                _ => None,
+            })
+            .find(|&(_, close)| self.caret <= close)
+            .map(|(open, close)| {
                 if around {
-                    (pair[0], pair[1] + 1)
+                    (open, close + 1)
                 } else {
-                    (pair[0] + 1, pair[1])
+                    (open + 1, close)
                 }
             })
     }
@@ -438,20 +440,20 @@ impl Editor {
     pub(crate) fn delete_word_before(&mut self) {
         let end = self.caret;
         let mut i = end;
-        while let Some(c) = self.text[..i].chars().next_back() {
+        while let Some(c) = substr(&self.text, ..i).chars().next_back() {
             if c == ' ' || c == '\t' {
                 i -= c.len_utf8();
             } else {
                 break;
             }
         }
-        if let Some(c) = self.text[..i]
+        if let Some(c) = substr(&self.text, ..i)
             .chars()
             .next_back()
             .filter(|&c| c != '\n' && c != '\r')
         {
             let cls = word_class(c);
-            while let Some(c) = self.text[..i].chars().next_back() {
+            while let Some(c) = substr(&self.text, ..i).chars().next_back() {
                 if c == '\n' || c == '\r' || word_class(c) != cls {
                     break;
                 }

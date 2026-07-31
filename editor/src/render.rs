@@ -169,7 +169,7 @@ impl Editor {
                         let mut p = window;
                         while p > c {
                             p -= 1;
-                            if chars[p] == ' ' {
+                            if chars.get(p) == Some(&' ') {
                                 brk = Some(p);
                                 break;
                             }
@@ -179,11 +179,12 @@ impl Editor {
                             _ => cols,
                         }
                     };
+                    let seg = chars.get(c..c + take).unwrap_or_default();
                     lines.push(Line {
                         start: base + byte,
-                        text: chars[c..c + take].iter().collect(),
+                        text: seg.iter().collect(),
                     });
-                    byte += chars[c..c + take].iter().map(|ch| ch.len_utf8()).sum::<usize>();
+                    byte += seg.iter().map(|ch| ch.len_utf8()).sum::<usize>();
                     c += take;
                 }
             }
@@ -199,7 +200,8 @@ impl Editor {
         // `lay` is sorted by `start`: the caret's row is the last line at or
         // before it.
         let row = lay.iter().rposition(|l| l.start <= self.caret).unwrap_or(0);
-        let col = self.text[lay[row].start..self.caret].chars().count();
+        let start = lay.get(row).map_or(0, |l| l.start);
+        let col = substr(&self.text, start..self.caret).chars().count();
         (row, col)
     }
 
@@ -262,7 +264,7 @@ impl Editor {
     pub(crate) fn is_heading_at(&self, ls: usize) -> bool {
         let b = self.text.as_bytes();
         let mut i = ls;
-        while i < b.len() && b[i] == b'#' {
+        while b.get(i) == Some(&b'#') {
             i += 1;
         }
         let hashes = i - ls;
@@ -354,19 +356,17 @@ impl Editor {
         // number draw below is skipped in that case anyway.
         let digits = gutter.saturating_sub(1);
         let end = (self.scroll_top + ROWS).min(lay.len());
+        let visible = lay.get(self.scroll_top..end).unwrap_or_default();
         // Absolute line number of the first visible row's logical line, then
         // bumped as later logical lines scroll into view.
-        let mut line_no = self.text.as_bytes()[..lay[self.scroll_top.min(lay.len() - 1)].start]
-            .iter()
-            .filter(|&&b| b == b'\n')
-            .count()
-            + 1;
-        for (vis, li) in (self.scroll_top..end).enumerate() {
+        let first_start = visible.first().map_or(0, |l| l.start);
+        let mut line_no = substr(&self.text, ..first_start).bytes().filter(|&b| b == b'\n').count() + 1;
+        for (vis, line) in visible.iter().enumerate() {
             let y = vis as i32 * CH;
             // Number a logical line only on its first display row; wrapped
             // continuation rows leave the gutter blank.
-            let first_row = lay[li].start == self.line_start(lay[li].start);
-            if li > self.scroll_top && first_row {
+            let first_row = line.start == self.line_start(line.start);
+            if vis > 0 && first_row {
                 line_no += 1;
             }
             if gutter > 0 && first_row {
@@ -375,23 +375,23 @@ impl Editor {
                     .draw(&mut f)
                     .infallible();
             }
-            Text::with_baseline(&lay[li].text, Point::new(gx, y), text_style, Baseline::Top)
+            Text::with_baseline(&line.text, Point::new(gx, y), text_style, Baseline::Top)
                 .draw(&mut f)
                 .infallible();
             // Markdown heading (`#`..`######` + space): faux-bold by double-
             // striking the whole display line 1px to the right (no bold Latin-9
             // font exists). Checks the logical line so wrapped headings stay bold.
-            let heading = self.is_heading_at(self.line_start(lay[li].start));
+            let heading = self.is_heading_at(self.line_start(line.start));
             if heading {
-                Text::with_baseline(&lay[li].text, Point::new(gx + 1, y), text_style, Baseline::Top)
+                Text::with_baseline(&line.text, Point::new(gx + 1, y), text_style, Baseline::Top)
                     .draw(&mut f)
                     .infallible();
             }
             // Repaint any non-Latin-9 glyphs over the fallback boxes the font
             // left. Double-struck at gx+1 too on headings, to stay faux-bold.
-            Self::overlay_extras(&mut f, &lay[li].text, gx, y, 0, usize::MAX, BinaryColor::On);
+            Self::overlay_extras(&mut f, &line.text, gx, y, 0, usize::MAX, BinaryColor::On);
             if heading {
-                Self::overlay_extras(&mut f, &lay[li].text, gx + 1, y, 0, usize::MAX, BinaryColor::On);
+                Self::overlay_extras(&mut f, &line.text, gx + 1, y, 0, usize::MAX, BinaryColor::On);
             }
         }
 
@@ -401,15 +401,18 @@ impl Editor {
         if self.in_visual() {
             let (ss, se, lw) = self.visual_span();
             let inv = MonoTextStyle::new(body, BinaryColor::Off);
-            for (vis, li) in (self.scroll_top..end).enumerate() {
+            for (vis, line) in visible.iter().enumerate() {
                 let y = vis as i32 * CH;
-                let rs = lay[li].start;
-                let re = rs + lay[li].text.len();
+                let rs = line.start;
+                let re = rs + line.text.len();
                 let (col_a, col_b) = if rs.max(ss) < re.min(se) {
                     let a = rs.max(ss);
                     let b = re.min(se);
-                    (self.text[rs..a].chars().count(), self.text[rs..b].chars().count())
-                } else if lw && lay[li].text.is_empty() && rs >= ss && rs <= se {
+                    (
+                        substr(&self.text, rs..a).chars().count(),
+                        substr(&self.text, rs..b).chars().count(),
+                    )
+                } else if lw && line.text.is_empty() && rs >= ss && rs <= se {
                     // A blank line inside a linewise selection: a 1-cell mark so
                     // the empty row still reads as selected.
                     (0, 1)
@@ -422,14 +425,14 @@ impl Editor {
                     .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
                     .draw(&mut f)
                     .infallible();
-                let seg: String = lay[li].text.chars().skip(col_a).take(col_b - col_a).collect();
+                let seg: String = line.text.chars().skip(col_a).take(col_b - col_a).collect();
                 if !seg.is_empty() {
                     Text::with_baseline(&seg, Point::new(x, y), inv, Baseline::Top)
                         .draw(&mut f)
                         .infallible();
                 }
                 // Any extra glyphs in the selected span: repaint white-on-black.
-                Self::overlay_extras(&mut f, &lay[li].text, gx, y, col_a, col_b, BinaryColor::Off);
+                Self::overlay_extras(&mut f, &line.text, gx, y, col_a, col_b, BinaryColor::Off);
             }
         }
 
@@ -443,7 +446,7 @@ impl Editor {
                         .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
                         .draw(&mut f)
                         .infallible();
-                    if let Some(ch) = lay[crow].text.chars().nth(ccol) {
+                    if let Some(ch) = lay.get(crow).and_then(|l| l.text.chars().nth(ccol)) {
                         if let Some(g) = extra_glyph(ch) {
                             blit_glyph(&mut f, x, y, g, BinaryColor::Off);
                         } else {
@@ -475,7 +478,7 @@ impl Editor {
                         .into_styled(PrimitiveStyle::with_fill(BinaryColor::Off))
                         .draw(&mut f)
                         .infallible();
-                    if let Some(ch) = lay[crow].text.chars().nth(ccol) {
+                    if let Some(ch) = lay.get(crow).and_then(|l| l.text.chars().nth(ccol)) {
                         if let Some(g) = extra_glyph(ch) {
                             blit_glyph(&mut f, x, y, g, BinaryColor::On);
                         } else {

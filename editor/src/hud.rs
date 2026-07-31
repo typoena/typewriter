@@ -440,7 +440,7 @@ impl Editor {
         // while cycling it.
         let sel = self.palette_sel.min(matches.len().saturating_sub(1));
         let font_preview = command_mode
-            && matches.get(sel).is_some_and(|&idx| matches!(PALETTE_CMDS[idx], PaletteCmd::Font));
+            && matches.get(sel).is_some_and(|&idx| matches!(PALETTE_CMDS.get(idx), Some(PaletteCmd::Font)));
         let preview_y = hint_y - CH;
         let list_bottom = if font_preview { preview_y } else { hint_y };
         let visible = ((list_bottom - list_top) / CH).max(1) as usize;
@@ -473,9 +473,10 @@ impl Editor {
             for (row, &idx) in matches.iter().enumerate().skip(start).take(visible) {
                 let y = list_top + (row - start) as i32 * CH;
                 let label: String = if snippet_mode {
-                    Self::snippet_label(&self.snippets[idx]).chars().take(max_chars).collect()
+                    let label = self.snippets.get(idx).map(Self::snippet_label).unwrap_or_default();
+                    label.chars().take(max_chars).collect()
                 } else if command_mode {
-                    self.command_label(PALETTE_CMDS[idx])
+                    PALETTE_CMDS.get(idx).map(|&c| self.command_label(c)).unwrap_or_default()
                 } else {
                     // Prettify the basename only (`friendly_filename`), keeping any
                     // scope/dir prefix as-is so the date check anchors on the name.

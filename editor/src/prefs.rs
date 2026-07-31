@@ -251,10 +251,11 @@ pub(crate) const AUTO_SYNC_OPTIONS: [&str; 5] = ["2m", "5m", "10m", "15m", "30m"
 /// (e.g. hand-typed into the TOML) snaps to the first option, so one Enter
 /// always lands on a known value.
 pub(crate) fn next_option<'a>(current: &str, options: &[&'a str]) -> &'a str {
-    match options.iter().position(|&o| o == current) {
-        Some(i) => options[(i + 1) % options.len()],
-        None => options[0],
-    }
+    let next = match options.iter().position(|&o| o == current) {
+        Some(i) => options.get((i + 1) % options.len()),
+        None => options.first(),
+    };
+    next.copied().unwrap_or("")
 }
 
 /// The scroll-margin (scrolloff) values the palette rotates
@@ -267,8 +268,9 @@ pub(crate) const SCROLL_MARGIN_OPTIONS: [usize; 4] = [0, 1, 2, 3];
 /// and snapping an off-list value to the head so one Enter always lands on a
 /// known option.
 pub(crate) fn next_usize_option(current: usize, options: &[usize]) -> usize {
-    match options.iter().position(|&o| o == current) {
-        Some(i) => options[(i + 1) % options.len()],
-        None => options[0],
-    }
+    let next = match options.iter().position(|&o| o == current) {
+        Some(i) => options.get((i + 1) % options.len()),
+        None => options.first(),
+    };
+    next.copied().unwrap_or(current)
 }
