@@ -297,6 +297,9 @@ impl<'d> Epd<'d> {
                 self.data(&[ye[0], ye[1]])?;
             }
         }
+        // Always-false at the current 0, kept so re-tuning the constant
+        // re-enables the delay (see its doc comment).
+        #[allow(clippy::absurd_extreme_comparisons)]
         if RAM_SETTLE_MS > 0 {
             FreeRtos::delay_ms(RAM_SETTLE_MS);
         }

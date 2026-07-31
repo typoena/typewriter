@@ -21,10 +21,7 @@ impl app::System for EspSystem {
         }
     }
     fn reboot(&self) -> ! {
-        // esp_restart resets the chip and does not return; the loop makes the
-        // divergence explicit to the type system.
-        loop {
-            unsafe { esp_idf_svc::sys::esp_restart() };
-        }
+        // esp_restart resets the chip; the binding is `-> !`.
+        unsafe { esp_idf_svc::sys::esp_restart() }
     }
 }
