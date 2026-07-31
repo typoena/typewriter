@@ -151,9 +151,11 @@ fn wifi_failure_returns_to_password_edit() {
 #[test]
 fn resume_skips_satisfied_steps() {
     // Conf with Wi-Fi but no token → resumes at sign-in.
-    let mut c = conf::Conf::default();
-    c.wifi_ssid = "MyNet".into();
-    c.wifi_pass = "hunter2".into();
+    let mut c = conf::Conf {
+        wifi_ssid: "MyNet".into(),
+        wifi_pass: "hunter2".into(),
+        ..Default::default()
+    };
     let w = Wizard::resume(c.clone());
     assert_eq!(w.pending(), Some(Effect::StartAuth));
 
@@ -166,11 +168,7 @@ fn resume_skips_satisfied_steps() {
 
 #[test]
 fn auth_failure_restarts_flow_and_esc_requests_fresh_code() {
-    let mut w = Wizard::resume({
-        let mut c = conf::Conf::default();
-        c.wifi_ssid = "MyNet".into();
-        c
-    });
+    let mut w = Wizard::resume(conf::Conf { wifi_ssid: "MyNet".into(), ..Default::default() });
     assert_eq!(w.pending(), Some(Effect::StartAuth));
     // A failure parks on the retry screen (no auto-retry loop) until Enter.
     assert_eq!(w.event(Event::AuthFailed("expired".into())), vec![]);
@@ -256,11 +254,10 @@ fn empty_scan_rescans_on_enter() {
 
 #[test]
 fn repos_failure_parks_then_enter_retries_and_backspace_edits_wifi() {
-    let mut w = Wizard::resume({
-        let mut c = conf::Conf::default();
-        c.wifi_ssid = "MyNet".into();
-        c.token = "ghu_tok".into();
-        c
+    let mut w = Wizard::resume(conf::Conf {
+        wifi_ssid: "MyNet".into(),
+        token: "ghu_tok".into(),
+        ..Default::default()
     });
     assert_eq!(w.pending(), Some(Effect::FetchRepos));
     assert_eq!(w.event(Event::ReposFailed("500".into())), vec![]);
@@ -288,11 +285,7 @@ fn clone_failure_reloads_the_list() {
 /// ran and the scale fit), and the quiet zone above the QR stays white.
 #[test]
 fn qr_renders_modules() {
-    let mut w = Wizard::resume({
-        let mut c = conf::Conf::default();
-        c.wifi_ssid = "MyNet".into();
-        c
-    });
+    let mut w = Wizard::resume(conf::Conf { wifi_ssid: "MyNet".into(), ..Default::default() });
     w.event(Event::AuthCode {
         verification_uri: "https://github.com/login/device".into(),
         user_code: "ABCD-1234".into(),
@@ -410,15 +403,15 @@ fn all_screens_draw() {
 
 /// A fully-provisioned conf, as `:setup` would be handed at boot.
 fn full_conf() -> conf::Conf {
-    let mut c = conf::Conf::default();
-    c.wifi_ssid = "MyNet".into();
-    c.wifi_pass = "hunter2".into();
-    c.token = "ghu_tok".into();
-    c.gh_user = "you".into();
-    c.author_name = "You".into();
-    c.author_email = "you@example.com".into();
-    c.remote_url = "https://github.com/you/notes.git".into();
-    c
+    conf::Conf {
+        wifi_ssid: "MyNet".into(),
+        wifi_pass: "hunter2".into(),
+        token: "ghu_tok".into(),
+        gh_user: "you".into(),
+        author_name: "You".into(),
+        author_email: "you@example.com".into(),
+        remote_url: "https://github.com/you/notes.git".into(),
+    }
 }
 
 #[test]

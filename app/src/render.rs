@@ -483,6 +483,7 @@ impl<S: Screen> Panel<S> {
     ///     pause, to re-launder accumulated charge.
     ///   * **deep idle** — *any* ghosting after a genuine break
     ///     ([`DEEP_IDLE_MS`]), so you return from stepping away to a clean panel.
+    ///
     /// Both defer to a pause because the ~2 s flash must never land mid-typing; the
     /// partial counter only advances on keystroke repaints, so promoting in-band
     /// would mean it could ONLY land mid-sentence. Returns `true` if it painted (or
@@ -584,6 +585,34 @@ pub fn changed_rows(a: &[u8], b: &[u8]) -> Option<(u16, u16)> {
         }
     }
     first.map(|f| (f, last))
+}
+
+/// Bounding box (x0, x1, y0, y1 — pixels, inclusive) of the ink *erased* going
+/// from frame `a` to `b` within rows `y0..=y1`, or `None` when the change only
+/// adds ink. Windowed partial refresh renders added ink cleanly but leaves
+/// ghosts where ink is erased, so erasing edits fall back to a clean area
+/// partial — except an erase confined to one character cell with the caret on
+/// screen, which the caller reads as the debounced caret bar being re-suppressed.
+/// Bit convention: 1 = white, 0 = black ink.
+pub fn erase_bbox(a: &[u8], b: &[u8], y0: u16, y1: u16) -> Option<(u16, u16, u16, u16)> {
+    let w = FB_BYTES_W;
+    let mut bbox: Option<(u16, u16, u16, u16)> = None;
+    for y in y0 as usize..=y1 as usize {
+        for xb in 0..w {
+            // Bits set in b but clear in a went black→white — erased ink.
+            let erased = b[y * w + xb] & !a[y * w + xb];
+            if erased == 0 {
+                continue;
+            }
+            let x_lo = (xb * 8) as u16 + erased.leading_zeros() as u16;
+            let x_hi = (xb * 8) as u16 + 7 - erased.trailing_zeros() as u16;
+            let bb = bbox.get_or_insert((x_lo, x_hi, y as u16, y as u16));
+            bb.0 = bb.0.min(x_lo);
+            bb.1 = bb.1.max(x_hi);
+            bb.3 = y as u16; // rows scan top-down, so y is always the new max
+        }
+    }
+    bbox
 }
 
 #[cfg(test)]
@@ -814,30 +843,3 @@ mod tests {
     }
 }
 
-/// Bounding box (x0, x1, y0, y1 — pixels, inclusive) of the ink *erased* going
-/// from frame `a` to `b` within rows `y0..=y1`, or `None` when the change only
-/// adds ink. Windowed partial refresh renders added ink cleanly but leaves
-/// ghosts where ink is erased, so erasing edits fall back to a clean area
-/// partial — except an erase confined to one character cell with the caret on
-/// screen, which the caller reads as the debounced caret bar being re-suppressed.
-/// Bit convention: 1 = white, 0 = black ink.
-pub fn erase_bbox(a: &[u8], b: &[u8], y0: u16, y1: u16) -> Option<(u16, u16, u16, u16)> {
-    let w = FB_BYTES_W;
-    let mut bbox: Option<(u16, u16, u16, u16)> = None;
-    for y in y0 as usize..=y1 as usize {
-        for xb in 0..w {
-            // Bits set in b but clear in a went black→white — erased ink.
-            let erased = b[y * w + xb] & !a[y * w + xb];
-            if erased == 0 {
-                continue;
-            }
-            let x_lo = (xb * 8) as u16 + erased.leading_zeros() as u16;
-            let x_hi = (xb * 8) as u16 + 7 - erased.trailing_zeros() as u16;
-            let bb = bbox.get_or_insert((x_lo, x_hi, y as u16, y as u16));
-            bb.0 = bb.0.min(x_lo);
-            bb.1 = bb.1.max(x_hi);
-            bb.3 = y as u16; // rows scan top-down, so y is always the new max
-        }
-    }
-    bbox
-}
