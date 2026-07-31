@@ -42,3 +42,7 @@ unimplemented = "warn"
 unreachable = "warn"
 exit = "warn"
 panic_in_result_fn = "warn"
+# The implicit spellings: `x[i]` and `&s[a..b]` panic out-of-bounds or
+# mid-UTF-8-char. Use `.get()`/iterators with a benign fallback.
+indexing_slicing = "warn"
+string_slice = "warn"

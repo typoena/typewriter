@@ -20,6 +20,8 @@ unimplemented = "warn"
 unreachable = "warn"
 exit = "warn"
 panic_in_result_fn = "warn"
+indexing_slicing = "warn"
+string_slice = "warn"
 
 # Shared library surface (currently just resilient Wi-Fi bring-up in
 # `firmware::net`), reused by the editor bin and the spike bins so the connect
