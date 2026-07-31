@@ -695,7 +695,7 @@ fn read_body(conn: &mut EspHttpConnection, max: usize) -> Result<String> {
         if n == 0 {
             break;
         }
-        out.extend_from_slice(&buf[..n]);
+        out.extend_from_slice(buf.get(..n).unwrap_or_default());
         if out.len() > max {
             bail!("reply unexpectedly large (> {} KB)", max / 1024);
         }

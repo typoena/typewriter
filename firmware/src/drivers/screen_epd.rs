@@ -478,21 +478,19 @@ impl<'d> Epd<'d> {
     /// (px 392..399) lands on both; the 4 columns past each controller's 396
     /// sources aren't wired. Pass `(0, HEIGHT)` for a full-frame blit.
     fn write_frame_bank(&mut self, command: u8, fb: &[u8], y0: u16, h: u16) -> Result<(), EspError> {
-        let rows = y0 as usize..(y0 + h) as usize;
+        let rows = || fb.chunks_exact(FB_BYTES_W).skip(y0 as usize).take(h as usize);
 
         let mut buf = Vec::with_capacity(CTRL_BYTES_W * h as usize);
-        for y in rows.clone() {
-            let row = &fb[y * FB_BYTES_W..(y + 1) * FB_BYTES_W];
-            buf.extend_from_slice(&row[..CTRL_BYTES_W]);
+        for row in rows() {
+            buf.extend_from_slice(row.get(..CTRL_BYTES_W).unwrap_or_default());
         }
         self.set_ram_area(0, y0, WIDTH / 2, h, 0x03, 0x80)?; // slave
         self.cmd(command | 0x80)?;
         self.data(&buf)?;
 
         buf.clear();
-        for y in rows {
-            let row = &fb[y * FB_BYTES_W..(y + 1) * FB_BYTES_W];
-            buf.extend_from_slice(&row[FB_BYTES_W - CTRL_BYTES_W..]);
+        for row in rows() {
+            buf.extend_from_slice(row.get(FB_BYTES_W - CTRL_BYTES_W..).unwrap_or_default());
         }
         self.set_ram_area(0, y0, WIDTH / 2, h, 0x02, 0x00)?; // master
         self.cmd(command)?;

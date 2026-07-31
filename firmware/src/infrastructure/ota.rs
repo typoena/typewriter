@@ -79,7 +79,7 @@ fn fetch_latest_version() -> Result<String> {
         if n == 0 {
             break;
         }
-        body.extend_from_slice(&buf[..n]);
+        body.extend_from_slice(buf.get(..n).unwrap_or_default());
         if body.len() > 256 {
             bail!("version manifest at {url} is not a short version line");
         }
@@ -118,7 +118,7 @@ fn download_and_install(url: &str) -> Result<usize> {
         if n == 0 {
             break;
         }
-        update.write(&buf[..n]).context("writing the OTA slot")?;
+        update.write(buf.get(..n).unwrap_or_default()).context("writing the OTA slot")?;
         written += n;
     }
 
@@ -163,8 +163,8 @@ fn is_newer(candidate: &str, current: &str) -> bool {
         let core = v.trim().trim_start_matches('v');
         let core = core.split(['-', '+']).next().unwrap_or(core);
         let mut out = [0u64; 3];
-        for (i, seg) in core.split('.').take(3).enumerate() {
-            out[i] = seg.trim().parse().unwrap_or(0);
+        for (slot, seg) in out.iter_mut().zip(core.split('.')) {
+            *slot = seg.trim().parse().unwrap_or(0);
         }
         out
     }

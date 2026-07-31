@@ -1612,7 +1612,9 @@ fn short_reason(op: &str, e: &anyhow::Error) -> String {
 
 /// First 8 hex chars of an OID, for readable logs and the panel.
 fn short(oid: git2::Oid) -> String {
-    oid.to_string()[..8].to_string()
+    let mut s = oid.to_string();
+    s.truncate(8);
+    s
 }
 
 /// Current wall-clock seconds since the Unix epoch (valid after SNTP).
