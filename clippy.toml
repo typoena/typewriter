@@ -3,3 +3,4 @@
 # by walking up from each crate's manifest dir.)
 allow-unwrap-in-tests = true
 allow-expect-in-tests = true
+allow-panic-in-tests = true
