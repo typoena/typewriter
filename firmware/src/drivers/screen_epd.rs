@@ -141,6 +141,17 @@ pub struct Epd<'d> {
     fast_lut_loaded: bool,
 }
 
+/// Caller-contract guard for the display entry points: a wrong-size
+/// framebuffer or row window returns `ESP_ERR_INVALID_SIZE` instead of
+/// panicking (a panic reboots the device).
+fn contract(ok: bool) -> Result<(), EspError> {
+    if ok {
+        Ok(())
+    } else {
+        Err(EspError::from_infallible::<{ esp_idf_svc::sys::ESP_ERR_INVALID_SIZE }>())
+    }
+}
+
 impl<'d> Epd<'d> {
     pub fn new(
         spi: SpiBusDriver<'d, SpiDriver<'d>>,
@@ -493,7 +504,7 @@ impl<'d> Epd<'d> {
     /// refresh. Writes both RAM banks so the next differential update has a
     /// consistent "previous" image.
     pub fn display_frame(&mut self, fb: &[u8]) -> Result<(), EspError> {
-        assert_eq!(fb.len(), FB_BYTES, "framebuffer must be 99 x 272 bytes");
+        contract(fb.len() == FB_BYTES)?;
         self.wait_ready()?;
         // A resident fast recipe survives 0xD7's load-LUT (same finding as the
         // factory-partial eviction), so a full while it is loaded would run the
@@ -512,7 +523,7 @@ impl<'d> Epd<'d> {
     /// what lets the boot full scrub fast-partial residue while a mid-session
     /// full can't. Narrative: docs/tradeoff-curves/epd-refresh-latency.md.
     pub fn display_frame_clean(&mut self, fb: &[u8]) -> Result<(), EspError> {
-        assert_eq!(fb.len(), FB_BYTES, "framebuffer must be 99 x 272 bytes");
+        contract(fb.len() == FB_BYTES)?;
         self.wait_ready()?;
         self.reset()?;
         self.init()?;
@@ -528,7 +539,7 @@ impl<'d> Epd<'d> {
     /// Every public display call waits out the pending refresh (`wait_ready`)
     /// before its own controller traffic, so nothing can collide with it.
     pub fn display_frame_async(&mut self, fb: &[u8]) -> Result<(), EspError> {
-        assert_eq!(fb.len(), FB_BYTES, "framebuffer must be 99 x 272 bytes");
+        contract(fb.len() == FB_BYTES)?;
         self.wait_ready()?;
         self.evict_fast_recipe()?; // same hazard as display_frame
         self.write_frame_bank(0x26, fb, 0, HEIGHT)?; // previous
@@ -578,8 +589,8 @@ impl<'d> Epd<'d> {
     /// custom-LUT waveform; everything else — the RAM-bank writes and the
     /// post-refresh resync — is identical and kept here in one place.
     fn partial_window(&mut self, fb: &[u8], y0: u16, h: u16, fast: bool) -> Result<(), EspError> {
-        assert_eq!(fb.len(), FB_BYTES, "framebuffer must be 99 x 272 bytes");
-        assert!(h > 0 && y0 + h <= HEIGHT, "row window out of range");
+        contract(fb.len() == FB_BYTES)?;
+        contract(h > 0 && u32::from(y0) + u32::from(h) <= u32::from(HEIGHT))?;
         self.wait_ready()?;
         if !fast {
             self.evict_fast_recipe()?; // before the bank write — see its doc

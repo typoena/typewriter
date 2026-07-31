@@ -49,7 +49,8 @@ pub fn connect_wifi(
     wifi.start()?;
 
     let mut backoff_ms = INITIAL_BACKOFF_MS;
-    for attempt in 1..=MAX_ATTEMPTS {
+    let mut attempt = 1;
+    loop {
         log::info!("associating with \"{ssid}\" (attempt {attempt}/{MAX_ATTEMPTS})…");
         match associate_once(wifi) {
             Ok(()) => return Ok(()),
@@ -60,13 +61,13 @@ pub fn connect_wifi(
                 let _ = wifi.disconnect();
                 FreeRtos::delay_ms(backoff_ms);
                 backoff_ms = (backoff_ms * 2).min(MAX_BACKOFF_MS);
+                attempt += 1;
             }
             Err(e) => {
                 return Err(e).with_context(|| format!("Wi-Fi failed after {MAX_ATTEMPTS} attempts"));
             }
         }
     }
-    unreachable!("loop returns on success or on the final-attempt error")
 }
 
 /// One association + DHCP wait. Split out so the retry loop reads cleanly and to

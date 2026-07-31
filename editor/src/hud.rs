@@ -213,7 +213,8 @@ impl Editor {
                 Mode::Rest => "REST",
                 Mode::About => "ABOUT",
                 Mode::Confirm => "CONFIRM",
-                Mode::Command => unreachable!(),
+                // Guarded out above; a stale label beats a panic if that drifts.
+                Mode::Command => "COMMAND",
             };
             let mut s = format!("-- {name} --");
             if self.count > 0 {
