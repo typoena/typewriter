@@ -7,5 +7,8 @@ description = "Hardware abstraction layer: the device-capability port traits (Sc
 # Deliberately dependency-free bar `keymap` (the Key value type the Keyboard
 # port traffics in) so this frontier stays a pure leaf with no outward deps —
 # the clean-architecture rule for the hal layer.
+[lints]
+workspace = true
+
 [dependencies]
 keymap = { path = "../keymap" }

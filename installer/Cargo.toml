@@ -3,6 +3,10 @@ name = "typoena-installer"
 version = "0.5.0"
 edition = "2024"
 
+# Same unwrap discipline as the host workspace (see root Cargo.toml).
+[lints.clippy]
+unwrap_used = "warn"
+
 [dependencies]
 anyhow = "1.0.103"
 base64 = "0.22.1"

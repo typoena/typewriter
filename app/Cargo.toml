@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 description = "Application layer: the panel render engine (Panel, generic over hal::Screen) and — as the migration proceeds — the run-loop Runtime plus its ports. Pure and host-testable: depends only on the domain crates (editor, display) and the hal frontier, never on esp-idf. Mirrors the composition/application tier of the C ../typing-machine reference."
 
+[lints]
+workspace = true
+
 [dependencies]
 # The hardware frontier the render engine paints through (hal::Screen).
 hal = { path = "../hal" }

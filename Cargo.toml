@@ -28,3 +28,10 @@ exclude = [
     "installer",
     "spikes",
 ]
+
+# `unwrap()` is banned outside tests (clippy.toml allows it there): a panic on
+# device reboots mid-keystroke. Provably-infallible results go through
+# `display::InfallibleExt::infallible`; real invariants use `expect("...")`,
+# which stays legal so the assertion carries its justification.
+[workspace.lints.clippy]
+unwrap_used = "warn"

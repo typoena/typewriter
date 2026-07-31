@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 description = "The on-device onboarding wizard's step/field state machine and panel rendering (docs/v0.9-onboarding-wizard.md). Pure logic over keymap::Key in and effects out (TestWifi/StartAuth/FetchRepos/Clone/WriteConf), with the firmware as the I/O driver — host-testable like the editor crate."
 
+[lints]
+workspace = true
+
 [dependencies]
 conf = { path = "../conf" }
 keymap = { path = "../keymap" }

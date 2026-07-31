@@ -1,0 +1,5 @@
+# In tests a panic IS the failure report — unwrap freely there.
+# (Applies to the firmware/ and installer/ packages too: clippy finds this file
+# by walking up from each crate's manifest dir.)
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true

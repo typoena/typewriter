@@ -34,6 +34,11 @@ default:
 build:
     {{esp_env}} {{git_env}} cargo build --release --bin firmware --features full
 
+# clippy over the product firmware (same flags as `build`, so the full feature
+# set is linted). `unwrap_used` is warn-level — keep it at zero findings.
+lint:
+    {{esp_env}} {{git_env}} cargo clippy --release --bin firmware --features full
+
 # build + flash + open serial monitor (full firmware, see `build`)
 flash:
     {{esp_env}} {{git_env}} cargo run --release --bin firmware --features full
