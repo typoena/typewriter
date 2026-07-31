@@ -373,11 +373,11 @@ impl Editor {
                 let label = format!("{line_no:>digits$}");
                 Text::with_baseline(&label, Point::new(0, y), text_style, Baseline::Top)
                     .draw(&mut f)
-                    .unwrap();
+                    .infallible();
             }
             Text::with_baseline(&lay[li].text, Point::new(gx, y), text_style, Baseline::Top)
                 .draw(&mut f)
-                .unwrap();
+                .infallible();
             // Markdown heading (`#`..`######` + space): faux-bold by double-
             // striking the whole display line 1px to the right (no bold Latin-9
             // font exists). Checks the logical line so wrapped headings stay bold.
@@ -385,7 +385,7 @@ impl Editor {
             if heading {
                 Text::with_baseline(&lay[li].text, Point::new(gx + 1, y), text_style, Baseline::Top)
                     .draw(&mut f)
-                    .unwrap();
+                    .infallible();
             }
             // Repaint any non-Latin-9 glyphs over the fallback boxes the font
             // left. Double-struck at gx+1 too on headings, to stay faux-bold.
@@ -421,12 +421,12 @@ impl Editor {
                 Rectangle::new(Point::new(x, y), Size::new(w, CH as u32))
                     .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
                     .draw(&mut f)
-                    .unwrap();
+                    .infallible();
                 let seg: String = lay[li].text.chars().skip(col_a).take(col_b - col_a).collect();
                 if !seg.is_empty() {
                     Text::with_baseline(&seg, Point::new(x, y), inv, Baseline::Top)
                         .draw(&mut f)
-                        .unwrap();
+                        .infallible();
                 }
                 // Any extra glyphs in the selected span: repaint white-on-black.
                 Self::overlay_extras(&mut f, &lay[li].text, gx, y, col_a, col_b, BinaryColor::Off);
@@ -442,7 +442,7 @@ impl Editor {
                     Rectangle::new(Point::new(x, y), Size::new(CW as u32, CH as u32))
                         .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
                         .draw(&mut f)
-                        .unwrap();
+                        .infallible();
                     if let Some(ch) = lay[crow].text.chars().nth(ccol) {
                         if let Some(g) = extra_glyph(ch) {
                             blit_glyph(&mut f, x, y, g, BinaryColor::Off);
@@ -456,7 +456,7 @@ impl Editor {
                                 Baseline::Top,
                             )
                             .draw(&mut f)
-                            .unwrap();
+                            .infallible();
                         }
                     }
                 }
@@ -465,7 +465,7 @@ impl Editor {
                     Rectangle::new(Point::new(x, y), Size::new(2, CH as u32))
                         .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
                         .draw(&mut f)
-                        .unwrap();
+                        .infallible();
                 }
                 Mode::Visual | Mode::VisualLine if cursor_on => {
                     // The selection painted this cell inverted; punch the caret
@@ -474,7 +474,7 @@ impl Editor {
                     Rectangle::new(Point::new(x, y), Size::new(CW as u32, CH as u32))
                         .into_styled(PrimitiveStyle::with_fill(BinaryColor::Off))
                         .draw(&mut f)
-                        .unwrap();
+                        .infallible();
                     if let Some(ch) = lay[crow].text.chars().nth(ccol) {
                         if let Some(g) = extra_glyph(ch) {
                             blit_glyph(&mut f, x, y, g, BinaryColor::On);
@@ -487,7 +487,7 @@ impl Editor {
                                 Baseline::Top,
                             )
                             .draw(&mut f)
-                            .unwrap();
+                            .infallible();
                         }
                     }
                 }

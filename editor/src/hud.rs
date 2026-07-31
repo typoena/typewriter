@@ -38,7 +38,7 @@ impl Editor {
         Rectangle::new(Point::new(DIVIDER_X, 0), Size::new(1, HEIGHT as u32))
             .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
             .draw(f)
-            .unwrap();
+            .infallible();
 
         let style = MonoTextStyle::new(&FONT_9X15, BinaryColor::On);
 
@@ -59,7 +59,7 @@ impl Editor {
             let y = 2 + i as i32 * PANEL_CH;
             Text::with_baseline(line, Point::new(PANEL_X, y), style, Baseline::Top)
                 .draw(f)
-                .unwrap();
+                .infallible();
         }
 
         // Word count on the line below the (possibly wrapped) name, from the
@@ -77,7 +77,7 @@ impl Editor {
         };
         Text::with_baseline(&words, Point::new(PANEL_X, words_y), style, Baseline::Top)
             .draw(f)
-            .unwrap();
+            .infallible();
 
         // ── Sync tier ────────────────────────────────────────────────────────
         // One blank row below the file tier. `Tracked` is the default and syncs
@@ -91,7 +91,7 @@ impl Editor {
         if self.scope == Scope::Local {
             Text::with_baseline("Local", Point::new(PANEL_X, scope_y), style, Baseline::Top)
                 .draw(f)
-                .unwrap();
+                .infallible();
         }
 
         // Transient notice ("snackbar") directly under the scope: the last
@@ -109,7 +109,7 @@ impl Editor {
                 let y = notice_top + i as i32 * PANEL_CH;
                 Text::with_baseline(&line, Point::new(PANEL_X, y), style, Baseline::Top)
                     .draw(f)
-                    .unwrap();
+                    .infallible();
             }
         }
 
@@ -150,7 +150,7 @@ impl Editor {
                         let y = caption_top + i as i32 * PANEL_CH;
                         Text::with_baseline(line, Point::new(x, y), style, Baseline::Top)
                             .draw(f)
-                            .unwrap();
+                            .infallible();
                     }
                 }
             }
@@ -168,7 +168,7 @@ impl Editor {
                 Baseline::Top,
             )
             .draw(f)
-            .unwrap();
+            .infallible();
         } else if let Some(name) = &self.snippet_hint {
             let hint: String = format!("» {name}").chars().take(PANEL_COLS).collect();
             Text::with_baseline(
@@ -178,7 +178,7 @@ impl Editor {
                 Baseline::Top,
             )
             .draw(f)
-            .unwrap();
+            .infallible();
         }
 
         // Focus-mode marker: a quiet indicator that a Pomodoro session is
@@ -194,7 +194,7 @@ impl Editor {
                 Baseline::Top,
             )
             .draw(f)
-            .unwrap();
+            .infallible();
         }
 
         // Mode indicator + pending count/operator echo at the panel's bottom-
@@ -240,7 +240,7 @@ impl Editor {
                 Baseline::Top,
             )
             .draw(f)
-            .unwrap();
+            .infallible();
         }
     }
 
@@ -269,7 +269,7 @@ impl Editor {
             let x = (WIDTH as i32 - w) / 2;
             Text::with_baseline(line, Point::new(x, y), style, Baseline::Top)
                 .draw(f)
-                .unwrap();
+                .infallible();
             y += CH;
         }
     }
@@ -288,7 +288,7 @@ impl Editor {
             let x = (WIDTH as i32 - text.chars().count() as i32 * CW) / 2;
             Text::with_baseline(text, Point::new(x, y), style, Baseline::Top)
                 .draw(f)
-                .unwrap();
+                .infallible();
         };
 
         // Wordmark + version, vertically centred.
@@ -325,13 +325,13 @@ impl Editor {
         )
         .into_styled(PrimitiveStyle::with_fill(BinaryColor::Off))
         .draw(f)
-        .unwrap();
+        .infallible();
 
         let s = format!("{}{}", self.cmd_prompt, self.cmdline);
         let style = MonoTextStyle::new(&FONT_10X20, BinaryColor::On);
         Text::with_baseline(&s, Point::new(2, HEIGHT as i32 - CH), style, Baseline::Top)
             .draw(f)
-            .unwrap();
+            .infallible();
     }
 
     /// Draw the file palette (the modal transient panel, [`Mode::Palette`]) over
@@ -347,7 +347,7 @@ impl Editor {
         Rectangle::new(Point::new(0, 0), Size::new(DIVIDER_X as u32, HEIGHT as u32))
             .into_styled(PrimitiveStyle::with_fill(BinaryColor::Off))
             .draw(f)
-            .unwrap();
+            .infallible();
         let style = MonoTextStyle::new(&FONT_10X20, BinaryColor::On);
         let inv = MonoTextStyle::new(&FONT_10X20, BinaryColor::Off);
 
@@ -357,7 +357,7 @@ impl Editor {
         if self.palette_step == PaletteStep::NewFile {
             Text::with_baseline("New file:", Point::new(2, 0), style, Baseline::Top)
                 .draw(f)
-                .unwrap();
+                .infallible();
             let y = CH + 3;
             if self.palette_query.is_empty() {
                 Text::with_baseline(
@@ -367,17 +367,17 @@ impl Editor {
                     Baseline::Top,
                 )
                 .draw(f)
-                .unwrap();
+                .infallible();
             } else {
                 Text::with_baseline(&self.palette_query, Point::new(2, y), style, Baseline::Top)
                     .draw(f)
-                    .unwrap();
+                    .infallible();
             }
             let cx = (2 + self.palette_query.chars().count() as i32 * CW).min(DIVIDER_X - 2);
             Rectangle::new(Point::new(cx, y), Size::new(2, CH as u32))
                 .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
                 .draw(f)
-                .unwrap();
+                .infallible();
             Text::with_baseline(
                 "Enter create  Esc cancel",
                 Point::new(2, HEIGHT as i32 - CH),
@@ -385,7 +385,7 @@ impl Editor {
                 Baseline::Top,
             )
             .draw(f)
-            .unwrap();
+            .infallible();
             return;
         }
 
@@ -403,23 +403,23 @@ impl Editor {
                 Baseline::Top,
             )
             .draw(f)
-            .unwrap();
+            .infallible();
         } else {
             Text::with_baseline(&self.palette_query, Point::new(2, 0), style, Baseline::Top)
                 .draw(f)
-                .unwrap();
+                .infallible();
         }
         let cx = (2 + self.palette_query.chars().count() as i32 * CW).min(DIVIDER_X - 2);
         Rectangle::new(Point::new(cx, 0), Size::new(2, CH as u32))
             .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
             .draw(f)
-            .unwrap();
+            .infallible();
 
         // Rule under the prompt.
         Rectangle::new(Point::new(0, CH), Size::new(DIVIDER_X as u32, 1))
             .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
             .draw(f)
-            .unwrap();
+            .infallible();
 
         // The list is the fuzzy-ranked files, the `>` command registry, or the `$`
         // snippet library, per the active sigil.
@@ -465,7 +465,7 @@ impl Editor {
             };
             Text::with_baseline(msg, Point::new(2, list_top), style, Baseline::Top)
                 .draw(f)
-                .unwrap();
+                .infallible();
         } else {
             // Scroll the window so the selection stays visible.
             let start = if sel >= visible { sel - visible + 1 } else { 0 };
@@ -490,14 +490,14 @@ impl Editor {
                     Rectangle::new(Point::new(0, y), Size::new(DIVIDER_X as u32, CH as u32))
                         .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
                         .draw(f)
-                        .unwrap();
+                        .infallible();
                     Text::with_baseline(&label, Point::new(2, y), inv, Baseline::Top)
                         .draw(f)
-                        .unwrap();
+                        .infallible();
                 } else {
                     Text::with_baseline(&label, Point::new(2, y), style, Baseline::Top)
                         .draw(f)
-                        .unwrap();
+                        .infallible();
                 }
             }
         }
@@ -508,7 +508,7 @@ impl Editor {
             Rectangle::new(Point::new(0, preview_y - 1), Size::new(DIVIDER_X as u32, 1))
                 .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
                 .draw(f)
-                .unwrap();
+                .infallible();
             let preview = MonoTextStyle::new(display::body_font(&self.prefs.font), BinaryColor::On);
             let sample: String = "The quick brown fox jumps over the lazy dog"
                 .chars()
@@ -516,7 +516,7 @@ impl Editor {
                 .collect();
             Text::with_baseline(&sample, Point::new(2, preview_y), preview, Baseline::Top)
                 .draw(f)
-                .unwrap();
+                .infallible();
         }
 
         let hint = if snippet_mode {
@@ -528,6 +528,6 @@ impl Editor {
         };
         Text::with_baseline(hint, Point::new(2, hint_y), style, Baseline::Top)
             .draw(f)
-            .unwrap();
+            .infallible();
     }
 }

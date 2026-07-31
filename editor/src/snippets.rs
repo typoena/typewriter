@@ -113,7 +113,7 @@ pub(crate) fn strip_stop_labels(body: &str) -> String {
             i += 1;
             continue;
         }
-        let c = body[i..].chars().next().unwrap();
+        let Some(c) = body[i..].chars().next() else { break };
         out.push(c);
         i += c.len_utf8();
     }
@@ -147,7 +147,7 @@ pub(crate) fn parse_snippet_body(body: &str) -> (String, Vec<usize>) {
             i += 1;
             continue;
         }
-        let c = body[i..].chars().next().unwrap();
+        let Some(c) = body[i..].chars().next() else { break };
         literal.push(c);
         i += c.len_utf8();
     }

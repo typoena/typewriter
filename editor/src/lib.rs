@@ -20,7 +20,7 @@ use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use embedded_graphics::text::{Baseline, Text};
 
-use display::{blit_glyph, extra_glyph, typo, Frame, HEIGHT, WIDTH};
+use display::{blit_glyph, extra_glyph, typo, Frame, InfallibleExt, HEIGHT, WIDTH};
 use keymap::Key;
 
 
@@ -833,10 +833,12 @@ impl Editor {
     /// count is not captured (so `3x` then `.` deletes one), but a count *inside*
     /// an operator is (`d2w` records in full).
     fn record_dot(&mut self, key: Key, before_mode: Mode, before_pending: bool) {
-        if self.dot_recording.is_some() {
-            self.dot_recording.as_mut().unwrap().push(key);
+        if let Some(rec) = self.dot_recording.as_mut() {
+            rec.push(key);
             if self.change_complete() {
-                self.dot = self.dot_recording.take().unwrap();
+                if let Some(done) = self.dot_recording.take() {
+                    self.dot = done;
+                }
             }
             return;
         }
@@ -848,9 +850,11 @@ impl Editor {
                 || self.mode == Mode::Insert
                 || matches!(self.pending_op, Some(Op::Delete) | Some(Op::Change));
             if starts {
-                self.dot_recording = Some(vec![key]);
+                let rec = vec![key];
                 if self.change_complete() {
-                    self.dot = self.dot_recording.take().unwrap();
+                    self.dot = rec;
+                } else {
+                    self.dot_recording = Some(rec);
                 }
             }
         }
