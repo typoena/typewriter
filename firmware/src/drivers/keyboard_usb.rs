@@ -22,7 +22,7 @@ use std::collections::VecDeque;
 use std::ffi::c_void;
 use std::ptr;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU8, Ordering};
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use esp_idf_svc::sys::esp;
 use esp_idf_svc::sys::{
@@ -107,9 +107,16 @@ static COMPOSER: Mutex<keymap::Composer> = Mutex::new(keymap::Composer::new());
 /// use-after-free (MEMORY_AUDIT.md finding #1).
 static REPORT_INFLIGHT: AtomicBool = AtomicBool::new(false);
 
+/// Lock, disarming poisoning: a panic on esp-idf reboots the device, so no
+/// state outlives it — but the panic hook and other threads still run for a
+/// beat, and a poisoned queue must not take them down in a panic-in-panic.
+fn lock_unpoisoned<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
+    m.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 /// Pop the next decoded key-down event, if any.
 pub fn next_key() -> Option<Key> {
-    KEY_QUEUE.get()?.lock().unwrap().pop_front()
+    lock_unpoisoned(KEY_QUEUE.get()?).pop_front()
 }
 
 /// Whether a USB keyboard is currently attached and set up. Read by the main
@@ -238,8 +245,8 @@ fn close_device(
     unsafe { usb_host_interface_release(client, *open_dev, KBD_INTERFACE) };
     unsafe { usb_host_device_close(client, *open_dev) };
     *open_dev = ptr::null_mut();
-    DECODER.lock().unwrap().reset();
-    COMPOSER.lock().unwrap().reset(); // drop any half-typed accent
+    lock_unpoisoned(&DECODER).reset();
+    lock_unpoisoned(&COMPOSER).reset(); // drop any half-typed accent
     KBD_PRESENT.store(false, Ordering::SeqCst);
 }
 
@@ -286,10 +293,8 @@ unsafe extern "C" fn report_cb(transfer: *mut usb_transfer_t) {
         // the device reports a bogus actual_num_bytes.
         let report = unsafe { core::slice::from_raw_parts(t.data_buffer, n) };
         // Decode HID → keys, then fold dead-key accents before enqueuing.
-        DECODER
-            .lock()
-            .unwrap()
-            .feed(report, |k| COMPOSER.lock().unwrap().feed(k, enqueue));
+        lock_unpoisoned(&DECODER)
+            .feed(report, |k| lock_unpoisoned(&COMPOSER).feed(k, enqueue));
         let err = unsafe { usb_host_transfer_submit(transfer) };
         if err != 0 {
             log::error!("interrupt resubmit failed: {err}");
@@ -305,7 +310,7 @@ unsafe extern "C" fn report_cb(transfer: *mut usb_transfer_t) {
 fn enqueue(key: Key) {
     log::info!("key: {key:?}");
     if let Some(q) = KEY_QUEUE.get() {
-        q.lock().unwrap().push_back(key);
+        lock_unpoisoned(q).push_back(key);
     }
 }
 
