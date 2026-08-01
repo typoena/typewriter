@@ -210,6 +210,22 @@ fn ctrl_tab_toggles_between_the_last_two_notes() {
 }
 
 #[test]
+fn ctrl_release_commits_so_ctrl_tab_toggles_without_typing() {
+    // The real gesture: Ctrl+Tab, release Ctrl (the decoder's CycleCommit),
+    // Ctrl+Tab again — must bounce between the two last notes, not walk
+    // deeper (c → b → a was the on-device bug: nothing committed the walk
+    // when no other key was typed between presses).
+    let mut e = opened(&["/sd/repo/a.md", "/sd/repo/b.md", "/sd/repo/c.md"]);
+    e.handle(Key::CycleRecent); // c → b
+    e.handle(Key::CycleCommit); // Ctrl released: recent now [b, c, a]
+    e.handle(Key::CycleRecent); // b → c, not a
+    assert_eq!(e.path(), "/sd/repo/c.md");
+    e.handle(Key::CycleCommit);
+    e.handle(Key::CycleRecent); // c → b again
+    assert_eq!(e.path(), "/sd/repo/b.md");
+}
+
+#[test]
 fn repeated_ctrl_tab_walks_deeper_into_the_mru_and_wraps() {
     // recent: [c, b, a], c active. Without a commit in between, each press
     // must reach an *older* note, not bounce between the top two.

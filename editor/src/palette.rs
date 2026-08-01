@@ -273,11 +273,16 @@ impl Editor {
             }
             // Esc, or either palette chord again, closes the palette.
             Key::Escape | Key::Palette | Key::CommandPalette => self.close_palette(),
-            // Redo has no meaning here; Cmd-S and Ctrl-Tab are handled in
-            // `handle` before dispatch; Ctrl-C is a focus-break key. All no-ops
-            // in the palette (unreachable/inert here, but the match must be
-            // exhaustive).
-            Key::Redo | Key::Save | Key::CycleRecent | Key::FocusContinue | Key::FocusQuit => {}
+            // Redo has no meaning here; Cmd-S and Ctrl-Tab (press and release)
+            // are handled in `handle` before dispatch; Ctrl-C is a focus-break
+            // key. All no-ops in the palette (unreachable/inert here, but the
+            // match must be exhaustive).
+            Key::Redo
+            | Key::Save
+            | Key::CycleRecent
+            | Key::CycleCommit
+            | Key::FocusContinue
+            | Key::FocusQuit => {}
         }
     }
 
@@ -344,7 +349,7 @@ impl Editor {
             // upstream in `handle`, Ctrl-C is a focus-break key (all inert here,
             // but the match must be exhaustive).
             Key::Up | Key::Down | Key::HalfPageUp | Key::HalfPageDown | Key::Redo | Key::Save
-            | Key::CycleRecent | Key::FocusContinue | Key::FocusQuit => {}
+            | Key::CycleRecent | Key::CycleCommit | Key::FocusContinue | Key::FocusQuit => {}
         }
     }
 

@@ -53,9 +53,16 @@ pub enum Key {
     /// habitual repeat tap on an unchanged buffer costs no SD write).
     Save,
     /// Ctrl+Tab — switch to the next recently-opened note (last-seen order).
-    /// One press lands on the previous note; pressing again before any other
-    /// key walks deeper into the MRU list (wrapping). Works from every mode.
+    /// One press lands on the previous note; pressing Tab again while Ctrl is
+    /// still held walks deeper into the MRU list (wrapping). Works from every
+    /// mode. Releasing Ctrl emits [`CycleCommit`](Key::CycleCommit).
     CycleRecent,
+    /// Synthetic key-up: Ctrl (or Caps-as-Ctrl) released after a
+    /// [`CycleRecent`](Key::CycleRecent) — Alt+Tab semantics: the editor
+    /// commits the walk here, so release-then-press toggles between the two
+    /// last notes while a held Ctrl walks deeper. Emitted by the decoder's
+    /// release edge, never by `translate`.
+    CycleCommit,
     /// Ctrl+N — move down: one line in Normal/View (vim `CTRL-N` ≡ `j`), or one
     /// row in the file palette. Ignored in Insert.
     Down,
@@ -88,6 +95,10 @@ pub struct Decoder {
     /// Set while Caps is held once any other key is pressed, so releasing Caps
     /// only emits `Escape` on a clean tap.
     caps_used: bool,
+    /// Set when a `CycleRecent` is emitted, so the Ctrl release edge emits
+    /// [`Key::CycleCommit`] (and only that release — a plain Ctrl chord's
+    /// release stays silent).
+    cycling: bool,
 }
 
 impl Default for Decoder {
@@ -98,7 +109,7 @@ impl Default for Decoder {
 
 impl Decoder {
     pub const fn new() -> Self {
-        Self { prev: [0; 6], caps_used: false }
+        Self { prev: [0; 6], caps_used: false, cycling: false }
     }
 
     /// Clear all state (call when the keyboard is unplugged so a stale "held"
@@ -126,6 +137,12 @@ impl Decoder {
         let caps_now = current.contains(&CAPS);
         let caps_before = self.prev.contains(&CAPS);
         let ctrl = mods & 0x11 != 0 || caps_now; // LCtrl 0x01 | RCtrl 0x10, or Caps
+        // Reset the used-flag on the Caps press edge *before* checking for
+        // companion keys, so Caps and another key arriving in the same report
+        // (a fast tap — reports coalesce) still counts as used-as-Ctrl.
+        if caps_now && !caps_before {
+            self.caps_used = false;
+        }
         // Any other key down while Caps is held means it was used as Ctrl — so
         // its release must not fire Escape.
         if caps_now && current.iter().any(|&k| k != 0 && k != CAPS) {
@@ -137,18 +154,21 @@ impl Decoder {
                 continue; // empty slot, the Caps key itself, or already held
             }
             if let Some(key) = translate(k, shift, ctrl, cmd) {
+                self.cycling |= key == Key::CycleRecent;
                 emit(key);
             }
         }
 
+        // Ctrl (or Caps-as-Ctrl) released after a Ctrl+Tab: commit the MRU
+        // walk (see `Key::CycleCommit`).
+        if !ctrl && core::mem::replace(&mut self.cycling, false) {
+            emit(Key::CycleCommit);
+        }
+
         // Caps released as a clean tap (nothing else pressed while it was down)
-        // → Escape. Reset the used-flag on both the press and release edges.
-        if caps_before && !caps_now {
-            if !core::mem::replace(&mut self.caps_used, false) {
-                emit(Key::Escape);
-            }
-        } else if caps_now && !caps_before {
-            self.caps_used = false;
+        // → Escape; the used-flag resets on the release edge too.
+        if caps_before && !caps_now && !core::mem::replace(&mut self.caps_used, false) {
+            emit(Key::Escape);
         }
 
         self.prev = core::array::from_fn(|i| current.get(i).copied().unwrap_or(0));
@@ -501,6 +521,37 @@ mod tests {
         // End to end: a report with usage 0x29 yields a backtick, not Escape.
         let mut d = Decoder::new();
         assert_eq!(feed(&mut d, &report(0, &[0x29])), vec![Key::Char('`')]);
+    }
+
+    // ---- Decoder: Ctrl+Tab release commits the MRU walk ----
+
+    #[test]
+    fn ctrl_release_after_ctrl_tab_emits_cycle_commit_once() {
+        let mut d = Decoder::new();
+        assert_eq!(feed(&mut d, &report(0x01, &[0x2b])), vec![Key::CycleRecent]);
+        assert_eq!(feed(&mut d, &report(0x01, &[])), vec![]); // Tab up, Ctrl still held
+        assert_eq!(feed(&mut d, &report(0x00, &[])), vec![Key::CycleCommit]); // Ctrl up
+        // A later Ctrl press/release without a Tab stays silent.
+        assert_eq!(feed(&mut d, &report(0x01, &[])), vec![]);
+        assert_eq!(feed(&mut d, &report(0x00, &[])), vec![]);
+    }
+
+    #[test]
+    fn held_ctrl_walks_deeper_then_commits_on_release() {
+        let mut d = Decoder::new();
+        assert_eq!(feed(&mut d, &report(0x01, &[0x2b])), vec![Key::CycleRecent]);
+        assert_eq!(feed(&mut d, &report(0x01, &[])), vec![]); // Tab up
+        assert_eq!(feed(&mut d, &report(0x01, &[0x2b])), vec![Key::CycleRecent]); // Tab again
+        // Tab and Ctrl released together → one commit.
+        assert_eq!(feed(&mut d, &report(0x00, &[])), vec![Key::CycleCommit]);
+    }
+
+    #[test]
+    fn caps_as_ctrl_tab_commits_on_caps_release_without_escape() {
+        let mut d = Decoder::new();
+        assert_eq!(feed(&mut d, &report(0, &[CAPS, 0x2b])), vec![Key::CycleRecent]);
+        // Caps up: used as Ctrl (no Escape), and the walk commits.
+        assert_eq!(feed(&mut d, &report(0, &[])), vec![Key::CycleCommit]);
     }
 
     // ---- Decoder: Caps Lock dual role ----

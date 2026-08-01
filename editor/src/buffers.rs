@@ -316,9 +316,10 @@ impl Editor {
 
     /// Ctrl+Tab — switch to the next note in [`recent`](Self::recent) (last-seen
     /// order): the previous note on the first press, then older ones on each
-    /// repeat, wrapping. The list is deliberately **not** reordered while the
-    /// walk runs — floating each hop would make two presses bounce between the
-    /// top two entries forever. The first non-Ctrl+Tab key commits the walk
+    /// repeat while Ctrl stays held, wrapping. The list is deliberately **not**
+    /// reordered while the walk runs — floating each hop would make repeat
+    /// presses bounce between the top two entries forever. Releasing Ctrl
+    /// ([`Key::CycleCommit`]) or any other key commits the walk
     /// ([`commit_recent_cycle`](Self::commit_recent_cycle)).
     pub(crate) fn cycle_recent(&mut self) {
         let len = self.recent.len();

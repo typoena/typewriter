@@ -775,6 +775,15 @@ impl Editor {
     /// drained by [`take_effects`](Self::take_effects); ordinary keys queue
     /// nothing.
     pub fn handle(&mut self, key: Key) {
+        // Ctrl released after a Ctrl+Tab walk — the decoder's synthetic key-up.
+        // Commits the walk (floats the landed note) and nothing else, resolved
+        // before even the modals so a mere Ctrl release can't cancel a Confirm,
+        // count as a Rest key, or clear a notice.
+        if key == Key::CycleCommit {
+            self.commit_recent_cycle();
+            return;
+        }
+
         // Rest (the focus-mode break) is a full-screen modal: swallow every key
         // but `c`/`q`/`Esc`, resolved before the Cmd+S, notice-clear, and `.`
         // machinery so a break key can't save, dismiss a snackbar, or record a
@@ -812,9 +821,10 @@ impl Editor {
             self.cycle_recent();
             return;
         }
-        // Any other key ends an in-progress Ctrl+Tab walk, floating the note
-        // it landed on to the top of the MRU — so the *next* Ctrl+Tab toggles
-        // straight back to the note the walk started from.
+        // Any other key also ends an in-progress Ctrl+Tab walk (the Ctrl
+        // release above is the normal commit; this is the fallback for hosts
+        // without release events), floating the note it landed on to the top
+        // of the MRU — so the *next* Ctrl+Tab toggles straight back.
         self.commit_recent_cycle();
 
         // Cmd+S — an explicit save from any mode, mirroring `:w`, resolved
@@ -978,10 +988,10 @@ impl Editor {
             // likewise ignored here.
             Key::HalfPageDown | Key::HalfPageUp | Key::Redo | Key::Down | Key::Up
             | Key::FocusContinue | Key::FocusQuit => {}
-            // Cmd-S and Ctrl-Tab are resolved in `handle` before mode dispatch
-            // (so they act without leaving Insert); unreachable here, but the
-            // match is exhaustive.
-            Key::Save | Key::CycleRecent => {}
+            // Cmd-S and Ctrl-Tab (press and release) are resolved in `handle`
+            // before mode dispatch (so they act without leaving Insert);
+            // unreachable here, but the match is exhaustive.
+            Key::Save | Key::CycleRecent | Key::CycleCommit => {}
             // Cmd-p / Cmd-Shift-p work from every mode: act like Esc (ending the
             // insert session, caret onto the last inserted char), then open the
             // palette — the file list, or `>` command mode for Cmd-Shift-p.
