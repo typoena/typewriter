@@ -117,7 +117,7 @@ fn prefs_parse_reads_theme_and_auto_sync_strings() {
 fn prefs_parse_reads_font_and_defaults_to_builtin() {
     assert_eq!(Prefs::default().font, "default"); // built-in Misc Fixed
     assert_eq!(Prefs::parse("font = \"jetbrains-mono\"\n").font, "jetbrains-mono");
-    // The font key is emitted by to_toml, so it survives a `:gp` to other devices.
+    // The font key is emitted by to_toml, so it survives a `:gs` to other devices.
     assert!(Prefs::default().to_toml().contains("font = \"default\""));
 }
 
@@ -125,7 +125,7 @@ fn prefs_parse_reads_font_and_defaults_to_builtin() {
 fn prefs_parse_reads_face_and_defaults_to_random() {
     assert_eq!(Prefs::default().face, "random"); // ship on the shuffle-bag rotation
     assert_eq!(Prefs::parse("face = \"curious\"\n").face, "curious");
-    // Emitted by to_toml, so a pinned face rides `:gp` to other devices.
+    // Emitted by to_toml, so a pinned face rides `:gs` to other devices.
     assert!(Prefs::default().to_toml().contains("face = \"random\""));
 }
 

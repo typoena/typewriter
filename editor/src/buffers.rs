@@ -509,7 +509,7 @@ impl Editor {
     /// the day to add more is the common case.
     ///
     /// Refuses when the host has no trustworthy date ([`today`](Self::today) is
-    /// `None` — the clock is unset until the first `:gl`/`:gp` sync of this power
+    /// `None` — the clock is unset until the first `:gl`/`:gs` sync of this power
     /// cycle): a clear notice beats a note dated `1970-01-01`.
     ///
     /// [`open_oldest_inbox`]: Self::open_oldest_inbox
@@ -621,8 +621,8 @@ impl Editor {
     /// `:pub` / `:publish` — mark the active file for publication by renaming it
     /// from `<name>.md` to `<name>.pub.md`. This is a rename in the git working
     /// copy (the old path splices out of the next tree, the new one in), so a later
-    /// `:gp` carries the move to the remote as a rename — see [`Effect::Rename`].
-    /// Distinct from the git *push* (`:gp` and the `>` `push` command,
+    /// `:gs` carries the move to the remote as a rename — see [`Effect::Rename`].
+    /// Distinct from the git *push* (`:gs` and the `>` `push` command,
     /// [`run_push`](Self::run_push)): "publish" marks *this file*, "push"
     /// ships the whole repo.
     ///

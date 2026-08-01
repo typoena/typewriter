@@ -640,7 +640,7 @@ impl Wizard {
                             // note must be pushed first (a wipe would lose it).
                             if self.dirty {
                                 self.notice = Some(
-                                    "push first (:gp) - a repo switch discards unpushed notes"
+                                    "push first (:gs) - a repo switch discards unpushed notes"
                                         .into(),
                                 );
                                 vec![]
@@ -1146,7 +1146,7 @@ impl Wizard {
                     line(
                         f,
                         6,
-                        "  Unpushed notes will be LOST - :gp first to keep them.",
+                        "  Unpushed notes will be LOST - :gs first to keep them.",
                         ink,
                     );
                 }

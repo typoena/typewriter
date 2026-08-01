@@ -1,4 +1,4 @@
-//! Ex commands (`:w`, `:gp`, `:gl`, format-on-save, aliases) and command-line editing.
+//! Ex commands (`:w`, `:gs`, `:gl`, format-on-save, aliases) and command-line editing.
 
 use super::*;
 
@@ -17,9 +17,9 @@ fn w_command_signals_save_and_returns_to_normal() {
 }
 
 #[test]
-fn gp_command_saves_then_pushes() {
-    // `:gp` queues a save of the current buffer, then the git push.
-    assert_eq!(kinds(&command("gp").1), vec![Kind::Save, Kind::Push]);
+fn gs_command_saves_then_pushes() {
+    // `:gs` queues a save of the current buffer, then the git push.
+    assert_eq!(kinds(&command("gs").1), vec![Kind::Save, Kind::Push]);
 }
 
 #[test]
@@ -36,7 +36,7 @@ fn gl_command_signals_pull() {
 
 #[test]
 fn normal_mode_gs_and_gl_mirror_the_colon_commands() {
-    // `gs` (go-sync) and `gl` in Normal mode are the `:gp` push and `:gl`
+    // `gs` (go-sync) and `gl` in Normal mode are the `:gs` push and `:gl`
     // pull, one keystroke shorter. `gs`, not `gp`: vim binds `gp` to
     // paste-after, and a paste habit must never fire a push.
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, "hi".into());
@@ -52,7 +52,7 @@ fn normal_mode_gs_and_gl_mirror_the_colon_commands() {
 
 #[test]
 fn normal_mode_gs_from_a_local_buffer_is_refused() {
-    // Same guard as `:gp`: Local files never push.
+    // Same guard as `:gs`: Local files never push.
     let mut e = Editor::with_file("/sd/local/j.md".into(), Scope::Local, "diary".into());
     send(&mut e, "gs");
     assert!(e.take_effects().is_empty());
@@ -271,15 +271,15 @@ fn about_splash_renders_the_injected_version() {
 }
 
 #[test]
-fn gp_formats_the_buffer_before_pushing() {
-    // fmt → save → commit → push: `:gp` runs :fmt in-core first (default on).
+fn gs_formats_the_buffer_before_pushing() {
+    // fmt → save → commit → push: `:gs` runs :fmt in-core first (default on).
     let mut e = Editor::with_file(
         "/sd/repo/notes.md".into(),
         Scope::Tracked,
         "hello   \nworld".to_string(), // trailing spaces
     );
     e.handle(Key::Char(':'));
-    for c in "gp".chars() {
+    for c in "gs".chars() {
         e.handle(Key::Char(c));
     }
     e.handle(Key::Enter);
@@ -288,15 +288,15 @@ fn gp_formats_the_buffer_before_pushing() {
 }
 
 #[test]
-fn gp_is_refused_in_a_local_buffer() {
-    // Push is Tracked-only; `:gp` in Local queues nothing and warns.
+fn gs_is_refused_in_a_local_buffer() {
+    // Push is Tracked-only; `:gs` in Local queues nothing and warns.
     let mut e = Editor::with_file(
         "/sd/local/journal.md".into(),
         Scope::Local,
         "dear diary".to_string(),
     );
     e.handle(Key::Char(':'));
-    for c in "gp".chars() {
+    for c in "gs".chars() {
         e.handle(Key::Char(c));
     }
     e.handle(Key::Enter);
@@ -423,7 +423,7 @@ fn cmd_s_from_insert_does_not_reformat_mid_session() {
     // format_on_save is on by default, but a Cmd+S while still in Insert must
     // NOT reflow the line — stripping the trailing spaces the user is mid-way
     // through and yanking the caret to line start would be hostile. `:w` from
-    // Normal still formats (see `gp_formats_the_buffer_before_pushing`).
+    // Normal still formats (see `gs_formats_the_buffer_before_pushing`).
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
     assert!(e.prefs.format_on_save);
     e.handle(Key::Char('i'));
@@ -539,7 +539,7 @@ fn cmd_backspace_clears_the_command_line() {
 #[test]
 fn publish_renames_the_active_md_file_to_pub_md() {
     // `:publish` renames the buffer in-core and queues the disk move (write the
-    // new path, unlink the old) — the next `:gp` carries it to the remote.
+    // new path, unlink the old) — the next `:gs` carries it to the remote.
     let (e, effs) = command("publish");
     assert_eq!(e.path(), "/sd/repo/notes.pub.md");
     assert_eq!(

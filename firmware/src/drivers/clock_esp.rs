@@ -21,7 +21,7 @@ impl app::Clock for EspClock {
 
 /// Today's date from the wall clock, or `None` when the clock is not yet
 /// trustworthy. The editor boot path never runs SNTP, so the clock sits at the
-/// epoch until a `:gl`/`:gp` sync sets it this power cycle (no battery-backed
+/// epoch until a `:gl`/`:gs` sync sets it this power cycle (no battery-backed
 /// RTC) — a year before 2020 means "unset". Honours the timezone applied at boot.
 fn today_date() -> Option<editor::Date> {
     let mut now: esp_idf_svc::sys::time_t = 0;

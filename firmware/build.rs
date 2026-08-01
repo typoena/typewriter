@@ -59,7 +59,7 @@ fn main() {
 
     // A full build with an empty push config used to be refused here
     // (env!() only bakes what `just` dotenv-loads from firmware/.env; a bare
-    // `cargo build --features full` silently produced a firmware whose `:gp` /
+    // `cargo build --features full` silently produced a firmware whose `:gs` /
     // `:gl` could never work — bit the 2026-07-13 flash). Since the runtime conf
     // (v0.9 onboarding slice 0) the card's /sd/typoena.conf overrides the
     // baked values per field, so an unbaked full build is legitimate — it just

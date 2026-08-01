@@ -34,7 +34,7 @@ path = "src/lib.rs"
 name = "firmware"
 path = "src/main.rs"
 harness = false # do not use the built-in cargo test harness -> resolve rust-analyzer errors
-# The product firmware is always the full build (git `:gp`/`:gl` + `:update` OTA
+# The product firmware is always the full build (git `:gs`/`:gl` + `:update` OTA
 # + onboarding wizard). `full` is off by default so a bare `cargo build` and the
 # libgit2-free bench bins skip it; `just build`/`flash` pass `--features full`.
 required-features = ["full"]
@@ -94,7 +94,7 @@ esp-idf-svc = { git = "https://github.com/esp-rs/esp-idf-svc.git" }
 # shipping firmware always has it; it stays OFF by default only so a bare
 # `cargo build` and the standalone bench bins (`sd_bench`, `wifi_tls`) build
 # WITHOUT libgit2 (editor + EPD + USB + SD). `just build`/`flash` pass
-# `--features full`. It turns on the `net` thread (git `:gp`/`:gl` + `:update`
+# `--features full`. It turns on the `net` thread (git `:gs`/`:gl` + `:update`
 # OTA), the onboarding wizard, and the `#[cfg(feature = "full")]` `net`/`ota`/
 # `wizard_io` modules in the lib. It also (a) pulls the git2 safe API and (b)
 # builds libgit2 as an esp-idf component (firmware/components/libgit2/) with

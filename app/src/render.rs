@@ -99,7 +99,7 @@ impl FocusTimer {
 /// The panel and its refresh state. Owns the [`Screen`] and the only two
 /// framebuffers the editor loop ever uses: every repaint renders into `back`
 /// (reusing its allocation via `draw_into`) and swaps it with `shown` on
-/// success, so a repaint never allocates — a background `:gp` push can take the
+/// success, so a repaint never allocates — a background `:gs` push can take the
 /// heap to the floor, and a failed `Vec` alloc aborts the whole app (the
 /// 2026-07-13 OOM: 66 s into a push, one HalfPageUp repaint died on a 27 KB
 /// framebuffer).

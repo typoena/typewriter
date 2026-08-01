@@ -69,7 +69,7 @@ pub enum Mode {
     /// are locked out.
     View,
     /// `:` command line — keys accumulate a command shown in the status strip;
-    /// Enter runs it, Esc cancels. Handles `:fmt` (in-core) plus `:w`/`:gp`
+    /// Enter runs it, Esc cancels. Handles `:fmt` (in-core) plus `:w`/`:gs`
     /// (which ask the host to persist/push via an [`Effect`]).
     Command,
     /// File palette (`Cmd-P`, reachable from every mode) — a modal transient
@@ -123,8 +123,8 @@ pub(crate) enum Confirm {
 
 /// Which of the two file scopes ([`CONTEXT.md`]) a buffer belongs to. Fixed at
 /// creation — there is no move-between-scopes operation. **Tracked** files live
-/// under [`REPO_DIR`] and can be pushed (`:gp`); **Local** files live under
-/// [`LOCAL_DIR`] and never leave the device, so `:gp` is refused in-core.
+/// under [`REPO_DIR`] and can be pushed (`:gs`); **Local** files live under
+/// [`LOCAL_DIR`] and never leave the device, so `:gs` is refused in-core.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Scope {
     Tracked,
@@ -135,7 +135,7 @@ pub enum Scope {
 /// ([`set_today`](Editor::set_today)) — the pure core has no clock of its own.
 /// `:inbox` uses it to name and title today's fleeting note. The host passes
 /// `None` while it has **no trustworthy date**: the editor boot path never runs
-/// SNTP, so the wall clock is at the epoch until a `:gl`/`:gp` sync sets it this
+/// SNTP, so the wall clock is at the epoch until a `:gl`/`:gs` sync sets it this
 /// power cycle (there is no battery-backed RTC). `:inbox` then refuses rather than
 /// dating a note `1970-01-01` (see [`open_inbox_today`](Editor::open_inbox_today)).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -192,7 +192,7 @@ pub enum Effect {
     /// title falls back to the filename). Unlike [`Load`](Effect::Load), the
     /// buffer set is untouched.
     LoadLinkTarget { path: String },
-    /// `:gp` — push the Tracked working copy to the remote. Preceded by a
+    /// `:gs` — push the Tracked working copy to the remote. Preceded by a
     /// [`Save`](Effect::Save) of the current buffer in the same batch. Never
     /// queued from a Local buffer (blocked in-core).
     Push,
@@ -203,7 +203,7 @@ pub enum Effect {
     /// sends `commit_dirty: false`; if the dirty journal is non-empty the host
     /// asks to confirm (the commit is user-visible — see
     /// [`confirm_pull_commit`](Editor::confirm_pull_commit)) and the confirmed
-    /// retry sets `commit_dirty: true`. Complements `:gp` (push) as the download half.
+    /// retry sets `commit_dirty: true`. Complements `:gs` (push) as the download half.
     Pull { commit_dirty: bool },
     /// `:delete` — unlink `path` from the card. For a **Tracked** file the removal
     /// lands in the git working copy, so the next [`Push`](Effect::Push)'s
@@ -215,7 +215,7 @@ pub enum Effect {
     /// `:pub`/`:publish` — publish the active file by renaming it from
     /// `<name>.md` to `<name>.pub.md`. The host writes `contents` to `to`
     /// (recording it dirty), then unlinks `from` (recording *that* dirty too), so
-    /// the next `:gp` reconstructs the tree with `from` spliced out and `to` added
+    /// the next `:gs` reconstructs the tree with `from` spliced out and `to` added
     /// — git sees a rename. Carries `contents` because the in-RAM buffer, not the
     /// on-disk `from`, is the source of truth (it may hold unsaved edits). Always
     /// Tracked (Local is refused in-core), so it needs no `scope`; it is
@@ -316,7 +316,7 @@ pub struct Editor {
     /// command mode can toggle them live; the host reads the file at boot and
     /// applies it via [`set_prefs`](Self::set_prefs), and reads it back for the
     /// keys it honours (`save_on_idle`). `format_on_save` and `line_numbers` are
-    /// consulted in-core (`:w`/`:gp` and the gutter).
+    /// consulted in-core (`:w`/`:gs` and the gutter).
     prefs: Prefs,
     /// The unnamed register: the last yanked or deleted text, replayed by
     /// `p`/`P`. `y`, `d`, `c`, and `x` all fill it (vim's unnamed register), so
@@ -350,7 +350,7 @@ pub struct Editor {
     /// `/sd/repo/notes.md`). Empty for an unnamed scratch buffer (the boot-message
     /// layout use); `:w` on an empty path posts "no file name" rather than saving.
     path: String,
-    /// The active buffer's scope. Gates Push — `:gp` is refused in Local.
+    /// The active buffer's scope. Gates Push — `:gs` is refused in Local.
     scope: Scope,
     /// Whether the active buffer has unsaved edits. Set at each change-group
     /// ([`checkpoint`](Self::checkpoint)) and cleared when the host confirms a
@@ -549,7 +549,7 @@ impl Editor {
     /// Seed a fresh editor from a named file's saved text — the boot-load and
     /// file-open path. Same boot posture as [`with_text`](Self::with_text)
     /// (Normal mode, caret on the last character) but records the file's `path`
-    /// and `scope` so `:w` knows where to persist and `:gp` knows whether
+    /// and `scope` so `:w` knows where to persist and `:gs` knows whether
     /// Push is offered.
     pub fn with_file(path: String, scope: Scope, text: String) -> Self {
         let mut ed = Editor { text, path, scope, ..Editor::new() };
@@ -572,7 +572,7 @@ impl Editor {
         self.mode
     }
 
-    /// The full buffer contents, for the host to persist on `:w`/`:gp`.
+    /// The full buffer contents, for the host to persist on `:w`/`:gs`.
     pub fn text(&self) -> &str {
         &self.text
     }
@@ -1142,7 +1142,7 @@ impl Editor {
                 'r' => self.mode = Mode::View,
                 // `gf` (go to file): follow the markdown link under the caret.
                 'f' => self.follow_link_at_caret(),
-                // `gs`/`gl`: the `:gp` push and `:gl` pull, one keystroke
+                // `gs`/`gl`: the `:gs` push and `:gl` pull, one keystroke
                 // shorter. `gs` (go-sync), not `gp` — vim binds `gp` to
                 // paste-after, and a paste habit must never fire a push.
                 's' => self.run_push(),
@@ -1354,7 +1354,7 @@ impl Editor {
             "pub" | "publish" => self.publish_active(),
             "w" | "wq" | "x" => self.write_active(),
             // fmt → save → push, shared with the `>` push command.
-            "gp" => self.run_push(),
+            "gs" => self.run_push(),
             "gl" => self.requests.push(Effect::Pull { commit_dirty: false }),
             "setup" => self.request_setup(),
             "reboot" => self.request_reboot(),

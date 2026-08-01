@@ -8,7 +8,7 @@ off-device (`cargo test -p app -p editor`), which is the fast iteration loop.
 
 ## The `full` feature — why libgit2 stays behind a switch
 
-Pushing (`:gp`/`:gl` → git) and `:update` (OTA) drag in libgit2 + mbedTLS
+Pushing (`:gs`/`:gl` → git) and `:update` (OTA) drag in libgit2 + mbedTLS
 (compiled as an esp-idf component) and the `git2` crate — expensive to build.
 The `firmware` bin sets `required-features = ["full"]`, so the product firmware
 always has them. `full` is nonetheless **off by default**, for one reason: a

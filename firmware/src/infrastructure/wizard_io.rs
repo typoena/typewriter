@@ -8,7 +8,7 @@
 //! (`split_reborrow`) and the `EspWifi` built from it is **kept up for the
 //! whole wizard** — sign-in, repo listing and clone are all network steps.
 //! Dropping it when `run` returns releases the modem for the net thread,
-//! which re-associates on the first `:gp` (a session's second join is fast).
+//! which re-associates on the first `:gs` (a session's second join is fast).
 //!
 //! HTTPS: `EspHttpConnection` over the esp-idf certificate bundle (the
 //! Spike 6 stack — `CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y`), after an SNTP

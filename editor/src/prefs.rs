@@ -3,7 +3,7 @@
 
 /// The git-tracked preferences file. Read at boot and rewritten when a palette
 /// `>` command changes a pref, so the setting survives a reboot and rides the
-/// next `:gp` to every device that clones the repo. Deliberately **distinct**
+/// next `:gs` to every device that clones the repo. Deliberately **distinct**
 /// from the gitignored `/sd/typoena.conf` device secrets (Wi-Fi / PAT / remote /
 /// author, never committed — see v0.1): behaviour is shared, secrets are not.
 pub const PREFS_PATH: &str = "/sd/repo/.typoena.toml";
@@ -17,12 +17,12 @@ pub const PREFS_PATH: &str = "/sd/repo/.typoena.toml";
 pub struct Prefs {
     /// Auto-save the active buffer on the idle typing-pause, so `:w` becomes
     /// optional. The idle save is **unformatted** — a safety net against power
-    /// loss, not a formatting pass; `:fmt` only runs on an explicit `:w`/`:gp`
+    /// loss, not a formatting pass; `:fmt` only runs on an explicit `:w`/`:gs`
     /// (see [`format_on_save`](Prefs::format_on_save)) so text is never reflowed
     /// mid-session. Honoured by the host loop, not the core.
     pub save_on_idle: bool,
     /// Run `:fmt` (table alignment, blank-line collapse, trailing-whitespace
-    /// strip) on the buffer before an explicit `:w`/`:gp` persist.
+    /// strip) on the buffer before an explicit `:w`/`:gs` persist.
     pub format_on_save: bool,
     /// Show the absolute line-number gutter (built always-on in v0.2). Off
     /// reclaims the gutter's columns for text — applied live by [`gutter_cols`].
@@ -74,7 +74,7 @@ pub struct Prefs {
     /// Honoured by the host's render engine (`app::Panel`), not the pure core.
     ///
     /// Keep it `false` in the committed `.typoena.toml` — flip it on the bench
-    /// device's SD copy only, so it never rides `:gp` to every device before the
+    /// device's SD copy only, so it never rides `:gs` to every device before the
     /// waveform is validated (longevity soak and cold-temperature check pending).
     pub fast_partial: bool,
     /// Typo, the tucano companion: the resident side-panel face with its

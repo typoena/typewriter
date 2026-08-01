@@ -228,9 +228,9 @@ fn push_notice_covers_every_variant() {
 #[test]
 fn pull_notice_covers_every_variant() {
     assert_eq!(pull_notice(&PullOutcome::Pulled("abc".into())), "pulled abc");
-    assert_eq!(pull_notice(&PullOutcome::Rebased("def".into())), "rebased def - :gp to push");
+    assert_eq!(pull_notice(&PullOutcome::Rebased("def".into())), "rebased def - :gs to push");
     assert_eq!(pull_notice(&PullOutcome::UpToDate), "up to date");
-    assert_eq!(pull_notice(&PullOutcome::LocalAhead), "ahead - :gp to push");
+    assert_eq!(pull_notice(&PullOutcome::LocalAhead), "ahead - :gs to push");
     assert_eq!(pull_notice(&PullOutcome::Failed("boom".into())), "boom");
 }
 
@@ -302,7 +302,7 @@ fn delete_effect_unlinks_through_storage() {
 #[test]
 fn rename_effect_writes_the_new_path_then_unlinks_the_old() {
     // `:pub`/`:publish` is a write-new + unlink-old at the storage layer, so the
-    // file is never missing and both paths land in the dirty journal for `:gp`.
+    // file is never missing and both paths land in the dirty journal for `:gs`.
     let storage = RecStorage::default();
     let ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, "body".into());
     let mut rt = runtime(ed, storage.clone(), RecSync::new(), RecFiles::default());
@@ -320,7 +320,7 @@ fn rename_effect_writes_the_new_path_then_unlinks_the_old() {
 #[test]
 fn rename_effect_retargets_links_in_the_listed_files() {
     // Each `retarget` file that links to the old name is rewritten and saved —
-    // joining the dirty journal, so `:gp` ships the rename and its link updates
+    // joining the dirty journal, so `:gs` ships the rename and its link updates
     // together — while a file with no matching link is left unwritten.
     let storage = RecStorage::default()
         .with_body("/sd/repo/essay.md", "see [n](notes.md) and [n#](notes.md#top)")

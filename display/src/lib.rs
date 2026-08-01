@@ -69,7 +69,7 @@ impl Frame {
 
     /// Reset to all-white paper, reusing the existing allocation when the
     /// buffer is already full-size. This is what lets firmware repaint without
-    /// allocating: a background `:gp` push can take the heap to the floor,
+    /// allocating: a background `:gs` push can take the heap to the floor,
     /// and a failed framebuffer alloc aborts the whole app (2026-07-13).
     pub fn clear_white(&mut self) {
         self.buf.clear();

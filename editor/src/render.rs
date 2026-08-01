@@ -321,7 +321,7 @@ impl Editor {
     /// [`draw`](Self::draw) into a caller-owned frame, reusing its allocation.
     /// Firmware keeps two boot-time frames and round-trips them through here so
     /// a repaint never allocates: the editor must stay drawable even when a
-    /// background `:gp` push has taken the heap to the floor — a failed
+    /// background `:gs` push has taken the heap to the floor — a failed
     /// framebuffer alloc aborts the whole app (the 2026-07-13 OOM).
     pub fn draw_into(&mut self, out: &mut Frame, cursor_on: bool) {
         // The full-screen cards (the focus-mode break and the `:about` splash)

@@ -1,5 +1,5 @@
 //! The net thread — the sole owner of the Wi-Fi modem, and the transport behind
-//! everything the editor does over the wire: git push (`:gp`) and pull
+//! everything the editor does over the wire: git push (`:gs`) and pull
 //! (`:gl`), plus firmware update (`:update`, whose logic lives in the sibling
 //! [`crate::infrastructure::ota`] module — this file only dispatches to it).
 //! One thread because there is one radio the editor loop can never reclaim, so
@@ -24,7 +24,7 @@
 //!    notes. A `/sd/repo` that isn't a valid repo is a provisioning error
 //!    (`just init`), surfaced as such, not papered over.
 //! 3. **No synthetic content.** The spike appended a marker line; here the
-//!    editor has already saved the user's buffers before `:gp` signals us,
+//!    editor has already saved the user's buffers before `:gs` signals us,
 //!    so we just commit + push what's on disk.
 //! 4. **The commit is an O(depth) TreeBuilder splice, not an index pass.**
 //!    The request carries the repo-relative paths saved/deleted since the last
@@ -211,7 +211,7 @@ pub fn tune_libgit2() {
 
 /// What the UI task asks the net thread to do.
 pub enum NetRequest {
-    /// `:gp` — commit the dirty paths and push (the upload half).
+    /// `:gs` — commit the dirty paths and push (the upload half).
     Push(PushRequest),
     /// `:gl` — fetch, then fast-forward or rebase (the download half). Carries
     /// the dirty-journal snapshot (`Storage::take_dirty`): before fetching, the
@@ -269,12 +269,12 @@ pub enum PullOutcome {
     /// Histories diverged: origin's changes were integrated and our local
     /// commit(s) replanted on top (a rebase, not a merge). The working copy
     /// moved — same UI refresh as `Pulled` — and the device is now `LocalAhead`,
-    /// so the user finishes with `:gp`. Carries the rebased commit's short id.
+    /// so the user finishes with `:gs`. Carries the rebased commit's short id.
     Rebased(String),
     /// Origin's tip is our HEAD — nothing to pull.
     UpToDate,
     /// We are strictly ahead of origin (e.g. a stranded commit whose push
-    /// failed) — nothing to pull; the next `:gp` pushes it.
+    /// failed) — nothing to pull; the next `:gs` pushes it.
     LocalAhead,
     /// Something failed; short reason for the panel (full error is logged).
     Failed(String),
@@ -332,7 +332,7 @@ pub fn run_net_service(
                 ) {
                     Ok(o) => o,
                     Err(e) => {
-                        log::error!("❌ :gp failed: {e:?}");
+                        log::error!("❌ :gs failed: {e:?}");
                         PushOutcome::Failed(short_reason("sync", &e))
                     }
                 },
@@ -587,16 +587,16 @@ fn push_cycle(
     }
 
     // Nothing recorded dirty and origin's tracking ref already has HEAD: this
-    // `:gp` has nothing to do — say so without touching the radio (~150 ms
+    // `:gs` has nothing to do — say so without touching the radio (~150 ms
     // instead of a Wi-Fi + TLS round). A stranded local commit (committed but
     // never pushed, e.g. a push that failed mid-air) makes the check false and
     // takes the full path below, where push_once pushes it.
     if paths.is_empty() && remote_current().unwrap_or(false) {
-        log::info!(":gp — no dirty paths and origin has HEAD; up to date, radio untouched");
+        log::info!(":gs — no dirty paths and origin has HEAD; up to date, radio untouched");
         return Ok(PushOutcome::UpToDate);
     }
 
-    // Phases are timed so a cold :gp reports where the seconds go. Wi-Fi, clock
+    // Phases are timed so a cold :gs reports where the seconds go. Wi-Fi, clock
     // and TLS run only on the first sync of a session; a warm sync skips them, so
     // they read 0 ms and the total collapses to just push(fetch+commit+push).
     let t_total = Instant::now();
@@ -605,7 +605,7 @@ fn push_cycle(
     let t_push = Instant::now();
     let outcome = push_once(paths)?;
     log::info!(
-        ":gp timing — push(commit+push) {}ms, total {}ms",
+        ":gs timing — push(commit+push) {}ms, total {}ms",
         t_push.elapsed().as_millis(),
         t_total.elapsed().as_millis(),
     );
@@ -1129,14 +1129,14 @@ fn update_tracking(repo: &Repository, branch: &str, tip: Oid) -> Result<()> {
 /// Open `/sd/repo`, fetch origin, and integrate — **fast-forward when we can,
 /// rebase when we must**, never a content merge. The non-failure shapes map to
 /// [`PullOutcome`]: already current, we're strictly ahead (a stranded commit —
-/// `:gp`'s job), a clean fast-forward, or a divergence — where instead of
+/// `:gs`'s job), a clean fast-forward, or a divergence — where instead of
 /// refusing we replant our local commit(s) onto origin ([`rebase_local_onto`])
-/// and end `LocalAhead` for `:gp` to push.
+/// and end `LocalAhead` for `:gs` to push.
 ///
 /// `paths` is the dirty-journal snapshot. Before touching the network we fold
 /// those saved-but-unpushed paths into a local commit ([`stage_and_commit`],
-/// the commit half of `:gp` without the push): that makes `:gl` self-sufficient
-/// — the ff/rebase below replants the commit onto origin so a plain `:gp`
+/// the commit half of `:gs` without the push): that makes `:gl` self-sufficient
+/// — the ff/rebase below replants the commit onto origin so a plain `:gs`
 /// finishes it, no computer needed — and, because the working copy now matches
 /// the new HEAD, the SAFE belt can't fight a device-side save. The UI has
 /// already confirmed this commit (it is user-visible). Empty `paths` is a plain
@@ -1221,7 +1221,7 @@ fn pull_once(paths: &BTreeSet<String>) -> Result<PullOutcome> {
         let _ = remote.disconnect();
         update_tracking(&repo, &branch, theirs)?;
         log::info!(
-            "pull: HEAD {} is ahead of origin {} — nothing to pull, :gp pushes it (ls-refs {ls_ms}ms, no fetch)",
+            "pull: HEAD {} is ahead of origin {} — nothing to pull, :gs pushes it (ls-refs {ls_ms}ms, no fetch)",
             short(head),
             short(theirs)
         );
@@ -1251,7 +1251,7 @@ fn pull_once(paths: &BTreeSet<String>) -> Result<PullOutcome> {
         .context("descendant check (fast-forward)")?
     {
         // Diverged: both sides moved. Rather than refuse, replant our local
-        // commit(s) onto origin's tip so a plain `:gp` pushes them — no
+        // commit(s) onto origin's tip so a plain `:gs` pushes them — no
         // computer needed. The branch ref moves LAST (after the card reflects
         // the rebased tree), so a power-pull mid-rebase leaves HEAD at the old
         // tip and the next `:gl` recomputes the identical commit idempotently.
@@ -1451,7 +1451,7 @@ fn apply_tree_diff(repo: &Repository, head: Oid, theirs: Oid) -> Result<usize> {
 /// commit id — a single squashed commit whose tree is origin's tree with our
 /// edits spliced back on top. This is `:gl`'s answer to a divergence (a
 /// stranded local commit while origin also moved): rather than refuse and send
-/// the user to a computer, we replant our work on the new base so a plain `:gp`
+/// the user to a computer, we replant our work on the new base so a plain `:gs`
 /// pushes it.
 ///
 /// Last-writer-wins by design, exactly like push's post-rejection reconcile
@@ -1706,7 +1706,7 @@ fn log_push_heap(stage: &str) {
 
 use crate::infrastructure::storage_sd::Storage;
 
-/// [`app::NetService`] backed by the net thread (git `:gp`/`:gl` + `:update`
+/// [`app::NetService`] backed by the net thread (git `:gs`/`:gl` + `:update`
 /// OTA). Owns the request/outcome channels and a handle to the card's dirty
 /// journal, which it takes on push and settles when the outcome lands (OTA
 /// touches no journal). Behind the `full` feature — it pulls libgit2.
@@ -1798,7 +1798,7 @@ impl app::NetService for NetService {
                 // Settle the dirty snapshot this pull took (it folds unpushed
                 // saves into a local commit before fetching, like push):
                 // integrated → forget it (the work is committed, and a stranded
-                // local commit is pushed by the next `:gp`); failed → back to
+                // local commit is pushed by the next `:gs`); failed → back to
                 // pending. Empty snapshot → both are no-ops.
                 match &o {
                     PullOutcome::Failed(_) => self.card.push_failed(),

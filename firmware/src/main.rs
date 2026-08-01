@@ -159,7 +159,7 @@ fn main() -> anyhow::Result<()> {
     }
     let (boot_path, boot_scope, saved) = boot_note(&mut epd, &storage, &prefs);
 
-    // Spawn the dedicated net thread — the transport behind `:gp`/`:gl` and
+    // Spawn the dedicated net thread — the transport behind `:gs`/`:gl` and
     // `:update`. It owns the Wi-Fi stack (brought up lazily on the first
     // request, so the radio stays off until you sync/update) and parks on
     // `net_tx` until signalled; the work runs off the UI loop, and its outcome
@@ -179,7 +179,7 @@ fn main() -> anyhow::Result<()> {
             .stack_size(GIT_STACK)
             .spawn(move || run_net_service(modem, sys_loop, nvs, req_rx, res_tx))?;
         log::info!(
-            "net thread up ({} KB stack); Wi-Fi comes up on the first :gp/:gl/:update",
+            "net thread up ({} KB stack); Wi-Fi comes up on the first :gs/:gl/:update",
             GIT_STACK / 1024
         );
         (req_tx, res_rx)
@@ -225,7 +225,7 @@ fn main() -> anyhow::Result<()> {
     // overlapped), so the splash→editor swap rides the partial instead of a
     // second full refresh — shaving ~1.3 s off cold boot. From here the panel
     // owns the EPD and both reused framebuffers (a repaint never allocates — a
-    // background `:gp` can take the heap to the floor); every repaint goes
+    // background `:gs` can take the heap to the floor); every repaint goes
     // through it. See [`app::Panel`].
     let mut panel = Panel::new(epd, &mut ed)?;
     // Seed Typo's humor shuffle with hardware entropy so the face order differs

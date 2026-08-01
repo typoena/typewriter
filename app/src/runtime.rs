@@ -420,13 +420,13 @@ impl<S: Screen> Runtime<S> {
     /// model and switched away, so this is pure IO plus the snackbar.
     fn delete_buffer(&mut self, path: String, scope: Scope) {
         // Scope-qualified label (`repo/notes.md`), so the snackbar names exactly
-        // which file left the card and, for Tracked, that it's local until `:gp`.
+        // which file left the card and, for Tracked, that it's local until `:gs`.
         let label = path.strip_prefix("/sd/").unwrap_or(&path);
         match self.storage.delete_path(&path) {
             Ok(()) => {
                 log::info!("deleted {path} ({scope:?})");
                 self.ed.set_notice(match scope {
-                    Scope::Tracked => format!("deleted {label} - :gp to push"),
+                    Scope::Tracked => format!("deleted {label} - :gs to push"),
                     Scope::Local => format!("deleted {label}"),
                 });
             }
@@ -440,7 +440,7 @@ impl<S: Screen> Runtime<S> {
     /// `:pub`/`:publish` — persist the active buffer under its new `.pub.md` name,
     /// then unlink the old path. The write lands first so the file is never
     /// missing; the removal — plus the dirty-journal entries `save_path` and
-    /// `delete_path` record — makes the next `:gp` carry the move to the remote as
+    /// `delete_path` record — makes the next `:gs` carry the move to the remote as
     /// a rename. The unlink is best-effort: if it fails the new file already exists,
     /// so the publish stands and the stale `.md` is dropped on the next card
     /// re-walk. A failed *write* keeps the buffer dirty for a retry (like a `:w`
@@ -449,7 +449,7 @@ impl<S: Screen> Runtime<S> {
     ///
     /// `retarget` — the non-resident `.md` files that might link to `from` — is
     /// then rewritten through [`editor::publish_retarget_links`]; each hit's save
-    /// joins the dirty journal, so the next `:gp` ships the rename and its link
+    /// joins the dirty journal, so the next `:gs` ships the rename and its link
     /// updates together. Runs even after a failed write (see [`Effect::Rename`]);
     /// a per-file failure is logged and skipped — that file's links just stay on
     /// the old name.
@@ -494,9 +494,9 @@ impl<S: Screen> Runtime<S> {
             "publish FAILED - retry :w".to_string()
         } else if links > 0 {
             let s = if links == 1 { "" } else { "s" };
-            format!("published {label} +{links} link{s} - :gp to push")
+            format!("published {label} +{links} link{s} - :gs to push")
         } else {
-            format!("published {label} - :gp to push")
+            format!("published {label} - :gs to push")
         });
     }
 }
@@ -524,9 +524,9 @@ fn push_notice(o: &PushOutcome) -> String {
 fn pull_notice(o: &PullOutcome) -> String {
     match o {
         PullOutcome::Pulled(oid) => format!("pulled {oid}"),
-        PullOutcome::Rebased(oid) => format!("rebased {oid} - :gp to push"),
+        PullOutcome::Rebased(oid) => format!("rebased {oid} - :gs to push"),
         PullOutcome::UpToDate => "up to date".to_string(),
-        PullOutcome::LocalAhead => "ahead - :gp to push".to_string(),
+        PullOutcome::LocalAhead => "ahead - :gs to push".to_string(),
         PullOutcome::Failed(reason) => reason.clone(),
     }
 }

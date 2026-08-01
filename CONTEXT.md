@@ -68,7 +68,7 @@ _Avoid_: write, flush, persist (use them only in implementation talk).
 The atomic act of pushing the current state of the entire **Tracked** working
 copy to the git remote. Workspace-scoped, not buffer-scoped: a **Push**
 ships every dirty **Tracked** file on the device, not just the one the user is
-viewing. Triggered by `:gp`. Internally: splice the journaled dirty paths
+viewing. Triggered by `:gs`. Internally: splice the journaled dirty paths
 onto HEAD's tree → commit with a timestamped message → push → on a rejected
 push, fetch and replay the commit onto the remote tip (no merge) → push
 again. Unavailable in **Local**.
@@ -200,7 +200,7 @@ already expects, so the flash is unsurprising there.
 
 ## Example dialogue
 
-> **Dev:** "If I'm in a **Local** file and I run `:gp`, what happens?"
+> **Dev:** "If I'm in a **Local** file and I run `:gs`, what happens?"
 > **Domain expert:** "Nothing — **Push** is unavailable in **Local**. The
 > side panel says so. There is no path from **Local** to the remote."
 > **Dev:** "So if I want to push something that started as a journal entry,
@@ -216,7 +216,7 @@ already expects, so the flash is unsurprising there.
 ## Principles
 
 - **The device is a writing tool, not a sync engine.** Every git operation is
-  the direct, in-session consequence of a `:gp` (or `:gl` pull) the user ran. The
+  the direct, in-session consequence of a `:gs` (or `:gl` pull) the user ran. The
   device does not auto-push, auto-pull, retry-on-boot, or otherwise
   reconcile remote state in the background. If a previous **Push** ended
   mid-flight and left a local commit unpushed, the next user-initiated
@@ -229,7 +229,7 @@ already expects, so the flash is unsurprising there.
   the remote was cloned on, and never switches.
 - **Durability before delivery.** A **Push**'s user-meaningful moment is
   when the local commit lands (a few seconds — the splice), not when the push
-  completes (the rest of a ~12–24 s `:gp` on the real notes repo). The side
+  completes (the rest of a ~12–24 s `:gs` on the real notes repo). The side
   panel surfaces the commit-landed state as soon as
   it exists; the remaining push time is the transport of an already-safe
   thing. Long-form rationale:

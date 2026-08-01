@@ -601,7 +601,7 @@ impl Editor {
         folders
     }
 
-    /// The push path shared by `:gp` and the `>` `push` command: format on
+    /// The push path shared by `:gs` and the `>` `push` command: format on
     /// save (if enabled), queue the buffer save, then the git push — the host
     /// services them in order. Tracked-only: a Local buffer never reaches the
     /// remote, so it is a no-op with a notice. (Method name is historical — the
@@ -626,7 +626,7 @@ impl Editor {
     /// string ([`Theme`](PaletteCmd::Theme), [`AutoSync`](PaletteCmd::AutoSync))
     /// rotates to its next option and wraps — so from the palette every setting
     /// is "press Enter to change". The queued `SavePrefs` is what makes the
-    /// change durable and lets it ride the next `:gp` to other devices.
+    /// change durable and lets it ride the next `:gs` to other devices.
     pub(crate) fn cycle_pref(&mut self, cmd: PaletteCmd) {
         match cmd {
             PaletteCmd::SaveOnIdle => self.prefs.save_on_idle = !self.prefs.save_on_idle,

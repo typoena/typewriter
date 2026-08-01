@@ -6,7 +6,7 @@ runs on it.
 
 > **Status: v0.8 shipped, hardware on bench.** v0.1 (MVP — boots, edits,
 > pushes) shipped 2026-07-11; v0.2 through v0.8 (vim navigation and editing,
-> file palette + multi-buffer, Markdown affordances, `/` search, `:gp` push /
+> file palette + multi-buffer, Markdown affordances, `/` search, `:gs` push /
 > `:gl` pull, focus mode, `:update` OTA, command palette + font picker)
 > followed within two weeks — firmware is at 0.8.0. v0.9 (robustness) is
 > underway; its zero-computer first-boot wizard already landed. Live
@@ -48,12 +48,12 @@ Two file scopes coexist on the SD card — formal definitions in
 [`CONTEXT.md`](CONTEXT.md):
 
 - **Tracked** — lives in the git working copy, gets **Pushed** when the
-  user runs `:gp`.
+  user runs `:gs`.
 - **Local** — never leaves the device. Permanently-private: journal entries,
   scratch, things that aren't anyone else's business. There is no "promote
   to Tracked" gesture — scope is fixed at file creation.
 
-Same editor, same keymap; the difference is just whether `:gp` (push to
+Same editor, same keymap; the difference is just whether `:gs` (push to
 the remote) is offered.
 
 ---
@@ -72,7 +72,7 @@ v0.10.
 
 **Rust on `esp-idf-rs` (std)**, a custom modal editor and thin widget layer on
 `embedded-graphics`, a custom dual-SSD1683 e-ink driver, libgit2 (via `git2`)
-for `:gp`/`:gl` sync over mbedTLS. The layer-by-layer table — each choice with
+for `:gs`/`:gl` sync over mbedTLS. The layer-by-layer table — each choice with
 its ADR, measured costs, and the annotated repo layout — is in
 [`docs/stack.md`](docs/stack.md).
 

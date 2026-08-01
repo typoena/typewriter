@@ -82,7 +82,7 @@ impl Editor {
         // ── Sync tier ────────────────────────────────────────────────────────
         // One blank row below the file tier. `Tracked` is the default and syncs
         // normally, so it stays silent; only a `Local` buffer — which never
-        // leaves the device (`:gp` is refused) — earns a persistent flag. The
+        // leaves the device (`:gs` is refused) — earns a persistent flag. The
         // row is reserved either way: `scope_y` anchors both the notice and the
         // companion-collision math below, so the snackbar sits at a stable
         // height regardless of scope. There is no ahead/behind state to show:

@@ -29,7 +29,7 @@ pub trait Storage {
     fn record_last_file(&self, path: &str);
 }
 
-/// What dispatching a push (`:gp`) did — the loop maps this to a snackbar.
+/// What dispatching a push (`:gs`) did — the loop maps this to a snackbar.
 pub enum PushDispatch {
     /// Handed to the sync backend; the result arrives later via
     /// [`NetService::poll_outcome`].

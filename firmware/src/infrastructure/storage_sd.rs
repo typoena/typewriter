@@ -297,7 +297,7 @@ impl Storage {
         if carried > 0 {
             log::info!(
                 "dirty journal: {carried} unpushed path(s) carried over from a previous \
-                 session — the next :gp will commit them"
+                 session — the next :gs will commit them"
             );
         }
         Ok(storage)
@@ -429,7 +429,7 @@ impl Storage {
 
     /// Persist the device conf (wizard `WriteConf`). Same atomic swap as
     /// [`Storage::save_path`] but never journaled — `typoena.conf` is card
-    /// infrastructure, not a note for `:gp` to push.
+    /// infrastructure, not a note for `:gs` to push.
     pub fn write_conf(&self, contents: &str) -> Result<()> {
         Self::atomic_write(CONF_PATH, contents)
     }
@@ -653,7 +653,7 @@ impl Storage {
     /// Snapshot the dirty paths for a push (repo-relative). The snapshot
     /// moves to `in_flight` — the journal keeps carrying it — until the UI
     /// task reports the outcome: [`Storage::push_succeeded`] forgets it,
-    /// [`Storage::push_failed`] returns it to pending for the next `:gp`.
+    /// [`Storage::push_failed`] returns it to pending for the next `:gs`.
     pub fn take_dirty(&self) -> BTreeSet<String> {
         let mut d = self.dirty.borrow_mut();
         let taken = std::mem::take(&mut d.pending);
@@ -669,7 +669,7 @@ impl Storage {
         self.persist_dirty();
     }
 
-    /// The push failed: return its snapshot to pending so the next `:gp`
+    /// The push failed: return its snapshot to pending so the next `:gs`
     /// retries it (the splice is idempotent, so a retry of an already-clean
     /// path is free). The journal already carries these paths — no rewrite.
     pub fn push_failed(&self) {
@@ -699,7 +699,7 @@ impl Storage {
 
     /// Seed the dirty set from the journal at mount — the paths a previous
     /// session saved but never got confirmed as pushed (power pull, failed
-    /// sync, or simply no `:gp` before shutdown). Returns how many.
+    /// sync, or simply no `:gs` before shutdown). Returns how many.
     fn load_dirty_journal(&self) -> usize {
         let Ok(text) = fs::read_to_string(DIRTY_JOURNAL) else {
             return 0; // no journal yet — nothing carried over
