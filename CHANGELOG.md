@@ -9,6 +9,13 @@ _Generated from the commit history with [git-cliff](https://git-cliff.org)._
 ## Firmware
 
 
+### [0.9.0] — 2026-08-01
+#### Added
+- **app:** Paint a publishing clue before the card-wide retarget
+
+#### Fixed
+- **editor:** Commit the Ctrl+Tab walk on Ctrl release
+
 ### [0.8.0] — 2026-08-01
 #### Added
 - **changelog:** Auto-generate CHANGELOG.md from commits with git-cliff
