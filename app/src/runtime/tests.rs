@@ -188,6 +188,36 @@ impl FileIndex for RecFiles {
     }
 }
 
+/// A file walk whose (single) result is ready to be polled — the newline-joined
+/// absolute-path blob the real walk thread sends.
+struct WalkFiles(RefCell<Option<String>>);
+impl FileIndex for WalkFiles {
+    fn request_rewalk(&self) {}
+    fn poll_result(&self) -> Option<String> {
+        self.0.borrow_mut().take()
+    }
+}
+
+/// A keyboard that types a queued script; keys can be pushed between ticks.
+#[derive(Clone, Default)]
+struct ScriptedKeyboard(Rc<RefCell<std::collections::VecDeque<hal::Key>>>);
+impl ScriptedKeyboard {
+    /// Queue `s` followed by Enter (an ex command, e.g. `:pub`).
+    fn type_line(&self, s: &str) {
+        let mut q = self.0.borrow_mut();
+        q.extend(s.chars().map(hal::Key::Char));
+        q.push_back(hal::Key::Enter);
+    }
+}
+impl hal::Keyboard for ScriptedKeyboard {
+    fn next_key(&mut self) -> Option<hal::Key> {
+        self.0.borrow_mut().pop_front()
+    }
+    fn keyboard_present(&self) -> bool {
+        true
+    }
+}
+
 /// Build a runtime around the given storage/sync/files, defaulting the rest.
 fn runtime(
     ed: Editor,
@@ -345,6 +375,44 @@ fn rename_effect_retargets_links_in_the_listed_files() {
         ]
     );
     assert_eq!(log.deletes, vec!["/sd/repo/notes.md".to_string()]);
+}
+
+#[test]
+fn typed_publish_rewrites_a_subfolder_link_end_to_end() {
+    // The whole chain, as the device runs it: the walk blob feeds the palette
+    // file list on an idle tick, then a typed `:pub` publishes a subfolder file
+    // — and the root file linking it as `llm/the-file.md` is rewritten on the
+    // card in the same batch.
+    let storage = RecStorage::default()
+        .with_body("/sd/repo/index.md", "see [something](llm/the-file.md) here");
+    let keyboard = ScriptedKeyboard::default();
+    let mut ed =
+        Editor::with_file("/sd/repo/llm/the-file.md".into(), Scope::Tracked, "# The file".into());
+    let panel = Panel::new(MockScreen, &mut ed).expect("first paint");
+    let mut rt = Runtime::new(
+        ed,
+        panel,
+        Box::new(keyboard.clone()),
+        Box::new(storage.clone()),
+        Box::new(RecSync::new()),
+        Box::new(FixedClock),
+        Box::new(PanicSystem),
+        Box::new(WalkFiles(RefCell::new(Some(
+            "/sd/repo/index.md\n/sd/repo/llm/the-file.md\n".into(),
+        )))),
+    );
+    rt.tick(); // idle: the finished walk lands in the palette
+    keyboard.type_line(":pub");
+    rt.tick(); // the typed publish drains and its effects are serviced
+    let log = storage.0.borrow();
+    assert_eq!(
+        log.saves,
+        vec![
+            ("/sd/repo/llm/the-file.pub.md".into(), "# The file".into()),
+            ("/sd/repo/index.md".into(), "see [something](llm/the-file.pub.md) here".into()),
+        ]
+    );
+    assert_eq!(log.deletes, vec!["/sd/repo/llm/the-file.md".to_string()]);
 }
 
 #[test]
