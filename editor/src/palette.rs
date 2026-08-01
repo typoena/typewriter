@@ -85,6 +85,7 @@ fn date_prefix_len(s: &str) -> usize {
 pub(crate) enum PaletteCmd {
     NewFile,
     AddLink,
+    FollowLink,
     Format,
     Push,
     Setup,
@@ -120,7 +121,8 @@ impl PaletteCmd {
     fn kind(self) -> CmdKind {
         match self {
             PaletteCmd::NewFile | PaletteCmd::AddLink => CmdKind::Param,
-            PaletteCmd::Format
+            PaletteCmd::FollowLink
+            | PaletteCmd::Format
             | PaletteCmd::Push
             | PaletteCmd::Setup
             | PaletteCmd::Reboot
@@ -132,9 +134,10 @@ impl PaletteCmd {
 
 /// The palette command list, in display order (empty `>` query shows them all):
 /// the actions first, the settings after.
-pub(crate) const PALETTE_CMDS: [PaletteCmd; 18] = [
+pub(crate) const PALETTE_CMDS: [PaletteCmd; 19] = [
     PaletteCmd::NewFile,
     PaletteCmd::AddLink,
+    PaletteCmd::FollowLink,
     PaletteCmd::Format,
     PaletteCmd::Push,
     PaletteCmd::Setup,
@@ -417,6 +420,7 @@ impl Editor {
         match cmd {
             PaletteCmd::NewFile => "new file...".to_string(),
             PaletteCmd::AddLink => "add local link...".to_string(),
+            PaletteCmd::FollowLink => "follow link".to_string(),
             PaletteCmd::Format => "format".to_string(),
             PaletteCmd::Push => "push".to_string(),
             PaletteCmd::Setup => "setup...".to_string(),
@@ -466,6 +470,9 @@ impl Editor {
             CmdKind::OneShot => {
                 self.close_palette();
                 match cmd {
+                    // Same follow as `gf` — the palette entry is the
+                    // discoverable spelling of the keybind.
+                    PaletteCmd::FollowLink => self.follow_link_at_caret(),
                     PaletteCmd::Format => {
                         self.format_buffer();
                         self.set_notice("formatted");
@@ -652,6 +659,7 @@ impl Editor {
             // panicking the firmware on a would-be routing bug.
             PaletteCmd::NewFile
             | PaletteCmd::AddLink
+            | PaletteCmd::FollowLink
             | PaletteCmd::Format
             | PaletteCmd::Push
             | PaletteCmd::Setup

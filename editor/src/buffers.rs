@@ -47,6 +47,44 @@ pub(crate) fn resolve_path(arg: &str, current: Scope) -> (String, Scope) {
 }
 
 
+/// Inverse of [`relative_link_path`]: resolve a markdown-link target `rel`
+/// written in `from` (an absolute card path) back to an absolute path and its
+/// scope. Label and absolute forms (`repo/…`, `local/…`, `/sd/…`) go through
+/// [`resolve_path`] — safe for the same reason it is safe there: no real
+/// `local/`/`repo/` subdirectories exist. Everything else joins onto `from`'s
+/// directory with `.`/`..` normalization, exactly undoing what
+/// `relative_link_path` produced. `None` when the result climbs out of the
+/// card or lands outside both scopes (`/sd/conf.toml` is not openable).
+pub(crate) fn resolve_link_target(from: &str, current: Scope, rel: &str) -> Option<(String, Scope)> {
+    if from.is_empty()
+        || rel.starts_with('/')
+        || rel.starts_with("local/")
+        || rel.starts_with("repo/")
+    {
+        return Some(resolve_path(rel, current));
+    }
+    let from_dir = substr(from, ..from.rfind('/')?);
+    let mut segs: Vec<&str> = from_dir.split('/').filter(|s| !s.is_empty()).collect();
+    for seg in rel.split('/') {
+        match seg {
+            "" | "." => {}
+            ".." => {
+                segs.pop()?;
+            }
+            s => segs.push(s),
+        }
+    }
+    let path = format!("/{}", segs.join("/"));
+    let scope = if path.strip_prefix(REPO_DIR).is_some_and(|r| r.starts_with('/')) {
+        Scope::Tracked
+    } else if path.strip_prefix(LOCAL_DIR).is_some_and(|r| r.starts_with('/')) {
+        Scope::Local
+    } else {
+        return None;
+    };
+    Some((path, scope))
+}
+
 /// The markdown-link path from `from` (the file the link lives in) to `to`,
 /// both absolute card paths: drop their common directory prefix, then one `..`
 /// per remaining `from` directory. Both scopes live under `/sd`, so a
@@ -222,6 +260,44 @@ impl Editor {
         }
         self.note_recent(&path); // float it to the top of the palette's MRU
         self.switch_to(path, scope);
+    }
+
+    /// `gf` (and `> follow link`) — follow the markdown link under the caret:
+    /// find the `[title](target)` span containing the caret on its line
+    /// ([`link_target_at`]), resolve the target against this file's directory
+    /// ([`resolve_link_target`]), and open it through [`open_path`]
+    /// (Self::open_path) — so residency, MRU float, and the missing-file
+    /// "can't open" path all behave exactly like a palette pick. An external
+    /// target (`https://…`, `mailto:`) has nothing to open on the device and
+    /// just posts a notice; a `#fragment` suffix is dropped (headings aren't
+    /// addressable). Spaced targets arrive `<>`-wrapped (see
+    /// [`insert_link_loaded`](Self::insert_link_loaded)) and are unwrapped here.
+    pub(crate) fn follow_link_at_caret(&mut self) {
+        let ls = self.line_start(self.caret);
+        let line = substr(&self.text, ls..self.line_end(ls));
+        let Some(raw) = link_target_at(line, self.caret - ls) else {
+            self.set_notice("no link under caret");
+            return;
+        };
+        let target = raw.trim();
+        let target = target
+            .strip_prefix('<')
+            .and_then(|t| t.strip_suffix('>'))
+            .unwrap_or(target)
+            .trim();
+        if target.contains("://") || target.starts_with("mailto:") {
+            self.set_notice("external link");
+            return;
+        }
+        let target = substr(target, ..target.find('#').unwrap_or(target.len()));
+        if target.is_empty() {
+            self.set_notice("no link under caret");
+            return;
+        }
+        match resolve_link_target(&self.path, self.scope, target) {
+            Some((path, scope)) => self.open_path(path, scope),
+            None => self.set_notice("can't follow link"),
+        }
     }
 
     /// The switch mechanics of [`open_path`](Self::open_path) without the MRU

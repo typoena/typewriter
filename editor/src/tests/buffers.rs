@@ -459,3 +459,139 @@ fn delete_on_an_unnamed_buffer_is_a_noop() {
     assert!(e.take_effects().is_empty());
     assert_eq!(e.mode(), Mode::Normal); // no prompt: nothing to delete
 }
+
+// --- `gf` — follow the link under the caret -----------------------------------
+
+#[test]
+fn link_target_at_finds_the_span_containing_col() {
+    let line = "see [intro](intro.md) and [b](../b.md) done";
+    // Anywhere from `[` through `)` inclusive selects the first link…
+    assert_eq!(link_target_at(line, 4), Some("intro.md")); // on `[`
+    assert_eq!(link_target_at(line, 7), Some("intro.md")); // in the title
+    assert_eq!(link_target_at(line, 15), Some("intro.md")); // in the target
+    assert_eq!(link_target_at(line, 20), Some("intro.md")); // on `)`
+    // …and the second link resolves independently.
+    assert_eq!(link_target_at(line, 30), Some("../b.md"));
+    // Between and around links there is nothing to follow.
+    assert_eq!(link_target_at(line, 0), None);
+    assert_eq!(link_target_at(line, 23), None);
+    assert_eq!(link_target_at(line, 41), None);
+    // Brackets without a `(…)` tail are not a link.
+    assert_eq!(link_target_at("plain [brackets] here", 8), None);
+}
+
+#[test]
+fn resolve_link_target_joins_and_normalizes() {
+    let f = "/sd/repo/lectures/meadows/a.md";
+    // Sibling and parent-relative forms — the shapes `relative_link_path` writes.
+    assert_eq!(
+        resolve_link_target(f, Scope::Tracked, "b.md"),
+        Some(("/sd/repo/lectures/meadows/b.md".to_string(), Scope::Tracked))
+    );
+    assert_eq!(
+        resolve_link_target(f, Scope::Tracked, "../intro.md"),
+        Some(("/sd/repo/lectures/intro.md".to_string(), Scope::Tracked))
+    );
+    // A cross-scope link climbs into the other scope, which its path selects.
+    assert_eq!(
+        resolve_link_target("/sd/repo/notes.md", Scope::Tracked, "../local/journal.md"),
+        Some(("/sd/local/journal.md".to_string(), Scope::Local))
+    );
+    // The palette-label form works from anywhere, including an unnamed scratch.
+    assert_eq!(
+        resolve_link_target(f, Scope::Tracked, "local/journal.md"),
+        Some(("/sd/local/journal.md".to_string(), Scope::Local))
+    );
+    assert_eq!(
+        resolve_link_target("", Scope::Tracked, "repo/notes.md"),
+        Some(("/sd/repo/notes.md".to_string(), Scope::Tracked))
+    );
+    // Climbing off the card, or landing outside both scopes, is unresolvable.
+    assert_eq!(resolve_link_target(f, Scope::Tracked, "../../../../../x.md"), None);
+    assert_eq!(resolve_link_target("/sd/repo/n.md", Scope::Tracked, "../conf.toml"), None);
+}
+
+#[test]
+fn gf_follows_a_relative_link_and_queues_the_load() {
+    let mut e = Editor::with_file(
+        "/sd/repo/lectures/a.md".into(),
+        Scope::Tracked,
+        "see [intro](../intro.md) for more".into(),
+    );
+    e.caret = 6; // inside the title
+    send(&mut e, "gf");
+    assert_eq!(
+        e.take_effects(),
+        vec![Effect::Load { path: "/sd/repo/intro.md".into(), scope: Scope::Tracked }]
+    );
+}
+
+#[test]
+fn gf_follows_a_cross_scope_link_with_the_target_scope() {
+    let mut e = Editor::with_file(
+        "/sd/repo/notes.md".into(),
+        Scope::Tracked,
+        "[journal](../local/journal.md)".into(),
+    );
+    e.caret = 3;
+    send(&mut e, "gf");
+    assert_eq!(
+        e.take_effects(),
+        vec![Effect::Load { path: "/sd/local/journal.md".into(), scope: Scope::Local }]
+    );
+}
+
+#[test]
+fn gf_unwraps_angle_brackets_and_drops_the_fragment() {
+    let mut e = Editor::with_file(
+        "/sd/repo/a.md".into(),
+        Scope::Tracked,
+        "[spaced](<my notes.md>) [sec](b.md#heading)".into(),
+    );
+    e.caret = 2;
+    send(&mut e, "gf");
+    assert_eq!(
+        e.take_effects(),
+        vec![Effect::Load { path: "/sd/repo/my notes.md".into(), scope: Scope::Tracked }]
+    );
+    e.caret = 26; // inside `[sec](b.md#heading)`
+    send(&mut e, "gf");
+    assert_eq!(
+        e.take_effects(),
+        vec![Effect::Load { path: "/sd/repo/b.md".into(), scope: Scope::Tracked }]
+    );
+}
+
+#[test]
+fn gf_switches_to_a_resident_target_without_a_load() {
+    let mut e = Editor::with_file("/sd/repo/a.md".into(), Scope::Tracked, "go [b](b.md)".into());
+    edit(&mut e, "b.md");
+    e.install_loaded("/sd/repo/b.md".into(), Scope::Tracked, "bee".into());
+    edit(&mut e, "a.md"); // back to a.md; b.md stays parked
+    e.take_effects();
+    e.caret = 4;
+    send(&mut e, "gf");
+    assert!(e.take_effects().is_empty(), "resident switch needs no Load");
+    assert_eq!(e.path, "/sd/repo/b.md");
+    assert_eq!(e.text, "bee");
+}
+
+#[test]
+fn gf_posts_notices_for_no_link_external_and_unresolvable() {
+    let mut e = Editor::with_file(
+        "/sd/repo/a.md".into(),
+        Scope::Tracked,
+        "plain text [web](https://x.dev) [out](../../x.md)".into(),
+    );
+    e.caret = 2; // not on a link
+    send(&mut e, "gf");
+    assert_eq!(e.notice.as_deref(), Some("no link under caret"));
+    e.caret = 12; // `[web](https://x.dev)` — nothing to open it with on-device
+    send(&mut e, "gf");
+    assert_eq!(e.notice.as_deref(), Some("external link"));
+    e.caret = 33; // `[out](../../x.md)` climbs off the card
+    send(&mut e, "gf");
+    assert_eq!(e.notice.as_deref(), Some("can't follow link"));
+    assert!(e.take_effects().is_empty());
+    assert_eq!(e.path, "/sd/repo/a.md"); // never switched away
+}

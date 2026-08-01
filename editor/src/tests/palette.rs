@@ -1029,6 +1029,24 @@ fn add_link_wraps_a_spaced_path_in_angle_brackets() {
     assert!(e.text().contains("[my notes](<my notes.md>)"), "{}", e.text());
 }
 
+// --- `> follow link` ----------------------------------------------------------
+
+#[test]
+fn follow_link_command_runs_the_gf_follow_and_closes() {
+    let mut e = Editor::with_file("/sd/repo/a.md".into(), Scope::Tracked, "go [b](b.md)".into());
+    e.caret = 4; // on the link — the palette entry follows exactly like `gf`
+    e.handle(Key::Palette);
+    for c in ">follow".chars() {
+        e.handle(Key::Char(c));
+    }
+    e.handle(Key::Enter);
+    assert_eq!(e.mode(), Mode::Normal); // one-shot: the palette closed
+    assert_eq!(
+        e.take_effects(),
+        vec![Effect::Load { path: "/sd/repo/b.md".into(), scope: Scope::Tracked }]
+    );
+}
+
 #[test]
 fn link_pick_backspace_on_empty_returns_to_the_command_list() {
     let mut e = palette_type(&["/sd/repo/notes.md"], ">add local");

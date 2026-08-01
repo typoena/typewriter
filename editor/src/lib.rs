@@ -1130,6 +1130,8 @@ impl Editor {
                 // `gr` (go-read): enter the read-only View/scroll mode. `v`/`V`
                 // used to trigger it but now belong to Visual selection.
                 'r' => self.mode = Mode::View,
+                // `gf` (go to file): follow the markdown link under the caret.
+                'f' => self.follow_link_at_caret(),
                 _ => {}
             }
             self.count = 0;

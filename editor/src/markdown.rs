@@ -64,6 +64,38 @@ pub(crate) fn continuation_marker(line: &str) -> Option<(String, usize, bool)> {
     None
 }
 
+/// The target of the `[title](target)` markdown link whose span contains byte
+/// `col` of `line` — the caret can sit anywhere from the opening `[` through
+/// the closing `)`, inclusive. Returns the raw text between the parens
+/// (`<>` unwrapping and `#fragment` stripping are the follower's job). `None`
+/// when no link spans `col`. Byte-indexed and ASCII-delimited throughout, so
+/// multibyte titles/targets pass through untouched.
+pub(crate) fn link_target_at(line: &str, col: usize) -> Option<&str> {
+    let bytes = line.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes.get(i) != Some(&b'[') {
+            i += 1;
+            continue;
+        }
+        // `[title](target)`: the first `]` closes the title (nested brackets
+        // aren't supported) and must be immediately followed by `(`.
+        let Some(title_end) = (i + 1..bytes.len()).find(|&j| bytes.get(j) == Some(&b']')) else {
+            return None; // no `]` left — no further link can start either
+        };
+        if bytes.get(title_end + 1) != Some(&b'(') {
+            i += 1;
+            continue;
+        }
+        let close = (title_end + 2..bytes.len()).find(|&k| bytes.get(k) == Some(&b')'))?;
+        if (i..=close).contains(&col) {
+            return Some(substr(line, title_end + 2..close));
+        }
+        i = close + 1; // caret is outside this link — try the rest of the line
+    }
+    None
+}
+
 // --- `:fmt` Markdown normalizer ----------------------------------------------
 
 /// Column alignment parsed from a table's `|:--:|` separator row.
