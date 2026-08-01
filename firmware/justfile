@@ -154,17 +154,53 @@ changelog:
 # release asset (see typoena-site/nginx.conf). The device resolves its version from
 # latest.txt (never the repo's /releases/latest), so the tag is a plain release.
 #
-# <ver> comes from firmware/Cargo.toml (the device's FW_VERSION), so BUMP
-# [package].version before publishing. Commit first for a reproducible release:
-# the Gitea tag points at main's HEAD, but the image is built from the worktree.
+# <ver> comes from firmware/Cargo.toml (the device's FW_VERSION). Pass a bump
+# type to have the recipe bump it for you — `just publish-firmware patch`
+# (or minor/major) rewrites [package].version, builds with the NEW version
+# baked in, then commits Cargo.toml+Cargo.lock (`chore(release): …`, skipped
+# by the changelog's commit filter) and pushes main BEFORE tagging — tea tags
+# the remote's HEAD, so an unpushed bump would tag the old commit. With no
+# bump arg the version is used as-is (re-publish / manual-bump flow): then
+# BUMP [package].version, commit, and push yourself first.
 # Needs the `tea` CLI logged in to git.apoena.dev (`tea logins list`).
-# Publish the current firmware as a Gitea release + update the typoena.dev pointer.
-publish-firmware: build
+# Publish the firmware as a Gitea release + update the typoena.dev pointer; optional patch/minor/major bump.
+publish-firmware bump="":
     #!/usr/bin/env bash
     set -euo pipefail
-    ver="$(grep -m1 '^version[[:space:]]*=' "{{justfile_directory()}}/Cargo.toml" | sed -E 's/.*"([^"]+)".*/\1/')"
+    toml="{{justfile_directory()}}/Cargo.toml"
+    ver="$(grep -m1 '^version[[:space:]]*=' "$toml" | sed -E 's/.*"([^"]+)".*/\1/')"
     [ -n "$ver" ] || { echo "error: couldn't read [package].version from firmware/Cargo.toml" >&2; exit 1; }
     command -v tea >/dev/null || { echo "error: the tea CLI is required (brew install tea; tea login add)" >&2; exit 1; }
+    # Optional semver bump — must happen BEFORE the build so the image bakes
+    # the new version (FW_VERSION = CARGO_PKG_VERSION).
+    case "{{bump}}" in
+        "") ;;
+        patch|minor|major)
+            IFS=. read -r maj min pat <<< "$ver"
+            case "{{bump}}" in
+                patch) new="$maj.$min.$((pat + 1))" ;;
+                minor) new="$maj.$((min + 1)).0" ;;
+                major) new="$((maj + 1)).0.0" ;;
+            esac
+            echo "bumping firmware version: $ver → $new ({{bump}})"
+            awk -v new="$new" '!done && /^version[[:space:]]*=/ { sub(/"[^"]*"/, "\"" new "\""); done = 1 } { print }' \
+                "$toml" > "$toml.tmp" && mv "$toml.tmp" "$toml"
+            ver="$new"
+            ;;
+        *) echo "error: bump must be patch, minor, or major (got '{{bump}}')" >&2; exit 1 ;;
+    esac
+    if [ -n "$(git -C "{{justfile_directory()}}/.." status --porcelain | grep -vE ' firmware/Cargo\.(toml|lock)$' || true)" ]; then
+        echo "warning: worktree has uncommitted changes beyond the version bump —" >&2
+        echo "         the image is built from the worktree, so it won't match the tagged commit" >&2
+    fi
+    just build
+    # The bump path commits ONLY its own two files (the build refreshed the
+    # lockfile's version entry) and pushes: tea tags the REMOTE's HEAD.
+    if [ -n "{{bump}}" ]; then
+        git -C "{{justfile_directory()}}/.." add firmware/Cargo.toml firmware/Cargo.lock
+        git -C "{{justfile_directory()}}/.." commit -m "chore(release): firmware v$ver"
+        git -C "{{justfile_directory()}}/.." push
+    fi
     tag="firmware-v$ver"
     site="{{justfile_directory()}}/../typoena-site"
     [ -d "$site/.git" ] || { echo "error: typoena-site repo not found at $site" >&2; exit 1; }
