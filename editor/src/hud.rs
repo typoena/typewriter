@@ -426,15 +426,16 @@ impl Editor {
         // placeholder that clears on the first keystroke — type `>` for commands.
         let command_mode = self.palette_command_mode();
         let snippet_mode = self.palette_snippet_mode();
+        let link_mode = self.palette_step == PaletteStep::PickLink;
         if self.palette_query.is_empty() {
-            Text::with_baseline(
-                "Go to file  ·  > settings  ·  $ snippets",
-                Point::new(2 + CW, 0),
-                style,
-                Baseline::Top,
-            )
-            .draw(f)
-            .infallible();
+            let placeholder = if link_mode {
+                "Link to file"
+            } else {
+                "Go to file  ·  > settings  ·  $ snippets"
+            };
+            Text::with_baseline(placeholder, Point::new(2 + CW, 0), style, Baseline::Top)
+                .draw(f)
+                .infallible();
         } else {
             Text::with_baseline(&self.palette_query, Point::new(2, 0), style, Baseline::Top)
                 .draw(f)
@@ -551,7 +552,9 @@ impl Editor {
                 .infallible();
         }
 
-        let hint = if snippet_mode {
+        let hint = if link_mode {
+            "^N/^P move  Enter link  Esc close"
+        } else if snippet_mode {
             "^N/^P move  Enter insert  Esc close"
         } else if command_mode {
             "^N/^P move  Enter change  Esc close"

@@ -207,6 +207,16 @@ impl<S: Screen> Runtime<S> {
                 PullDispatch::NeedsCommitConfirm => self.ed.confirm_pull_commit(),
                 PullDispatch::ThreadDown => self.ed.set_notice("pull: git thread down"),
             },
+            Effect::LoadLinkTarget { path } => {
+                let text = match self.storage.load_path(&path) {
+                    Ok(t) => Some(t),
+                    Err(e) => {
+                        log::warn!("link target {path} unreadable ({e:#}); filename title");
+                        None
+                    }
+                };
+                self.ed.insert_link_loaded(&path, text.as_deref());
+            }
             Effect::Delete { path, scope } => self.delete_buffer(path, scope),
             Effect::Rename { from, to, contents } => self.rename_buffer(&from, &to, &contents),
             Effect::SavePrefs { contents } => self.save_prefs(&contents),

@@ -47,6 +47,36 @@ pub(crate) fn resolve_path(arg: &str, current: Scope) -> (String, Scope) {
 }
 
 
+/// The markdown-link path from `from` (the file the link lives in) to `to`,
+/// both absolute card paths: drop their common directory prefix, then one `..`
+/// per remaining `from` directory. Both scopes live under `/sd`, so a
+/// cross-scope link degrades to `../local/…` rather than an absolute path.
+/// From an unnamed scratch (no home to be relative to) the palette label
+/// (`repo/…`) is the best available guess.
+pub(crate) fn relative_link_path(from: &str, to: &str) -> String {
+    if from.is_empty() {
+        return palette_label(to).to_string();
+    }
+    let from_dir = match from.rfind('/') {
+        Some(i) => substr(from, ..i),
+        None => "",
+    };
+    let from_segs: Vec<&str> = from_dir.split('/').filter(|s| !s.is_empty()).collect();
+    let to_segs: Vec<&str> = to.split('/').filter(|s| !s.is_empty()).collect();
+    // Segments shared by both directories; the last `to` segment is the
+    // filename and never counts as directory.
+    let mut common = 0;
+    while from_segs.get(common).is_some()
+        && from_segs.get(common) == to_segs.get(common)
+        && common + 1 < to_segs.len()
+    {
+        common += 1;
+    }
+    let mut out = "../".repeat(from_segs.len() - common);
+    out.push_str(&to_segs.get(common..).unwrap_or_default().join("/"));
+    out
+}
+
 /// A resident-but-inactive buffer: everything needed to restore a file's editing
 /// state when the user switches back, without re-reading the disk. The active
 /// buffer holds these same fields inline on [`Editor`]; parking marshals them
@@ -333,6 +363,15 @@ impl Editor {
         self.set_active(path.clone(), scope, format!("# {title}\n\n"));
         self.dirty = true;
         self.set_notice(format!("new {}", palette_label(&path)));
+    }
+
+    /// The in-RAM text of `path` when it is resident (active or parked) — the
+    /// copy whose edits win over the disk.
+    pub(crate) fn resident_text(&self, path: &str) -> Option<&str> {
+        if path == self.path {
+            return Some(&self.text);
+        }
+        self.parked.iter().find(|b| b.path == path).map(|b| b.text.as_str())
     }
 
     /// `:inbox` / `:in` — open today's fleeting note, creating it if new. The note

@@ -2,6 +2,20 @@
 
 use super::*;
 
+/// The text of the first ATX heading in `text` (`# Title` → `Title`), any
+/// level, or `None`. The `add local link` command uses it as the link title —
+/// the `# <title>` line title-typed files are seeded with.
+pub(crate) fn first_heading(text: &str) -> Option<&str> {
+    text.lines().find_map(|line| {
+        let hashes = line.len() - line.trim_start_matches('#').len();
+        if hashes == 0 {
+            return None;
+        }
+        let title = substr(line, hashes..).strip_prefix(' ')?.trim();
+        (!title.is_empty()).then_some(title)
+    })
+}
+
 /// Parse an auto-continued Markdown line prefix at the start of `line` — a list
 /// item (`- `/`* `/`+ ` or `N. `) or a blockquote (`> `, possibly nested). Returns
 /// `(next_marker, current_marker_len, content_empty)` where `next_marker` is what

@@ -185,6 +185,12 @@ pub enum Effect {
     /// [`Editor::install_loaded`]. Queued when switching to a file that is not
     /// resident in memory (`:e`, palette pick).
     Load { path: String, scope: Scope },
+    /// `> add local link` picked a non-resident target: read `path` so the link
+    /// can be titled from the file's first `#` heading. The host reads and calls
+    /// [`Editor::insert_link_loaded`] (`None` contents on a failed read — the
+    /// title falls back to the filename). Unlike [`Load`](Effect::Load), the
+    /// buffer set is untouched.
+    LoadLinkTarget { path: String },
     /// `:gp` — push the Tracked working copy to the remote. Preceded by a
     /// [`Save`](Effect::Save) of the current buffer in the same batch. Never
     /// queued from a Local buffer (blocked in-core).

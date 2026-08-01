@@ -84,6 +84,7 @@ fn date_prefix_len(s: &str) -> usize {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum PaletteCmd {
     NewFile,
+    AddLink,
     Format,
     Push,
     Setup,
@@ -118,7 +119,7 @@ impl PaletteCmd {
     /// [`Editor::palette_run_command`].
     fn kind(self) -> CmdKind {
         match self {
-            PaletteCmd::NewFile => CmdKind::Param,
+            PaletteCmd::NewFile | PaletteCmd::AddLink => CmdKind::Param,
             PaletteCmd::Format
             | PaletteCmd::Push
             | PaletteCmd::Setup
@@ -131,8 +132,9 @@ impl PaletteCmd {
 
 /// The palette command list, in display order (empty `>` query shows them all):
 /// the actions first, the settings after.
-pub(crate) const PALETTE_CMDS: [PaletteCmd; 17] = [
+pub(crate) const PALETTE_CMDS: [PaletteCmd; 18] = [
     PaletteCmd::NewFile,
+    PaletteCmd::AddLink,
     PaletteCmd::Format,
     PaletteCmd::Push,
     PaletteCmd::Setup,
@@ -154,12 +156,16 @@ pub(crate) const PALETTE_CMDS: [PaletteCmd; 17] = [
 /// Which step the palette is showing. Most of its life it is a
 /// [`List`](PaletteStep::List) — files, `>` commands, or `$` snippets, chosen by
 /// the query's leading sigil. Selecting a [parameterised](CmdKind::Param) `>`
-/// command switches it to an input step ([`NewFile`](PaletteStep::NewFile)), where
-/// the query is a value (a filename) rather than a filter, and Enter commits it.
+/// command switches it to an input step: [`NewFile`](PaletteStep::NewFile), where
+/// the query is a value (a filename) rather than a filter and Enter commits it,
+/// or [`PickLink`](PaletteStep::PickLink) — the file list again, but Enter
+/// inserts a link to the selection instead of opening it (sigils are plain
+/// query text there, so `>`/`$` can't switch lists mid-pick).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum PaletteStep {
     List,
     NewFile,
+    PickLink,
 }
 
 
@@ -211,7 +217,15 @@ impl Editor {
             }
             Key::Backspace => {
                 if self.palette_query.pop().is_none() {
-                    self.close_palette();
+                    // The link pick is escapable back to the `>` list, like the
+                    // NewFile step; the plain list closes (mirrors the `:` line).
+                    if self.palette_step == PaletteStep::PickLink {
+                        self.palette_step = PaletteStep::List;
+                        self.palette_query = ">".to_string();
+                        self.palette_sel = 0;
+                    } else {
+                        self.close_palette();
+                    }
                 } else {
                     self.palette_sel = 0;
                 }
@@ -244,7 +258,9 @@ impl Editor {
             // Enter acts on the selection by mode: insert a `$` snippet, run a `>`
             // command, or open the selected file.
             Key::Enter => {
-                if self.palette_snippet_mode() {
+                if self.palette_step == PaletteStep::PickLink {
+                    self.palette_insert_link_selected();
+                } else if self.palette_snippet_mode() {
                     self.palette_insert_selected();
                 } else if self.palette_command_mode() {
                     self.palette_run_command();
@@ -380,7 +396,7 @@ impl Editor {
     /// part of [`palette_query`](Self::palette_query), so backspacing it off
     /// returns to file mode with no extra state.
     pub(crate) fn palette_command_mode(&self) -> bool {
-        self.palette_query.starts_with('>')
+        self.palette_step == PaletteStep::List && self.palette_query.starts_with('>')
     }
 
     /// The command filter: everything after the leading `>`, trimmed. `>` alone
@@ -399,6 +415,7 @@ impl Editor {
         let on = |b| if b { "on" } else { "off" };
         match cmd {
             PaletteCmd::NewFile => "new file...".to_string(),
+            PaletteCmd::AddLink => "add local link...".to_string(),
             PaletteCmd::Format => "format".to_string(),
             PaletteCmd::Push => "push".to_string(),
             PaletteCmd::Setup => "setup...".to_string(),
@@ -459,7 +476,10 @@ impl Editor {
                     _ => {}
                 }
             }
-            CmdKind::Param => self.begin_new_file_step(),
+            CmdKind::Param => match cmd {
+                PaletteCmd::AddLink => self.begin_link_pick_step(),
+                _ => self.begin_new_file_step(),
+            },
         }
     }
 
@@ -630,6 +650,7 @@ impl Editor {
             // arrive here. Return before the SavePrefs/notice below rather than
             // panicking the firmware on a would-be routing bug.
             PaletteCmd::NewFile
+            | PaletteCmd::AddLink
             | PaletteCmd::Format
             | PaletteCmd::Push
             | PaletteCmd::Setup
@@ -653,7 +674,7 @@ impl Editor {
     /// and backspacing it off returns to file mode with no extra state. `$` and `>`
     /// are mutually exclusive (a query starts with at most one).
     pub(crate) fn palette_snippet_mode(&self) -> bool {
-        self.palette_query.starts_with('$')
+        self.palette_step == PaletteStep::List && self.palette_query.starts_with('$')
     }
 
     /// The snippet filter: everything after the leading `$`, trimmed. `$` alone is
@@ -707,6 +728,53 @@ impl Editor {
         self.close_palette();
         self.checkpoint(); // baseline is the buffer before insertion — undo removes it whole
         self.insert_snippet(&body);
+    }
+
+    // --- Palette link-pick step (`> add local link`) -------------------------
+
+    /// Switch the open palette into the link-pick step: the same file list and
+    /// fuzzy filter as bare `Cmd-P`, but Enter inserts a markdown link to the
+    /// selection at the caret instead of opening it. Reached only from
+    /// [`palette_run_command`](Self::palette_run_command), so the palette is
+    /// already open.
+    pub(crate) fn begin_link_pick_step(&mut self) {
+        self.palette_step = PaletteStep::PickLink;
+        self.palette_query.clear();
+        self.palette_sel = 0;
+    }
+
+    /// Enter in the link-pick step: insert `[title](relative-path)` for the
+    /// selected file at the caret. The title comes from the target's first `#`
+    /// heading — read from RAM when the target is resident (a fresh unsaved
+    /// note's heading only exists there), otherwise via
+    /// [`Effect::LoadLinkTarget`] — falling back to the friendly filename. A
+    /// no-op on an empty result set.
+    pub(crate) fn palette_insert_link_selected(&mut self) {
+        let idx = self.palette_matches().get(self.palette_sel).copied();
+        self.close_palette();
+        let Some(idx) = idx else { return };
+        let (path, _) = resolve_path(self.file_at(idx), self.scope);
+        match self.resident_text(&path).map(str::to_string) {
+            Some(text) => self.insert_link_loaded(&path, Some(&text)),
+            None => self.requests.push(Effect::LoadLinkTarget { path }),
+        }
+    }
+
+    /// Insert a markdown link to `path` at the caret: `[title](relative-path)`,
+    /// the path relative to the active buffer ([`relative_link_path`]). `contents`
+    /// is the target's text (`None` when unreadable): its first `#` heading is
+    /// the title, else the friendly filename. Called directly by the link pick
+    /// for a resident target, or by the host servicing
+    /// [`Effect::LoadLinkTarget`]. One undo group; a path with spaces is wrapped
+    /// in `<>` so the link survives a markdown parser.
+    pub fn insert_link_loaded(&mut self, path: &str, contents: Option<&str>) {
+        let title = contents.and_then(first_heading).map(str::to_string).unwrap_or_else(|| {
+            friendly_filename(path.rsplit('/').next().unwrap_or(path))
+        });
+        let rel = relative_link_path(&self.path, path);
+        let target = if rel.contains(' ') { format!("<{rel}>") } else { rel };
+        self.checkpoint();
+        self.insert_str(&format!("[{title}]({target})"));
     }
 
     /// Row count of the palette's current result list, whichever sigil is active —

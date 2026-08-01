@@ -61,6 +61,7 @@ fn command(cmd: &str) -> (Editor, Vec<Effect>) {
 enum Kind {
     Save,
     Load,
+    LoadLinkTarget,
     Push,
     Pull,
     Delete,
@@ -79,6 +80,7 @@ fn kinds(effects: &[Effect]) -> Vec<Kind> {
         .map(|e| match e {
             Effect::Save { .. } => Kind::Save,
             Effect::Load { .. } => Kind::Load,
+            Effect::LoadLinkTarget { .. } => Kind::LoadLinkTarget,
             Effect::Push => Kind::Push,
             Effect::Pull { .. } => Kind::Pull,
             Effect::Delete { .. } => Kind::Delete,

@@ -961,3 +961,126 @@ fn folder_completions_offer_only_the_next_segment() {
     // Top level: the scope roots.
     assert_eq!(e.folder_completions(""), vec!["local/", "repo/"]);
 }
+
+// --- `> add local link` -----------------------------------------------------
+
+#[test]
+fn add_link_command_opens_the_file_pick_step() {
+    let mut e = palette_type(&["/sd/repo/notes.md"], ">add local");
+    e.handle(Key::Enter);
+    assert_eq!(e.mode(), Mode::Palette); // still open — now the file pick
+    assert_eq!(e.palette_step, PaletteStep::PickLink);
+    assert_eq!(e.palette_query, ""); // a fresh file filter
+}
+
+#[test]
+fn add_link_to_a_resident_target_inserts_title_and_relative_path() {
+    // The target is the active buffer — resident, heading read from RAM.
+    let mut e = Editor::with_file(
+        "/sd/repo/lectures/meadows.md".into(),
+        Scope::Tracked,
+        "# La pensée systémique\n\nnotes\n".into(),
+    );
+    e.set_file_list(vec!["/sd/repo/lectures/meadows.md".into()]);
+    e.handle(Key::Palette);
+    for c in ">add local".chars() {
+        e.handle(Key::Char(c));
+    }
+    e.handle(Key::Enter); // → pick step
+    e.handle(Key::Enter); // pick the only listed file
+    assert!(e.take_effects().is_empty()); // no host read needed
+    assert!(e.text().contains("[La pensée systémique](meadows.md)"), "{}", e.text());
+    assert!(e.dirty());
+}
+
+#[test]
+fn add_link_to_a_non_resident_target_queues_a_read_then_inserts() {
+    let mut e = palette_editor(&["/sd/repo/lectures/deep/target.md"]);
+    e.handle(Key::Palette);
+    for c in ">add local".chars() {
+        e.handle(Key::Char(c));
+    }
+    e.handle(Key::Enter);
+    for c in "target".chars() {
+        e.handle(Key::Char(c));
+    }
+    e.handle(Key::Enter);
+    // Not resident: the host must read the target for its heading.
+    let fx = e.take_effects();
+    assert_eq!(fx, vec![Effect::LoadLinkTarget {
+        path: "/sd/repo/lectures/deep/target.md".into()
+    }]);
+    // The host answers with the contents; the link lands at the caret.
+    e.insert_link_loaded("/sd/repo/lectures/deep/target.md", Some("# Cible\n"));
+    assert!(e.text().contains("[Cible](lectures/deep/target.md)"), "{}", e.text());
+}
+
+#[test]
+fn add_link_title_falls_back_to_the_friendly_filename() {
+    let mut e = palette_editor(&[]);
+    e.insert_link_loaded("/sd/repo/standup-notes.md", None);
+    assert!(e.text().contains("[standup notes](standup-notes.md)"), "{}", e.text());
+}
+
+#[test]
+fn add_link_wraps_a_spaced_path_in_angle_brackets() {
+    let mut e = palette_editor(&[]);
+    e.insert_link_loaded("/sd/repo/my notes.md", None);
+    assert!(e.text().contains("[my notes](<my notes.md>)"), "{}", e.text());
+}
+
+#[test]
+fn link_pick_backspace_on_empty_returns_to_the_command_list() {
+    let mut e = palette_type(&["/sd/repo/notes.md"], ">add local");
+    e.handle(Key::Enter); // → pick step, empty query
+    e.handle(Key::Backspace);
+    assert_eq!(e.palette_step, PaletteStep::List);
+    assert!(e.palette_command_mode()); // query restored to ">"
+}
+
+#[test]
+fn link_pick_treats_sigils_as_plain_query_text() {
+    let mut e = palette_type(&["/sd/repo/notes.md"], ">add local");
+    e.handle(Key::Enter);
+    e.handle(Key::Char('>'));
+    assert!(!e.palette_command_mode()); // still the file list, filtered by '>'
+    assert_eq!(e.palette_step, PaletteStep::PickLink);
+}
+
+#[test]
+fn relative_link_path_walks_up_and_across() {
+    let f = "/sd/repo/lectures/meadows/a.md";
+    assert_eq!(relative_link_path(f, "/sd/repo/lectures/meadows/b.md"), "b.md");
+    assert_eq!(relative_link_path(f, "/sd/repo/lectures/intro.md"), "../intro.md");
+    assert_eq!(relative_link_path(f, "/sd/repo/notes.md"), "../../notes.md");
+    assert_eq!(
+        relative_link_path("/sd/repo/notes.md", "/sd/repo/lectures/intro.md"),
+        "lectures/intro.md"
+    );
+    assert_eq!(
+        relative_link_path("/sd/repo/notes.md", "/sd/local/journal.md"),
+        "../local/journal.md"
+    );
+    // An unnamed scratch links by palette label — the best available guess.
+    assert_eq!(relative_link_path("", "/sd/repo/notes.md"), "repo/notes.md");
+}
+
+#[test]
+fn first_heading_finds_the_title_line() {
+    assert_eq!(first_heading("# Titre\n\ncorps\n"), Some("Titre"));
+    assert_eq!(first_heading("préambule\n\n## Sous-titre\n"), Some("Sous-titre"));
+    assert_eq!(first_heading("#pas-un-titre\n"), None);
+    assert_eq!(first_heading("plain\n"), None);
+}
+
+#[test]
+fn draw_in_link_pick_and_suggestion_steps_does_not_panic() {
+    let mut e = palette_type(&["/sd/repo/notes/a.md"], ">add local");
+    e.handle(Key::Enter);
+    let _ = e.draw(true);
+    // New-file step with folder suggestions on screen, mid Tab-cycle.
+    let mut e = palette_type(&["/sd/repo/notes/a.md"], ">new");
+    e.handle(Key::Enter);
+    e.handle(Key::Char('\t'));
+    let _ = e.draw(true);
+}
