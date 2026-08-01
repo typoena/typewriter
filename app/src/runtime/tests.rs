@@ -378,6 +378,33 @@ fn rename_effect_retargets_links_in_the_listed_files() {
 }
 
 #[test]
+fn rename_effect_paints_a_publishing_clue_before_the_card_work() {
+    // The rename + retarget is synchronous SD work; without an up-front paint
+    // the panel sits frozen on the `:pub` command line until it finishes.
+    let mut ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, "body".into());
+    let screen = CountingScreen::default();
+    let panel = Panel::new(screen.clone(), &mut ed).expect("first paint");
+    let mut rt = Runtime::new(
+        ed,
+        panel,
+        Box::new(NoKeyboard),
+        Box::new(RecStorage::default()),
+        Box::new(RecSync::new()),
+        Box::new(FixedClock),
+        Box::new(PanicSystem),
+        Box::new(RecFiles::default()),
+    );
+    let before = *screen.0.borrow();
+    rt.service_one(Effect::Rename {
+        from: "/sd/repo/notes.md".into(),
+        to: "/sd/repo/notes.pub.md".into(),
+        contents: "body".into(),
+        retarget: vec![],
+    });
+    assert_eq!(*screen.0.borrow(), before + 1, "the publishing... clue must paint immediately");
+}
+
+#[test]
 fn typed_publish_rewrites_a_subfolder_link_end_to_end() {
     // The whole chain, as the device runs it: the walk blob feeds the palette
     // file list on an idle tick, then a typed `:pub` publishes a subfolder file

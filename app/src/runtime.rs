@@ -222,7 +222,13 @@ impl<S: Screen> Runtime<S> {
                 self.ed.insert_link_loaded(&path, text.as_deref());
             }
             Effect::Delete { path, scope } => self.delete_buffer(path, scope),
+            // The rename plus card-wide link retarget is synchronous SD work
+            // (seconds on a big tree), and the batch repaint only lands after
+            // it — which reads as a frozen panel. Paint a clue first (the
+            // `:setup` notice does the same before its reboot).
             Effect::Rename { from, to, contents, retarget } => {
+                self.ed.set_notice("publishing...");
+                self.panel.show_notice(&mut self.ed);
                 self.rename_buffer(&from, &to, &contents, &retarget)
             }
             Effect::SavePrefs { contents } => self.save_prefs(&contents),
@@ -490,6 +496,9 @@ impl<S: Screen> Runtime<S> {
                 Err(e) => log::warn!("retarget: rewrite of {path} FAILED ({e:#})"),
             }
         }
+        // Always one summary line, so a bench trace answers "did the retarget
+        // run, over what, and find anything?" at a glance.
+        log::info!("retarget: {links} link(s) rewritten across {} candidate file(s)", retarget.len());
         self.ed.set_notice(if !renamed {
             "publish FAILED - retry :w".to_string()
         } else if links > 0 {
