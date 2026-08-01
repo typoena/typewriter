@@ -157,7 +157,7 @@ changelog:
 # <ver> comes from firmware/Cargo.toml (the device's FW_VERSION). Pass a bump
 # type to have the recipe bump it for you — `just publish-firmware patch`
 # (or minor/major) rewrites [package].version, builds with the NEW version
-# baked in, then commits Cargo.toml+Cargo.lock (`chore(release): …`, skipped
+# baked in, then commits Cargo.toml (`chore(release): …`, skipped
 # by the changelog's commit filter) and pushes main BEFORE tagging — tea tags
 # the remote's HEAD, so an unpushed bump would tag the old commit. With no
 # bump arg the version is used as-is (re-publish / manual-bump flow): then
@@ -194,10 +194,10 @@ publish-firmware bump="":
         echo "         the image is built from the worktree, so it won't match the tagged commit" >&2
     fi
     just build
-    # The bump path commits ONLY its own two files (the build refreshed the
-    # lockfile's version entry) and pushes: tea tags the REMOTE's HEAD.
+    # The bump path commits ONLY Cargo.toml (Cargo.lock is gitignored) and
+    # pushes: tea tags the REMOTE's HEAD.
     if [ -n "{{bump}}" ]; then
-        git -C "{{justfile_directory()}}/.." add firmware/Cargo.toml firmware/Cargo.lock
+        git -C "{{justfile_directory()}}/.." add firmware/Cargo.toml
         git -C "{{justfile_directory()}}/.." commit -m "chore(release): firmware v$ver"
         git -C "{{justfile_directory()}}/.." push
     fi
