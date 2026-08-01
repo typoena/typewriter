@@ -119,6 +119,38 @@ fn normal_x_deletes_char_under_caret() {
 }
 
 #[test]
+fn normal_s_substitutes_char_and_inserts() {
+    let mut e = typed("abc");
+    e.handle(Key::Escape); // caret on 'c'
+    e.handle(Key::Char('h')); // caret on 'b'
+    e.handle(Key::Char('s'));
+    assert_eq!(e.mode(), Mode::Insert);
+    e.handle(Key::Char('X'));
+    assert_eq!(e.text, "aXc");
+}
+
+#[test]
+fn normal_s_on_last_char_inserts_at_line_end() {
+    let mut e = typed("ab");
+    e.handle(Key::Escape); // caret on 'b'
+    e.handle(Key::Char('s'));
+    e.handle(Key::Char('X'));
+    assert_eq!(e.text, "aX"); // caret stays at the gap, unlike `x`
+}
+
+#[test]
+fn count_s_substitutes_n_chars_but_never_the_newline() {
+    let mut e = typed("abcd\nef");
+    e.handle(Key::Escape);
+    e.handle(Key::Char('g'));
+    e.handle(Key::Char('g')); // caret to 0
+    e.handle(Key::Char('9'));
+    e.handle(Key::Char('s')); // 9s on a 4-char line: clamp at line end
+    e.handle(Key::Char('X'));
+    assert_eq!(e.text, "X\nef");
+}
+
+#[test]
 fn word_forward_lands_on_next_word_start() {
     let mut e = typed("foo bar");
     e.handle(Key::Escape); // Normal
