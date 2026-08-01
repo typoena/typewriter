@@ -81,19 +81,30 @@ struct StorageLog {
     loads: Vec<String>,
     deletes: Vec<String>,
     last_files: Vec<String>,
+    /// Per-path `load_path` bodies; paths not listed echo `"loaded-body"`.
+    bodies: Vec<(String, String)>,
 }
 
 /// Records every call; `load_path` echoes a canned body back.
 #[derive(Clone, Default)]
 struct RecStorage(Rc<RefCell<StorageLog>>);
+impl RecStorage {
+    /// Canned `load_path` body for `path`.
+    fn with_body(self, path: &str, body: &str) -> Self {
+        self.0.borrow_mut().bodies.push((path.into(), body.into()));
+        self
+    }
+}
 impl Storage for RecStorage {
     fn save_path(&self, path: &str, contents: &str) -> anyhow::Result<()> {
         self.0.borrow_mut().saves.push((path.into(), contents.into()));
         Ok(())
     }
     fn load_path(&self, path: &str) -> anyhow::Result<String> {
-        self.0.borrow_mut().loads.push(path.into());
-        Ok("loaded-body".into())
+        let mut log = self.0.borrow_mut();
+        log.loads.push(path.into());
+        let body = log.bodies.iter().find(|(p, _)| p == path).map(|(_, b)| b.clone());
+        Ok(body.unwrap_or_else(|| "loaded-body".into()))
     }
     fn delete_path(&self, path: &str) -> anyhow::Result<()> {
         self.0.borrow_mut().deletes.push(path.into());
@@ -299,9 +310,40 @@ fn rename_effect_writes_the_new_path_then_unlinks_the_old() {
         from: "/sd/repo/notes.md".into(),
         to: "/sd/repo/notes.pub.md".into(),
         contents: "body".into(),
+        retarget: vec![],
     });
     let log = storage.0.borrow();
     assert_eq!(log.saves, vec![("/sd/repo/notes.pub.md".into(), "body".into())]);
+    assert_eq!(log.deletes, vec!["/sd/repo/notes.md".to_string()]);
+}
+
+#[test]
+fn rename_effect_retargets_links_in_the_listed_files() {
+    // Each `retarget` file that links to the old name is rewritten and saved —
+    // joining the dirty journal, so `:gp` ships the rename and its link updates
+    // together — while a file with no matching link is left unwritten.
+    let storage = RecStorage::default()
+        .with_body("/sd/repo/essay.md", "see [n](notes.md) and [n#](notes.md#top)")
+        .with_body("/sd/repo/other.md", "no links here");
+    let ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, "body".into());
+    let mut rt = runtime(ed, storage.clone(), RecSync::new(), RecFiles::default());
+    rt.service_one(Effect::Rename {
+        from: "/sd/repo/notes.md".into(),
+        to: "/sd/repo/notes.pub.md".into(),
+        contents: "body".into(),
+        retarget: vec!["/sd/repo/essay.md".into(), "/sd/repo/other.md".into()],
+    });
+    let log = storage.0.borrow();
+    assert_eq!(
+        log.saves,
+        vec![
+            ("/sd/repo/notes.pub.md".into(), "body".into()),
+            (
+                "/sd/repo/essay.md".into(),
+                "see [n](notes.pub.md) and [n#](notes.pub.md#top)".into()
+            ),
+        ]
+    );
     assert_eq!(log.deletes, vec!["/sd/repo/notes.md".to_string()]);
 }
 

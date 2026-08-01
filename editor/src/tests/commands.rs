@@ -548,6 +548,7 @@ fn publish_renames_the_active_md_file_to_pub_md() {
             from: "/sd/repo/notes.md".into(),
             to: "/sd/repo/notes.pub.md".into(),
             contents: String::new(),
+            retarget: vec![],
         }]
     );
     assert_eq!(e.mode(), Mode::Normal);
@@ -617,4 +618,107 @@ fn publish_on_an_unnamed_scratch_warns() {
     ex(&mut e, "publish");
     assert!(e.take_effects().is_empty());
     assert_eq!(e.notice.as_deref(), Some("no file to publish"));
+}
+
+// ---- publish retargets links to the renamed file ----
+
+#[test]
+fn retarget_rewrites_every_spelling_gf_would_follow() {
+    // Sibling, `./`, `<>`-wrapped, and `#fragment` forms all resolve to the
+    // published file; each keeps its own spelling and just grows a `.pub`.
+    let text = "[a](notes.md) [b](./notes.md)\n[c](<notes.md>) [d](notes.md#top)";
+    let (out, sites) =
+        publish_retarget_links("/sd/repo/essay.md", text, "/sd/repo/notes.md").unwrap();
+    assert_eq!(
+        out,
+        "[a](notes.pub.md) [b](./notes.pub.md)\n[c](<notes.pub.md>) [d](notes.pub.md#top)"
+    );
+    assert_eq!(sites.len(), 4);
+}
+
+#[test]
+fn retarget_reaches_across_scopes() {
+    // A Local file's `../repo/…` link follows the published Tracked file.
+    let (out, _) = publish_retarget_links(
+        "/sd/local/journal.md",
+        "see [n](../repo/notes.md)",
+        "/sd/repo/notes.md",
+    )
+    .unwrap();
+    assert_eq!(out, "see [n](../repo/notes.pub.md)");
+}
+
+#[test]
+fn retarget_leaves_other_targets_alone() {
+    // External links, other files, and a same-named file in the other scope
+    // are not the published file; `None` = nothing to rewrite.
+    let text = "[w](https://x.dev/notes.md) [o](other.md) [l](../local/notes.md)";
+    assert_eq!(publish_retarget_links("/sd/repo/essay.md", text, "/sd/repo/notes.md"), None);
+}
+
+#[test]
+fn publish_rewrites_self_links_into_the_rename_contents() {
+    // A self-link (`notes.md` inside notes.md) must follow the rename — the
+    // Rename effect snapshots the already-retargeted text.
+    let mut e = Editor::with_file(
+        "/sd/repo/notes.md".into(),
+        Scope::Tracked,
+        "[top](notes.md#top)".into(),
+    );
+    e.caret = e.text.len(); // past the link: the 4-byte splice shifts it
+    ex(&mut e, "publish");
+    assert_eq!(e.text, "[top](notes.pub.md#top)");
+    assert_eq!(e.caret, e.text.len());
+    assert!(matches!(
+        e.take_effects().as_slice(),
+        [Effect::Rename { contents, .. }] if contents == "[top](notes.pub.md#top)"
+    ));
+}
+
+#[test]
+fn publish_retargets_parked_buffers_in_core_and_persists_them() {
+    // A resident buffer's RAM is its source of truth (its next save would
+    // clobber a disk-side rewrite), so its links are rewritten in-core — as
+    // their own undo group — and persisted immediately.
+    let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    edit(&mut e, "essay.md");
+    e.install_loaded("/sd/repo/essay.md".into(), Scope::Tracked, "see [n](notes.md)".into());
+    edit(&mut e, "notes.md"); // back; essay.md stays parked
+    e.take_effects();
+    ex(&mut e, "publish");
+    let effs = e.take_effects();
+    assert!(
+        matches!(
+            effs.as_slice(),
+            [Effect::Save { path, contents, .. }, Effect::Rename { retarget, .. }]
+                if path == "/sd/repo/essay.md"
+                    && contents == "see [n](notes.pub.md)"
+                    && retarget.is_empty() // resident: not the host's to rewrite
+        ),
+        "expected the parked rewrite's Save then the Rename, got {effs:?}"
+    );
+    // The rewrite is one undo group in that buffer.
+    edit(&mut e, "essay.md");
+    assert_eq!(e.text, "see [n](notes.pub.md)");
+    e.handle(Key::Char('u'));
+    assert_eq!(e.text, "see [n](notes.md)");
+}
+
+#[test]
+fn publish_hands_the_host_the_non_resident_md_files() {
+    // Everything the editor can't rewrite in RAM goes to the host: every card
+    // `.md` except the published file itself — and never a non-markdown file.
+    let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    e.set_file_list(vec![
+        "/sd/local/journal.md".into(),
+        "/sd/repo/a.md".into(),
+        "/sd/repo/img.png".into(),
+        "/sd/repo/notes.md".into(),
+    ]);
+    ex(&mut e, "publish");
+    assert!(matches!(
+        e.take_effects().as_slice(),
+        [Effect::Rename { retarget, .. }]
+            if *retarget == vec!["/sd/local/journal.md".to_string(), "/sd/repo/a.md".to_string()]
+    ));
 }

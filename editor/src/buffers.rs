@@ -626,6 +626,11 @@ impl Editor {
     /// [`run_push`](Self::run_push)): "publish" marks *this file*, "push"
     /// ships the whole repo.
     ///
+    /// The rename would break every `[title](…)` pointing at the old name, so
+    /// publish also retargets those links card-wide ([`publish_retarget_links`]):
+    /// resident buffers in-core (undoable, persisted immediately), everything
+    /// else via the [`Effect::Rename`] `retarget` list the host services.
+    ///
     /// A no-op with a notice when there is nothing to publish (unnamed scratch), the
     /// file is Local (a permanently-private scope that never reaches a remote), it is
     /// *already* `.pub.md`, it is not a `.md` file at all, or the target `.pub.md`
@@ -652,6 +657,13 @@ impl Editor {
             self.set_notice(format!("{} exists", palette_label(&to)));
             return;
         }
+        // Self-links first, so the Rename below snapshots the retargeted text.
+        if let Some((new, sites)) = publish_retarget_links(&self.path, &self.text, &self.path) {
+            self.checkpoint();
+            let shift = 4 * sites.iter().filter(|&&s| s < self.caret).count();
+            self.text = new;
+            self.caret += shift;
+        }
         // Rename in-core now (path, file list, MRU), then queue the disk move: the
         // host persists `contents` under `to` and unlinks `from`, and `mark_saved`
         // clears the dirty flag once the write lands (mirrors the `:w` save path).
@@ -660,7 +672,36 @@ impl Editor {
         self.recent.retain(|p| p != &from);
         self.add_to_file_list(&to);
         self.note_recent(&to);
-        self.requests.push(Effect::Rename { from, to, contents: self.text.clone() });
+        // Retarget every link to the old name ([`publish_retarget_links`]).
+        // Resident buffers' RAM is their source of truth — a disk-side rewrite
+        // would be clobbered by their next save — so they're rewritten in-core
+        // (their own undo group, mirroring `checkpoint`) and persisted now.
+        for b in &mut self.parked {
+            let Some((new, sites)) = publish_retarget_links(&b.path, &b.text, &from) else {
+                continue;
+            };
+            let shift = 4 * sites.iter().filter(|&&s| s < b.caret).count();
+            b.undo.push((core::mem::replace(&mut b.text, new), b.caret));
+            if b.undo.len() > crate::undo::UNDO_DEPTH {
+                b.undo.remove(0);
+            }
+            b.redo.clear();
+            b.caret += shift;
+            b.dirty = true;
+            self.requests.push(Effect::Save {
+                path: b.path.clone(),
+                scope: b.scope,
+                contents: b.text.clone(),
+            });
+        }
+        // The rest of the card is the host's to rewrite (see [`Effect::Rename`]).
+        let retarget: Vec<String> = (0..self.file_count())
+            .map(|i| self.file_at(i).to_string())
+            .filter(|p| {
+                p.ends_with(".md") && *p != to && !self.parked.iter().any(|b| &b.path == p)
+            })
+            .collect();
+        self.requests.push(Effect::Rename { from, to, contents: self.text.clone(), retarget });
     }
 
     /// The `i`-th file path in the palette's sorted base order (a slice into

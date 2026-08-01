@@ -64,36 +64,133 @@ pub(crate) fn continuation_marker(line: &str) -> Option<(String, usize, bool)> {
     None
 }
 
+/// Every `[title](target)` markdown link on `line`, left to right, as
+/// `(open, target_start, close)` — byte offsets of the opening `[`, the first
+/// target byte, and the closing `)`. The first `]` closes the title (nested
+/// brackets aren't supported) and must be immediately followed by `(`.
+/// Byte-indexed and ASCII-delimited throughout, so multibyte titles/targets
+/// pass through untouched.
+fn link_spans(line: &str) -> impl Iterator<Item = (usize, usize, usize)> + '_ {
+    let bytes = line.as_bytes();
+    let mut i = 0;
+    core::iter::from_fn(move || {
+        while i < bytes.len() {
+            if bytes.get(i) != Some(&b'[') {
+                i += 1;
+                continue;
+            }
+            let Some(title_end) = (i + 1..bytes.len()).find(|&j| bytes.get(j) == Some(&b']'))
+            else {
+                return None; // no `]` left — no further link can start either
+            };
+            if bytes.get(title_end + 1) != Some(&b'(') {
+                i += 1;
+                continue;
+            }
+            let close = (title_end + 2..bytes.len()).find(|&k| bytes.get(k) == Some(&b')'))?;
+            let open = i;
+            i = close + 1;
+            return Some((open, title_end + 2, close));
+        }
+        None
+    })
+}
+
 /// The target of the `[title](target)` markdown link whose span contains byte
 /// `col` of `line` — the caret can sit anywhere from the opening `[` through
 /// the closing `)`, inclusive. Returns the raw text between the parens
 /// (`<>` unwrapping and `#fragment` stripping are the follower's job). `None`
-/// when no link spans `col`. Byte-indexed and ASCII-delimited throughout, so
-/// multibyte titles/targets pass through untouched.
+/// when no link spans `col`.
 pub(crate) fn link_target_at(line: &str, col: usize) -> Option<&str> {
-    let bytes = line.as_bytes();
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes.get(i) != Some(&b'[') {
-            i += 1;
-            continue;
+    link_spans(line)
+        .find(|&(open, _, close)| (open..=close).contains(&col))
+        .map(|(_, ts, close)| substr(line, ts..close))
+}
+
+/// `:pub` — retarget every markdown link in `text` (the contents of
+/// `own_path`) that points at `from` (the absolute pre-publish card path) so
+/// it follows the file to its `.pub.md` name. Matching mirrors `gf` exactly —
+/// same parse ([`link_spans`]), `<>` unwrap, `#fragment` strip, and directory
+/// resolution ([`resolve_link_target`]) — so a link is rewritten iff `gf` on
+/// it would have opened the old file. Publishing only changes the name's
+/// tail, so each hit keeps the writer's own spelling (`notes.md`,
+/// `./notes.md`, `../repo/notes.md`) and just grows a `.pub`: the rewrite is
+/// a 4-byte insertion before the target's final `.md`. Returns the new text
+/// plus each insertion offset **in the old text** (callers shift carets past
+/// them), or `None` when nothing links to `from`. Pure: the host runs it over
+/// on-disk files, the editor over resident buffers.
+pub fn publish_retarget_links(
+    own_path: &str,
+    text: &str,
+    from: &str,
+) -> Option<(String, Vec<usize>)> {
+    // A file's scope is its directory; it only disambiguates label/absolute
+    // target forms (`repo/…`, `/sd/…`), which name their own scope anyway.
+    let scope = if own_path.strip_prefix(LOCAL_DIR).is_some_and(|r| r.starts_with('/')) {
+        Scope::Local
+    } else {
+        Scope::Tracked
+    };
+    let mut sites: Vec<usize> = Vec::new();
+    let mut line_start = 0;
+    for line in text.split('\n') {
+        for (_, ts, close) in link_spans(line) {
+            if let Some(site) = retarget_site(own_path, scope, line, ts, close, from) {
+                sites.push(line_start + site);
+            }
         }
-        // `[title](target)`: the first `]` closes the title (nested brackets
-        // aren't supported) and must be immediately followed by `(`.
-        let Some(title_end) = (i + 1..bytes.len()).find(|&j| bytes.get(j) == Some(&b']')) else {
-            return None; // no `]` left — no further link can start either
-        };
-        if bytes.get(title_end + 1) != Some(&b'(') {
-            i += 1;
-            continue;
-        }
-        let close = (title_end + 2..bytes.len()).find(|&k| bytes.get(k) == Some(&b')'))?;
-        if (i..=close).contains(&col) {
-            return Some(substr(line, title_end + 2..close));
-        }
-        i = close + 1; // caret is outside this link — try the rest of the line
+        line_start += line.len() + 1;
     }
-    None
+    if sites.is_empty() {
+        return None;
+    }
+    let mut out = String::with_capacity(text.len() + 4 * sites.len());
+    let mut prev = 0;
+    for &s in &sites {
+        out.push_str(substr(text, prev..s));
+        out.push_str(".pub");
+        prev = s;
+    }
+    out.push_str(substr(text, prev..));
+    Some((out, sites))
+}
+
+/// One link's `.pub` insertion offset within `line` — the start of the
+/// target's final `.md` — or `None` when the `[title](target)` at `ts..close`
+/// doesn't resolve to `from`. The normalization (trim, `<>` unwrap, external
+/// skip, `#fragment` strip) mirrors
+/// [`follow_link_at_caret`](Editor::follow_link_at_caret), but tracks byte
+/// offsets so the splice lands inside the original spelling.
+fn retarget_site(
+    own_path: &str,
+    scope: Scope,
+    line: &str,
+    ts: usize,
+    close: usize,
+    from: &str,
+) -> Option<usize> {
+    let raw = substr(line, ts..close);
+    let mut start = ts + (raw.len() - raw.trim_start().len());
+    let mut end = start + raw.trim().len();
+    let t = substr(line, start..end);
+    if t.len() >= 2 && t.starts_with('<') && t.ends_with('>') {
+        let inner = substr(line, start + 1..end - 1);
+        start = start + 1 + (inner.len() - inner.trim_start().len());
+        end = start + inner.trim().len();
+    }
+    let target = substr(line, start..end);
+    if target.contains("://") || target.starts_with("mailto:") {
+        return None;
+    }
+    let path = substr(target, ..target.find('#').unwrap_or(target.len()));
+    // Requiring the spelled path to end in `.md` also rejects `.`/`..`-tailed
+    // spellings whose *resolved* form ends in `.md` — there is no `.md` tail
+    // to splice into.
+    if path.is_empty() || !path.ends_with(".md") {
+        return None;
+    }
+    let (abs, _) = resolve_link_target(own_path, scope, path)?;
+    (abs == from).then(|| start + path.len() - 3)
 }
 
 // --- `:fmt` Markdown normalizer ----------------------------------------------

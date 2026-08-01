@@ -222,7 +222,9 @@ impl<S: Screen> Runtime<S> {
                 self.ed.insert_link_loaded(&path, text.as_deref());
             }
             Effect::Delete { path, scope } => self.delete_buffer(path, scope),
-            Effect::Rename { from, to, contents } => self.rename_buffer(&from, &to, &contents),
+            Effect::Rename { from, to, contents, retarget } => {
+                self.rename_buffer(&from, &to, &contents, &retarget)
+            }
             Effect::SavePrefs { contents } => self.save_prefs(&contents),
             Effect::Setup => match self.system.prepare_setup() {
                 SetupDispatch::Ready => {
@@ -444,23 +446,58 @@ impl<S: Screen> Runtime<S> {
     /// re-walk. A failed *write* keeps the buffer dirty for a retry (like a `:w`
     /// save failure); the editor already switched to the new name, so `:w` re-saves
     /// it there.
-    fn rename_buffer(&mut self, from: &str, to: &str, contents: &str) {
+    ///
+    /// `retarget` — the non-resident `.md` files that might link to `from` — is
+    /// then rewritten through [`editor::publish_retarget_links`]; each hit's save
+    /// joins the dirty journal, so the next `:gp` ships the rename and its link
+    /// updates together. Runs even after a failed write (see [`Effect::Rename`]);
+    /// a per-file failure is logged and skipped — that file's links just stay on
+    /// the old name.
+    fn rename_buffer(&mut self, from: &str, to: &str, contents: &str, retarget: &[String]) {
         // Scope-qualified label (`repo/notes.pub.md`), matching the delete snackbar.
         let label = to.strip_prefix("/sd/").unwrap_or(to);
-        match self.storage.save_path(to, contents) {
+        let renamed = match self.storage.save_path(to, contents) {
             Ok(()) => {
                 if let Err(e) = self.storage.delete_path(from) {
                     log::warn!("publish: wrote {to} but couldn't unlink {from} ({e:#})");
                 }
                 log::info!("published {from} -> {to}");
                 self.ed.mark_saved(to);
-                self.ed.set_notice(format!("published {label} - :gp to push"));
+                true
             }
             Err(e) => {
                 log::error!("publish (rename {from} -> {to}) FAILED ({e:#})");
-                self.ed.set_notice("publish FAILED - retry :w");
+                false
+            }
+        };
+        let mut links = 0;
+        for path in retarget {
+            let text = match self.storage.load_path(path) {
+                Ok(t) => t,
+                Err(e) => {
+                    log::warn!("retarget: {path} unreadable ({e:#}); links kept as-is");
+                    continue;
+                }
+            };
+            let Some((new, sites)) = editor::publish_retarget_links(path, &text, from) else {
+                continue;
+            };
+            match self.storage.save_path(path, &new) {
+                Ok(()) => {
+                    log::info!("retarget: {} link(s) to {to} in {path}", sites.len());
+                    links += sites.len();
+                }
+                Err(e) => log::warn!("retarget: rewrite of {path} FAILED ({e:#})"),
             }
         }
+        self.ed.set_notice(if !renamed {
+            "publish FAILED - retry :w".to_string()
+        } else if links > 0 {
+            let s = if links == 1 { "" } else { "s" };
+            format!("published {label} +{links} link{s} - :gp to push")
+        } else {
+            format!("published {label} - :gp to push")
+        });
     }
 }
 

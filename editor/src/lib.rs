@@ -48,6 +48,7 @@ pub(crate) use render::*;
 pub(crate) use snippets::*;
 
 pub use buffers::{LOCAL_DIR, REPO_DIR};
+pub use markdown::publish_retarget_links;
 pub use prefs::{Prefs, PREFS_PATH};
 pub use render::{CH, CW};
 pub use snippets::{Snippet, Snippets, SNIPPETS_PATH};
@@ -220,7 +221,16 @@ pub enum Effect {
     /// Tracked (Local is refused in-core), so it needs no `scope`; it is
     /// [`Save`](Effect::Save) + [`Delete`](Effect::Delete) done as one step so the
     /// snackbar reads as a single publish.
-    Rename { from: String, to: String, contents: String },
+    ///
+    /// `retarget` is every other `.md` file on the card that might link to
+    /// `from` (non-resident ones — the editor retargets resident buffers
+    /// in-core, see [`publish_retarget_links`]): the host runs each through
+    /// that same function and rewrites the hits, so no link breaks when the
+    /// file changes name. The host retargets even when the `to` write fails —
+    /// the editor has already committed to the new name in-core and the retry
+    /// path (`:w`) re-saves under it, so links follow the *name*, not this
+    /// write's outcome.
+    Rename { from: String, to: String, contents: String, retarget: Vec<String> },
     /// Persist the preferences file ([`PREFS_PATH`]) after a palette `>` command
     /// changed a pref. Carries the already-serialized TOML ([`Prefs::to_toml`]),
     /// so the host only does the atomic write — no re-serialization or buffer
