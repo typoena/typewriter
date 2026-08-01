@@ -9,7 +9,7 @@ _Generated from the commit history with [git-cliff](https://git-cliff.org)._
 ## Firmware
 
 
-### [0.8.0] — 2026-07-21
+### [0.8.0] — 2026-08-01
 #### Added
 - **changelog:** Auto-generate CHANGELOG.md from commits with git-cliff
 - **editor:** Add :pub/:publish to mark a note .pub.md
@@ -26,12 +26,39 @@ _Generated from the commit history with [git-cliff](https://git-cliff.org)._
 - **display:** Bake alternate mono font families into MonoFont atlases
 - **editor:** Choose the writing font family from the settings palette
 - **editor:** Group the side panel into file, sync and vim tiers
+- **companion:** Typo the tucano — splash, panel face, moods, milestones
+- **editor:** Show the sync scope flag only for Local buffers
+- **fonts:** Add Courier Prime, IBM Plex Mono, Space Mono, Hack
+- **companion:** Wobble Typo on each reveal, stay neutral on boot
+- **companion:** Rebake Typo crisp at 96px with bolder moods
+- **editor:** Add a face pref (default random) with a humor shuffle bag
+- **companion:** Rotate Typo's rest face into the humors, and fix the fade
+- **palette:** List the full card on an empty query
+- **palette:** Say "reading card..." while the boot walk runs
+- **palette:** Add a fast partial toggle for live bench A/B
+- **firmware:** Trap integer overflow in release builds
+- **firmware:** Panic scribe — dump the dirty buffer before the reboot
+- **palette:** Title-typed new files and scoped folder suggestions
+- **editor:** Add local link palette command
+- **editor:** Ctrl+Tab walks recently-opened notes
+- **editor:** Gf follows the markdown link under the caret
+- **editor:** Gs/gl push and pull from Normal mode
+- **editor:** Retarget links card-wide when :pub renames a file
+- **editor:** Rename the :gp push command to :gs
 
 #### Changed
 - **firmware:** Pin the file-walk to Core1 so it can't starve the UI
+- **render:** Shorten deep-idle full-refresh to 10s
 
 #### Fixed
 - **build:** Compile firmware at opt-level 2 to dodge Xtensa miscompile
+- **editor:** Keep the caret column across format-on-save
+- **epd:** Launder fast-partial residue with a boot-grade clean pass
+- **epd:** Evict the resident fast-partial recipe before factory partials
+- **epd:** Evict the fast recipe before RAM writes, not mid-refresh
+- **editor:** Make Ctrl+W follow Vim word-class boundaries
+- **editor:** Keep typed input out of the side panel
+- **app:** Repaint stale NO KBD flag after boot-time attach
 
 ### [0.7.9] — 2026-07-19
 #### Added
