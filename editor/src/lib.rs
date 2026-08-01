@@ -384,6 +384,13 @@ pub struct Editor {
     /// ([`note_recent`](Self::note_recent)); it orders the palette when the query
     /// is empty, so the file you were just in is one keystroke away.
     recent: Vec<String>,
+    /// In-progress Ctrl+Tab walk of [`recent`](Self::recent): the index of the
+    /// entry the walk last opened. While `Some`, the cycle's own switches do
+    /// not reorder the MRU — so repeated presses reach older notes instead of
+    /// bouncing between the top two. The first other key commits the walk
+    /// ([`commit_recent_cycle`](Self::commit_recent_cycle)), floating the note
+    /// it landed on. `None` outside a cycle.
+    recent_cycle: Option<usize>,
     /// The palette's fuzzy query (valid only in [`Mode::Palette`]).
     palette_query: String,
     /// The selected row in the palette's *filtered* result list (index into
@@ -500,6 +507,7 @@ impl Editor {
             file_spans: Vec::new(),
             files_walked: false,
             recent: Vec::new(),
+            recent_cycle: None,
             palette_query: String::new(),
             palette_sel: 0,
             palette_step: PaletteStep::List,
@@ -535,6 +543,13 @@ impl Editor {
     /// Push is offered.
     pub fn with_file(path: String, scope: Scope, text: String) -> Self {
         let mut ed = Editor { text, path, scope, ..Editor::new() };
+        // The boot file counts as an open: seed the MRU so the first switch
+        // away leaves it one Ctrl+Tab (or palette row) from coming back —
+        // `note_recent` otherwise only ever sees files opened *after* boot.
+        if !ed.path.is_empty() {
+            let p = ed.path.clone();
+            ed.note_recent(&p);
+        }
         ed.caret = ed.text.len();
         if ed.caret > ed.line_start(ed.caret) {
             ed.caret = ed.prev_char(ed.caret);
@@ -769,6 +784,22 @@ impl Editor {
             return;
         }
 
+        // Ctrl+Tab — hop to the next recently-seen note, resolved before mode
+        // dispatch (like Cmd+S) so it works from every mode. A buffer switch
+        // is not a repeatable edit, so an in-progress `.` recording is dropped
+        // (the palette does the same, below). Returns early: the walk itself
+        // must not be committed by its own keystrokes.
+        if key == Key::CycleRecent {
+            self.notice = None;
+            self.dot_recording = None;
+            self.cycle_recent();
+            return;
+        }
+        // Any other key ends an in-progress Ctrl+Tab walk, floating the note
+        // it landed on to the top of the MRU — so the *next* Ctrl+Tab toggles
+        // straight back to the note the walk started from.
+        self.commit_recent_cycle();
+
         // Cmd+S — an explicit save from any mode, mirroring `:w`, resolved
         // before mode dispatch so it never changes mode nor gets recorded for
         // `.` (returns early). It is guarded by the dirty flag: a clean buffer
@@ -930,10 +961,10 @@ impl Editor {
             // likewise ignored here.
             Key::HalfPageDown | Key::HalfPageUp | Key::Redo | Key::Down | Key::Up
             | Key::FocusContinue | Key::FocusQuit => {}
-            // Cmd-S is resolved in `handle` before mode dispatch (so it saves
-            // without leaving Insert); unreachable here, but the match is
-            // exhaustive.
-            Key::Save => {}
+            // Cmd-S and Ctrl-Tab are resolved in `handle` before mode dispatch
+            // (so they act without leaving Insert); unreachable here, but the
+            // match is exhaustive.
+            Key::Save | Key::CycleRecent => {}
             // Cmd-p / Cmd-Shift-p work from every mode: act like Esc (ending the
             // insert session, caret onto the last inserted char), then open the
             // palette — the file list, or `>` command mode for Cmd-Shift-p.
@@ -1126,6 +1157,20 @@ impl Editor {
                 self.register = substr(&self.text, s..e).to_string();
                 self.register_linewise = false;
                 (0..n).for_each(|_| self.delete_at_caret());
+            }
+            // `s` — substitute (vim's `cl`): delete like `x` but keep the caret
+            // at the gap (even at line end) and drop into Insert.
+            's' => {
+                let s = self.caret;
+                let le = self.line_end(s);
+                let mut e = s;
+                for _ in 0..n {
+                    if e >= le {
+                        break;
+                    }
+                    e = self.next_char(e);
+                }
+                self.apply_op(Op::Change, s, e);
             }
             'u' => self.undo(),
             'd' => {

@@ -52,6 +52,10 @@ pub enum Key {
     /// without changing it (the editor guards it behind the dirty flag so a
     /// habitual repeat tap on an unchanged buffer costs no SD write).
     Save,
+    /// Ctrl+Tab — switch to the next recently-opened note (last-seen order).
+    /// One press lands on the previous note; pressing again before any other
+    /// key walks deeper into the MRU list (wrapping). Works from every mode.
+    CycleRecent,
     /// Ctrl+N — move down: one line in Normal/View (vim `CTRL-N` ≡ `j`), or one
     /// row in the file palette. Ignored in Insert.
     Down,
@@ -178,6 +182,7 @@ fn translate(usage: u8, shift: bool, ctrl: bool, cmd: bool) -> Option<Key> {
         0x13 if cmd && shift => return Some(Key::CommandPalette), // Cmd+Shift+P, command palette
         0x13 if cmd => return Some(Key::Palette), // Cmd+P, file palette
         0x16 if cmd => return Some(Key::Save),   // Cmd+S, save (like :w)
+        0x2b if ctrl => return Some(Key::CycleRecent), // Ctrl+Tab, MRU note switch
         0x11 if ctrl => return Some(Key::Down), // Ctrl+N, move down (vim CTRL-N)
         0x06 if ctrl => return Some(Key::FocusContinue), // Ctrl+C, continue the focus break
         0x14 if ctrl => return Some(Key::FocusQuit),     // Ctrl+Q, quit the focus session
@@ -436,6 +441,15 @@ mod tests {
         assert_eq!(translate(0x15, false, false, false), Some(Key::Char('r')));
         assert_eq!(translate(0x13, false, false, false), Some(Key::Char('p')));
         assert_eq!(translate(0x11, false, false, false), Some(Key::Char('n')));
+    }
+
+    #[test]
+    fn translate_ctrl_tab_cycles_recent_notes() {
+        assert_eq!(translate(0x2b, false, true, false), Some(Key::CycleRecent)); // Ctrl+Tab
+        // Plain Tab still types a tab; Cmd+Tab stays swallowed (it belongs to
+        // no chord, and the OS-style app switcher means nothing here).
+        assert_eq!(translate(0x2b, false, false, false), Some(Key::Char('\t')));
+        assert_eq!(translate(0x2b, false, false, true), None);
     }
 
     #[test]

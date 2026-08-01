@@ -176,6 +176,114 @@ fn a_clean_parked_buffer_is_dropped_silently_on_eviction() {
     assert!(e.take_effects().is_empty()); // clean buffer: no save on evict
 }
 
+// ---- Ctrl+Tab (Key::CycleRecent) ----
+
+/// Boot on `a.md`, then open the rest via the palette (installing each load),
+/// so `recent` is seeded most-recent-last-argument-first and all files are
+/// resident up to the ≤3 window.
+fn opened(paths: &[&str]) -> Editor {
+    let mut e = Editor::with_file(
+        paths.first().expect("at least one file").to_string(),
+        Scope::Tracked,
+        "A".into(),
+    );
+    for p in paths.get(1..).unwrap_or_default() {
+        edit(&mut e, p);
+        e.take_effects();
+        e.install_loaded(p.to_string(), Scope::Tracked, String::new());
+    }
+    e
+}
+
+#[test]
+fn ctrl_tab_toggles_between_the_last_two_notes() {
+    let mut e = opened(&["/sd/repo/a.md", "/sd/repo/b.md"]);
+    e.handle(Key::CycleRecent); // b → a (resident: no disk IO)
+    assert_eq!(e.path(), "/sd/repo/a.md");
+    assert!(e.take_effects().is_empty());
+    e.handle(Key::Char('j')); // any other key commits the walk
+    e.handle(Key::CycleRecent); // a → b
+    assert_eq!(e.path(), "/sd/repo/b.md");
+    e.handle(Key::Char('j'));
+    e.handle(Key::CycleRecent); // b → a again
+    assert_eq!(e.path(), "/sd/repo/a.md");
+}
+
+#[test]
+fn repeated_ctrl_tab_walks_deeper_into_the_mru_and_wraps() {
+    // recent: [c, b, a], c active. Without a commit in between, each press
+    // must reach an *older* note, not bounce between the top two.
+    let mut e = opened(&["/sd/repo/a.md", "/sd/repo/b.md", "/sd/repo/c.md"]);
+    e.handle(Key::CycleRecent);
+    assert_eq!(e.path(), "/sd/repo/b.md");
+    e.handle(Key::CycleRecent);
+    assert_eq!(e.path(), "/sd/repo/a.md");
+    e.handle(Key::CycleRecent); // wraps back to the walk's origin
+    assert_eq!(e.path(), "/sd/repo/c.md");
+    e.handle(Key::CycleRecent);
+    assert_eq!(e.path(), "/sd/repo/b.md");
+}
+
+#[test]
+fn committing_the_walk_floats_the_landed_note() {
+    let mut e = opened(&["/sd/repo/a.md", "/sd/repo/b.md", "/sd/repo/c.md"]);
+    e.handle(Key::CycleRecent); // c → b
+    e.handle(Key::Char('j')); // commit: recent now [b, c, a]
+    // The next walk's first hop is the note we came *from*, not a.
+    e.handle(Key::CycleRecent);
+    assert_eq!(e.path(), "/sd/repo/c.md");
+}
+
+#[test]
+fn ctrl_tab_reaches_a_note_evicted_from_residency() {
+    // Four opens: a fell out of the ≤3 resident window, but recency outlives
+    // residency — the walk reaches it via a Load like any non-resident open.
+    let mut e =
+        opened(&["/sd/repo/a.md", "/sd/repo/b.md", "/sd/repo/c.md", "/sd/repo/d.md"]);
+    e.take_effects(); // discard a's eviction save, if any
+    e.handle(Key::CycleRecent); // d → c (resident)
+    e.handle(Key::CycleRecent); // c → b (resident)
+    e.handle(Key::CycleRecent); // b → a: not resident, so a Load is queued
+    assert_eq!(
+        e.take_effects(),
+        vec![Effect::Load { path: "/sd/repo/a.md".into(), scope: Scope::Tracked }]
+    );
+    assert_eq!(e.path(), "/sd/repo/b.md"); // on screen until the host installs a
+}
+
+#[test]
+fn ctrl_tab_with_nowhere_to_go_posts_a_notice() {
+    let mut e = Editor::with_file("/sd/repo/a.md".into(), Scope::Tracked, "A".into());
+    e.handle(Key::CycleRecent); // recent = [a] and a is on screen
+    assert_eq!(e.path(), "/sd/repo/a.md");
+    assert!(e.take_effects().is_empty());
+    assert_eq!(e.notice.as_deref(), Some("no other note"));
+}
+
+#[test]
+fn ctrl_tab_works_from_insert_and_lands_in_normal() {
+    let mut e = opened(&["/sd/repo/a.md", "/sd/repo/b.md"]);
+    e.handle(Key::Char('i'));
+    assert_eq!(e.mode(), Mode::Insert);
+    e.handle(Key::CycleRecent);
+    assert_eq!(e.path(), "/sd/repo/a.md");
+    assert_eq!(e.mode(), Mode::Normal); // buffer swaps land in Normal, like the palette
+}
+
+#[test]
+fn ctrl_tab_derives_scope_for_local_notes() {
+    let mut e = Editor::with_file("/sd/repo/a.md".into(), Scope::Tracked, "A".into());
+    edit(&mut e, "local/j.md");
+    e.take_effects();
+    e.install_loaded("/sd/local/j.md".into(), Scope::Local, "J".into());
+    e.handle(Key::CycleRecent); // j → a
+    e.handle(Key::Char('j')); // commit
+    e.handle(Key::CycleRecent); // a → j, resident swap keeps its Local scope
+    assert_eq!(e.path(), "/sd/local/j.md");
+    assert_eq!(e.scope(), Scope::Local);
+    assert!(e.take_effects().is_empty());
+}
+
 // ---- :enew / :delete (v0.5 slice 3) ----
 
 #[test]

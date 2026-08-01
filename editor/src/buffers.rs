@@ -221,6 +221,13 @@ impl Editor {
             return; // already the active buffer
         }
         self.note_recent(&path); // float it to the top of the palette's MRU
+        self.switch_to(path, scope);
+    }
+
+    /// The switch mechanics of [`open_path`](Self::open_path) without the MRU
+    /// float — the Ctrl+Tab walk ([`cycle_recent`](Self::cycle_recent)) keeps
+    /// `recent` frozen until it commits.
+    fn switch_to(&mut self, path: String, scope: Scope) {
         match self.parked.iter().position(|b| b.path == path) {
             Some(i) => {
                 let target = self.parked.remove(i);
@@ -228,6 +235,48 @@ impl Editor {
                 self.activate(target);
             }
             None => self.requests.push(Effect::Load { path, scope }),
+        }
+    }
+
+    /// Ctrl+Tab — switch to the next note in [`recent`](Self::recent) (last-seen
+    /// order): the previous note on the first press, then older ones on each
+    /// repeat, wrapping. The list is deliberately **not** reordered while the
+    /// walk runs — floating each hop would make two presses bounce between the
+    /// top two entries forever. The first non-Ctrl+Tab key commits the walk
+    /// ([`commit_recent_cycle`](Self::commit_recent_cycle)).
+    pub(crate) fn cycle_recent(&mut self) {
+        let len = self.recent.len();
+        let start = match self.recent_cycle {
+            Some(i) => i + 1, // continue the walk from the last hop
+            None => 0,        // fresh walk: from the top of the MRU
+        };
+        // First entry (cyclically) that isn't the note already on screen.
+        // Empty paths never name a real file (see `has_unnamed_dirty`).
+        let target = (0..len)
+            .map(|o| (start + o) % len)
+            .find(|&i| self.recent.get(i).is_some_and(|p| !p.is_empty() && *p != self.path));
+        let Some(i) = target else {
+            self.set_notice("no other note");
+            return;
+        };
+        self.recent_cycle = Some(i);
+        let Some(path) = self.recent.get(i).cloned() else { return };
+        // `recent` stores absolute card paths, so resolving one re-derives its
+        // scope from the `local/`/`repo/` segment and leaves the path as-is.
+        let (path, scope) = resolve_path(&path, self.scope);
+        self.switch_to(path, scope);
+    }
+
+    /// End an in-progress Ctrl+Tab walk: float the note it landed on (the one
+    /// on screen) to the top of the MRU, restoring the settled-state invariant
+    /// that `recent` leads with the active file. A no-op when no walk is
+    /// running. If the walk's last hop still has its [`Effect::Load`] in
+    /// flight, the note on screen is the walk's *origin* and floats instead —
+    /// `recent` then still matches what the writer actually sees.
+    pub(crate) fn commit_recent_cycle(&mut self) {
+        if self.recent_cycle.take().is_some() && !self.path.is_empty() {
+            let path = self.path.clone();
+            self.note_recent(&path);
         }
     }
 
