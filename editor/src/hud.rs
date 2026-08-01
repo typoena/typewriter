@@ -328,7 +328,7 @@ impl Editor {
         .draw(f)
         .infallible();
 
-        let s = format!("{}{}", self.cmd_prompt, self.cmdline);
+        let s = tail_chars(&format!("{}{}", self.cmd_prompt, self.cmdline), WRITE_COLS - 1);
         let style = MonoTextStyle::new(&FONT_10X20, BinaryColor::On);
         Text::with_baseline(&s, Point::new(2, HEIGHT as i32 - CH), style, Baseline::Top)
             .draw(f)
@@ -360,6 +360,7 @@ impl Editor {
                 .draw(f)
                 .infallible();
             let y = CH + 3;
+            let hint_y = HEIGHT as i32 - CH;
             if self.palette_query.is_empty() {
                 Text::with_baseline(
                     "name  (repo/ or local/ prefix)",
@@ -369,13 +370,25 @@ impl Editor {
                 )
                 .draw(f)
                 .infallible();
-            } else {
-                Text::with_baseline(&self.palette_query, Point::new(2, y), style, Baseline::Top)
+            }
+            // A long name wraps at the column edge onto new rows — never across
+            // the divider into the side panel. `rows` includes the caret's row
+            // (a name exactly filling its last row puts the caret on a fresh
+            // one); a name outgrowing the card shows only its tail rows.
+            let cols = WRITE_COLS - 1;
+            let chars: Vec<char> = self.palette_query.chars().collect();
+            let max_rows = (((hint_y - y) / CH).max(1)) as usize;
+            let rows = (chars.len() / cols + 1).min(max_rows);
+            let skip = chars.len() / cols + 1 - rows;
+            for (i, chunk) in chars.chunks(cols).skip(skip).take(rows).enumerate() {
+                let line: String = chunk.iter().collect();
+                Text::with_baseline(&line, Point::new(2, y + i as i32 * CH), style, Baseline::Top)
                     .draw(f)
                     .infallible();
             }
-            let cx = (2 + self.palette_query.chars().count() as i32 * CW).min(DIVIDER_X - 2);
-            Rectangle::new(Point::new(cx, y), Size::new(2, CH as u32))
+            let cx = 2 + (chars.len() % cols) as i32 * CW;
+            let cy = y + (rows as i32 - 1) * CH;
+            Rectangle::new(Point::new(cx, cy), Size::new(2, CH as u32))
                 .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
                 .draw(f)
                 .infallible();
@@ -389,8 +402,7 @@ impl Editor {
                 None => (self.palette_query.as_str(), None),
             };
             let cands = self.folder_completions(stem);
-            let list_top = 2 * CH + 6;
-            let hint_y = HEIGHT as i32 - CH;
+            let list_top = y + rows as i32 * CH + 3;
             let visible = (((hint_y - list_top) / CH).max(0)) as usize;
             for (row, cand) in cands.iter().take(visible).enumerate() {
                 let ry = list_top + row as i32 * CH;
@@ -437,11 +449,12 @@ impl Editor {
                 .draw(f)
                 .infallible();
         } else {
-            Text::with_baseline(&self.palette_query, Point::new(2, 0), style, Baseline::Top)
+            let shown = tail_chars(&self.palette_query, WRITE_COLS - 1);
+            Text::with_baseline(&shown, Point::new(2, 0), style, Baseline::Top)
                 .draw(f)
                 .infallible();
         }
-        let cx = (2 + self.palette_query.chars().count() as i32 * CW).min(DIVIDER_X - 2);
+        let cx = 2 + self.palette_query.chars().count().min(WRITE_COLS - 1) as i32 * CW;
         Rectangle::new(Point::new(cx, 0), Size::new(2, CH as u32))
             .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
             .draw(f)
@@ -507,7 +520,11 @@ impl Editor {
                     let label = self.snippets.get(idx).map(Self::snippet_label).unwrap_or_default();
                     label.chars().take(max_chars).collect()
                 } else if command_mode {
-                    PALETTE_CMDS.get(idx).map(|&c| self.command_label(c)).unwrap_or_default()
+                    // Bounded like the other arms: font/face/theme labels echo
+                    // free-form pref strings.
+                    let label =
+                        PALETTE_CMDS.get(idx).map(|&c| self.command_label(c)).unwrap_or_default();
+                    label.chars().take(max_chars).collect()
                 } else {
                     // Prettify the basename only (`friendly_filename`), keeping any
                     // scope/dir prefix as-is so the date check anchors on the name.

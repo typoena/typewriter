@@ -104,6 +104,14 @@ pub(crate) fn wrap_text(text: &str, width: usize) -> Vec<String> {
 }
 
 
+/// Last `n` chars of `s`, for tail-scrolling an over-long input line (vim
+/// cmdline style): the caret end stays visible and the text never crosses the
+/// divider into the side panel.
+pub(crate) fn tail_chars(s: &str, n: usize) -> String {
+    s.chars().skip(s.chars().count().saturating_sub(n)).collect()
+}
+
+
 /// One wrapped display line: its text and the buffer offset of its first char.
 pub(crate) struct Line {
     pub(crate) start: usize,

@@ -181,3 +181,59 @@ fn draw_with_gutter_produces_a_full_frame() {
     let mut e = Editor::with_text("line one\nline two\nline three".to_string());
     assert_eq!(e.draw(true).bytes().len(), display::FB_BYTES);
 }
+
+// --- Typed input never crosses the divider into the side panel --------------
+
+/// Frame bytes strictly right of the divider: from the byte after the one the
+/// divider rule lands in (x ≥ 632), per row.
+fn panel_region(f: &display::Frame) -> Vec<u8> {
+    let first = (DIVIDER_X as usize) / 8 + 1;
+    f.bytes().chunks(display::FB_BYTES_W).flat_map(|row| row[first..].iter().copied()).collect()
+}
+
+#[test]
+fn long_palette_query_stays_out_of_the_side_panel() {
+    let mut e = palette_editor(&["/sd/repo/notes.md"]);
+    e.handle(Key::Palette);
+    let clean = panel_region(&e.draw(true));
+    for _ in 0..2 * WRITE_COLS {
+        e.handle(Key::Char('x'));
+    }
+    assert_eq!(panel_region(&e.draw(true)), clean);
+}
+
+#[test]
+fn long_new_file_name_stays_out_of_the_side_panel() {
+    let mut e = palette_type(&["/sd/repo/notes.md"], ">new");
+    e.handle(Key::Enter); // → the filename input step
+    let clean = panel_region(&e.draw(true));
+    for _ in 0..2 * WRITE_COLS {
+        e.handle(Key::Char('a'));
+    }
+    assert_eq!(panel_region(&e.draw(true)), clean);
+}
+
+#[test]
+fn new_file_name_past_the_column_edge_wraps_rather_than_truncates() {
+    let mut e = palette_type(&["/sd/repo/notes.md"], ">new");
+    e.handle(Key::Enter);
+    for _ in 0..WRITE_COLS + 8 {
+        e.handle(Key::Char('a'));
+    }
+    // Chars past the column edge land on a fresh row: the frame must keep
+    // changing (a truncated display would render byte-identically).
+    let before = e.draw(true).bytes().to_vec();
+    e.handle(Key::Char('b'));
+    assert_ne!(e.draw(true).bytes(), &before[..]);
+}
+
+#[test]
+fn long_command_line_stays_out_of_the_side_panel() {
+    let mut e = over("hello");
+    e.handle(Key::Char(':'));
+    let clean = panel_region(&e.draw(true));
+    for _ in 0..2 * WRITE_COLS {
+        e.handle(Key::Char('x'));
+    }
+    assert_eq!(panel_region(&e.draw(true)), clean);
+}
