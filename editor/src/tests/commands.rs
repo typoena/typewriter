@@ -35,6 +35,31 @@ fn gl_command_signals_pull() {
 }
 
 #[test]
+fn normal_mode_gs_and_gl_mirror_the_colon_commands() {
+    // `gs` (go-sync) and `gl` in Normal mode are the `:gp` push and `:gl`
+    // pull, one keystroke shorter. `gs`, not `gp`: vim binds `gp` to
+    // paste-after, and a paste habit must never fire a push.
+    let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, "hi".into());
+    send(&mut e, "gs");
+    assert_eq!(kinds(&e.take_effects()), vec![Kind::Save, Kind::Push]);
+    send(&mut e, "gl");
+    assert!(
+        matches!(e.take_effects().as_slice(), [Effect::Pull { commit_dirty: false }]),
+        "bare gl must not pre-authorize the commit",
+    );
+    assert_eq!(e.mode(), Mode::Normal);
+}
+
+#[test]
+fn normal_mode_gs_from_a_local_buffer_is_refused() {
+    // Same guard as `:gp`: Local files never push.
+    let mut e = Editor::with_file("/sd/local/j.md".into(), Scope::Local, "diary".into());
+    send(&mut e, "gs");
+    assert!(e.take_effects().is_empty());
+    assert_eq!(e.notice.as_deref(), Some("Push unavailable (Local)"));
+}
+
+#[test]
 fn pull_commit_confirm_queues_a_committing_pull() {
     // The host opens this prompt when `:gl` found unpushed saves. Answering
     // `y` queues a pull that folds the journal into a commit first.

@@ -1132,6 +1132,11 @@ impl Editor {
                 'r' => self.mode = Mode::View,
                 // `gf` (go to file): follow the markdown link under the caret.
                 'f' => self.follow_link_at_caret(),
+                // `gs`/`gl`: the `:gp` push and `:gl` pull, one keystroke
+                // shorter. `gs` (go-sync), not `gp` — vim binds `gp` to
+                // paste-after, and a paste habit must never fire a push.
+                's' => self.run_push(),
+                'l' => self.requests.push(Effect::Pull { commit_dirty: false }),
                 _ => {}
             }
             self.count = 0;
