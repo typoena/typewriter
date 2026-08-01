@@ -45,6 +45,36 @@ impl hal::Keyboard for NoKeyboard {
     }
 }
 
+/// A keyboard that is attached but has nothing queued.
+struct PresentKeyboard;
+impl hal::Keyboard for PresentKeyboard {
+    fn next_key(&mut self) -> Option<hal::Key> {
+        None
+    }
+    fn keyboard_present(&self) -> bool {
+        true
+    }
+}
+
+/// A screen that counts partial-window paints (the kbd-flag repaint path).
+#[derive(Clone, Default)]
+struct CountingScreen(Rc<RefCell<u32>>);
+impl hal::Screen for CountingScreen {
+    type Error = Infallible;
+    fn display_frame(&mut self, _fb: &[u8]) -> Result<(), Infallible> {
+        Ok(())
+    }
+    fn display_frame_partial_window(
+        &mut self,
+        _fb: &[u8],
+        _y0: u16,
+        _h: u16,
+    ) -> Result<(), Infallible> {
+        *self.0.borrow_mut() += 1;
+        Ok(())
+    }
+}
+
 #[derive(Default)]
 struct StorageLog {
     saves: Vec<(String, String)>,
@@ -191,6 +221,39 @@ fn pull_notice_covers_every_variant() {
     assert_eq!(pull_notice(&PullOutcome::UpToDate), "up to date");
     assert_eq!(pull_notice(&PullOutcome::LocalAhead), "ahead - :gp to push");
     assert_eq!(pull_notice(&PullOutcome::Failed("boom".into())), "boom");
+}
+
+// ---- keyboard flag --------------------------------------------------------
+
+#[test]
+fn attach_between_boot_seed_and_runtime_start_repaints_the_kbd_flag() {
+    // Editor::new() carries the boot-frame seed (keyboard_present = false, the
+    // NO KBD flag painted); the hardware says present by the time the runtime
+    // starts. The first idle tick must catch the missed transition and repaint —
+    // diffing hardware-vs-hardware here left the stale flag up until the next
+    // unrelated repaint (the file walk, ~6 s after cursor-ready).
+    let mut ed = Editor::new();
+    let screen = CountingScreen::default();
+    let panel = Panel::new(screen.clone(), &mut ed).expect("first paint");
+    let mut rt = Runtime::new(
+        ed,
+        panel,
+        Box::new(PresentKeyboard),
+        Box::new(RecStorage::default()),
+        Box::new(RecSync::new()),
+        Box::new(FixedClock),
+        Box::new(PanicSystem),
+        Box::new(RecFiles::default()),
+    );
+    let boot_paints = *screen.0.borrow();
+    rt.tick();
+    assert_eq!(
+        *screen.0.borrow(),
+        boot_paints + 1,
+        "first tick must repaint the stale NO KBD flag"
+    );
+    rt.tick();
+    assert_eq!(*screen.0.borrow(), boot_paints + 1, "settled — no repaint on the next tick");
 }
 
 // ---- effect routing -------------------------------------------------------

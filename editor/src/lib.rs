@@ -666,6 +666,13 @@ impl Editor {
         self.keyboard_present = present;
     }
 
+    /// The keyboard flag as last fed via [`Self::set_keyboard_present`] — i.e.
+    /// what the painted frame shows. Read by the runtime's repaint diff (see
+    /// `Runtime::new` for why it must not re-read the hardware instead).
+    pub fn keyboard_present(&self) -> bool {
+        self.keyboard_present
+    }
+
     /// Feed the editor today's date from the host clock — the pure core has none.
     /// Passed each key batch so a session crossing midnight (or one whose clock is
     /// only set mid-session by the first sync) always sees the current day. `None`

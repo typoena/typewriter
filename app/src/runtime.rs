@@ -77,7 +77,11 @@ impl<S: Screen> Runtime<S> {
         system: Box<dyn System>,
         files: Box<dyn FileIndex>,
     ) -> Self {
-        let last_kbd = keyboard.keyboard_present();
+        // Diff against the flag baked into the painted boot frame, NOT the
+        // hardware: a keyboard that attached between the editor seed and here
+        // would make both readings agree and the stale NO KBD flag would never
+        // repaint (until an unrelated repaint, e.g. the file walk ~6 s later).
+        let last_kbd = ed.keyboard_present();
         Self {
             ed,
             panel,
