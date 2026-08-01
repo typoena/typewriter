@@ -908,3 +908,56 @@ fn palette_previews_only_the_selected_font() {
     let mut e = palette_type(&["/sd/repo/a.md"], ">theme");
     assert!(!writing_ink_in_band(&e.draw(true), 232, 252), "non-font settings show no preview");
 }
+
+// --- Title-typed new files (no extension → slug + `# title` seed) ----------
+
+#[test]
+fn slugify_folds_accents_and_apostrophes() {
+    assert_eq!(
+        slugify("L'introduction indispensable à la pensée systémique"),
+        "l-introduction-indispensable-a-la-pensee-systemique"
+    );
+    assert_eq!(slugify("Nœud cœur"), "noeud-coeur");
+    assert_eq!(slugify("  --Déjà  vu!!  "), "deja-vu");
+    assert_eq!(slugify("2026 review"), "2026-review");
+    assert_eq!(slugify("???"), "");
+}
+
+#[test]
+fn new_file_step_title_slugs_the_name_and_seeds_the_heading() {
+    let mut e = palette_type(&["/sd/repo/notes.md"], ">new");
+    e.handle(Key::Enter); // input step, prefilled "repo/"
+    for c in "lectures/L'introduction à la pensée".chars() {
+        e.handle(Key::Char(c));
+    }
+    e.handle(Key::Enter);
+    assert_eq!(e.path(), "/sd/repo/lectures/l-introduction-a-la-pensee.md");
+    assert_eq!(e.text(), "# L'introduction à la pensée\n\n");
+    assert!(e.dirty());
+}
+
+#[test]
+fn new_file_step_title_matching_an_existing_slug_switches_not_clobbers() {
+    let mut e = palette_type(&["/sd/repo/reading-notes.md"], ">new");
+    e.handle(Key::Enter); // prefilled "repo/"
+    for c in "Reading Notes".chars() {
+        e.handle(Key::Char(c));
+    }
+    e.handle(Key::Enter);
+    // The slug names a file already on the card: a switch (Load), no clobber.
+    assert_eq!(kinds(&e.take_effects()), vec![Kind::Load]);
+    assert_eq!(e.path(), "/sd/repo/notes.md"); // unchanged until the host installs
+}
+
+#[test]
+fn folder_completions_offer_only_the_next_segment() {
+    let e = palette_editor(&["/sd/repo/lectures/meadows/systemique.md", "/sd/repo/notes/a.md"]);
+    // At the repo/ level: its two child folders, never the deeper meadows/.
+    assert_eq!(e.folder_completions("repo/"), vec!["repo/lectures/", "repo/notes/"]);
+    // One segment accepted: only that folder's children.
+    assert_eq!(e.folder_completions("repo/lectures/"), vec!["repo/lectures/meadows/"]);
+    // A partial segment filters its own level.
+    assert_eq!(e.folder_completions("repo/lec"), vec!["repo/lectures/"]);
+    // Top level: the scope roots.
+    assert_eq!(e.folder_completions(""), vec!["local/", "repo/"]);
+}

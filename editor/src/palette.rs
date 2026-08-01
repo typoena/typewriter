@@ -27,6 +27,30 @@ pub(crate) fn friendly_filename(name: &str) -> String {
     format!("{head}{}", tail.replace('-', " "))
 }
 
+/// Slug a title into a filename stem: lowercase, diacritics stripped (same
+/// [`fold`] as `/` search), `œ`/`æ` expanded, every other char a single `-`
+/// (collapsed, trimmed). `L'introduction à la pensée` →
+/// `l-introduction-a-la-pensee`. Empty when the title has no alphanumerics.
+pub(crate) fn slugify(title: &str) -> String {
+    let mut out = String::new();
+    for c in title.chars() {
+        match fold(c, true) {
+            c @ ('a'..='z' | '0'..='9') => out.push(c),
+            'œ' => out.push_str("oe"),
+            'æ' => out.push_str("ae"),
+            _ => {
+                if !out.is_empty() && !out.ends_with('-') {
+                    out.push('-');
+                }
+            }
+        }
+    }
+    if out.ends_with('-') {
+        out.pop();
+    }
+    out
+}
+
 /// Length of a leading `YYYY-MM-DD` date (always 10) when `s` opens with one
 /// followed by `-` or end-of-string, else 0. Byte-indexed: the pattern is pure
 /// ASCII, and a multibyte lead byte at index 10 simply won't equal `b'-'`.
@@ -274,8 +298,26 @@ impl Editor {
                 if name.is_empty() || name.ends_with('/') {
                     return;
                 }
+                let (dir, base) = match name.rfind('/') {
+                    Some(i) => (crate::substr(&name, ..=i), crate::substr(&name, i + 1..)),
+                    None => ("", name.as_str()),
+                };
+                // A dot in the basename is an explicit extension — the name is
+                // taken verbatim. Otherwise the basename is a *title*: it slugs
+                // into `<slug>.md` and seeds the file with a `# <title>` heading.
+                if base.contains('.') {
+                    self.close_palette();
+                    self.new_file(&name);
+                    return;
+                }
+                let title = base.trim().to_string();
+                let slug = slugify(&title);
+                if slug.is_empty() {
+                    return; // no sluggable chars in the title — stay in the step
+                }
+                let arg = format!("{dir}{slug}.md");
                 self.close_palette();
-                self.new_file(&name);
+                self.new_file_titled(&arg, &title);
             }
             Key::Escape | Key::Palette | Key::CommandPalette => self.close_palette(),
             // No list to move over in this step; Cmd-S is handled upstream in
@@ -482,33 +524,51 @@ impl Editor {
         self.new_file_completion = Some((stem, pos));
     }
 
-    /// The distinct existing folders (each in palette-label form with a trailing
-    /// `/`) that have `stem` as a case-insensitive prefix, sorted, excluding an
-    /// exact match to the stem itself (that is the "back to what you typed" slot
-    /// [`new_file_complete`](Self::new_file_complete) adds separately). Folders
-    /// are derived from the palette file list — every ancestor directory of every
-    /// known file — plus the two scope roots, which exist even when empty.
+    /// The **next-segment** folder completions for `stem` (each in palette-label
+    /// form with a trailing `/`): the distinct child folders one level below the
+    /// directory part of `stem`, whose name starts with its last (partial)
+    /// segment, case-insensitively — `repo/lectures/mea` offers
+    /// `repo/lectures/meadows/`, never the deeper `repo/lectures/meadows/drafts/`.
+    /// Each accepted segment narrows the next round, so completion walks the tree
+    /// one segment at a time. Candidates come from the palette file list — the
+    /// ancestor directories of every known file — plus the two scope roots at the
+    /// top level, which exist even when empty. An exact match to the stem is
+    /// excluded (that is the "back to what you typed" slot
+    /// [`new_file_complete`](Self::new_file_complete) adds separately). Sorted.
     pub(crate) fn folder_completions(&self, stem: &str) -> Vec<String> {
-        let stem_lc = stem.to_ascii_lowercase();
-        let mut folders: Vec<String> = vec!["local/".to_string(), "repo/".to_string()];
-        for i in 0..self.file_count() {
-            let label = palette_label(self.file_at(i));
-            // Push each ancestor directory prefix of this file (up to and
-            // including each '/'): `repo/notes/foo.md` yields `repo/`, `repo/notes/`.
-            let mut start = 0;
-            while let Some(rel) = crate::substr(label, start..).find('/') {
-                let end = start + rel + 1; // include the '/'
-                let folder = crate::substr(label, ..end).to_string();
-                if !folders.contains(&folder) {
-                    folders.push(folder);
+        let (dir, partial) = match stem.rfind('/') {
+            Some(i) => (crate::substr(stem, ..=i), crate::substr(stem, i + 1..)),
+            None => ("", stem),
+        };
+        let partial_lc = partial.to_ascii_lowercase();
+        let mut folders: Vec<String> = Vec::new();
+        if dir.is_empty() {
+            for root in ["local/", "repo/"] {
+                if root.starts_with(&partial_lc) {
+                    folders.push(root.to_string());
                 }
-                start = end;
             }
         }
-        folders.retain(|f| {
-            let flc = f.to_ascii_lowercase();
-            flc != stem_lc && flc.starts_with(&stem_lc)
-        });
+        for i in 0..self.file_count() {
+            let label = palette_label(self.file_at(i));
+            let Some(head) = label.as_bytes().get(..dir.len()) else { continue };
+            if !head.eq_ignore_ascii_case(dir.as_bytes()) {
+                continue;
+            }
+            let rest = crate::substr(label, dir.len()..);
+            // A file sitting directly in `dir` contributes no child folder.
+            let Some(slash) = rest.find('/') else { continue };
+            if !crate::substr(rest, ..slash).to_ascii_lowercase().starts_with(&partial_lc) {
+                continue;
+            }
+            // Take the folder from the label, so the completion carries the
+            // on-card casing even when the typed `dir` differed in case.
+            let folder = crate::substr(label, ..dir.len() + slash + 1).to_string();
+            if !folders.contains(&folder) {
+                folders.push(folder);
+            }
+        }
+        folders.retain(|f| !f.eq_ignore_ascii_case(stem));
         folders.sort();
         folders
     }

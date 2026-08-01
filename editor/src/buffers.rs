@@ -311,6 +311,30 @@ impl Editor {
         self.set_notice(format!("new {}", palette_label(&path)));
     }
 
+    /// Create a title-typed file from the palette's `> new file` step: `arg` is
+    /// the slugged path (`repo/lectures/l-introduction....md`) and `title` the
+    /// basename as typed, seeded as a `# <title>` heading with a blank line to
+    /// write on (the [`open_inbox_today`](Self::open_inbox_today) posture). If
+    /// the slug already names a file — open, parked, or on the card — this
+    /// switches to it instead: a re-typed title means "take me there", never a
+    /// clobber of the existing note.
+    pub(crate) fn new_file_titled(&mut self, arg: &str, title: &str) {
+        let (path, scope) = resolve_path(arg, self.scope);
+        if path == self.path
+            || self.parked.iter().any(|b| b.path == path)
+            || self.file_list_contains(&path)
+        {
+            self.open_path(path, scope);
+            return;
+        }
+        self.note_recent(&path);
+        self.add_to_file_list(&path);
+        self.park_active();
+        self.set_active(path.clone(), scope, format!("# {title}\n\n"));
+        self.dirty = true;
+        self.set_notice(format!("new {}", palette_label(&path)));
+    }
+
     /// `:inbox` / `:in` — open today's fleeting note, creating it if new. The note
     /// lives in the git-tracked `_inbox/` under [`REPO_DIR`], named `YYYY-MM-DD.md`
     /// (ISO order, so a listing sorts chronologically for [`open_oldest_inbox`]);

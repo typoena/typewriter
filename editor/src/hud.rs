@@ -379,9 +379,39 @@ impl Editor {
                 .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
                 .draw(f)
                 .infallible();
+            // Folder suggestions under the prompt — the next-segment candidates
+            // Tab completes/cycles ([`folder_completions`]), scoped to the
+            // segments already typed. During a Tab cycle the list is computed
+            // from the cycle's stem (so it holds still) and the candidate
+            // currently landed shows in reverse video.
+            let (stem, active) = match &self.new_file_completion {
+                Some((stem, pos)) => (stem.as_str(), Some(*pos)),
+                None => (self.palette_query.as_str(), None),
+            };
+            let cands = self.folder_completions(stem);
+            let list_top = 2 * CH + 6;
+            let hint_y = HEIGHT as i32 - CH;
+            let visible = (((hint_y - list_top) / CH).max(0)) as usize;
+            for (row, cand) in cands.iter().take(visible).enumerate() {
+                let ry = list_top + row as i32 * CH;
+                let label: String = cand.chars().take(WRITE_COLS - 1).collect();
+                if active == Some(row) {
+                    Rectangle::new(Point::new(0, ry), Size::new(DIVIDER_X as u32, CH as u32))
+                        .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
+                        .draw(f)
+                        .infallible();
+                    Text::with_baseline(&label, Point::new(2, ry), inv, Baseline::Top)
+                        .draw(f)
+                        .infallible();
+                } else {
+                    Text::with_baseline(&label, Point::new(2, ry), style, Baseline::Top)
+                        .draw(f)
+                        .infallible();
+                }
+            }
             Text::with_baseline(
-                "Enter create  Esc cancel",
-                Point::new(2, HEIGHT as i32 - CH),
+                "Tab folder  Enter create  Esc cancel",
+                Point::new(2, hint_y),
                 style,
                 Baseline::Top,
             )
