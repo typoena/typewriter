@@ -79,10 +79,14 @@ kb_py1 = wall + (kb_int_d + kb_pcb_d)/2;      // PCB top/back edge, world Y
 //  keyboard bay
 // ===========================================================================
 // back pillars sit at the wedge's front-pillar XY so the two hulls share one
-// continuous side wall and corner radius
+// continuous side wall and corner radius. They rise to Hf (not Hk): the rim
+// top must meet the wedge's front-top edge flush — at Hk it stops 2 mm short
+// and the wedge's receding corner leaves an open slot at each junction corner.
 module bay_outer() {
-    hull() for (x=[corner_r, W-corner_r], y=[corner_r, kb_d+corner_r])
-        translate([x, y, 0]) cylinder(h=Hk, r=corner_r);
+    hull() for (x=[corner_r, W-corner_r]) {
+        translate([x, corner_r,        0]) cylinder(h=Hk, r=corner_r);
+        translate([x, kb_d + corner_r, 0]) cylinder(h=Hf, r=corner_r);
+    }
 }
 
 module bay_cavity() {

@@ -29,7 +29,9 @@ translated back by the bay depth. The bay is additive:
 - **Tray mount.** The keyboard PCB screws to integral posts on the bay floor
   (standard GH60 tray positions for the 60%; Planck holes are placeholders).
   Plate floats on the switches, walls locate it with 0.75 mm wiggle. The rim
-  (`Hk = 22`) hides the plate edge; caps sit proud.
+  (`Hk = 22` at the front) hides the plate edge, caps sit proud; toward the
+  deck it rises to meet the wedge's front-top edge flush, so bay and deck
+  join without a seam.
 - **Internal USB.** The keyboard stays a stock QMK device. Its cable leaves
   through a slot in the shared wall into the wedge cavity. PCB 2's keyboard
   USB-C faces **out** the back wall, so it can't take an internal plug — PCB 2
