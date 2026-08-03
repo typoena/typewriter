@@ -3,6 +3,12 @@
 
 scad := "case/typoena-case.scad"
 
+# integrated-keyboard variant (see case/README-kb.md). kb and W must move as a
+# pair — the model asserts they match:  60% -> 291.30   40% -> 239.15
+scad_kb := "typoena-case-kb.scad"
+kb60    := "-D 'kb=\"60\"' -D 'W=291.30'"
+kb40    := "-D 'kb=\"40\"' -D 'W=239.15'"
+
 # shared OpenSCAD flags (everything but the camera + the part to show).
 # $fn is pinned here so preview quality is stable no matter what the file's
 # editing value is set to.
@@ -32,6 +38,23 @@ render:
     # two bespoke cameras: the straight-on nameplate hero, and the low back 3/4
     cd case && openscad -o renders/nameplate.png  {{base}} --camera=0,0,0,62,0,0,0   -D 'show="body"'      typoena-case.scad
     cd case && openscad -o renders/front34.png    {{base}} --camera=0,0,0,72,0,200,0 -D 'show="assembled"' typoena-case.scad
+
+# regenerate the integrated-keyboard variant previews (60% + 40%)
+render-kb:
+    cd case && openscad -o renders/kb60-assembled.png {{base}} {{std_cam}} {{kb60}} -D 'show="kb_assembled"' {{scad_kb}}
+    cd case && openscad -o renders/kb60-body.png      {{base}} {{std_cam}} {{kb60}} -D 'show="kb_body"'      {{scad_kb}}
+    cd case && openscad -o renders/kb60-section.png   {{base}} --camera=0,0,0,90,0,90,0  {{kb60}} -D 'show="kb_section"'   {{scad_kb}}
+    cd case && openscad -o renders/kb60-back.png      {{base}} --camera=0,0,0,72,0,200,0 {{kb60}} -D 'show="kb_assembled"' {{scad_kb}}
+    cd case && openscad -o renders/kb40-assembled.png {{base}} {{std_cam}} {{kb40}} -D 'show="kb_assembled"' {{scad_kb}}
+    cd case && openscad -o renders/kb40-body.png      {{base}} {{std_cam}} {{kb40}} -D 'show="kb_body"'      {{scad_kb}}
+
+# export the integrated-keyboard variant STLs (bracket is shared — see `stl`)
+stl-kb:
+    cd case && openscad -o kb60-body.stl      {{kb60}} -D 'show="kb_body"'      {{scad_kb}}
+    cd case && openscad -o kb60-baseplate.stl {{kb60}} -D 'show="kb_baseplate"' {{scad_kb}}
+    cd case && openscad -o kb40-body.stl      {{kb40}} -D 'show="kb_body"'      {{scad_kb}}
+    cd case && openscad -o kb40-baseplate.stl {{kb40}} -D 'show="kb_baseplate"' {{scad_kb}}
+    cd case && zip -qj stl-kb.zip kb60-body.stl kb60-baseplate.stl kb40-body.stl kb40-baseplate.stl
 
 # export STLs: 3 printable parts + the full-assembly reference, then bundle
 # the printable parts into stl.zip for handoff
