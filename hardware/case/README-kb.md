@@ -15,8 +15,9 @@ caps and keymap, not PCB design:
 > from the proven base model; the bay's tray-mount numbers are best-guesses
 > marked `<< VERIFY >>` until checked against the real PCB drawing.
 
-![60% variant assembled — keyboard tray in front, reclined deck behind](renders/kb60-assembled.png)
-![40% Planck variant — same silhouette, 52 mm narrower](renders/kb40-assembled.png)
+| 60% (GH60)                                                                                         | 40% (Planck)                                                              |
+| -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| ![60% variant assembled — keyboard tray in front, reclined deck behind](renders/kb60-assembled.png) | ![40% Planck variant — same silhouette, 52 mm narrower](renders/kb40-assembled.png) |
 
 ## How it composes
 
