@@ -47,3 +47,18 @@ __pycache__/
 # firmware tree.
 /typoena-site/
 
+# KiCad (hardware/pcb) — sources are tracked (.kicad_sch/.kicad_pcb/.kicad_pro,
+# the lib tables, and the generated Gerbers so the board can be ordered from a
+# checkout). Everything below is per-machine state or regenerable output.
+*.kicad_prl
+*.kicad_pcb-bak
+*.kicad_sch-bak
+*-backups/
+_autosave-*
+fp-info-cache
+*_drc_violations.json
+*-drc.rpt
+*-erc.rpt
+# Intermediate netlist: KiCad regenerates it from the schematic on demand.
+hardware/pcb/**/*.net
+

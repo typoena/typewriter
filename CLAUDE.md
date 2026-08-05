@@ -29,6 +29,24 @@ comment keeps only the conclusion plus the pointer. One home per rationale: neve
 tell the same story in two comments — pick the natural site (usually the field or
 const), and have the other point to it.
 
+## KiCad MCP (hardware/pcb)
+
+PCB work needs the `kicad` MCP server. If its `mcp__kicad__*` tools are absent,
+the container was rebuilt: everything lives on a persistent volume, but the
+registration is stored in `/home/jean/.claude.json`, which sits at the ephemeral
+home root. Re-register with:
+
+```sh
+~/.local/share/com.jean.desktop/tools/kicad9/restore-after-rebuild.sh
+```
+
+Idempotent — it verifies the volume is intact, then re-runs `claude mcp add`.
+The tools only load at session start, so **the session must be restarted
+afterwards**; say so rather than retrying the script.
+
+If it reports a missing file, the volume itself is damaged — see the
+`kicad-headless-mcp` memory note for how the toolchain was built.
+
 ## docs/ folder
 
 Do not proactively read, scan, or `ls` the `docs/` folder. It's large and mostly
