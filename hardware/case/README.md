@@ -203,6 +203,9 @@ below.
       what confirms `usbc_w = 8.5`, but its 5 mm µSD gap gave 16.25 against a
       measured 15.0: the slot was 1.25 mm too far right, twice the slack that
       could have covered it. Centres are 12.25 / 27.75 / 42.75 off the board edge.
+      Cross-checked: a measured 4.0 mm part-to-part gap against the 3.75 the pitch
+      and widths imply — 0.25 mm apart, which is what confirms `sd_w = 14.0` (at
+      13.0 the two readings would disagree by a full millimetre).
 - [ ] **Where the port cluster sits on the board is still unmeasured** — the 8 mm
       from PCB 2's left edge to the charge connector is the last of the old chain.
       The pitches are right, so an error here slides all three ports together.
