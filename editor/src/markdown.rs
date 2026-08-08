@@ -205,10 +205,10 @@ pub(crate) enum Align {
 }
 
 /// Normalize a Markdown buffer for `:fmt`: strip trailing whitespace, align
-/// pipe tables, and collapse runs of blank lines to a single blank (dropping
-/// trailing blanks). Deliberately does NOT reflow paragraphs — the buffer's
-/// logical line breaks are the writer's, and display wrapping is soft (see
-/// `layout`). ASCII throughout (widths are char counts).
+/// pipe tables, collapse runs of blank lines to a single blank, and terminate
+/// the buffer with a newline. Deliberately does NOT reflow paragraphs — the
+/// buffer's logical line breaks are the writer's, and display wrapping is soft
+/// (see `layout`). ASCII throughout (widths are char counts).
 pub(crate) fn format_markdown(text: &str) -> String {
     // 1. Trailing-whitespace strip, per line.
     let stripped: Vec<String> = text.split('\n').map(|l| l.trim_end().to_string()).collect();
@@ -231,8 +231,6 @@ pub(crate) fn format_markdown(text: &str) -> String {
     //    we deliberately keep that one rather than dropping it. A writer often
     //    presses Enter to open the next line before pausing; yanking that line
     //    (and the caret) out from under them on every format-on-save is jarring.
-    //    The file's POSIX terminator is `save_path`'s job, not this pass's, so
-    //    keeping the blank line here is purely about not disturbing the buffer.
     let mut out: Vec<String> = Vec::with_capacity(piped.len());
     let mut blank_run = 0;
     for line in piped {
@@ -246,7 +244,16 @@ pub(crate) fn format_markdown(text: &str) -> String {
             out.push(line);
         }
     }
-    out.join("\n")
+    let mut text = out.join("\n");
+    // 4. POSIX terminator, in the buffer rather than only on disk. `save_path`
+    //    already guards the file byte, but a buffer that ended mid-line stayed a
+    //    byte out of step with its file — the writer saw no empty last row and
+    //    the terminator only appeared on the next reload. An empty buffer stays
+    //    empty: a blank scratch has no line to terminate.
+    if !text.is_empty() && !text.ends_with('\n') {
+        text.push('\n');
+    }
+    text
 }
 
 /// Split a table row into trimmed cells, dropping the empty cells that leading /

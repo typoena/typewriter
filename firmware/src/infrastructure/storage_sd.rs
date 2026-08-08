@@ -405,10 +405,10 @@ impl Storage {
                 .with_context(|| format!("write {tmp}"))?;
             // Insert a final newline only if the buffer lacks one (POSIX text
             // convention; keeps git from flagging "No newline at end of file").
-            // `load_path` reads verbatim, so this is the sole place the terminator is
-            // guaranteed — and because it's guarded, the file mirrors the buffer's
-            // trailing newlines exactly: one visible trailing blank line stays one,
-            // never doubled. A buffer that already ends in '\n' passes through as-is.
+            // The lint pass terminates the buffer itself (`format_markdown`), so
+            // this catches the writes that skip it — idle saves, `format_on_save`
+            // off, prefs/marker files. Guarded, so the file mirrors the buffer's
+            // trailing newlines exactly: one blank line stays one, never doubled.
             if !contents.ends_with('\n') {
                 f.write_all(b"\n")
                     .with_context(|| format!("write final newline to {tmp}"))?;

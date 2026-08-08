@@ -284,7 +284,7 @@ fn gs_formats_the_buffer_before_pushing() {
     }
     e.handle(Key::Enter);
     assert_eq!(kinds(&e.take_effects()), vec![Kind::Save, Kind::Push]);
-    assert_eq!(e.text(), "hello\nworld"); // :fmt stripped the trailing whitespace
+    assert_eq!(e.text(), "hello\nworld\n"); // :fmt stripped the spaces, ended the buffer
 }
 
 #[test]
@@ -321,10 +321,37 @@ fn format_on_save_off_leaves_the_buffer_untouched() {
 #[test]
 fn format_keeps_at_most_one_trailing_blank_line() {
     // The writer's trailing blank line (pressed Enter to open the next line) is
-    // kept; a run of them collapses to one; a note with none gains none.
+    // kept; a run of them collapses to one.
     assert_eq!(format_markdown("hello\n"), "hello\n"); // one blank kept
     assert_eq!(format_markdown("hello\n\n\n"), "hello\n"); // extras collapsed to one
-    assert_eq!(format_markdown("hello"), "hello"); // none added
+}
+
+#[test]
+fn format_terminates_the_buffer_with_a_newline() {
+    // A buffer that ends mid-line gains the POSIX terminator (and with it the
+    // empty last row) — no second pass, and an empty buffer stays empty.
+    assert_eq!(format_markdown("hello"), "hello\n");
+    assert_eq!(format_markdown("hello\nworld"), "hello\nworld\n");
+    assert_eq!(format_markdown("hello\n"), "hello\n"); // idempotent
+    assert_eq!(format_markdown(""), ""); // a blank scratch has no line to end
+}
+
+#[test]
+fn format_on_save_adds_the_missing_trailing_newline() {
+    let mut e = Editor::with_file(
+        "/sd/repo/notes.md".into(),
+        Scope::Tracked,
+        "hello".to_string(), // no terminator — as a file authored elsewhere arrives
+    );
+    e.handle(Key::Char(':'));
+    e.handle(Key::Char('w'));
+    e.handle(Key::Enter);
+
+    assert_eq!(e.text(), "hello\n", "lint-on-save terminated the buffer");
+    let Some(Effect::Save { contents, .. }) = e.take_effects().into_iter().next() else {
+        panic!("`:w` queued no Save effect");
+    };
+    assert_eq!(contents, "hello\n", "the saved contents carry the terminator");
 }
 
 #[test]
@@ -370,7 +397,7 @@ fn cmd_s_saves_a_dirty_buffer_like_w() {
         vec![Effect::Save {
             path: "/sd/repo/notes.md".into(),
             scope: Scope::Tracked,
-            contents: "hi".into(),
+            contents: "hi\n".into(), // Normal-mode Cmd+S formats, so the terminator is there
         }]
     );
 }
@@ -460,7 +487,7 @@ fn fmt_keeps_the_caret_column_instead_of_snapping_to_the_line_start() {
         e.handle(Key::Char(c));
     }
     e.handle(Key::Enter);
-    assert_eq!(e.text(), "first line\nsecond line here"); // trailing spaces trimmed
+    assert_eq!(e.text(), "first line\nsecond line here\n"); // spaces trimmed, buffer ended
     assert_eq!(e.caret, "first line\n".len() + 7); // same column, not the line start
     assert_eq!(e.mode(), Mode::Normal); // and formatting never touches the mode
 }

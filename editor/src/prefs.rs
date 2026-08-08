@@ -22,7 +22,8 @@ pub struct Prefs {
     /// mid-session. Honoured by the host loop, not the core.
     pub save_on_idle: bool,
     /// Run `:fmt` (table alignment, blank-line collapse, trailing-whitespace
-    /// strip) on the buffer before an explicit `:w`/`:gs` persist.
+    /// strip, final-newline terminator) on the buffer before an explicit
+    /// `:w`/`:gs` persist.
     pub format_on_save: bool,
     /// Show the absolute line-number gutter (built always-on in v0.2). Off
     /// reclaims the gutter's columns for text — applied live by [`gutter_cols`].
