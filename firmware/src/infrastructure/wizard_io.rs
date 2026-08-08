@@ -476,8 +476,8 @@ pub fn run(
 fn clone_worker(req_rx: Receiver<CloneReq>, msg_tx: std::sync::mpsc::Sender<CloneMsg>) {
     for req in req_rx {
         let ptx = msg_tx.clone();
-        let progress = move |s: &str| {
-            let _ = ptx.send(CloneMsg::Progress(s.to_string()));
+        let progress = move |phase: app::Phase| {
+            let _ = ptx.send(CloneMsg::Progress(phase.label()));
         };
         let msg = match crate::infrastructure::net::clone_repo(
             &req.remote_url,

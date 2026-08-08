@@ -60,6 +60,8 @@ use git2::{
     PushOptions, RemoteCallbacks, Repository, Signature, Tree,
 };
 
+use app::Phase;
+
 use crate::drivers::wifi_esp::connect_wifi;
 use crate::infrastructure::storage_sd::{LOCAL_DIR, REPO_DIR};
 
@@ -336,10 +338,12 @@ pub fn run_net_service(
     let mut tls_ready = false;
 
     // Panel status lines from an in-flight operation, over the same channel as
-    // the terminal outcome. A closed channel means the UI is gone; the send
-    // failure after the cycle finishes is what ends the loop, so drop it here.
-    let progress = |line: &str| {
-        let _ = tx.send(NetOutcome::Progress(line.to_string()));
+    // the terminal outcome. The one place a `Phase` becomes a line — see
+    // `progress::Phase` before adding any decoration to it. A closed channel means
+    // the UI is gone; the send failure after the cycle finishes is what ends the
+    // loop, so drop it here.
+    let progress = |phase: Phase| {
+        let _ = tx.send(NetOutcome::Progress(phase.label()));
     };
 
     while let Ok(req) = rx.recv() {
@@ -388,6 +392,7 @@ pub fn run_net_service(
                     &mut nvs,
                     &mut clock_synced,
                     &mut tls_ready,
+                    &progress,
                 ) {
                     Ok(o) => o,
                     Err(e) => {
@@ -423,7 +428,7 @@ pub fn clone_repo(
     remote_url: &str,
     gh_user: &str,
     token: &str,
-    progress: &dyn Fn(&str),
+    progress: &dyn Fn(Phase),
 ) -> Result<usize> {
     tune_libgit2();
     // libgit2's mbedTLS stream has no CA set until this runs; the service thread
@@ -447,7 +452,7 @@ pub fn clone_repo(
     };
 
     // Learn the default branch (main/master/…) from the ref advertisement.
-    progress("contacting origin");
+    progress(Phase::ContactingOrigin);
     {
         let (u, t) = (gh_user.to_string(), token.to_string());
         let mut cbs = RemoteCallbacks::new();
@@ -477,7 +482,7 @@ pub fn clone_repo(
     let _ = remote.disconnect();
 
     // Shallow-fetch just that branch's tip.
-    progress(&format!("downloading {branch}"));
+    progress(Phase::Downloading { current: 0, total: 0 });
     {
         let (u, t) = (gh_user.to_string(), token.to_string());
         let mut cbs = RemoteCallbacks::new();
@@ -497,7 +502,7 @@ pub fn clone_repo(
             let total = p.total_objects();
             if recv >= last + 512 || (total > 0 && recv == total) {
                 last = recv;
-                progress(&format!("downloading {recv}/{total} objects"));
+                progress(Phase::Downloading { current: recv, total });
             }
             true
         });
@@ -532,7 +537,7 @@ pub fn clone_repo(
     .context("creating tracking ref")?;
 
     // Materialize the tip tree (media skipped — never writes a big blob to RAM).
-    progress("writing files");
+    progress(Phase::WritingFiles);
     let tree = repo.find_commit(tip)?.tree().context("tip tree")?;
     let mut count = 0usize;
     materialize_tree(&repo, &tree, "", &mut count)?;
@@ -611,7 +616,7 @@ fn push_cycle(
     clock_synced: &mut bool,
     tls_ready: &mut bool,
     paths: &BTreeSet<String>,
-    progress: &dyn Fn(&str),
+    progress: &dyn Fn(Phase),
 ) -> Result<PushOutcome> {
     if remote_url().is_empty() || gh_user().is_empty() || token().is_empty() || wifi_ssid().is_empty() {
         bail!("git config missing — provision the card's typoena.conf (installer / wizard) or set TW_* in firmware/.env and rebuild");
@@ -631,13 +636,7 @@ fn push_cycle(
     // and TLS run only on the first sync of a session; a warm sync skips them, so
     // they read 0 ms and the total collapses to just push(fetch+commit+push).
     let t_total = Instant::now();
-    // Only announce the radio bring-up when it will actually happen: on a warm
-    // sync ensure_online is a no-op, and a line for a 0 ms phase would cost a
-    // full-panel partial to say nothing.
-    if wifi.is_none() || !*clock_synced || !*tls_ready {
-        progress("connecting");
-    }
-    ensure_online(sys_loop, wifi, modem, nvs, clock_synced, tls_ready)?;
+    ensure_online(sys_loop, wifi, modem, nvs, clock_synced, tls_ready, progress)?;
 
     let t_push = Instant::now();
     let outcome = push_once(paths, progress)?;
@@ -664,17 +663,13 @@ fn pull_cycle(
     clock_synced: &mut bool,
     tls_ready: &mut bool,
     req: &PullRequest,
-    progress: &dyn Fn(&str),
+    progress: &dyn Fn(Phase),
 ) -> Result<PullOutcome> {
     if remote_url().is_empty() || gh_user().is_empty() || token().is_empty() || wifi_ssid().is_empty() {
         bail!("git config missing — provision the card's typoena.conf (installer / wizard) or set TW_* in firmware/.env and rebuild");
     }
     let t_total = Instant::now();
-    // Gated like push's: silent when the radio is already up (see `push_cycle`).
-    if wifi.is_none() || !*clock_synced || !*tls_ready {
-        progress("connecting");
-    }
-    ensure_online(sys_loop, wifi, modem, nvs, clock_synced, tls_ready)?;
+    ensure_online(sys_loop, wifi, modem, nvs, clock_synced, tls_ready, progress)?;
 
     let t_pull = Instant::now();
     let outcome = pull_once(req, progress)?;
@@ -699,15 +694,16 @@ fn update_cycle(
     nvs: &mut Option<EspDefaultNvsPartition>,
     clock_synced: &mut bool,
     tls_ready: &mut bool,
+    progress: &dyn Fn(Phase),
 ) -> Result<UpdateOutcome> {
     if wifi_ssid().is_empty() {
         bail!("Wi-Fi not provisioned — run :setup / the installer first");
     }
     let t_total = Instant::now();
-    ensure_online(sys_loop, wifi, modem, nvs, clock_synced, tls_ready)?;
+    ensure_online(sys_loop, wifi, modem, nvs, clock_synced, tls_ready, progress)?;
 
     let t_ota = Instant::now();
-    let outcome = match crate::infrastructure::ota::run_update()? {
+    let outcome = match crate::infrastructure::ota::run_update(progress)? {
         Some(version) => UpdateOutcome::Installed(version),
         None => UpdateOutcome::UpToDate(crate::infrastructure::ota::FW_VERSION.to_string()),
     };
@@ -730,10 +726,15 @@ fn ensure_online(
     nvs: &mut Option<EspDefaultNvsPartition>,
     clock_synced: &mut bool,
     tls_ready: &mut bool,
+    progress: &dyn Fn(Phase),
 ) -> Result<()> {
-    // Bring Wi-Fi up once (on-demand: the radio stays off until the first use).
+    // Each step reports only when it actually runs: a warm operation skips all
+    // three, and a line for a 0 ms phase would cost a full-panel partial to say
+    // nothing. Cold, they are ~3.65 s / ~2.1 s / ~0.3 s — the longest silent
+    // stretch a sync has, which is why they are three lines and not one.
     let wifi_ms = if wifi.is_none() {
         let t = Instant::now();
+        progress(Phase::JoiningWifi);
         log::info!("first git op — bringing Wi-Fi up; free heap {}", free_heap());
         let m = modem.take().expect("modem taken once");
         let n = nvs.take().expect("nvs taken once");
@@ -751,6 +752,7 @@ fn ensure_online(
     };
     let clock_ms = if !*clock_synced {
         let t = Instant::now();
+        progress(Phase::SettingClock);
         sync_clock()?;
         *clock_synced = true;
         t.elapsed().as_millis()
@@ -759,6 +761,7 @@ fn ensure_online(
     };
     let tls_ms = if !*tls_ready {
         let t = Instant::now();
+        progress(Phase::VerifyingTls);
         install_tls_trust_store()?;
         *tls_ready = true;
         t.elapsed().as_millis()
@@ -781,7 +784,7 @@ fn ensure_online(
 ///
 /// Never clones or wipes: a `/sd/repo` that isn't a valid repo is a provisioning
 /// error, surfaced as such.
-fn push_once(paths: &BTreeSet<String>, progress: &dyn Fn(&str)) -> Result<PushOutcome> {
+fn push_once(paths: &BTreeSet<String>, progress: &dyn Fn(Phase)) -> Result<PushOutcome> {
     log::info!(
         "push started — {} dirty path(s), free heap {} ({} internal)",
         paths.len(),
@@ -835,7 +838,7 @@ fn push_once(paths: &BTreeSet<String>, progress: &dyn Fn(&str)) -> Result<PushOu
         // The retry is the slow path (a fetch, a replay, a second handshake) and
         // it lands well after the first "sending" lines — say why the wait grew
         // rather than letting a stale count sit there.
-        progress("origin moved - retrying");
+        progress(Phase::Retrying);
         reconcile_onto_origin(&repo, &branch).context("reconciling after a rejected push")?;
         match stage_and_commit(&repo, paths)? {
             Some(replayed) => {
@@ -1097,7 +1100,7 @@ impl PushFailure {
 fn try_push(
     repo: &Repository,
     refspec: &str,
-    progress: &dyn Fn(&str),
+    progress: &dyn Fn(Phase),
 ) -> Result<(), PushFailure> {
     let mut remote = repo
         .find_remote("origin")
@@ -1128,13 +1131,7 @@ fn try_push(
             if last.is_none_or(|t| t.elapsed() >= Duration::from_secs(2)) {
                 last = Some(Instant::now());
                 log_push_heap(&format!("pack {stage:?} {current}/{total}"));
-                // `total` is 0 for the whole AddingObjects stage (see above), so
-                // a "N/0" on the panel would read as a bug — count up instead.
-                progress(&if total > 0 {
-                    format!("packing {current}/{total}")
-                } else {
-                    format!("packing {current} objects")
-                });
+                progress(Phase::Packing { current, total });
             }
         });
         let mut next_bytes: usize = 0;
@@ -1151,7 +1148,7 @@ fn try_push(
             let done = total > 0 && current == total;
             if done || last_line.is_none_or(|t| t.elapsed() >= Duration::from_secs(2)) {
                 last_line = Some(Instant::now());
-                progress(&format!("sending {current}/{total}"));
+                progress(Phase::Sending { current, total });
             }
         });
     }
@@ -1279,7 +1276,7 @@ fn update_tracking(repo: &Repository, branch: &str, tip: Oid) -> Result<()> {
 /// the splice never updates the index, so its stat cache is stale and SAFE
 /// re-hashes each file the pull wants to change — fine for a few notes, and
 /// still O(changed), never O(tree).
-fn pull_once(req: &PullRequest, progress: &dyn Fn(&str)) -> Result<PullOutcome> {
+fn pull_once(req: &PullRequest, progress: &dyn Fn(Phase)) -> Result<PullOutcome> {
     let paths = &req.paths;
     log::info!(
         "pull started — {} unpushed path(s) to {}, free heap {} ({} internal)",
@@ -1330,7 +1327,7 @@ fn pull_once(req: &PullRequest, progress: &dyn Fn(&str)) -> Result<PullOutcome> 
     // The ref advertisement is its own wait (9.7 s on the first on-device pull)
     // and both no-download shapes end here, so this is the only line most pulls
     // ever show.
-    progress("contacting origin");
+    progress(Phase::ContactingOrigin);
     remote
         .connect_auth(git2::Direction::Fetch, Some(auth_callbacks()), None)
         .context("connecting to origin")?;
@@ -1380,7 +1377,7 @@ fn pull_once(req: &PullRequest, progress: &dyn Fn(&str)) -> Result<PullOutcome> 
         let done = total > 0 && recv == total;
         if done || last_line.is_none_or(|t| t.elapsed() >= Duration::from_secs(2)) {
             last_line = Some(Instant::now());
-            progress(&format!("downloading {recv}/{total}"));
+            progress(Phase::Downloading { current: recv, total });
         }
         true
     });
@@ -1414,7 +1411,7 @@ fn pull_once(req: &PullRequest, progress: &dyn Fn(&str)) -> Result<PullOutcome> 
         );
         // Covers the replay *and* the tree-apply behind it: one line for what the
         // writer experiences as a single phase, rather than a partial per step.
-        progress("rebasing");
+        progress(Phase::Rebasing);
         let t_rebase = Instant::now();
         let rebased = rebase_local_onto(&repo, head, theirs)?;
         let rebase_ms = t_rebase.elapsed().as_millis();
@@ -1465,7 +1462,7 @@ fn pull_once(req: &PullRequest, progress: &dyn Fn(&str)) -> Result<PullOutcome> 
 
     // The ordinary pull shape: the SD writes are the tail of the wait, and they
     // scale with how much origin changed.
-    progress("writing files");
+    progress(Phase::WritingFiles);
     let t_co = Instant::now();
     let changed = apply_tree_diff(&repo, head, theirs)?;
     repo.reference(

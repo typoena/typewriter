@@ -11,9 +11,11 @@
 //! reference — the layer that drives the domain through injected interfaces.
 
 mod ports;
+mod progress;
 mod render;
 mod runtime;
 
 pub use ports::*;
+pub use progress::Phase;
 pub use render::*;
 pub use runtime::{file_stem, Runtime};

@@ -18,12 +18,16 @@
 //! ([`mark_running_firmware_valid`]) self-tests and confirms it, or the
 //! bootloader rolls back here (needs `CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE`).
 
+use std::time::{Duration, Instant};
+
 use anyhow::{bail, Context, Result};
 use embedded_svc::http::Method;
 use esp_idf_svc::http::client::{
     Configuration as HttpConfig, EspHttpConnection, FollowRedirectsPolicy,
 };
 use esp_idf_svc::ota::{EspOta, SlotState};
+
+use app::Phase;
 
 /// The running firmware's semantic version, baked from the crate version so a
 /// bump in `firmware/Cargo.toml` is the single source of truth the update check
@@ -47,7 +51,7 @@ fn update_base_url() -> &'static str {
 /// reboots into it), `Ok(None)` when the running firmware is already current,
 /// and `Err` on any transport/flash failure — in which case the running slot is
 /// untouched and the device keeps booting the current image.
-pub fn run_update() -> Result<Option<String>> {
+pub fn run_update(progress: &dyn Fn(Phase)) -> Result<Option<String>> {
     let latest = fetch_latest_version().context("checking the latest release")?;
     log::info!("OTA — running {FW_VERSION}, latest available {latest}");
 
@@ -56,7 +60,8 @@ pub fn run_update() -> Result<Option<String>> {
     }
 
     let url = format!("{}/typoena-{latest}.bin", update_base_url());
-    let written = download_and_install(&url).with_context(|| format!("installing {latest}"))?;
+    let written =
+        download_and_install(&url, progress).with_context(|| format!("installing {latest}"))?;
     log::info!("OTA — installed {latest} ({written} bytes); new slot is the boot target");
     Ok(Some(latest))
 }
@@ -98,7 +103,7 @@ fn fetch_latest_version() -> Result<String> {
 /// boot target. Returns the byte count written. On any error the in-progress
 /// `EspOtaUpdate` is dropped, which aborts the write — the running slot and the
 /// boot pointer are left untouched.
-fn download_and_install(url: &str) -> Result<usize> {
+fn download_and_install(url: &str, progress: &dyn Fn(Phase)) -> Result<usize> {
     let mut conn = http_get(url)?;
     let status = conn.status();
     if status != 200 {
@@ -113,6 +118,10 @@ fn download_and_install(url: &str) -> Result<usize> {
 
     let mut buf = [0u8; 4096];
     let mut written = 0usize;
+    // Time-gated, not chunk-gated: a ~2 MB image is ~500 of these 4 KB reads, and
+    // one panel line per chunk would spend the whole ghosting budget on a byte
+    // counter (same rule as the sync counters — see `app::Phase`).
+    let mut last_line: Option<Instant> = None;
     loop {
         let n = conn.read(&mut buf).context("reading firmware image body")?;
         if n == 0 {
@@ -120,6 +129,10 @@ fn download_and_install(url: &str) -> Result<usize> {
         }
         update.write(buf.get(..n).unwrap_or_default()).context("writing the OTA slot")?;
         written += n;
+        if last_line.is_none_or(|t: Instant| t.elapsed() >= Duration::from_secs(2)) {
+            last_line = Some(Instant::now());
+            progress(Phase::InstallingImage { kb: written / 1024 });
+        }
     }
 
     if written == 0 {
