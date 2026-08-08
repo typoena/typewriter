@@ -149,8 +149,10 @@ below.
 - **Print the I/O coupon first.** `just stl-io` exports `io-coupon.stl` — a flat
   slice of the real back wall carrying only the four openings (2× USB-C, µSD,
   power button) at their real spacing and wall thickness. Print it face-down (no
-  support, ~10 min), dry-fit the connectors, the card and the switch, and adjust
-  `usbc_*` / `sd_*` / `pwr_fit` before committing to the body print.
+  support, ~45 min), dry-fit the connectors, the card and the switch, and adjust
+  `usbc_*` / `sd_*` / `pwr_fit` before committing to the body print. At 45 minutes
+  a round it is not a guess-and-reprint loop: caliper the parts, then size the
+  openings loose (`port_fit`) so one print clears.
 
 ![The I/O fit coupon — charge, keyboard, µSD, power button](renders/io-coupon.png)
 - Print body deck-up (or on its back) for little/no support; bracket and baseplate
@@ -185,6 +187,23 @@ below.
 - [x] Real board mounting-hole + port coordinates — done (two-PCB build).
 - [x] Measure the **LiPo** — confirmed 96 × 33.5 × 10.3, `bat_*` unchanged.
 - [x] Measure the **power switch** — widest-behind-panel 14 mm (`pwr_body_d`).
+- [ ] **USB-C openings** — the first coupon print jammed: `usbc_h` was 2.5, the
+      plug envelope off the spec sheet rather than the part, and the real shells
+      caliper 2.75–3.0. Now 3.0, with `usbc_w` raised 8.0 → 9.0 (shell, not plug)
+      and a deliberate 1.2 mm slack on every panel opening (`port_fit`, `pwr_fit`),
+      so the next 45-minute coupon clears instead of converging. Openings are
+      therefore USB-C 10.2 × 4.2, µSD 14.2 × 3.2, switch Ø14.7 — loose by design.
+      Three things to watch on the dry-fit: `usbc_w` is still the *datasheet* shell
+      width, so caliper it; check the µSD card can't be pushed in above or below
+      the cage lip through a 3.2 mm opening; and see below on the switch.
+- [ ] **Switch retention at `pwr_fit = 1.2`.** Ø14.7 is wider than `pwr_body_d`
+      (14.0, the widest measured feature behind the panel), so as modelled nothing
+      on the switch bears against the wall — the hole no longer retains it. This
+      is only safe if the retaining nut or front bezel is wider than 14.7. Caliper
+      that feature: if it is, record it and the fit stands; if it isn't, `pwr_fit`
+      goes back to 0.4 and a tight-printing hole gets solved with slicer hole
+      compensation instead. The same reading also sharpens `pwr_z`, which is
+      derived from `pwr_body_d`.
 - [ ] FPC **reach**: the panel's own ribbon is 20 mm, but the glass back plane
       sits ~38 mm off the floor at mid-deck and PCB 1's top face is at 7.2 mm —
       a ~31 mm drop before the U-turn bend and the lateral run to the driver.

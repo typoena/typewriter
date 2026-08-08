@@ -145,9 +145,19 @@ bat_y0 = wall + 4;                             // front edge just off the front 
 // edge by 8 mm and face out through the BACK wall (horizontal insertion). The
 // µSD/power end faces the case's RIGHT wall, so from the +X (right) end inward
 // the order is: power switch, µSD, keyboard, charge.
-// Openings measured off the real parts:
-usbc_w   = 8.0;  usbc_h = 2.5;               // USB-C shell opening (W x H)
+// Port openings. These were the PLUG envelope off the USB-C spec sheet, not the
+// parts: usbc_h 2.5 against shells that caliper 2.75-3.0, and it jammed the first
+// coupon print. A coupon is a 45-minute print, so the openings are now sized to
+// clear on the next one rather than to look tight — never take a connector
+// opening from a datasheet again.
+usbc_w   = 9.0;  usbc_h = 3.0;               // USB-C shell (W x H). H measured;
+                                             // W is still the datasheet shell —
+                                             // caliper it when the case is open
 sd_w     = 13.0; sd_h   = 2.0;               // microSD slot (W x H)
+port_fit = 1.2;                              // deliberate slack on every port
+                                             // opening: the plug has to pass with
+                                             // room, and the connectors are held
+                                             // by PCB 2, not by the panel
 usbc_cz  = 3.5;                              // USB-C opening centre, above PCB top
 sd_cz    = 3.0;                              // µSD slot centre — 0.5 mm below the USB-C centre
 pcb2_z   = bp_t + standoff_h + pcb_t;        // PCB 2 top face height off the floor
@@ -169,13 +179,18 @@ port_x   = [pcb2_x0+12, pcb2_x0+27, pcb2_x0+42.5];   // charge, keyboard, µSD
 // handles flashing), so like the ESP32's own USB-C they're reached by opening up.
 pwr_btn  = true;             // set false to omit the switch hole entirely
 pwr_d    = 13.5;             // switch barrel Ø (the part Julien bought)
-pwr_fit  = 0.4;              // panel-hole clearance on top of the barrel Ø
+pwr_fit  = 1.2;              // panel-hole clearance on top of the barrel Ø, matching
+                             // the ports. HAZARD: Ø14.7 is wider than pwr_body_d,
+                             // so nothing on the switch bears against the wall —
+                             // the panel no longer retains it. Holds only if the
+                             // retaining nut/bezel measures wider than the hole;
+                             // caliper it, and drop back to 0.4 if it doesn't.
 pwr_r    = (pwr_d + pwr_fit) / 2;
 pwr_body_d = 14;             // WIDEST thing behind the panel — nut across corners,
                              // body OD, solder lugs. NOT the barrel: this is what
                              // decides the clearance below.  Measured off the part.
 pwr_inset= 20;               // button CENTRE, measured in from the RIGHT outer face
-pwr_x    = W - pwr_inset;    // 156 — past the µSD (right edge @ 136.6), 5 mm of
+pwr_x    = W - pwr_inset;    // 156 — past the µSD (right edge @ 137.2), 4.6 mm of
                              // flat wall left before the back-right corner blend
 // The switch is a loose panel-mount part wired back to PCB 2, not mounted on it.
 // At Ø13.5 it cannot avoid PCB 2 in plan — the board runs to x=167.6, and the only
@@ -336,8 +351,8 @@ module screen_cuts() {
 module port_cuts() {
     // USB-C (charge, keyboard) + microSD through the BACK wall (y = D)
     for (i=[0:2]) {
-        pw = (i==2) ? sd_w   : usbc_w;
-        ph = (i==2) ? sd_h   : usbc_h;
+        pw = ((i==2) ? sd_w : usbc_w) + port_fit;
+        ph = ((i==2) ? sd_h : usbc_h) + port_fit;
         translate([port_x[i], D-wall-1, port_z[i]])
             rotate([-90,0,0]) linear_extrude(wall+2)
                 offset(r=0.8) square([pw-1.6, ph-1.6], center=true);
