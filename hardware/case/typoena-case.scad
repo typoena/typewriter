@@ -48,15 +48,25 @@ theta    = atan((Hb - Hf) / (D - 2*corner_r));   // ~21 deg with the defaults
 // ---- e-paper panel : GDEY0579T93 (datasheet) ------------------------------
 G_w  = 150.92;  G_h = 56.94;  G_t = 1.0;   // glass outline W x H x thickness
 A_w  = 139.00;  A_h = 47.74;               // active area (must stay uncovered)
-// NOTE: the real panel's active area is offset toward the FPC edge — this model
-// centres it. << MEASURE >> your panel's border and shift screen_off if needed.
-screen_off = 0;                            // (legacy) kept 0; see active_off_*
 // This panel's flex (FPC) leaves the LEFT short edge — the user's left as they
-// face the screen, i.e. the low-X side (world x < W/2). The aperture is centred
-// on the ACTIVE area, which sits off-centre on the glass — measure yours and
-// nudge these (+x = toward the right, away from the FPC edge). << MEASURE >>
-active_off_x = 0;
+// face the screen, i.e. the low-X side (world x < W/2).
+// Where the active area sits on the glass, as an offset from the glass centre
+// (+x = toward the right, away from the FPC edge). Measured off the panel: border
+// widths glass-edge→active of 9.0 left / 2.0 right / 4.0 top / 4.0 bottom, so
+// off_x = (left - right)/2 = +3.5 and off_y = (top - bottom)/2 = 0. The wide
+// border on the FPC side is the usual COG-on-flex layout, not a measuring error.
+active_off_x = 3.5;
 active_off_y = 0;
+// The GLASS carries that offset, never the window: it shifts the opposite way so
+// the aperture stays centred on the deck and the image lands on the machine's
+// centreline. Letting the window carry it instead leaves a 21 mm bezel against a
+// 14 mm one — rejected on sight, it reads as crooked. The glass sitting
+// off-centre costs nothing: it lives under the bezel where no one sees it.
+// Do NOT "simplify" this back to a centred glass. It only fits because the
+// bracket's left arm and its boss pair were pulled inboard (br_ml, boss_x_l) —
+// at the symmetric layout the bracket overshoots the left wall by 2.6 mm.
+glass_dx = -active_off_x;
+glass_dy = -active_off_y;
 
 // ---- screen retention (glueless) ------------------------------------------
 lip_over  = 4.0;   // how far the front bezel lip overlaps the glass border
@@ -64,7 +74,12 @@ lip_t     = 1.4;   // deck material left in FRONT of the glass (the visible lip)
 glass_gap = 0.5;   // clearance around the glass in its pocket
 foam_t    = 1.0;   // non-adhesive closed-cell foam gasket behind the glass
 bracket_t = 2.6;   // printed retaining frame thickness
-fpc_w     = 26;    // ribbon-slot span along the LEFT short edge (the FPC side)
+fpc_w     = 36;    // ribbon-slot span along the LEFT short edge (the FPC side)
+                   // — the measured ribbon is 34 mm wide, + 2 mm clearance.
+fpc_slot_x = 10;   // how far the slot reaches ACROSS the glass edge (X). Was 14;
+                   // the glass now sits 3.5 mm left (glass_dx), where 14 would
+                   // leave only ~1.8 mm of deck before the left wall. 10 keeps
+                   // ~3.8 mm and is still ample for the flex's U-turn.
 
 // ---- deck nameplate (engraved, faces the user) ----------------------------
 name_text  = "TYPOENA";
@@ -81,6 +96,21 @@ P_h    = G_h + glass_gap;
 deck_L    = (D - 2*corner_r) / cos(theta);   // deck length along the slope
 screen_cy = deck_L/2;                        // centre it
 boss_r    = 3.4;                             // M2 self-tap boss for the bracket
+// Bracket fixing points, in GLASS-local X/Y (the bracket is placed on the glass,
+// so these are its hole positions and the bosses' positions both).
+// Both pairs already clear the glass pocket in Y, so their X is free to slide —
+// which is what makes the centred window possible. The LEFT pair is pulled in off
+// the corner grid: mirrored at -(P_w/2+5) it would land 3.4 mm from the side wall
+// once the glass shifts left, and drag the bracket's arm through it.
+boss_x_r = P_w/2 + 5;      // right pair, unchanged
+boss_x_l = -77;            // left pair, inboard (mirror would be -80.71)
+boss_y   = P_h/2 + 5;
+boss_xy  = [[boss_x_l, -boss_y], [boss_x_l, boss_y],
+            [boss_x_r, -boss_y], [boss_x_r, boss_y]];
+// bracket frame margins beyond the glass pocket — asymmetric so the left arm
+// clears the side wall the glass has been shifted toward
+br_ml = 5.5;   // LEFT margin
+br_m  = 9;     // the other three
 
 // ---- mounting, boards & battery (defined here: the ports below depend on it)
 bp_t           = 2.6;    // baseplate thickness
@@ -273,10 +303,10 @@ module corner_posts() {
 
 // 4 bosses just OUTSIDE the glass pocket for the retaining bracket
 module bracket_bosses() {
-    on_deck() for (bx=[-(P_w/2+5), P_w/2+5],
-                   by=[screen_cy-(P_h/2+5), screen_cy+(P_h/2+5)]) {
+    on_deck() for (p = boss_xy) {
         blen = lip_t + G_t + foam_t + bracket_t + 6;
-        translate([bx, by, -lip_t-blen]) difference() {
+        translate([glass_dx + p[0], screen_cy + glass_dy + p[1], -lip_t-blen])
+        difference() {
             cylinder(h=blen, r=boss_r);
             translate([0,0,-1]) cylinder(h=blen+2, r=1.0);   // M2 self-tap
         }
@@ -286,15 +316,20 @@ module bracket_bosses() {
 // deck cuts: through-aperture, glass pocket (leaves the front lip), FPC slot
 module screen_cuts() {
     on_deck() translate([0, screen_cy, 0]) {
-        // window — centred on the ACTIVE area (offset toward the FPC/left edge)
-        translate([active_off_x, active_off_y, -30])
+        // window — always on the ACTIVE area, wherever the glass has been put.
+        // glass_dx cancels active_off_x, so this lands on the deck centre; keep
+        // the expression rather than hardcoding 0, or the window silently stops
+        // tracking the active area and rides onto the pixels.
+        translate([glass_dx + active_off_x, glass_dy + active_off_y, -30])
             cube([A_ap_w, A_ap_h, 66], center=true);
-        // glass pocket behind the lip — centred on the glass outline
-        translate([0, 0, -30-lip_t]) cube([P_w, P_h, 60], center=true);
+        // glass pocket behind the lip — shifted so the ACTIVE area lands centred
+        translate([glass_dx, glass_dy, -30-lip_t])
+            cube([P_w, P_h, 60], center=true);
         // FPC clearance: an internal notch in the LEFT recess wall, kept BELOW
         // the bezel lip so it stays invisible from outside — the flex passes the
         // glass's left edge and folds back into the cavity, to the breakout
-        translate([-P_w/2, 0, -30-lip_t]) cube([14, fpc_w, 60], center=true);
+        translate([glass_dx-P_w/2, glass_dy, -30-lip_t])
+            cube([fpc_slot_x, fpc_w, 60], center=true);
     }
 }
 
@@ -320,7 +355,8 @@ module power_cut() {
 // screen — faces the user as they write. Sits flat on the reclined deck.
 module nameplate() {
     name_y = (screen_cy - P_h/2) / 2;     // centre of the front deck band
-    on_deck() translate([screen_off, name_y, -name_depth])
+    // centred on the deck, like the window above it — not on the shifted glass
+    on_deck() translate([0, name_y, -name_depth])
         linear_extrude(name_depth + 0.6)
             text(name_text, size=name_size, halign="center", valign="center",
                  font=name_font, spacing=1.1);
@@ -344,22 +380,31 @@ module case_body() {
 //  screen retaining bracket  (printed flat, screwed to the 4 bosses)
 // ===========================================================================
 module bracket() {
-    ow = P_w + 18; oh = P_h + 18;
+    // asymmetric frame: the left arm is trimmed (br_ml < br_m) because the glass
+    // is shifted that way to centre the window. br_cx is the frame's own centre,
+    // offset from the glass centre the bracket is placed on.
+    ow = P_w + br_ml + br_m;  oh = P_h + 2*br_m;
+    br_cx = (br_m - br_ml)/2;
     // FPC U-turn clearance: a gap in the LEFT frame member. The flex leaves the
     // glass's back plane and folds ~180° to dive into the cavity toward the
     // breakout; a safe bend radius (~1.5-2 mm) makes that loop ~4 mm deep, too
     // deep for the 1 mm foam gap, so it fouls this rigid frame unless relieved
     // here. Lines up with the body's FPC slot (screen_cuts) and the foam relief.
     difference() {
+        // The bracket is placed on the GLASS centre, but its window has to clear
+        // the ACTIVE area — which sits active_off_* away from that centre.
         linear_extrude(bracket_t)
             difference() {
-                rrect(ow, oh, 4);
-                rrect(A_ap_w+2, A_ap_h+2, 2);
-                translate([-(ow + A_ap_w+2)/4, 0])
-                    square([(ow - (A_ap_w+2))/2 + 4, fpc_w], center=true);
+                translate([br_cx, 0]) rrect(ow, oh, 4);
+                translate([active_off_x, active_off_y])
+                    rrect(A_ap_w+2, A_ap_h+2, 2);
+                // relief from outside the left frame edge in to the window edge
+                translate([br_cx - ow/2 - 2, -fpc_w/2])
+                    square([(active_off_x - (A_ap_w+2)/2 + 2) - (br_cx - ow/2 - 2),
+                            fpc_w]);
             }
-        for (bx=[-(P_w/2+5), P_w/2+5], by=[-(P_h/2+5), P_h/2+5])
-            translate([bx, by, -1]) cylinder(h=bracket_t+2, r=1.45);   // M2 clear
+        for (p = boss_xy)
+            translate([p[0], p[1], -1]) cylinder(h=bracket_t+2, r=1.45);   // M2 clear
     }
 }
 
@@ -421,7 +466,7 @@ module io_coupon() {
 //  assemblies
 // ===========================================================================
 module ghost_screen() {
-    on_deck() translate([screen_off, screen_cy+screen_off, -lip_t-G_t/2])
+    on_deck() translate([glass_dx, screen_cy+glass_dy, -lip_t-G_t/2])
         color(C_screen) cube([G_w, G_h, G_t], center=true);
 }
 // LiPo lying flat on the baseplate at the front
@@ -444,7 +489,7 @@ module ghost_boards() {
     ghost_pcb(pcb2_x0, pcb2_y0, pcb2_x1, pcb2_y1, pcb2_h);   // back-right, low I/O
 }
 module placed_bracket() {
-    on_deck() translate([screen_off, screen_cy+screen_off,
+    on_deck() translate([glass_dx, screen_cy+glass_dy,
                          -lip_t-G_t-foam_t-bracket_t])
         color(C_bracket) bracket();
 }
@@ -454,13 +499,13 @@ module foam() {
     linear_extrude(foam_t)
         difference() {
             rrect(P_w+4, P_h+4, 3);
-            rrect(A_ap_w, A_ap_h, 2);
-            translate([-((P_w+4) + A_ap_w)/4, 0])
-                square([((P_w+4) - A_ap_w)/2 + 4, fpc_w], center=true);
+            translate([active_off_x, active_off_y]) rrect(A_ap_w, A_ap_h, 2);
+            translate([-(P_w+4)/2 - 2, -fpc_w/2])
+                square([(active_off_x - A_ap_w/2 + 2) + (P_w+4)/2 + 2, fpc_w]);
         }
 }
 module placed_foam() {
-    on_deck() translate([screen_off, screen_cy+screen_off, -lip_t-G_t-foam_t])
+    on_deck() translate([glass_dx, screen_cy+glass_dy, -lip_t-G_t-foam_t])
         color(C_foam) foam();
 }
 // full coloured assembly, reused by the plan sections

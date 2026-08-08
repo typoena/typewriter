@@ -157,16 +157,75 @@ below.
   print flat. Nameplate font is set by `name_font` (current: **Monaspace
   Krypton**, `brew install --cask font-monaspace`; run `fc-cache -f` so the CLI
   finds it).
+- **No feet on this version** (`feet_mode = "none"`). They are modelled and can
+  come back as their own part with `feet_mode = "separate"` + `just stl-feet` —
+  four Ø14 × 3.5 discs, the front pair concentric with the screw posts and bored
+  for the heads so the baseplate still unscrews. What they must *not* go back to
+  is `"fused"`: hanging off the plate they leave it resting on four small discs,
+  turning the whole baseplate into a 3.5 mm overhang that wants support across its
+  footprint, standoffs and nibs floating above it. As it stands all three parts
+  print flat-face-down with every feature growing upward off the bed — no support
+  anywhere.
 
 ![The recessed TYPOENA engrave on the deck, in Monaspace Krypton](renders/nameplate.png)
 
 ## Open questions / TODO
 
-- [ ] Confirm the GDEY0579T93 active-area **offset** (FPC confirmed on the left);
-      adjust `active_off_x/y`.
+- [x] GDEY0579T93 active-area **offset** — measured. Borders 9.0 left (FPC side) /
+      2.0 right / 4.0 top / 4.0 bottom, so `active_off_x = 3.5`, `active_off_y = 0`.
+      The wide border on the FPC side is the usual COG-on-flex layout.
+- [x] **Window centred on the deck** (`glass_dx`). The glass carries the 3.5 mm
+      offset instead of the window, so the image sits on the machine's centreline
+      rather than leaving a 21 mm bezel against a 14 mm one. It only
+      fits because the bracket's left arm was trimmed (`br_ml = 5.5` against
+      `br_m = 9`) and its left boss pair pulled inboard (`boss_x_l = -77`): at the
+      old symmetric layout the bracket overshot the left wall by 2.6 mm. Verified
+      on the built geometry — bracket X 3.29..169.21 and bosses X 4.10..168.61 in
+      a 2.40..173.60 cavity, so 0.89 mm at the tightest point.
 - [x] Real board mounting-hole + port coordinates — done (two-PCB build).
-- [ ] Buy + measure the **LiPo** (3700 mAh, 96 × 33.5 × 10.3); confirm `bat_*` and
-      the lead-exit side, then finalise the front pocket.
+- [x] Measure the **LiPo** — confirmed 96 × 33.5 × 10.3, `bat_*` unchanged.
+- [x] Measure the **power switch** — widest-behind-panel 14 mm (`pwr_body_d`).
+- [ ] FPC **reach**: the panel's own ribbon is 20 mm, but the glass back plane
+      sits ~38 mm off the floor at mid-deck and PCB 1's top face is at 7.2 mm —
+      a ~31 mm drop before the U-turn bend and the lateral run to the driver.
+      Solved with a **100 mm FPC extension**. Two follow-ups once it arrives:
+      bench-test contrast *before* printing the body (see below), and measure the
+      adapter board so the cavity gets a home for it and for the ~60 mm of slack.
+- [ ] **Extension contrast risk.** On these COG-on-flex panels the charge-pump
+      capacitors live on the driver board and the FPC carries the *generated*
+      high-voltage rails (VGH/VGL/VSH/VSL) back to the COG. Added length adds
+      resistance on exactly those rails, and the classic symptom is faint or
+      ghosty output rather than an outright failure — so it can pass a smoke test
+      and still look wrong. Run a full black/white refresh through the extension
+      on the bench and compare against the direct connection before the body
+      print commits the geometry.
 - [ ] Optional **hinged lid** over the deck (protects the glass in a bag) — called
       for in `docs/hardware.md`, not yet modelled.
-- [ ] Decide feet: printed (modelled) vs. stick-on rubber bumpers.
+- [ ] Feet — **deferred to a later version** (`feet_mode = "none"`). Modelled and
+      ready as a separate part; see the screw-head note below before bringing them
+      back or leaving them out for good.
+- [ ] **Baseplate screw heads are now the contact points.** With no feet the plate
+      sits flat on the desk and the three post screws protrude from its underside,
+      so the case rocks on them and they drag on the surface. `bp_t` is only
+      2.6 mm, so a counterbore is too deep to be safe — the fix is a countersink
+      (~1.4 mm at 90°, leaving 1.2 mm of plate) plus flat-head screws. Not applied
+      yet: it depends on which screws are actually used.
+
+### The panel measurement
+
+Measured borders, glass edge → active area: **9.0 left** (FPC side) · **2.0
+right** · **4.0 top** · **4.0 bottom**. From those,
+`active_off = (left − right)/2` horizontally and `(top − bottom)/2` vertically,
+giving **+3.5 mm horizontal** (toward the right, away from the FPC) and **0
+vertical**.
+
+Only the differences are used, so measuring to the visible light window rather
+than the true pixel array is fine — the overshoot is symmetric and cancels. The
+size itself comes from the datasheet, where it is exact: 792 × 272 px at 0.1755 mm
+pitch = **139.00 × 47.74 mm**.
+
+Consequences of the 2 mm right border: the bezel ledge over the glass is
+**8.46 mm on the left and 1.46 mm on the right**. That ledge is a step in a solid
+deck rather than a free-standing rib, so 1.46 mm prints and holds fine — the
+bracket and foam behind carry the clamping load, and the ledge only has to stop
+the glass falling forward.
