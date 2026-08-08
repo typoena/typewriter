@@ -95,6 +95,8 @@ pcb1_h  = 22;            // tallest point (rigid stack + vertical Dupont)
 // connectors overhang its back edge by 8 mm to meet the wall.
 pcb2_x1 = W - wall - 6;  pcb2_x0 = pcb2_x1 - 80;   // X ~87.6 .. 167.6
 pcb2_y1 = D - wall - 8;  pcb2_y0 = pcb2_y1 - 20;   // back edge 8 mm off the wall
+pcb2_h  = 8;             // tallest point (µSD cage / USB-C shells) — the power
+                         // button barrel has to clear this, see pwr_z
 // corner holes, centres 2 mm in from each edge (Ø2 hole, 1 mm pad)
 pcb1_holes = [[pcb1_x0+2,pcb1_y0+2],[pcb1_x1-2,pcb1_y0+2],
               [pcb1_x0+2,pcb1_y1-2],[pcb1_x1-2,pcb1_y1-2]];
@@ -133,9 +135,16 @@ port_x   = [pcb2_x0+12, pcb2_x0+27, pcb2_x0+42.5];   // charge, keyboard, µSD
 // No reset/BOOT button is exposed — on the S3 both are recovery-only (auto-download
 // handles flashing), so like the ESP32's own USB-C they're reached by opening up.
 pwr_btn  = true;             // set false to omit the switch hole entirely
-pwr_d    = 7.2;              // through-hole Ø for the switch barrel   << MEASURE >>
-pwr_x    = pcb2_x0 + 55;     // µSD side, toward the RIGHT wall (past the µSD @ +42.5)
-pwr_z    = pcb2_z + 4;       // a touch above the port row
+pwr_d    = 13.5;             // switch barrel Ø (the part Julien bought)
+pwr_fit  = 0.4;              // panel-hole clearance on top of the barrel Ø
+pwr_r    = (pwr_d + pwr_fit) / 2;
+pwr_inset= 20;               // button CENTRE, measured in from the RIGHT outer face
+pwr_x    = W - pwr_inset;    // 156 — past the µSD (right edge @ 136.6), 5 mm of
+                             // flat wall left before the back-right corner blend
+// A Ø13.9 hole 20 mm in from the right wall sits ABOVE PCB 2 in X, not beside it
+// (the board runs to x=167.6). So the barrel has to sail over the board: the hole
+// starts 1.5 mm above PCB 2's tallest point instead of sitting in the port row.
+pwr_z    = bp_t + standoff_h + pcb2_h + pwr_r + 1.5;   // ~22 — hole spans z 15..29
 
 // ---- baseplate / chassis --------------------------------------------------
 bp_gap     = 0.5;  // clearance so it drops into the shell
@@ -251,7 +260,7 @@ module port_cuts() {
 module power_cut() {
     if (pwr_btn)
         translate([pwr_x, D-wall-1, pwr_z])
-            rotate([-90,0,0]) cylinder(h=wall+2, r=pwr_d/2);
+            rotate([-90,0,0]) cylinder(h=wall+2, r=pwr_r);
 }
 
 // engraved nameplate on the DECK, in the band between the front edge and the
@@ -356,7 +365,7 @@ module ghost_pcb(x0, y0, x1, y1, htot) {
 module ghost_boards() {
     ghost_battery();
     ghost_pcb(pcb1_x0, pcb1_y0, pcb1_x1, pcb1_y1, pcb1_h);   // back-left, tall
-    ghost_pcb(pcb2_x0, pcb2_y0, pcb2_x1, pcb2_y1, 8);        // back-right, low I/O
+    ghost_pcb(pcb2_x0, pcb2_y0, pcb2_x1, pcb2_y1, pcb2_h);   // back-right, low I/O
 }
 module placed_bracket() {
     on_deck() translate([screen_off, screen_cy+screen_off,

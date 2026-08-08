@@ -79,11 +79,16 @@ below.
   through the back-wall ports (`port_x` / `port_z`). From the right-wall end in:
   power switch, µSD, keyboard, charge.
 - **Power on/off switch** — a latching push button (push-on / push-off) through
-  the back wall on the µSD side (`pwr_*`). It breaks the battery-side power feed,
-  so the machine is genuinely off between sessions instead of draining the LiPo;
-  it sits clear of the typing path. No reset/BOOT button is exposed (S3
-  auto-download makes both recovery-only); like the ESP32's own USB-C they're
-  reached by opening the case.
+  the back wall (`pwr_*`), Ø13.5 barrel, centre **20 mm in from the right outer
+  face** (`pwr_inset`). It breaks the battery-side power feed, so the machine is
+  genuinely off between sessions instead of draining the LiPo; it sits clear of
+  the typing path. At that Ø it lands *over* PCB 2 in X rather than beside it
+  (the board runs to x ≈ 167.6), so `pwr_z` is derived to start 1.5 mm above
+  PCB 2's tallest point — the barrel sails over the board instead of into it.
+  That puts it ~11 mm higher than the port row; **the switch body must be short
+  enough not to foul the sloped deck underside**, and PCB 2 must stay within
+  `pcb2_h`. No reset/BOOT button is exposed (S3 auto-download makes both
+  recovery-only); like the ESP32's own USB-C they're reached by opening the case.
 - **LiPo** flat across the front in baseplate cage nibs (foam/VHB does the rest).
   The shallow (24 mm) front of the wedge is dead space the tall board stack can't
   use, and **3700 mAh is the biggest flat cell that fits it** (96 × 33.5 × 10.3);
