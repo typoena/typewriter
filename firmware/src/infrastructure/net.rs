@@ -255,6 +255,11 @@ pub enum NetOutcome {
     Push(PushOutcome),
     Pull(PullOutcome),
     Update(UpdateOutcome),
+    /// A non-terminal status line for the panel from an operation still running
+    /// (see [`app::NetOutcome::Progress`]). Sent from inside the transport's own
+    /// progress callbacks, so it shares this channel rather than owning one —
+    /// which also keeps it ordered against the terminal outcome behind it.
+    Progress(String),
 }
 
 /// Result of a push attempt, sent back to the UI task for the snackbar. The
@@ -330,6 +335,13 @@ pub fn run_net_service(
     let mut clock_synced = false;
     let mut tls_ready = false;
 
+    // Panel status lines from an in-flight operation, over the same channel as
+    // the terminal outcome. A closed channel means the UI is gone; the send
+    // failure after the cycle finishes is what ends the loop, so drop it here.
+    let progress = |line: &str| {
+        let _ = tx.send(NetOutcome::Progress(line.to_string()));
+    };
+
     while let Ok(req) = rx.recv() {
         let msg = match req {
             NetRequest::Push(req) => NetOutcome::Push(
@@ -341,6 +353,7 @@ pub fn run_net_service(
                     &mut clock_synced,
                     &mut tls_ready,
                     &req.paths,
+                    &progress,
                 ) {
                     Ok(o) => o,
                     Err(e) => {
@@ -358,6 +371,7 @@ pub fn run_net_service(
                     &mut clock_synced,
                     &mut tls_ready,
                     &req,
+                    &progress,
                 ) {
                     Ok(o) => o,
                     Err(e) => {
@@ -584,7 +598,11 @@ fn materialize_tree(
 }
 
 /// One full push: ensure Wi-Fi + clock + trust store (each done once), then
-/// open the repo, stage, commit, and fast-forward push.
+/// open the repo, stage, commit, and fast-forward push. `progress` receives the
+/// short panel lines described on [`NetOutcome::Progress`].
+// Six of the eight are the net thread's lazily-initialised radio state, threaded
+// through as-is (`pull_cycle` and `update_cycle` take the same set).
+#[allow(clippy::too_many_arguments)]
 fn push_cycle(
     sys_loop: &EspSystemEventLoop,
     wifi: &mut Option<BlockingWifi<EspWifi<'static>>>,
@@ -593,6 +611,7 @@ fn push_cycle(
     clock_synced: &mut bool,
     tls_ready: &mut bool,
     paths: &BTreeSet<String>,
+    progress: &dyn Fn(&str),
 ) -> Result<PushOutcome> {
     if remote_url().is_empty() || gh_user().is_empty() || token().is_empty() || wifi_ssid().is_empty() {
         bail!("git config missing — provision the card's typoena.conf (installer / wizard) or set TW_* in firmware/.env and rebuild");
@@ -612,10 +631,16 @@ fn push_cycle(
     // and TLS run only on the first sync of a session; a warm sync skips them, so
     // they read 0 ms and the total collapses to just push(fetch+commit+push).
     let t_total = Instant::now();
+    // Only announce the radio bring-up when it will actually happen: on a warm
+    // sync ensure_online is a no-op, and a line for a 0 ms phase would cost a
+    // full-panel partial to say nothing.
+    if wifi.is_none() || !*clock_synced || !*tls_ready {
+        progress("connecting");
+    }
     ensure_online(sys_loop, wifi, modem, nvs, clock_synced, tls_ready)?;
 
     let t_push = Instant::now();
-    let outcome = push_once(paths)?;
+    let outcome = push_once(paths, progress)?;
     log::info!(
         ":gs timing — push(commit+push) {}ms, total {}ms",
         t_push.elapsed().as_millis(),
@@ -628,6 +653,9 @@ fn push_cycle(
 /// Always needs the network — there is no radio-free shortcut like push's
 /// up-to-date check, because the whole point is asking origin what's new.
 /// `paths` is the dirty-journal snapshot to commit locally before fetching.
+/// `progress` receives the short panel lines described on [`NetOutcome::Progress`].
+// Same eight-argument shape as `push_cycle` — see the note there.
+#[allow(clippy::too_many_arguments)]
 fn pull_cycle(
     sys_loop: &EspSystemEventLoop,
     wifi: &mut Option<BlockingWifi<EspWifi<'static>>>,
@@ -636,15 +664,20 @@ fn pull_cycle(
     clock_synced: &mut bool,
     tls_ready: &mut bool,
     req: &PullRequest,
+    progress: &dyn Fn(&str),
 ) -> Result<PullOutcome> {
     if remote_url().is_empty() || gh_user().is_empty() || token().is_empty() || wifi_ssid().is_empty() {
         bail!("git config missing — provision the card's typoena.conf (installer / wizard) or set TW_* in firmware/.env and rebuild");
     }
     let t_total = Instant::now();
+    // Gated like push's: silent when the radio is already up (see `push_cycle`).
+    if wifi.is_none() || !*clock_synced || !*tls_ready {
+        progress("connecting");
+    }
     ensure_online(sys_loop, wifi, modem, nvs, clock_synced, tls_ready)?;
 
     let t_pull = Instant::now();
-    let outcome = pull_once(req)?;
+    let outcome = pull_once(req, progress)?;
     log::info!(
         ":gl timing — fetch+ff {}ms, total {}ms",
         t_pull.elapsed().as_millis(),
@@ -748,7 +781,7 @@ fn ensure_online(
 ///
 /// Never clones or wipes: a `/sd/repo` that isn't a valid repo is a provisioning
 /// error, surfaced as such.
-fn push_once(paths: &BTreeSet<String>) -> Result<PushOutcome> {
+fn push_once(paths: &BTreeSet<String>, progress: &dyn Fn(&str)) -> Result<PushOutcome> {
     log::info!(
         "push started — {} dirty path(s), free heap {} ({} internal)",
         paths.len(),
@@ -793,17 +826,21 @@ fn push_once(paths: &BTreeSet<String>) -> Result<PushOutcome> {
     // origin). A transport-level failure is surfaced as-is: its fetch would die
     // the same way, and the commit is safe locally — the stranded-commit check
     // above pushes it once the transport works again.
-    if let Err(failure) = try_push(&repo, &refspec) {
+    if let Err(failure) = try_push(&repo, &refspec, progress) {
         let rejection = match failure {
             PushFailure::Rejected(msg) => msg,
             PushFailure::Other(e) => return Err(e),
         };
         log::warn!("push rejected ({rejection}); reconciling onto origin and replaying the note");
+        // The retry is the slow path (a fetch, a replay, a second handshake) and
+        // it lands well after the first "sending" lines — say why the wait grew
+        // rather than letting a stale count sit there.
+        progress("origin moved - retrying");
         reconcile_onto_origin(&repo, &branch).context("reconciling after a rejected push")?;
         match stage_and_commit(&repo, paths)? {
             Some(replayed) => {
                 oid = replayed;
-                try_push(&repo, &refspec)
+                try_push(&repo, &refspec, progress)
                     .map_err(PushFailure::into_error)
                     .context("push after reconcile")?;
             }
@@ -1057,7 +1094,11 @@ impl PushFailure {
 /// One push attempt over HTTPS. Binds the PAT credential + the cert-verify
 /// callback, and separates a server-side ref rejection (reconcilable) from a
 /// transport-level failure (not).
-fn try_push(repo: &Repository, refspec: &str) -> Result<(), PushFailure> {
+fn try_push(
+    repo: &Repository,
+    refspec: &str,
+    progress: &dyn Fn(&str),
+) -> Result<(), PushFailure> {
     let mut remote = repo
         .find_remote("origin")
         .map_err(|e| PushFailure::Other(anyhow::Error::new(e).context("finding remote origin")))?;
@@ -1087,13 +1128,30 @@ fn try_push(repo: &Repository, refspec: &str) -> Result<(), PushFailure> {
             if last.is_none_or(|t| t.elapsed() >= Duration::from_secs(2)) {
                 last = Some(Instant::now());
                 log_push_heap(&format!("pack {stage:?} {current}/{total}"));
+                // `total` is 0 for the whole AddingObjects stage (see above), so
+                // a "N/0" on the panel would read as a bug — count up instead.
+                progress(&if total > 0 {
+                    format!("packing {current}/{total}")
+                } else {
+                    format!("packing {current} objects")
+                });
             }
         });
         let mut next_bytes: usize = 0;
+        // The panel line is time-gated where the log line is byte-gated: 64 KB is
+        // the right grain for a heap post-mortem, but a multi-MB first sync would
+        // spend its whole 64-partial ghosting budget repainting a byte counter.
+        // Bound the panel cost by duration instead, so it can't scale with payload.
+        let mut last_line: Option<Instant> = None;
         cbs.push_transfer_progress(move |current, total, bytes| {
             if bytes >= next_bytes || (total > 0 && current == total) {
                 next_bytes = bytes + 64 * 1024;
                 log_push_heap(&format!("send {current}/{total} objects, {bytes} B"));
+            }
+            let done = total > 0 && current == total;
+            if done || last_line.is_none_or(|t| t.elapsed() >= Duration::from_secs(2)) {
+                last_line = Some(Instant::now());
+                progress(&format!("sending {current}/{total}"));
             }
         });
     }
@@ -1221,7 +1279,7 @@ fn update_tracking(repo: &Repository, branch: &str, tip: Oid) -> Result<()> {
 /// the splice never updates the index, so its stat cache is stale and SAFE
 /// re-hashes each file the pull wants to change — fine for a few notes, and
 /// still O(changed), never O(tree).
-fn pull_once(req: &PullRequest) -> Result<PullOutcome> {
+fn pull_once(req: &PullRequest, progress: &dyn Fn(&str)) -> Result<PullOutcome> {
     let paths = &req.paths;
     log::info!(
         "pull started — {} unpushed path(s) to {}, free heap {} ({} internal)",
@@ -1269,6 +1327,10 @@ fn pull_once(req: &PullRequest) -> Result<PullOutcome> {
     // rides the same open connection (no second TLS handshake).
     let mut remote = repo.find_remote("origin")?;
     let t_ls = Instant::now();
+    // The ref advertisement is its own wait (9.7 s on the first on-device pull)
+    // and both no-download shapes end here, so this is the only line most pulls
+    // ever show.
+    progress("contacting origin");
     remote
         .connect_auth(git2::Direction::Fetch, Some(auth_callbacks()), None)
         .context("connecting to origin")?;
@@ -1309,7 +1371,20 @@ fn pull_once(req: &PullRequest) -> Result<PullOutcome> {
     // connection (callbacks were bound at connect_auth).
     let t_fetch = Instant::now();
     let mut fo = FetchOptions::new();
-    fo.remote_callbacks(auth_callbacks());
+    let mut cbs = auth_callbacks();
+    // Time-gated, not object-gated: a big first pull must not turn its object
+    // counter into dozens of full-panel partials (see `try_push`'s send line).
+    let mut last_line: Option<Instant> = None;
+    cbs.transfer_progress(move |p| {
+        let (recv, total) = (p.received_objects(), p.total_objects());
+        let done = total > 0 && recv == total;
+        if done || last_line.is_none_or(|t| t.elapsed() >= Duration::from_secs(2)) {
+            last_line = Some(Instant::now());
+            progress(&format!("downloading {recv}/{total}"));
+        }
+        true
+    });
+    fo.remote_callbacks(cbs);
     remote
         .download(&[branch.as_str()], Some(&mut fo))
         .context("downloading from origin")?;
@@ -1337,6 +1412,9 @@ fn pull_once(req: &PullRequest) -> Result<PullOutcome> {
             short(theirs),
             short(head)
         );
+        // Covers the replay *and* the tree-apply behind it: one line for what the
+        // writer experiences as a single phase, rather than a partial per step.
+        progress("rebasing");
         let t_rebase = Instant::now();
         let rebased = rebase_local_onto(&repo, head, theirs)?;
         let rebase_ms = t_rebase.elapsed().as_millis();
@@ -1385,6 +1463,9 @@ fn pull_once(req: &PullRequest) -> Result<PullOutcome> {
         return Ok(PullOutcome::Rebased(short(rebased)));
     }
 
+    // The ordinary pull shape: the SD writes are the tail of the wait, and they
+    // scale with how much origin changed.
+    progress("writing files");
     let t_co = Instant::now();
     let changed = apply_tree_diff(&repo, head, theirs)?;
     repo.reference(
@@ -1874,7 +1955,19 @@ impl app::NetService for NetService {
     }
 
     fn poll_outcome(&self) -> Option<app::NetOutcome> {
-        let outcome = self.rx.try_recv().ok()?;
+        // Coalesce progress: the UI drains one message per idle pass and paints
+        // it, so a burst that queued while it was busy elsewhere would otherwise
+        // replay line by line — at a full-panel partial each — and trail the
+        // terminal notice with stale counts. Keep only the newest line, and let a
+        // terminal outcome behind it win outright.
+        let mut latest = None;
+        let outcome = loop {
+            match self.rx.try_recv() {
+                Ok(NetOutcome::Progress(line)) => latest = Some(line),
+                Ok(terminal) => break terminal,
+                Err(_) => return latest.map(app::NetOutcome::Progress),
+            }
+        };
         Some(match outcome {
             NetOutcome::Update(o) => app::NetOutcome::Update(match o {
                 // OTA settles no dirty journal; just mirror the outcome across
@@ -1922,6 +2015,10 @@ impl app::NetService for NetService {
                     PullOutcome::Failed(reason) => app::PullOutcome::Failed(reason),
                 })
             }
+            // The drain above already consumed every Progress, so this can't be
+            // reached — mapped rather than `unreachable!()`ed to keep the panic
+            // ban intact (a wrong-but-harmless notice beats a scribe + reboot).
+            NetOutcome::Progress(line) => app::NetOutcome::Progress(line),
         })
     }
 }

@@ -272,6 +272,24 @@ fn push_notice_covers_every_variant() {
 }
 
 #[test]
+fn an_in_flight_progress_line_settles_nothing() {
+    // A progress line is a repaint and nothing else: the operation is still
+    // running, so anything that belongs to a *finished* one — reloading buffers,
+    // re-walking the palette, settling a pending discard — must not fire, or a
+    // mid-push status line would reload the file being pushed.
+    let storage = RecStorage::default().with_body("/sd/repo/notes.md", "on-card");
+    let ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, "in-buffer".into());
+    let files = RecFiles::default();
+    let mut rt = runtime(ed, storage.clone(), RecSync::new(), files.clone());
+
+    rt.handle_net_outcome(NetOutcome::Progress("sending 3/7".into()));
+
+    assert_eq!(rt.ed.text(), "in-buffer", "the buffer must not be re-read mid-push");
+    assert!(storage.0.borrow().loads.is_empty(), "no load belongs to a non-terminal line");
+    assert_eq!(*files.0.borrow(), 0, "the palette re-walk waits for the outcome");
+}
+
+#[test]
 fn pull_notice_covers_every_variant() {
     assert_eq!(pull_notice(&PullOutcome::Pulled("abc".into())), "pulled abc");
     assert_eq!(pull_notice(&PullOutcome::Rebased("def".into())), "rebased def - :gs to push");

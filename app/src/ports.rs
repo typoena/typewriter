@@ -103,6 +103,16 @@ pub enum NetOutcome {
     Push(PushOutcome),
     Pull(PullOutcome),
     Update(UpdateOutcome),
+    /// A short status line from an operation still in flight — the panel's only
+    /// sign of life through the multi-second grind (`syncing...` otherwise sits
+    /// unchanged from dispatch to outcome). Non-terminal: it settles nothing, so
+    /// more messages follow, ending in one of the variants above.
+    ///
+    /// Deliberately *not* a timer-driven spinner: every line repaints the whole
+    /// panel (~630 ms of e-paper drive, one of the 64-partial ghosting budget),
+    /// so a line has to earn its place by reporting real state. The backend gates
+    /// them; the adapter coalesces a queued burst.
+    Progress(String),
 }
 
 /// Everything the radio-owning background thread does: the git push/pull

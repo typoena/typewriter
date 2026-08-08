@@ -413,6 +413,9 @@ impl<S: Screen> Runtime<S> {
                 UpdateOutcome::UpToDate(ver) => format!("firmware up to date ({ver})"),
                 UpdateOutcome::Failed(reason) => reason,
             },
+            // In-flight status line: nothing to settle, just paint it (the tail
+            // below). The operation is still running and will report again.
+            NetOutcome::Progress(line) => line,
         };
         self.ed.set_notice(notice);
         // Behind a full-screen card (the rest curtain or the `:about` splash) the
