@@ -61,13 +61,18 @@ stl-kb:
     cd case && zip -qj stl-kb.zip kb60-body.stl kb60-baseplate.stl kb40-body.stl kb40-baseplate.stl
 
 # export STLs: 3 printable parts + the full-assembly reference, then bundle
-# the printable parts into stl.zip for handoff
+# the printable parts into stl.zip for handoff.  Feet are deferred (feet_mode);
+# `just stl-feet` exports them if that changes.
 stl:
     cd case && openscad -o body.stl         -D 'show="body"'      typoena-case.scad
     cd case && openscad -o bracket.stl      -D 'show="bracket"'   typoena-case.scad
     cd case && openscad -o baseplate.stl    -D 'show="baseplate"' typoena-case.scad
     cd case && openscad -o typoena-case.stl -D 'show="assembled"' typoena-case.scad
     cd case && zip -qj stl.zip body.stl bracket.stl baseplate.stl
+
+# export the stick-on feet (only meaningful with feet_mode = "separate")
+stl-feet:
+    cd case && openscad -o feet.stl -D 'show="feet"' -D 'feet_mode="separate"' typoena-case.scad
 
 # export just the back-wall I/O fit coupon (quick test print before the body)
 stl-io:

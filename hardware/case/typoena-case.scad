@@ -17,6 +17,7 @@
 //    "body"        – the shell only (print deck-up or on its back)
 //    "bracket"     – the screen retaining frame (print flat)
 //    "baseplate"   – the chassis / bottom cover (print flat)
+//    "feet"        – the four stick-on feet, laid flat for printing
 //    "print_plate" – all printed parts laid out side by side
 //    "section"     – vertical cross-section: how the screen is trapped
 //    "plan"        – exploded horizontal section: deck lifted off the cavity
@@ -158,6 +159,20 @@ pwr_z    = bp_t + standoff_h + pcb2_h + pwr_clear + pwr_body_d/2;   // ~26
 bp_gap     = 0.5;  // clearance so it drops into the shell
 foot_r     = 7;    // round feet (the little typewriter feet)
 foot_h     = 3.5;
+// "none"     – no feet (current: deferred to a later version)
+// "separate" – printed as their own part (show="feet") and stuck on afterwards
+// "fused"    – hanging off the baseplate as one piece.  AVOID: the part then
+//              rests on four discs and the whole plate becomes a 3.5 mm overhang
+//              needing support across its footprint, with the standoffs and
+//              battery nibs floating above it. The other two modes print
+//              flat-face-down with every feature growing upward off the bed.
+feet_mode = "none";
+// The two FRONT feet sit over baseplate screw holes, so they carry the clearance
+// hole through plus a counterbore for the head — otherwise a glued-on foot either
+// blocks the screw or rocks on its head.
+foot_bore_r = 1.8;   // screw clearance through the foot
+foot_cb_r   = 3.0;   // head counterbore radius
+foot_cb_h   = 2.0;   // head counterbore depth (from the foot's ground face)
 post_r     = 4.2;  // corner screw posts inside the shell (M2.5 self-tap)
 post_pilot = 1.15;
 
@@ -216,6 +231,36 @@ module body_cavity() {
 post_xy = [[corner_r+3,          corner_r+3],     // front-left
            [W-corner_r-3,        corner_r+3],     // front-right
            [(pcb1_x1+pcb2_x0)/2, D-corner_r-3]];  // back-centre, in the board gap
+// Foot centres. The two FRONT feet are concentric with the front screw posts on
+// purpose: the screw then lands dead centre in the disc, so the head counterbore
+// keeps a full 4 mm of wall all round. Offset even 3 mm and that wall drops to
+// ~0.2 mm and will not print. The back pair is decorative (the only back post is
+// centre-back, in the board gap) and stays on the corner grid.
+// [x, y, takes a screw?]
+foot_pos = [[post_xy[0][0], post_xy[0][1], true ],
+            [post_xy[1][0], post_xy[1][1], true ],
+            [corner_r+6,    D-corner_r-6,  false],
+            [W-corner_r-6,  D-corner_r-6,  false]];
+// one foot, sitting on the ground plane (ground face at z=0, top face at foot_h)
+module foot(screwed) {
+    difference() {
+        cylinder(h=foot_h, r=foot_r);
+        if (screwed) {
+            translate([0,0,-1])       cylinder(h=foot_h+2,  r=foot_bore_r);
+            translate([0,0,-0.01])    cylinder(h=foot_cb_h, r=foot_cb_r);
+        }
+    }
+}
+// the four feet placed under the baseplate (renders only — see feet_mode)
+module feet_parts() {
+    for (f = foot_pos)
+        translate([f[0], f[1], -foot_h]) foot(f[2]);
+}
+// the four feet laid out flat for printing, ground face on the bed
+module feet_plate() {
+    for (i = [0:len(foot_pos)-1])
+        translate([foot_r + i*(2*foot_r + 4), foot_r, 0]) foot(foot_pos[i][2]);
+}
 module corner_posts() {
     for (p = post_xy) {
         h = (p[1] < D/2) ? Hf-top_wall : Hb-top_wall;
@@ -328,9 +373,8 @@ module baseplate() {
         union() {
             // plate (centred on the footprint)
             translate([W/2, D/2, 0]) linear_extrude(bp_t) rrect(iw, id, corner_r-wall);
-            // round feet underneath
-            for (fx=[corner_r+6, W-corner_r-6], fy=[corner_r+6, D-corner_r-6])
-                translate([fx, fy, -foot_h]) cylinder(h=foot_h+0.1, r=foot_r);
+            // round feet underneath — only in "fused" mode, see feet_mode
+            if (feet_mode == "fused") feet_parts();
             // board standoffs on top (PCB 1 back-left + PCB 2 back-right)
             for (h = concat(pcb1_holes, pcb2_holes))
                 translate([h[0], h[1], bp_t]) cylinder(h=standoff_h, r=3);
@@ -448,16 +492,20 @@ if (show == "assembled") {
     placed_bracket();
     ghost_boards();
     translate([0,0,-0.01]) color(C_plate) baseplate();
+    if (feet_mode == "separate") color(C_plate) feet_parts();
 } else if (show == "body") {
     color(C_body) case_body();
 } else if (show == "bracket") {
     color(C_bracket) bracket();
 } else if (show == "baseplate") {
     color(C_plate) baseplate();
+} else if (show == "feet") {
+    color(C_plate) feet_plate();
 } else if (show == "print_plate") {
     color(C_body)    case_body();
     translate([W+30, 0, 0])           color(C_plate)   baseplate();
-    translate([W+30, D+30, foot_h])   color(C_bracket) bracket();
+    translate([W+30, D+30, 0])        color(C_bracket) bracket();
+    if (feet_mode != "none") translate([W+30, D+90, 0]) color(C_plate) feet_plate();
 } else if (show == "section") {
     // VERTICAL slice (remove +X half): cut face shows the screen clamp, and the
     // retained LEFT half exposes the internal FPC clearance behind the bezel

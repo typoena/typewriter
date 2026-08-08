@@ -30,12 +30,13 @@ Needs [OpenSCAD](https://openscad.org). From `hardware/`:
 just render   # regenerate every case/renders/*.png
 just stl      # export body / bracket / baseplate STLs
 just stl-io   # export the back-wall I/O fit coupon (quick test print)
+just stl-feet # export the stick-on feet (deferred — see feet_mode)
 just open     # open the model in OpenSCAD
 ```
 
-`show` accepts `assembled` · `body` · `bracket` · `baseplate` · `print_plate` ·
-`section` (vertical cut) · `plan` (exploded horizontal) · `plan_up` / `plan_down`
-(each half alone) · `io_coupon` (the I/O fit test print).
+`show` accepts `assembled` · `body` · `bracket` · `baseplate` · `feet` ·
+`print_plate` · `section` (vertical cut) · `plan` (exploded horizontal) ·
+`plan_up` / `plan_down` (each half alone) · `io_coupon` (the I/O fit test print).
 
 ## Dimensions
 
