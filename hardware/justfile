@@ -40,6 +40,8 @@ render:
     cd case && openscad -o renders/front34.png    {{base}} --camera=0,0,0,72,0,200,0 -D 'show="assembled"' typoena-case.scad
     # the I/O fit coupon, straight down on its face
     cd case && openscad -o renders/io-coupon.png  {{base}} --camera=0,0,0,0,0,0,0    -D 'show="io_coupon"' typoena-case.scad
+    # back elevation, lightly tilted — for judging how the I/O sits on the face
+    cd case && openscad -o renders/back.png       {{base}} --camera=0,0,0,80,0,180,0 -D 'show="assembled"'    typoena-case.scad
 
 # regenerate the integrated-keyboard variant previews (60% + 40%)
 render-kb:

@@ -97,6 +97,14 @@ below.
 
   No reset/BOOT button is exposed (S3 auto-download makes both recovery-only);
   like the ESP32's own USB-C they're reached by opening the case.
+
+  `pwr_inset` has **~2 mm of travel left**, and the limit is the nut's flat seat,
+  not the hole: the back face is planar only to x = 168 (`W - corner_r`), so the
+  Ø17 nut runs off the corner blend below an inset of ~17. Not worth spending —
+  it buys 2 mm of gap to the µSD that nothing can see, and leaves the nut 1.5 mm
+  of flat to seat on.
+
+![Back elevation — the I/O all lives in the right half; the button sits above the port baseline](renders/back.png)
 - **LiPo** flat across the front in baseplate cage nibs (foam/VHB does the rest).
   The shallow (24 mm) front of the wedge is dead space the tall board stack can't
   use, and **3700 mAh is the biggest flat cell that fits it** (96 × 33.5 × 10.3);
