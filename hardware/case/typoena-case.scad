@@ -105,7 +105,7 @@ pcb1_holes = [[pcb1_x0+2,pcb1_y0+2],[pcb1_x1-2,pcb1_y0+2],
 pcb2_holes = [[pcb2_x0+2,pcb2_y0+2],[pcb2_x1-2,pcb2_y0+2],
               [pcb2_x0+2,pcb2_y1-2],[pcb2_x1-2,pcb2_y1-2]];
 // LiPo 3700 mAh (96 x 33.5 x 10.3), flat across the FRONT — dead wedge space,
-// CG low + forward. Leads exit toward the charger (back-right). << confirm cell >>
+// CG low + forward. Leads exit toward the charger (back-right). Cell measured.
 bat_w = 96;  bat_d = 33.5;  bat_h = 10.3;
 bat_y0 = wall + 4;                             // front edge just off the front wall
 
@@ -140,9 +140,9 @@ pwr_btn  = true;             // set false to omit the switch hole entirely
 pwr_d    = 13.5;             // switch barrel Ø (the part Julien bought)
 pwr_fit  = 0.4;              // panel-hole clearance on top of the barrel Ø
 pwr_r    = (pwr_d + pwr_fit) / 2;
-pwr_body_d = 17;             // WIDEST thing behind the panel — nut across corners,
+pwr_body_d = 14;             // WIDEST thing behind the panel — nut across corners,
                              // body OD, solder lugs. NOT the barrel: this is what
-                             // decides the clearance below.        << MEASURE >>
+                             // decides the clearance below.  Measured off the part.
 pwr_inset= 20;               // button CENTRE, measured in from the RIGHT outer face
 pwr_x    = W - pwr_inset;    // 156 — past the µSD (right edge @ 136.6), 5 mm of
                              // flat wall left before the back-right corner blend

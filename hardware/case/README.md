@@ -92,17 +92,17 @@ below.
   headroom for parts PCB 2 doesn't carry yet: `pwr_z` reserves `pwr_clear = 4 mm`
   above `pcb2_h`, which leaves **10.4 mm of build height free above the board
   face** across the button's footprint. The driver is `pwr_body_d` (nut across
-  corners / body OD, ~17 mm — `<< MEASURE >>`), *not* the barrel Ø: the nut is the
-  widest thing behind the panel and therefore the part that reaches lowest.
+  corners / body OD, 14 mm measured), *not* the barrel Ø: the nut is the widest
+  thing behind the panel and therefore the part that reaches lowest.
 
   No reset/BOOT button is exposed (S3 auto-download makes both recovery-only);
   like the ESP32's own USB-C they're reached by opening the case.
 
-  `pwr_inset` has **~2 mm of travel left**, and the limit is the nut's flat seat,
+  `pwr_inset` has **~5 mm of travel left**, and the limit is the nut's flat seat,
   not the hole: the back face is planar only to x = 168 (`W - corner_r`), so the
-  Ø17 nut runs off the corner blend below an inset of ~17. Not worth spending —
-  it buys 2 mm of gap to the µSD that nothing can see, and leaves the nut 1.5 mm
-  of flat to seat on.
+  Ø14 nut runs off the corner blend below an inset of ~15. Not worth spending —
+  it buys gap to the µSD that nothing can see, and the nut already seats on flat
+  wall at the default 20.
 
 ![Back elevation — the I/O all lives in the right half; the button sits above the port baseline](renders/back.png)
 - **LiPo** flat across the front in baseplate cage nibs (foam/VHB does the rest).
