@@ -196,6 +196,17 @@ below.
       Three things to watch on the dry-fit: `usbc_w` is still the *datasheet* shell
       width, so caliper it; check the µSD card can't be pushed in above or below
       the cage lip through a 3.2 mm opening; and see below on the switch.
+- [ ] **Printer offset is not modelled anywhere.** The machine over-extrudes by
+      ~0.5 mm on diameter: holes come out that much small, outer walls that much
+      large. The coupon measures it exactly — caliper its openings against nominal
+      (10.2 × 4.2, 14.2 × 3.2, Ø14.7) and the delta is the offset. It belongs in
+      the slicer's X-Y hole compensation, not in `port_fit`, so the nominal
+      openings stay honest. Three fits assume a perfect printer and are all on the
+      body print: `bp_gap = 0.5` (baseplate grows +0.5 while the cavity shrinks
+      −0.5, so the 0.5 clearance goes negative and the plate won't drop in),
+      `glass_gap = 0.5` (same, screen pocket), and `standoff_pilot = 0.8` (Ø1.6
+      pilot prints ~1.1, tight enough for the M2 self-tapper to split a standoff).
+      Settle the offset on the coupon before committing to the 10-hour print.
 - [ ] **Switch retention at `pwr_fit = 1.2`.** Ø14.7 is wider than `pwr_body_d`
       (14.0, the widest measured feature behind the panel), so as modelled nothing
       on the switch bears against the wall — the hole no longer retains it. This
