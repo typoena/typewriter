@@ -637,14 +637,16 @@ impl Editor {
                 .infallible();
         }
 
+        // 47 chars at the widest — fits the 62-column card, so the jump keys
+        // never cost the Esc hint its place.
         let hint = if link_mode {
-            "^N/^P move  Enter link  Esc close"
+            "^N/^P move  ^D/^U jump  Enter link  Esc close"
         } else if snippet_mode {
-            "^N/^P move  Enter insert  Esc close"
+            "^N/^P move  ^D/^U jump  Enter insert  Esc close"
         } else if command_mode {
-            "^N/^P move  Enter change  Esc close"
+            "^N/^P move  ^D/^U jump  Enter change  Esc close"
         } else {
-            "^N/^P move  Enter open  Esc close"
+            "^N/^P move  ^D/^U jump  Enter open  Esc close"
         };
         Text::with_baseline(hint, Point::new(2, hint_y), style, Baseline::Top)
             .draw(f)

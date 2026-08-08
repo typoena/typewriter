@@ -195,19 +195,35 @@ fn opening_the_active_file_from_the_palette_is_a_noop() {
 }
 
 #[test]
-fn half_page_keys_move_the_selection_wrapping() {
+fn half_page_keys_jump_the_selection_clamping_at_the_ends() {
+    let files: Vec<String> = (0..20).map(|i| format!("/sd/repo/f{i:02}.md")).collect();
+    let refs: Vec<&str> = files.iter().map(String::as_str).collect();
+    let mut e = palette_editor(&refs);
+    e.handle(Key::Palette);
+    for ch in "md".chars() {
+        e.handle(Key::Char(ch)); // reach the search threshold: all twenty match
+    }
+    assert_eq!(e.palette_sel, 0);
+    e.handle(Key::HalfPageDown);
+    assert_eq!(e.palette_sel, HALF_PAGE); // a jump, not a single row
+    e.handle(Key::HalfPageUp);
+    assert_eq!(e.palette_sel, 0);
+    e.handle(Key::HalfPageUp); // clamps at the top instead of wrapping
+    assert_eq!(e.palette_sel, 0);
+    for _ in 0..5 {
+        e.handle(Key::HalfPageDown); // 30 rows down over a 20-row list
+    }
+    assert_eq!(e.palette_sel, 19); // clamps at the last row
+}
+
+#[test]
+fn half_page_down_lands_on_the_last_row_of_a_short_list() {
     let mut e = palette_editor(&["/sd/repo/a.md", "/sd/repo/b.md", "/sd/repo/c.md"]);
     e.handle(Key::Palette);
     for ch in "md".chars() {
         e.handle(Key::Char(ch)); // reach the search threshold: all three match
     }
-    assert_eq!(e.palette_sel, 0);
-    e.handle(Key::HalfPageDown);
-    assert_eq!(e.palette_sel, 1);
-    e.handle(Key::HalfPageDown);
-    e.handle(Key::HalfPageDown); // wraps past the last row to the top
-    assert_eq!(e.palette_sel, 0);
-    e.handle(Key::HalfPageUp); // wraps back to the last row
+    e.handle(Key::HalfPageDown); // list shorter than a half page
     assert_eq!(e.palette_sel, 2);
 }
 

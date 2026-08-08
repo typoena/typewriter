@@ -204,11 +204,11 @@ impl Editor {
 
     /// Dispatch a key in [`Mode::Palette`]. In the `New file` input step the keys
     /// build a filename ([`new_file_step_key`](Self::new_file_step_key)); otherwise
-    /// typing fuzzy-filters, `Ctrl-n`/`Ctrl-p` (or `Ctrl-d`/`Ctrl-u`) move the
-    /// selection, and Enter acts on it per the leading sigil (open a file, run a
-    /// `>` command, or insert a `$` snippet). Esc or `Cmd-P` closes; Backspace on
-    /// an empty query also closes (mirrors the `:` line). Any query edit resets the
-    /// selection to the top.
+    /// typing fuzzy-filters, `Ctrl-n`/`Ctrl-p` step the selection by a row and
+    /// `Ctrl-d`/`Ctrl-u` by half a card, and Enter acts on it per the leading
+    /// sigil (open a file, run a `>` command, or insert a `$` snippet). Esc or
+    /// `Cmd-P` closes; Backspace on an empty query also closes (mirrors the `:`
+    /// line). Any query edit resets the selection to the top.
     pub(crate) fn palette_key(&mut self, key: Key) {
         if self.palette_step == PaletteStep::NewFile {
             return self.new_file_step_key(key);
@@ -244,20 +244,31 @@ impl Editor {
                 self.palette_query.clear();
                 self.palette_sel = 0;
             }
-            // Ctrl-n/Ctrl-p move the selection (fzf-style); Ctrl-d/Ctrl-u do too.
-            // Wraps around the current result list (files, `>` commands, `$` snippets).
-            Key::Down | Key::HalfPageDown => {
+            // Ctrl-n/Ctrl-p step the selection one row (fzf-style), wrapping
+            // around the current result list (files, `>` commands, `$` snippets).
+            Key::Down => {
                 let n = self.palette_len();
                 if n > 0 {
                     self.palette_sel = (self.palette_sel + 1) % n;
                 }
             }
-            Key::Up | Key::HalfPageUp => {
+            Key::Up => {
                 let n = self.palette_len();
                 if n > 0 {
                     self.palette_sel = self.palette_sel.checked_sub(1).unwrap_or(n - 1);
                 }
             }
+            // Ctrl-d/Ctrl-u jump [`HALF_PAGE`] rows — half a card, the same
+            // distance they scroll the writing panel. They clamp at the ends
+            // instead of wrapping: a wrapped jump lands mid-list, which reads as
+            // a lost selection rather than a move.
+            Key::HalfPageDown => {
+                let n = self.palette_len();
+                if n > 0 {
+                    self.palette_sel = (self.palette_sel + HALF_PAGE).min(n - 1);
+                }
+            }
+            Key::HalfPageUp => self.palette_sel = self.palette_sel.saturating_sub(HALF_PAGE),
             // Enter acts on the selection by mode: insert a `$` snippet, run a `>`
             // command, or open the selected file.
             Key::Enter => {
