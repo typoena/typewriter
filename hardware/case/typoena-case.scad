@@ -185,17 +185,23 @@ port_fit = panel_slip + print_bloat;         // slack on every port opening: the
 usbc_cz  = 3.5;                              // USB-C opening centre, above PCB top
 // The µSD is pinned to the USB-C by a MEASURED step, bottom edge to bottom edge,
 // not by a guess at its centre (sd_cz was 3.0, which put both bottoms level).
-// Negate sd_drop if the cage sits above the shells rather than below.
-sd_drop  = 1.0;                              // cage bottom, below the shell bottom
-sd_cz    = usbc_cz - usbc_h/2 - sd_drop + sd_h/2;   // -> 2.0
+sd_rise  = 1.0;                              // cage bottom, ABOVE the shell bottoms
+sd_cz    = usbc_cz - usbc_h/2 + sd_rise + sd_h/2;   // -> 4.0
 pcb2_z   = bp_t + standoff_h + pcb_t;        // PCB 2 top face height off the floor
 // per-port centre heights off the floor       [charge, keyboard, µSD]
 port_z   = [pcb2_z+usbc_cz, pcb2_z+usbc_cz, pcb2_z+sd_cz];
 // PCB 2 is flipped vs how you view it: the charge end sits inward (low X), the
-// µSD/power end faces the RIGHT wall. Same 8/7/5 gaps, measured from the LEFT
-// board edge (pcb2_x0):
-//   charge : 8 gap + 8/2 -> 12.0   keyboard: +8+7+8/2 -> 27.0   µSD: +8+5+13/2 -> 42.5
-port_x   = [pcb2_x0+12, pcb2_x0+27, pcb2_x0+42.5];   // charge, keyboard, µSD
+// µSD/power end faces the RIGHT wall. Walk the connectors from the LEFT board
+// edge (pcb2_x0) using the measured 8/7/5 gaps BETWEEN them. Derived from the
+// widths rather than typed: the centres were once literals worked out from the
+// datasheet widths, so calipering the parts silently left them 1.5 mm out.
+port_gap = [8, 7, 5];                        // board edge->charge, then between
+chg_x0   = port_gap[0];                                  // -> 8.0
+kbd_x0   = chg_x0 + usbc_w + port_gap[1];                // -> 23.5
+sd_x0    = kbd_x0 + usbc_w + port_gap[2];                // -> 37.0
+port_x   = [pcb2_x0 + chg_x0 + usbc_w/2,     // charge   -> 12.25 off the board edge
+            pcb2_x0 + kbd_x0 + usbc_w/2,     // keyboard -> 27.75
+            pcb2_x0 + sd_x0  + sd_w/2];      // µSD      -> 44.0
 
 // ---- power on/off switch (latching push button, inline in the battery feed) --
 // A push-on / push-off (latching) button that makes/breaks the battery-side power
@@ -218,7 +224,7 @@ pwr_body_d = 14;             // WIDEST thing behind the panel — nut across cor
                              // body OD, solder lugs. NOT the barrel: this is what
                              // decides the clearance below.  Measured off the part.
 pwr_inset= 20;               // button CENTRE, measured in from the RIGHT outer face
-pwr_x    = W - pwr_inset;    // 156 — past the µSD (right edge @ 137.2), 4.6 mm of
+pwr_x    = W - pwr_inset;    // 156 — past the µSD (right edge @ 139.2), 4.6 mm of
                              // flat wall left before the back-right corner blend
 // The switch is a loose panel-mount part wired back to PCB 2, not mounted on it.
 // At Ø13.5 it cannot avoid PCB 2 in plan — the board runs to x=167.6, and the only

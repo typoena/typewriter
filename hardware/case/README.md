@@ -194,13 +194,18 @@ below.
       whole block came off the USB-C spec sheet — `usbc_h` 2.5 and `usbc_w` 8.0 are
       the *plug* envelope, and `sd_w` 13.0 was the same kind of guess. Calipered:
       USB-C shell 8.5 × 2.75–3.0, µSD cage 14.0 wide, and the cage bottom sits
-      1 mm below the shell bottoms (`sd_drop`) where the model had them level.
+      1 mm *above* the shell bottoms (`sd_rise`) where the model had them level.
       With 1.2 mm of slack on every panel opening (`port_fit`, `pwr_fit`) that
       gives USB-C 9.7 × 4.2, µSD 15.2 × 3.2, switch Ø14.7.
-- [ ] **Two port numbers still unmeasured.** `sd_h = 2.0` (cage height) is the last
-      datasheet figure in the block — caliper it. And `sd_drop` assumes the cage
-      sits *below* the shells; if it's above, negate it. Both are centre/size
-      errors that slack can't rescue, so settle them before the next coupon.
+- [x] **Port X centres derive from the widths now.** They used to be literals
+      (12 / 27 / 42.5) worked out by hand from the datasheet widths, so calipering
+      the parts left them silently 1.5 mm out at the µSD — more than the 0.6 mm a
+      side of slack could absorb. The chain walks the measured 8/7/5 gaps from the
+      board's left edge instead: 12.25 / 27.75 / 44.0.
+- [ ] **One port number still unmeasured:** `sd_h = 2.0`, the cage height. It only
+      sets the *top* of the µSD opening now that the bottom is pinned by `sd_rise`,
+      so it's the least dangerous of the block — but it's the last datasheet figure
+      left in it. The dry-fit also checks the 8/7/5 gaps the X chain trusts.
 - [ ] **Confirm `print_bloat` on the coupon.** The machine over-extrudes ~0.5 mm
       on diameter — holes that much small, outer features that much large. Every
       fit in the model now derives from the single `print_bloat` constant, so the
