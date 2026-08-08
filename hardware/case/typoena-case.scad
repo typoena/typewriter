@@ -172,16 +172,22 @@ bat_y0 = wall + 4;                             // front edge just off the front 
 // coupon print. A coupon is a 45-minute print, so the openings are now sized to
 // clear on the next one rather than to look tight — never take a connector
 // opening from a datasheet again.
-usbc_w   = 9.0;  usbc_h = 3.0;               // USB-C shell (W x H). H measured;
-                                             // W is still the datasheet shell —
-                                             // caliper it when the case is open
-sd_w     = 13.0; sd_h   = 2.0;               // microSD slot (W x H)
+usbc_w   = 8.5;  usbc_h = 3.0;               // USB-C shell (W x H), both measured
+                                             // off the part (9.0 was a guess at a
+                                             // typical shell, 8.0 the plug)
+sd_w     = 14.0; sd_h   = 2.0;               // microSD cage (W x H). W measured
+                                             // (13.0 was the same datasheet guess
+                                             // that jammed the USB-C); H is not
 port_fit = panel_slip + print_bloat;         // slack on every port opening: the
                                              // plug has to pass with room, and the
                                              // connectors are held by PCB 2, not
                                              // by the panel
 usbc_cz  = 3.5;                              // USB-C opening centre, above PCB top
-sd_cz    = 3.0;                              // µSD slot centre — 0.5 mm below the USB-C centre
+// The µSD is pinned to the USB-C by a MEASURED step, bottom edge to bottom edge,
+// not by a guess at its centre (sd_cz was 3.0, which put both bottoms level).
+// Negate sd_drop if the cage sits above the shells rather than below.
+sd_drop  = 1.0;                              // cage bottom, below the shell bottom
+sd_cz    = usbc_cz - usbc_h/2 - sd_drop + sd_h/2;   // -> 2.0
 pcb2_z   = bp_t + standoff_h + pcb_t;        // PCB 2 top face height off the floor
 // per-port centre heights off the floor       [charge, keyboard, µSD]
 port_z   = [pcb2_z+usbc_cz, pcb2_z+usbc_cz, pcb2_z+sd_cz];

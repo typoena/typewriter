@@ -190,21 +190,23 @@ below.
 - [x] Real board mounting-hole + port coordinates — done (two-PCB build).
 - [x] Measure the **LiPo** — confirmed 96 × 33.5 × 10.3, `bat_*` unchanged.
 - [x] Measure the **power switch** — widest-behind-panel 14 mm (`pwr_body_d`).
-- [ ] **USB-C openings** — the first coupon print jammed: `usbc_h` was 2.5, the
-      plug envelope off the spec sheet rather than the part, and the real shells
-      caliper 2.75–3.0. Now 3.0, with `usbc_w` raised 8.0 → 9.0 (shell, not plug)
-      and a deliberate 1.2 mm slack on every panel opening (`port_fit`, `pwr_fit`),
-      so the next 45-minute coupon clears instead of converging. Openings are
-      therefore USB-C 10.2 × 4.2, µSD 14.2 × 3.2, switch Ø14.7 — loose by design.
-      Three things to watch on the dry-fit: `usbc_w` is still the *datasheet* shell
-      width, so caliper it; check the µSD card can't be pushed in above or below
-      the cage lip through a 3.2 mm opening; and see below on the switch.
+- [x] **Port openings sized off the parts.** The first coupon jammed because the
+      whole block came off the USB-C spec sheet — `usbc_h` 2.5 and `usbc_w` 8.0 are
+      the *plug* envelope, and `sd_w` 13.0 was the same kind of guess. Calipered:
+      USB-C shell 8.5 × 2.75–3.0, µSD cage 14.0 wide, and the cage bottom sits
+      1 mm below the shell bottoms (`sd_drop`) where the model had them level.
+      With 1.2 mm of slack on every panel opening (`port_fit`, `pwr_fit`) that
+      gives USB-C 9.7 × 4.2, µSD 15.2 × 3.2, switch Ø14.7.
+- [ ] **Two port numbers still unmeasured.** `sd_h = 2.0` (cage height) is the last
+      datasheet figure in the block — caliper it. And `sd_drop` assumes the cage
+      sits *below* the shells; if it's above, negate it. Both are centre/size
+      errors that slack can't rescue, so settle them before the next coupon.
 - [ ] **Confirm `print_bloat` on the coupon.** The machine over-extrudes ~0.5 mm
       on diameter — holes that much small, outer features that much large. Every
       fit in the model now derives from the single `print_bloat` constant, so the
       value is one line to change and nothing else moves. It is still an *estimate*
       off the jammed first coupon: caliper the printed coupon's openings against
-      nominal (10.2 × 4.2, 14.2 × 3.2, Ø14.7) and set `print_bloat` to the delta
+      nominal (9.7 × 4.2, 15.2 × 3.2, Ø14.7) and set `print_bloat` to the delta
       before committing to the 10-hour body print. Compensation is XY only — Z is
       layer height, and first-layer squish is the slicer's elephant-foot setting.
 - [ ] **Switch retention at `pwr_fit = 1.2`.** Ø14.7 is wider than `pwr_body_d`
