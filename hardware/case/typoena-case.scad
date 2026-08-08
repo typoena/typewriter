@@ -30,6 +30,19 @@
 show = "assembled";
 $fn = 20;
 
+// ---- printer compensation -------------------------------------------------
+// The machine over-extrudes: holes come out ~0.5 mm small across, outer features
+// ~0.5 mm large. That error is the machine's, not the parts', so it lives HERE
+// once and every fit below derives from it — recalibrate the extruder and this
+// is a one-line change instead of a sweep. XY only: Z is layer height, and the
+// first-layer squish is the slicer's elephant-foot setting, not this.
+// The value is still an estimate off the jammed first coupon. The I/O coupon
+// measures it exactly — caliper its openings against nominal and set this to
+// the delta before the body print (see README, "Printer offset").
+print_bloat = 0.5;
+// The real gap wanted at a panel opening, before the machine eats into it.
+panel_slip  = 0.7;
+
 // ---- body envelope --------------------------------------------------------
 W        = 176;   // width  (X)  — screen 150.9 + bezel + walls
 D        = 104;   // depth  (Y)  — front (keyboard) .. back (ports)
@@ -71,11 +84,14 @@ glass_dy = -active_off_y;
 // ---- screen retention (glueless) ------------------------------------------
 lip_over  = 4.0;   // how far the front bezel lip overlaps the glass border
 lip_t     = 1.4;   // deck material left in FRONT of the glass (the visible lip)
-glass_gap = 0.5;   // clearance around the glass in its pocket
+glass_gap = 0.5 + print_bloat;   // clearance around the glass in its pocket. The
+                   // glass is rigid and brittle: a pocket that prints 0.5 under
+                   // doesn't take it at all, which costs more than the 0.25 mm
+                   // per side of registration the compensation gives away.
 foam_t    = 1.0;   // non-adhesive closed-cell foam gasket behind the glass
 bracket_t = 2.6;   // printed retaining frame thickness
-fpc_w     = 36;    // ribbon-slot span along the LEFT short edge (the FPC side)
-                   // — the measured ribbon is 34 mm wide, + 2 mm clearance.
+fpc_w     = 34 + 2 + print_bloat;   // ribbon-slot span along the LEFT short edge
+                   // (the FPC side) — measured ribbon 34 mm, + 2 mm clearance.
 fpc_slot_x = 10;   // how far the slot reaches ACROSS the glass edge (X). Was 14;
                    // the glass now sits 3.5 mm left (glass_dx), where 14 would
                    // leave only ~1.8 mm of deck before the left wall. 10 keeps
@@ -87,8 +103,11 @@ name_size  = 6.5;             // cap height in mm
 name_depth = 0.8;             // engrave depth — raise for a bolder, deeper cut
 name_font  = "Monaspace Krypton";   // install once — see README (Nameplate font)
 
-A_ap_w = A_w + 2;                  // through-aperture (a hair bigger than active)
-A_ap_h = A_h + 1;                  //   still smaller than glass minus 2*lip
+// through-aperture (a hair bigger than active, still smaller than glass minus
+// 2*lip). Compensated: the aperture must never encroach on the active area, and
+// A_h+1 leaves only 0.5 mm a side to give away.
+A_ap_w = A_w + 2 + print_bloat;
+A_ap_h = A_h + 1 + print_bloat;
 P_w    = G_w + glass_gap;          // glass pocket (locates the glass in X/Y)
 P_h    = G_h + glass_gap;
 
@@ -96,6 +115,8 @@ P_h    = G_h + glass_gap;
 deck_L    = (D - 2*corner_r) / cos(theta);   // deck length along the slope
 screen_cy = deck_L/2;                        // centre it
 boss_r    = 3.4;                             // M2 self-tap boss for the bracket
+boss_pilot = (2.0 + print_bloat)/2;          // its Ø2 pilot
+br_screw_r = (2.9 + print_bloat)/2;          // M2 clearance through the bracket
 // Bracket fixing points, in GLASS-local X/Y (the bracket is placed on the glass,
 // so these are its hole positions and the bosses' positions both).
 // Both pairs already clear the glass pocket in Y, so their X is free to slide —
@@ -115,7 +136,8 @@ br_m  = 9;     // the other three
 // ---- mounting, boards & battery (defined here: the ports below depend on it)
 bp_t           = 2.6;    // baseplate thickness
 standoff_h     = 3;      // board standoff height — keep LOW so 22 mm PCB 1 clears the deck
-standoff_pilot = 0.8;    // pilot Ø1.6 for an M2 self-tapper (PCB holes are Ø2)
+standoff_pilot = (1.6 + print_bloat)/2;   // pilot Ø1.6 for an M2 self-tapper
+                         // (PCB holes are Ø2) — see post_pilot on the compensation
 pcb_t          = 1.6;    // PCB thickness (for port-height maths)
 // PCB 1 = ESP32 devkit + e-ink driver + MT3608 boost. 70(X) x 50(Y), back-LEFT:
 // short FPC to the deck's left slot, and the 22 mm Dupont/header side sits under
@@ -154,10 +176,10 @@ usbc_w   = 9.0;  usbc_h = 3.0;               // USB-C shell (W x H). H measured;
                                              // W is still the datasheet shell —
                                              // caliper it when the case is open
 sd_w     = 13.0; sd_h   = 2.0;               // microSD slot (W x H)
-port_fit = 1.2;                              // deliberate slack on every port
-                                             // opening: the plug has to pass with
-                                             // room, and the connectors are held
-                                             // by PCB 2, not by the panel
+port_fit = panel_slip + print_bloat;         // slack on every port opening: the
+                                             // plug has to pass with room, and the
+                                             // connectors are held by PCB 2, not
+                                             // by the panel
 usbc_cz  = 3.5;                              // USB-C opening centre, above PCB top
 sd_cz    = 3.0;                              // µSD slot centre — 0.5 mm below the USB-C centre
 pcb2_z   = bp_t + standoff_h + pcb_t;        // PCB 2 top face height off the floor
@@ -179,8 +201,8 @@ port_x   = [pcb2_x0+12, pcb2_x0+27, pcb2_x0+42.5];   // charge, keyboard, µSD
 // handles flashing), so like the ESP32's own USB-C they're reached by opening up.
 pwr_btn  = true;             // set false to omit the switch hole entirely
 pwr_d    = 13.5;             // switch barrel Ø (the part Julien bought)
-pwr_fit  = 1.2;              // panel-hole clearance on top of the barrel Ø, matching
-                             // the ports. HAZARD: Ø14.7 is wider than pwr_body_d,
+pwr_fit  = panel_slip + print_bloat;   // panel-hole clearance on the barrel Ø,
+                             // matching the ports. HAZARD: Ø14.7 exceeds pwr_body_d,
                              // so nothing on the switch bears against the wall —
                              // the panel no longer retains it. Holds only if the
                              // retaining nut/bezel measures wider than the hole;
@@ -201,7 +223,11 @@ pwr_clear = 4;               // headroom kept free above PCB 2 for future parts
 pwr_z    = bp_t + standoff_h + pcb2_h + pwr_clear + pwr_body_d/2;   // ~26
 
 // ---- baseplate / chassis --------------------------------------------------
-bp_gap     = 0.5;  // clearance so it drops into the shell
+// Clearance so the plate drops into the shell. Both mating faces are printed and
+// both err inward: the plate's outer grows by print_bloat while the shell cavity
+// shrinks by it, so the gap is eaten TWICE — uncompensated 0.5 goes negative and
+// the plate simply won't go in.
+bp_gap     = 0.5 + 2*print_bloat;
 foot_r     = 7;    // round feet (the little typewriter feet)
 foot_h     = 3.5;
 // "none"     – no feet (current: deferred to a later version)
@@ -215,11 +241,16 @@ feet_mode = "none";
 // The two FRONT feet sit over baseplate screw holes, so they carry the clearance
 // hole through plus a counterbore for the head — otherwise a glued-on foot either
 // blocks the screw or rocks on its head.
-foot_bore_r = 1.8;   // screw clearance through the foot
-foot_cb_r   = 3.0;   // head counterbore radius
-foot_cb_h   = 2.0;   // head counterbore depth (from the foot's ground face)
+// Screw features are all holes a real fastener passes through or bites into, so
+// each is written as its true diameter + print_bloat, halved for a radius.
+foot_bore_r = (3.6 + print_bloat)/2;   // screw clearance through the foot
+foot_cb_r   = (6.0 + print_bloat)/2;   // head counterbore radius
+foot_cb_h   = 2.0;   // head counterbore depth (from the foot's ground face) — Z,
+                     // so layer height governs it, not print_bloat
 post_r     = 4.2;  // corner screw posts inside the shell (M2.5 self-tap)
-post_pilot = 1.15;
+post_pilot = (2.3 + print_bloat)/2;   // Ø2.3 pilot. A self-tapper wants a tight
+                   // pilot, but Ø2.3 printing as Ø1.8 is past tight and splits
+                   // the post — compensation protects the part, not the fit.
 
 // ---- colours (for the assembled render) -----------------------------------
 C_body   = "#B6CEB4";
@@ -323,7 +354,7 @@ module bracket_bosses() {
         translate([glass_dx + p[0], screen_cy + glass_dy + p[1], -lip_t-blen])
         difference() {
             cylinder(h=blen, r=boss_r);
-            translate([0,0,-1]) cylinder(h=blen+2, r=1.0);   // M2 self-tap
+            translate([0,0,-1]) cylinder(h=blen+2, r=boss_pilot);   // M2 self-tap
         }
     }
 }
@@ -398,7 +429,11 @@ module bracket() {
     // asymmetric frame: the left arm is trimmed (br_ml < br_m) because the glass
     // is shifted that way to centre the window. br_cx is the frame's own centre,
     // offset from the glass centre the bracket is placed on.
-    ow = P_w + br_ml + br_m;  oh = P_h + 2*br_m;
+    // Frame size comes off the GLASS, not the pocket: the margins exist to overlap
+    // the glass border, and pocket slack is clearance, not frame. Deriving it from
+    // P_* coupled the frame to glass_gap, so compensating the pocket grew the arm
+    // straight into the left wall (0.89 mm was the whole margin there).
+    ow = G_w + br_ml + br_m;  oh = G_h + 2*br_m;
     br_cx = (br_m - br_ml)/2;
     // FPC U-turn clearance: a gap in the LEFT frame member. The flex leaves the
     // glass's back plane and folds ~180° to dive into the cavity toward the
@@ -419,7 +454,7 @@ module bracket() {
                             fpc_w]);
             }
         for (p = boss_xy)
-            translate([p[0], p[1], -1]) cylinder(h=bracket_t+2, r=1.45);   // M2 clear
+            translate([p[0], p[1], -1]) cylinder(h=bracket_t+2, r=br_screw_r);
     }
 }
 
@@ -444,7 +479,8 @@ module baseplate() {
         }
         // screw clearance up into the body posts (2 front corners + 1 back centre)
         for (p = post_xy)
-            translate([p[0], p[1], -foot_h-1]) cylinder(h=bp_t+foot_h+2, r=1.6);
+            translate([p[0], p[1], -foot_h-1])
+                cylinder(h=bp_t+foot_h+2, r=(3.2 + print_bloat)/2);   // M2.5 clear
         // standoff pilot holes
         for (h = concat(pcb1_holes, pcb2_holes))
             translate([h[0], h[1], bp_t-1]) cylinder(h=standoff_h+2, r=standoff_pilot);

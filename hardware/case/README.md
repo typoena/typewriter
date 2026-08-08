@@ -182,8 +182,11 @@ below.
       fits because the bracket's left arm was trimmed (`br_ml = 5.5` against
       `br_m = 9`) and its left boss pair pulled inboard (`boss_x_l = -77`): at the
       old symmetric layout the bracket overshot the left wall by 2.6 mm. Verified
-      on the built geometry — bracket X 3.29..169.21 and bosses X 4.10..168.61 in
-      a 2.40..173.60 cavity, so 0.89 mm at the tightest point.
+      on the built geometry — bracket X 3.54..168.96 and bosses X 4.10..168.86 in
+      a 2.40..173.60 cavity, so 1.14 mm at the tightest point (0.64 mm once the
+      printer's bloat grows the bracket and shrinks the cavity). The frame is
+      sized off the glass rather than off the pocket, so `glass_gap` no longer
+      drags the left arm toward the wall.
 - [x] Real board mounting-hole + port coordinates — done (two-PCB build).
 - [x] Measure the **LiPo** — confirmed 96 × 33.5 × 10.3, `bat_*` unchanged.
 - [x] Measure the **power switch** — widest-behind-panel 14 mm (`pwr_body_d`).
@@ -196,17 +199,14 @@ below.
       Three things to watch on the dry-fit: `usbc_w` is still the *datasheet* shell
       width, so caliper it; check the µSD card can't be pushed in above or below
       the cage lip through a 3.2 mm opening; and see below on the switch.
-- [ ] **Printer offset is not modelled anywhere.** The machine over-extrudes by
-      ~0.5 mm on diameter: holes come out that much small, outer walls that much
-      large. The coupon measures it exactly — caliper its openings against nominal
-      (10.2 × 4.2, 14.2 × 3.2, Ø14.7) and the delta is the offset. It belongs in
-      the slicer's X-Y hole compensation, not in `port_fit`, so the nominal
-      openings stay honest. Three fits assume a perfect printer and are all on the
-      body print: `bp_gap = 0.5` (baseplate grows +0.5 while the cavity shrinks
-      −0.5, so the 0.5 clearance goes negative and the plate won't drop in),
-      `glass_gap = 0.5` (same, screen pocket), and `standoff_pilot = 0.8` (Ø1.6
-      pilot prints ~1.1, tight enough for the M2 self-tapper to split a standoff).
-      Settle the offset on the coupon before committing to the 10-hour print.
+- [ ] **Confirm `print_bloat` on the coupon.** The machine over-extrudes ~0.5 mm
+      on diameter — holes that much small, outer features that much large. Every
+      fit in the model now derives from the single `print_bloat` constant, so the
+      value is one line to change and nothing else moves. It is still an *estimate*
+      off the jammed first coupon: caliper the printed coupon's openings against
+      nominal (10.2 × 4.2, 14.2 × 3.2, Ø14.7) and set `print_bloat` to the delta
+      before committing to the 10-hour body print. Compensation is XY only — Z is
+      layer height, and first-layer squish is the slicer's elephant-foot setting.
 - [ ] **Switch retention at `pwr_fit = 1.2`.** Ø14.7 is wider than `pwr_body_d`
       (14.0, the widest measured feature behind the panel), so as modelled nothing
       on the switch bears against the wall — the hole no longer retains it. This
