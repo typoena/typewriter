@@ -29,7 +29,7 @@ fn gl_command_signals_pull() {
     let effs = command("gl").1;
     assert_eq!(kinds(&effs), vec![Kind::Pull]);
     assert!(
-        matches!(effs.as_slice(), [Effect::Pull { commit_dirty: false }]),
+        matches!(effs.as_slice(), [Effect::Pull(PullIntent::Ask)]),
         "bare :gl must not pre-authorize the commit",
     );
 }
@@ -44,7 +44,7 @@ fn normal_mode_gs_and_gl_mirror_the_colon_commands() {
     assert_eq!(kinds(&e.take_effects()), vec![Kind::Save, Kind::Push]);
     send(&mut e, "gl");
     assert!(
-        matches!(e.take_effects().as_slice(), [Effect::Pull { commit_dirty: false }]),
+        matches!(e.take_effects().as_slice(), [Effect::Pull(PullIntent::Ask)]),
         "bare gl must not pre-authorize the commit",
     );
     assert_eq!(e.mode(), Mode::Normal);
@@ -59,35 +59,149 @@ fn normal_mode_gs_from_a_local_buffer_is_refused() {
     assert_eq!(e.notice.as_deref(), Some("Push unavailable (Local)"));
 }
 
-#[test]
-fn pull_commit_confirm_queues_a_committing_pull() {
-    // The host opens this prompt when `:gl` found unpushed saves. Answering
-    // `y` queues a pull that folds the journal into a commit first.
+/// An editor showing the unsynced card for two files, one of them deleted.
+fn with_unsynced_card() -> Editor {
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
-    e.confirm_pull_commit();
-    assert_eq!(e.mode(), Mode::Confirm, "expected the commit-&-pull prompt");
-    assert!(e.take_effects().is_empty(), "must not act before confirmation");
-    confirm(&mut e); // presses y
+    e.show_unsynced(vec![
+        Unsynced { path: "notes.md".into(), deleted: false },
+        Unsynced { path: "inbox/2026-08-05.md".into(), deleted: true },
+    ]);
+    e
+}
+
+#[test]
+fn unsynced_card_lists_the_files_and_waits() {
+    // The host raises this when `:gl` found unpushed saves. It must name them
+    // and do nothing until answered — the whole point is seeing what you left
+    // behind before choosing.
+    let e = with_unsynced_card();
+    assert_eq!(e.mode(), Mode::Unsynced, "expected the unsynced card");
+    assert_eq!(e.unsynced().len(), 2, "the card must carry both files");
+    assert!(e.showing_unsynced(), "the card must be on screen");
+}
+
+#[test]
+fn unsynced_card_enter_queues_a_committing_pull() {
+    let mut e = with_unsynced_card();
+    assert!(e.take_effects().is_empty(), "must not act before an answer");
+    e.handle(Key::Enter);
+    assert_eq!(e.mode(), Mode::Normal);
     let effs = e.take_effects();
     assert!(
-        matches!(effs.as_slice(), [Effect::Pull { commit_dirty: true }]),
-        "confirmed pull must authorize the commit; got {:?}",
+        matches!(effs.as_slice(), [Effect::Pull(PullIntent::Commit)]),
+        "Enter must authorize the commit; got {:?}",
         kinds(&effs),
     );
 }
 
 #[test]
-fn pull_commit_prompt_cancels_on_any_other_key() {
-    let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
-    e.confirm_pull_commit();
+fn unsynced_card_discard_needs_a_second_confirm() {
+    // `d` alone must not throw work away — it opens a y/n naming the count,
+    // and the card stays up underneath so the list is still readable.
+    let mut e = with_unsynced_card();
+    e.handle(Key::Char('d'));
+    assert_eq!(e.mode(), Mode::Confirm, "`d` must prompt, not act");
+    assert!(e.take_effects().is_empty(), "`d` alone must queue nothing");
+    assert!(e.showing_unsynced(), "the list must stay visible behind the prompt");
+    assert!(
+        e.notice.as_deref().unwrap_or_default().contains("discard 2 files"),
+        "the prompt must name the count, got {:?}",
+        e.notice,
+    );
+    confirm(&mut e); // presses y
+    let effs = e.take_effects();
+    assert!(
+        matches!(effs.as_slice(), [Effect::Pull(PullIntent::Discard)]),
+        "confirmed discard must queue a discarding pull; got {:?}",
+        kinds(&effs),
+    );
+    assert_eq!(
+        e.unsynced().len(),
+        2,
+        "the list must outlive the answer — the host reads it to settle the buffers",
+    );
+}
+
+#[test]
+fn cancelled_discard_returns_to_the_card_not_out_of_the_pull() {
+    // Backing out of the scariest prompt on the device must land you back on
+    // the list, still able to commit — not silently out of the sync.
+    let mut e = with_unsynced_card();
+    e.handle(Key::Char('d'));
     e.handle(Key::Char('n')); // not y → cancel
+    assert_eq!(e.mode(), Mode::Unsynced, "cancel must drop back onto the card");
+    assert!(e.take_effects().is_empty(), "a cancelled discard must queue nothing");
+    e.handle(Key::Enter);
+    assert!(
+        matches!(e.take_effects().as_slice(), [Effect::Pull(PullIntent::Commit)]),
+        "the pull must still be answerable after a cancelled discard",
+    );
+}
+
+#[test]
+fn unsynced_card_escape_cancels_the_pull() {
+    let mut e = with_unsynced_card();
+    e.handle(Key::Escape);
     assert_eq!(e.mode(), Mode::Normal);
-    assert!(e.take_effects().is_empty(), "cancelled pull-commit must queue nothing");
+    assert!(e.take_effects().is_empty(), "a cancelled pull must queue nothing");
+    assert!(e.unsynced().is_empty(), "the card's list must not outlive a cancel");
     assert!(
         e.notice.as_deref().unwrap_or_default().contains("cancelled"),
         "expected a cancellation notice, got {:?}",
         e.notice,
     );
+}
+
+#[test]
+fn unsynced_card_swallows_editing_keys() {
+    // Modal like Rest: the buffer behind the card must not take edits, and
+    // Cmd+S must not slip a save past a decision about the dirty journal.
+    let mut e = with_unsynced_card();
+    e.handle(Key::Char('i'));
+    e.handle(Key::Char('x'));
+    e.handle(Key::Save);
+    assert_eq!(e.mode(), Mode::Unsynced, "the card must hold");
+    assert_eq!(e.text(), "", "no key may reach the buffer behind the card");
+    assert!(e.take_effects().is_empty(), "no key may queue an effect from the card");
+}
+
+#[test]
+fn draw_the_unsynced_card_does_not_panic() {
+    // The rows do char arithmetic to keep a long path clear of the `(deleted)`
+    // tag, and the scroll offset is clamped in the painter (the key handler
+    // lets it run free) — both are only exercised by actually drawing.
+    let mut e = with_unsynced_card();
+    let _ = e.draw(true);
+    e.handle(Key::Char('d')); // the confirm draws *over* the card
+    let _ = e.draw(true);
+    e.handle(Key::Char('n'));
+
+    // A path far past the column edge, tagged deleted, in a list longer than
+    // the card — then scrolled well beyond its end.
+    let long = "a-very/deeply/nested/folder/chain/".repeat(4) + "note.md";
+    let many: Vec<Unsynced> = (0..60)
+        .map(|i| Unsynced { path: format!("{long}{i}"), deleted: i % 2 == 0 })
+        .collect();
+    e.show_unsynced(many);
+    let _ = e.draw(true);
+    for _ in 0..80 {
+        e.handle(Key::Char('j'));
+    }
+    let _ = e.draw(true);
+    for _ in 0..200 {
+        e.handle(Key::Char('k'));
+    }
+    let _ = e.draw(true);
+}
+
+#[test]
+fn an_empty_unsynced_list_skips_the_card() {
+    // The journal and this list are read a moment apart; a card with nothing
+    // to decide about would just be a dead end.
+    let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    e.show_unsynced(Vec::new());
+    assert_eq!(e.mode(), Mode::Normal);
+    assert!(matches!(e.take_effects().as_slice(), [Effect::Pull(PullIntent::Commit)]));
 }
 
 #[test]

@@ -90,12 +90,21 @@ pub enum Mode {
     /// [`Editor::about_key`].
     About,
     /// A destructive command is waiting for a `y`/`n` answer (`:delete`,
-    /// `:reboot`, `:setup`, or `:gl`'s commit-unsynced-and-pull). Modal like
+    /// `:reboot`, `:setup`, or `:gl`'s discard-unsynced-and-pull). Modal like
     /// [`Rest`](Mode::Rest): every key is
     /// swallowed but `y`/`Y` (proceed) — anything else cancels. Which command
     /// is pending rides in [`Editor::pending_confirm`]; the prompt shows on the
     /// snackbar. See [`Editor::confirm_key`].
     Confirm,
+    /// The unsynced-saves card: `:gl` found saved-but-unpushed work, so instead
+    /// of dispatching it lists those files ([`Editor::unsynced`]) over the
+    /// writing column and waits. Modal like [`Palette`](Mode::Palette) — the
+    /// side panel stays — but read-only: `Enter` commits them and pulls, `d`
+    /// opens the discard confirm, `j`/`k` scroll a long list, `Esc` cancels.
+    /// Exists because a pull is the moment you find out what you left behind,
+    /// and a one-line "unsynced saves" prompt never said *which*. See
+    /// [`Editor::unsynced_key`].
+    Unsynced,
 }
 
 /// Which destructive command a [`Mode::Confirm`] prompt is guarding. Stored
@@ -114,11 +123,51 @@ pub(crate) enum Confirm {
     /// reboot into it). Gated behind a confirm because it moves the device to new
     /// firmware and restarts it. On `y` the editor queues [`Effect::Update`].
     Update,
-    /// `:gl` with unpushed saves — commit the dirty journal locally, then
-    /// pull (fetch + fast-forward/rebase). Guards the commit `:gl` would
-    /// otherwise make on the user's behalf. On `y` the editor queues
-    /// [`Effect::Pull`] `{ commit_dirty: true }`.
-    PullCommit,
+    /// `d` on the unsynced card ([`Mode::Unsynced`]) — throw the listed saves
+    /// away and pull. The second of two deliberate steps: the card already
+    /// named every file, this confirms the count. On `y` the editor queues
+    /// [`Effect::Pull`] with [`PullIntent::Discard`].
+    ///
+    /// The only irreversible action on the device — what it destroys is
+    /// writing, and there is no on-device reflog or trash to dig it back out
+    /// of. Cancel-by-default (like every other [`Confirm`]) is load-bearing
+    /// here, not a formality.
+    PullDiscard,
+}
+
+/// What a [`Effect::Pull`] should do about saved-but-unpushed work — the
+/// three-way answer to the unsynced card, replacing the older `commit_dirty`
+/// flag (which could only say yes/no to committing).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PullIntent {
+    /// A bare `:gl`. If the host finds nothing unsynced it pulls straight
+    /// away; otherwise it answers `PullDispatch::NeedsConfirm` (in the `app`
+    /// crate) with the file list, and the editor raises the card.
+    Ask,
+    /// Confirmed `Enter`: fold the unsynced saves into a local commit, then
+    /// pull (the fetch replants that commit onto origin).
+    Commit,
+    /// Confirmed `d` then `y`: restore every unsynced path to its last-synced
+    /// state — unlinking the ones the remote never had — then pull. Destroys
+    /// the work; see [`Confirm::PullDiscard`].
+    Discard,
+}
+
+/// One row of the unsynced-saves card: a repo-relative path the device has
+/// saved (or `:delete`d) since the last confirmed push. Fed by the host from
+/// its dirty journal, which is a record of *saves*, not a computed diff — so a
+/// file saved and then hand-reverted still appears. Naming the card "unsynced
+/// saves" rather than "modified files" keeps that honest; computing the real
+/// diff would mean a tree walk, which the sync design deliberately avoids.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Unsynced {
+    /// Repo-relative (`notes/2026-08-05.md`) — the card has ~62 columns, and
+    /// the `/sd/repo/` prefix is the same on every row.
+    pub path: String,
+    /// The file is gone from the card: a `:delete` the remote hasn't seen yet.
+    /// Shown as a `(deleted)` tag, and the reason discard can't simply restore
+    /// every row from HEAD.
+    pub deleted: bool,
 }
 
 /// Which of the two file scopes ([`CONTEXT.md`]) a buffer belongs to. Fixed at
@@ -197,14 +246,16 @@ pub enum Effect {
     /// queued from a Local buffer (blocked in-core).
     Push,
     /// `:gl` — pull from the remote: fetch, then fast-forward (or rebase local
-    /// work onto origin — never a content merge). When `commit_dirty` is set the
-    /// host first folds any saved-but-unpushed work into a local commit, so
-    /// the fetch can replant it onto origin instead of refusing. A bare `:gl`
-    /// sends `commit_dirty: false`; if the dirty journal is non-empty the host
-    /// asks to confirm (the commit is user-visible — see
-    /// [`confirm_pull_commit`](Editor::confirm_pull_commit)) and the confirmed
-    /// retry sets `commit_dirty: true`. Complements `:gs` (push) as the download half.
-    Pull { commit_dirty: bool },
+    /// work onto origin — never a content merge). Complements `:gs` (push) as
+    /// the download half.
+    ///
+    /// The [`PullIntent`] says what to do about saved-but-unpushed work. A bare
+    /// `:gl` sends [`Ask`](PullIntent::Ask); if the host's dirty journal is
+    /// non-empty it answers with the file list instead of pulling, the editor
+    /// raises the unsynced card ([`show_unsynced`](Editor::show_unsynced)), and
+    /// the answer comes back as a second `Pull` carrying
+    /// [`Commit`](PullIntent::Commit) or [`Discard`](PullIntent::Discard).
+    Pull(PullIntent),
     /// `:delete` — unlink `path` from the card. For a **Tracked** file the removal
     /// lands in the git working copy, so the next [`Push`](Effect::Push)'s
     /// `add --all` stages the deletion (no eager `git rm` needed); a **Local** file
@@ -452,6 +503,15 @@ pub struct Editor {
     /// Set with the mode by the `request_*` commands, taken by
     /// [`confirm_key`](Self::confirm_key). `None` outside Confirm.
     pending_confirm: Option<Confirm>,
+    /// The saved-but-unpushed files listed on the [`Mode::Unsynced`] card, fed
+    /// by the host from its dirty journal
+    /// ([`show_unsynced`](Self::show_unsynced)). Outlives the card by one step:
+    /// the discard confirm is a [`Mode::Confirm`] on top of it, and cancelling
+    /// there drops back onto the card. Cleared on leaving for Normal.
+    unsynced: Vec<Unsynced>,
+    /// First visible row of the [`unsynced`](Self::unsynced) list — `j`/`k`
+    /// scroll it when the journal outgrows the card.
+    unsynced_scroll: usize,
     /// Today's date, fed by the host each key batch ([`set_today`](Self::set_today))
     /// from its real-time clock. `None` until the host has a trustworthy date (see
     /// [`Date`]); `:inbox` needs it to name/date the note and refuses while it is
@@ -531,6 +591,8 @@ impl Editor {
             rest_stats: None,
             focus_debug: false,
             pending_confirm: None,
+            unsynced: Vec::new(),
+            unsynced_scroll: 0,
             today: None,
             version: String::new(),
         }
@@ -810,6 +872,15 @@ impl Editor {
             return;
         }
 
+        // The unsynced card is modal for the same reason as Confirm, and needs
+        // the guard even harder: it is deciding the fate of the dirty journal,
+        // so a Cmd+S slipping past would add a file to the set the card is
+        // already showing. See `unsynced_key`.
+        if self.mode == Mode::Unsynced {
+            self.unsynced_key(key);
+            return;
+        }
+
         // Ctrl+Tab — hop to the next recently-seen note, resolved before mode
         // dispatch (like Cmd+S) so it works from every mode. A buffer switch
         // is not a repeatable edit, so an in-progress `.` recording is dropped
@@ -882,6 +953,7 @@ impl Editor {
             Mode::Rest => self.rest_key(key),
             Mode::About => self.about_key(key),
             Mode::Confirm => self.confirm_key(key),
+            Mode::Unsynced => self.unsynced_key(key),
         }
 
         // A snippet tab-stop session lives only in Insert. Leaving Insert — Esc,
@@ -1156,7 +1228,7 @@ impl Editor {
                 // shorter. `gs` (go-sync), not `gp` — vim binds `gp` to
                 // paste-after, and a paste habit must never fire a push.
                 's' => self.run_push(),
-                'l' => self.requests.push(Effect::Pull { commit_dirty: false }),
+                'l' => self.requests.push(Effect::Pull(PullIntent::Ask)),
                 _ => {}
             }
             self.count = 0;
@@ -1365,7 +1437,7 @@ impl Editor {
             "w" | "wq" | "x" => self.write_active(),
             // fmt → save → push, shared with the `>` push command.
             "gs" => self.run_push(),
-            "gl" => self.requests.push(Effect::Pull { commit_dirty: false }),
+            "gl" => self.requests.push(Effect::Pull(PullIntent::Ask)),
             "setup" => self.request_setup(),
             "reboot" => self.request_reboot(),
             "update" => self.request_update(),
@@ -1445,13 +1517,79 @@ impl Editor {
     }
 
     /// The host calls this when a bare `:gl` found saved-but-unpushed work in
-    /// the dirty journal: open a y/n prompt before committing it. A pull now
-    /// folds that work into a local commit so the fetch can rebase it onto origin
-    /// (rather than refuse), and that commit is user-visible — so it earns a
-    /// confirm. On `y`, [`confirm_key`](Self::confirm_key) queues
-    /// [`Effect::Pull`] `{ commit_dirty: true }`; any other key cancels.
-    pub fn confirm_pull_commit(&mut self) {
-        self.enter_confirm(Confirm::PullCommit, "unsynced saves - commit & pull? y/n");
+    /// the dirty journal: raise the [`Mode::Unsynced`] card listing `files`
+    /// instead of pulling. A pull folds that work into a local commit so the
+    /// fetch can rebase it onto origin (rather than refuse), and that commit is
+    /// user-visible — so it earns a confirm. The card *names* the files because
+    /// a sync is exactly when you have lost track of what you left behind; the
+    /// bare "unsynced saves - commit & pull? y/n" prompt it replaces couldn't
+    /// answer that.
+    ///
+    /// An empty `files` would leave a card with nothing to decide about, so it
+    /// falls through to a plain commit-and-pull — the host only reaches here
+    /// with a non-empty journal, but the journal and this list are read a
+    /// moment apart.
+    pub fn show_unsynced(&mut self, files: Vec<Unsynced>) {
+        if files.is_empty() {
+            self.requests.push(Effect::Pull(PullIntent::Commit));
+            return;
+        }
+        self.unsynced = files;
+        self.unsynced_scroll = 0;
+        self.mode = Mode::Unsynced;
+    }
+
+    /// Whether the unsynced card should be on screen. True in
+    /// [`Mode::Unsynced`], and *also* while its own discard confirm is up: that
+    /// confirm asks "discard N files?" on the snackbar, and the honest place to
+    /// read which N is the list underneath, so the card is not torn down for it.
+    pub fn showing_unsynced(&self) -> bool {
+        self.mode == Mode::Unsynced
+            || (self.mode == Mode::Confirm && self.pending_confirm == Some(Confirm::PullDiscard))
+    }
+
+    /// The files on the unsynced card. The host reads this when it services a
+    /// [`PullIntent::Discard`] so it can settle exactly the buffers whose text
+    /// is about to be thrown away.
+    pub fn unsynced(&self) -> &[Unsynced] {
+        &self.unsynced
+    }
+
+    /// Dispatch a key on the unsynced-saves card ([`Mode::Unsynced`]). Modal
+    /// and read-only: `Enter`/`y` commits the listed saves and pulls, `d` opens
+    /// the discard confirm (which draws over the card, so the list stays
+    /// readable while you answer), `j`/`k` scroll a list longer than the card,
+    /// and `Esc`/`n`/`q` cancel the pull. Every other key is swallowed — the
+    /// buffer behind the card must not take edits.
+    fn unsynced_key(&mut self, key: Key) {
+        match key {
+            Key::Enter | Key::Char('y') => {
+                self.mode = Mode::Normal;
+                self.unsynced.clear();
+                self.requests.push(Effect::Pull(PullIntent::Commit));
+            }
+            // Stays on the card (`enter_confirm` only sets Confirm + the
+            // prompt), so a cancel drops back onto the list rather than all the
+            // way out of the pull.
+            Key::Char('d') => {
+                let n = self.unsynced.len();
+                let plural = if n == 1 { "" } else { "s" };
+                self.enter_confirm(
+                    Confirm::PullDiscard,
+                    format!("discard {n} file{plural}? CANNOT be undone y/n"),
+                );
+            }
+            Key::Char('j') | Key::Down => self.unsynced_scroll += 1, // clamped in draw
+            Key::Char('k') | Key::Up => {
+                self.unsynced_scroll = self.unsynced_scroll.saturating_sub(1)
+            }
+            Key::Escape | Key::Char('n') | Key::Char('q') => {
+                self.mode = Mode::Normal;
+                self.unsynced.clear();
+                self.set_notice("pull cancelled");
+            }
+            _ => {} // swallowed — no editing behind the card
+        }
     }
 
     /// Enter the [`Mode::Confirm`] y/n prompt for `what`, showing `prompt` on
@@ -1585,12 +1723,16 @@ impl Editor {
     }
 
     /// Dispatch a key while a destructive command waits for confirmation
-    /// ([`Mode::Confirm`] — `:delete`, `:reboot`, `:setup`, or `:gl`'s
-    /// commit-unsynced-and-pull). Leaves Confirm
+    /// ([`Mode::Confirm`] — `:delete`, `:reboot`, `:setup`, or `d` on the
+    /// unsynced card). Leaves Confirm
     /// either way: a deliberate `y`/`Y` runs the [`pending_confirm`](Self::pending_confirm)
     /// action, and every other key — `n`, `Esc`, a stray character — cancels
     /// with a notice. Cancel is the default so a fat-fingered command never
     /// deletes a file or restarts the device on its own.
+    ///
+    /// A cancelled discard is the one that doesn't land in Normal: it was
+    /// raised *from* the unsynced card, so backing out returns to the list with
+    /// the pull still pending, not out of the sync altogether.
     fn confirm_key(&mut self, key: Key) {
         self.mode = Mode::Normal;
         let what = self.pending_confirm.take();
@@ -1601,15 +1743,19 @@ impl Editor {
                 Some(Confirm::Reboot) => self.do_reboot(),
                 Some(Confirm::Setup) => self.requests.push(Effect::Setup),
                 Some(Confirm::Update) => self.requests.push(Effect::Update),
-                Some(Confirm::PullCommit) => self.requests.push(Effect::Pull { commit_dirty: true }),
+                // The host reads `unsynced` while servicing this, so the list
+                // is cleared by the outcome, not here.
+                Some(Confirm::PullDiscard) => self.requests.push(Effect::Pull(PullIntent::Discard)),
                 None => {}
             }
+        } else if what == Some(Confirm::PullDiscard) {
+            self.mode = Mode::Unsynced;
+            self.notice = None;
         } else {
             self.set_notice(match what {
                 Some(Confirm::Reboot) => "reboot cancelled",
                 Some(Confirm::Setup) => "setup cancelled",
                 Some(Confirm::Update) => "update cancelled",
-                Some(Confirm::PullCommit) => "pull cancelled",
                 _ => "delete cancelled",
             });
         }

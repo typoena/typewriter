@@ -12,7 +12,7 @@
 //! ports here are application/infrastructure capabilities — persistence, the
 //! sync transport, the wall clock, platform lifecycle, and the file index.
 
-use editor::Date;
+use editor::{Date, PullIntent, Unsynced};
 
 /// Durable storage of buffers on the card — the byte-level file operations the
 /// loop performs. The dirty-path journal that couples a save to a later push
@@ -41,11 +41,14 @@ pub enum PushDispatch {
 /// What dispatching a pull (`:gl`) did.
 pub enum PullDispatch {
     Dispatched,
-    /// The dirty journal is non-empty: pulling would fold those saved-but-
-    /// unpushed paths into a local commit first, so the UI asks the user to
-    /// confirm before that happens (the commit is user-visible). On confirm the
-    /// UI re-dispatches the pull with `commit_dirty: true`.
-    NeedsCommitConfirm,
+    /// The dirty journal is non-empty, so a bare [`PullIntent::Ask`] didn't
+    /// dispatch: pulling would fold those saved-but-unpushed paths into a local
+    /// commit first, and that commit is user-visible. Carries the journal's
+    /// paths so the UI can *name* them on the unsynced card rather than just
+    /// announce that some exist. The card's answer comes back as a second pull
+    /// carrying [`Commit`](PullIntent::Commit) or
+    /// [`Discard`](PullIntent::Discard).
+    NeedsConfirm(Vec<Unsynced>),
     ThreadDown,
 }
 
@@ -115,12 +118,19 @@ pub enum NetOutcome {
 pub trait NetService {
     /// Dispatch a push of the whole Tracked working copy.
     fn push(&self) -> PushDispatch;
-    /// Dispatch a fetch + fast-forward/rebase pull. `commit_dirty` false is a
-    /// bare `:gl`: if the dirty journal is non-empty it returns
-    /// [`NeedsCommitConfirm`](PullDispatch::NeedsCommitConfirm) instead of
-    /// dispatching, so the UI can confirm the commit first. `commit_dirty` true
-    /// (the confirmed retry) folds the journal into a local commit, then pulls.
-    fn pull(&self, commit_dirty: bool) -> PullDispatch;
+    /// Dispatch a fetch + fast-forward/rebase pull. [`Ask`](PullIntent::Ask) is
+    /// a bare `:gl`: if the dirty journal is non-empty it returns
+    /// [`NeedsConfirm`](PullDispatch::NeedsConfirm) with the journal's paths
+    /// instead of dispatching, so the UI can show them and ask.
+    /// [`Commit`](PullIntent::Commit) folds the journal into a local commit,
+    /// then pulls. [`Discard`](PullIntent::Discard) instead rolls the journal's
+    /// paths back to their last-synced state — restoring them from HEAD, and
+    /// unlinking the ones HEAD never had — then pulls; the work in them is gone.
+    ///
+    /// A discard settles the journal even when the pull that follows it fails:
+    /// the rollback is local and already done by then, so those paths are
+    /// genuinely no longer dirty.
+    fn pull(&self, intent: PullIntent) -> PullDispatch;
     /// Dispatch a firmware-update check: fetch the latest release, and if it is
     /// newer than the running image, download it into the inactive OTA slot and
     /// make that the boot target. Reports back via [`UpdateOutcome`] — the caller

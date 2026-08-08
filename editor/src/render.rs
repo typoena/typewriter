@@ -514,6 +514,13 @@ impl Editor {
         if self.mode == Mode::Palette {
             self.draw_palette(&mut f);
         }
+        // The unsynced card shares the palette's modal-panel slot, and stays up
+        // *through* its own discard confirm ([`Confirm::PullDiscard`]) — the
+        // prompt rides the side-panel snackbar, so the file list you are
+        // deciding about is still on screen while you answer.
+        if self.showing_unsynced() {
+            self.draw_unsynced(&mut f);
+        }
         // Dark theme: flip the whole frame in one pass, after everything else is
         // painted, so text, selection, caret, panel and palette all invert
         // together. Any value but "dark" stays native black-on-white.

@@ -83,6 +83,8 @@ struct StorageLog {
     last_files: Vec<String>,
     /// Per-path `load_path` bodies; paths not listed echo `"loaded-body"`.
     bodies: Vec<(String, String)>,
+    /// Paths whose `load_path` fails — a file that isn't on the card.
+    missing: Vec<String>,
 }
 
 /// Records every call; `load_path` echoes a canned body back.
@@ -94,6 +96,12 @@ impl RecStorage {
         self.0.borrow_mut().bodies.push((path.into(), body.into()));
         self
     }
+
+    /// Make `load_path` fail for `path` — the file is not on the card.
+    fn with_missing(self, path: &str) -> Self {
+        self.0.borrow_mut().missing.push(path.into());
+        self
+    }
 }
 impl Storage for RecStorage {
     fn save_path(&self, path: &str, contents: &str) -> anyhow::Result<()> {
@@ -103,6 +111,9 @@ impl Storage for RecStorage {
     fn load_path(&self, path: &str) -> anyhow::Result<String> {
         let mut log = self.0.borrow_mut();
         log.loads.push(path.into());
+        if log.missing.iter().any(|p| p == path) {
+            anyhow::bail!("no such file: {path}");
+        }
         let body = log.bodies.iter().find(|(p, _)| p == path).map(|(_, b)| b.clone());
         Ok(body.unwrap_or_else(|| "loaded-body".into()))
     }
@@ -119,6 +130,8 @@ impl Storage for RecStorage {
 struct SyncLog {
     pushes: u32,
     pulls: u32,
+    /// The intent of each dispatched pull, in order.
+    pull_intents: Vec<PullIntent>,
     updates: u32,
     outcome: Option<NetOutcome>,
 }
@@ -146,8 +159,11 @@ impl NetService for RecSync {
         self.log.borrow_mut().pushes += 1;
         (self.push_ret)()
     }
-    fn pull(&self, _commit_dirty: bool) -> PullDispatch {
-        self.log.borrow_mut().pulls += 1;
+    fn pull(&self, intent: PullIntent) -> PullDispatch {
+        let mut log = self.log.borrow_mut();
+        log.pulls += 1;
+        log.pull_intents.push(intent);
+        drop(log);
         (self.pull_ret)()
     }
     fn update(&self) -> UpdateDispatch {
@@ -454,21 +470,100 @@ fn push_effect_dispatches_to_sync() {
 fn pull_effect_dispatches_to_sync() {
     let sync = RecSync::new();
     let mut rt = runtime(Editor::new(), RecStorage::default(), sync.clone(), RecFiles::default());
-    rt.service_one(Effect::Pull { commit_dirty: false });
+    rt.service_one(Effect::Pull(PullIntent::Ask));
     assert_eq!(sync.log.borrow().pulls, 1);
 }
 
 #[test]
-fn pull_with_unsynced_saves_opens_the_commit_confirm() {
-    // The backend reports NeedsCommitConfirm when the dirty journal is non-empty;
-    // the runtime must open the editor's y/n prompt rather than dispatch or fail.
+fn pull_with_unsynced_saves_raises_the_card_with_the_file_list() {
+    // The backend reports NeedsConfirm with the journal's paths when it is
+    // non-empty; the runtime must raise the card naming them rather than
+    // dispatch, fail, or ask about an unnamed "some files".
     let sync = RecSync {
-        pull_ret: Rc::new(|| PullDispatch::NeedsCommitConfirm),
+        pull_ret: Rc::new(|| {
+            PullDispatch::NeedsConfirm(vec![
+                editor::Unsynced { path: "notes.md".into(), deleted: false },
+                editor::Unsynced { path: "inbox/day.md".into(), deleted: true },
+            ])
+        }),
         ..RecSync::new()
     };
     let mut rt = runtime(Editor::new(), RecStorage::default(), sync, RecFiles::default());
-    rt.service_one(Effect::Pull { commit_dirty: false });
-    assert_eq!(rt.ed.mode(), editor::Mode::Confirm, "unsynced :gl must prompt");
+    rt.service_one(Effect::Pull(PullIntent::Ask));
+    assert_eq!(rt.ed.mode(), editor::Mode::Unsynced, "unsynced :gl must raise the card");
+    let listed: Vec<&str> = rt.ed.unsynced().iter().map(|u| u.path.as_str()).collect();
+    assert_eq!(listed, vec!["notes.md", "inbox/day.md"], "the card must name every file");
+}
+
+#[test]
+fn a_confirmed_discard_evicts_the_buffers_it_threw_away() {
+    // The discarded file is the active buffer AND is RAM-dirty — the case the
+    // pull path deliberately protects ("its edits win"). A discard must do the
+    // opposite: re-read the rolled-back file, or the next save writes the
+    // thrown-away text straight back onto the card.
+    let storage = RecStorage::default().with_body("/sd/repo/notes.md", "last-synced");
+    let mut ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, "old".into());
+    ed.show_unsynced(vec![editor::Unsynced { path: "notes.md".into(), deleted: false }]);
+    let sync = RecSync::new();
+    let files = RecFiles::default();
+    let mut rt = runtime(ed, storage.clone(), sync.clone(), files.clone());
+    // Serviced with the card still up — that is where the runtime learns which
+    // paths it is about to throw away (the editor keeps the list alive for it).
+    rt.service_one(Effect::Pull(PullIntent::Discard));
+    assert_eq!(sync.log.borrow().pull_intents, vec![PullIntent::Discard]);
+
+    rt.handle_net_outcome(NetOutcome::Pull(PullOutcome::UpToDate));
+
+    assert_eq!(storage.0.borrow().loads, vec!["/sd/repo/notes.md".to_string()]);
+    assert_eq!(rt.ed.text(), "last-synced", "the buffer must show the rolled-back file");
+    assert!(!rt.ed.dirty(), "the reloaded buffer must be clean");
+    assert_eq!(*files.0.borrow(), 1, "a discard changes the card, so the palette re-walks");
+}
+
+#[test]
+fn a_discard_that_removed_the_file_drops_its_buffer() {
+    // A note written on the device and never synced has no version to roll
+    // back to, so the discard unlinked it. The buffer must go with it rather
+    // than sit there ready to re-create the file on the next save.
+    let storage = RecStorage::default().with_missing("/sd/repo/new.md");
+    let mut ed = Editor::with_file("/sd/repo/new.md".into(), Scope::Tracked, "draft".into());
+    ed.show_unsynced(vec![editor::Unsynced { path: "new.md".into(), deleted: false }]);
+    let mut rt = runtime(ed, storage, RecSync::new(), RecFiles::default());
+    rt.service_one(Effect::Pull(PullIntent::Discard));
+
+    rt.handle_net_outcome(NetOutcome::Pull(PullOutcome::UpToDate));
+
+    assert_eq!(rt.ed.path(), "", "the buffer for a removed file must be abandoned");
+    assert_eq!(rt.ed.text(), "", "and must not keep the discarded text");
+}
+
+#[test]
+fn a_failed_discarding_pull_still_evicts_the_buffers() {
+    // The rollback happens before the fetch, so a fetch failure does not put
+    // the discarded text back — the buffers are stale either way.
+    let storage = RecStorage::default().with_body("/sd/repo/notes.md", "last-synced");
+    let mut ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, "old".into());
+    ed.show_unsynced(vec![editor::Unsynced { path: "notes.md".into(), deleted: false }]);
+    let mut rt = runtime(ed, storage.clone(), RecSync::new(), RecFiles::default());
+    rt.service_one(Effect::Pull(PullIntent::Discard));
+
+    rt.handle_net_outcome(NetOutcome::Pull(PullOutcome::Failed("offline".into())));
+
+    assert_eq!(rt.ed.text(), "last-synced", "a failed fetch must not resurrect discarded text");
+}
+
+#[test]
+fn a_thread_down_discard_leaves_the_buffers_alone() {
+    // Nothing reached the net thread, so nothing was rolled back — the text
+    // the writer confirmed away is still the only copy, and must survive.
+    let sync = RecSync { pull_ret: Rc::new(|| PullDispatch::ThreadDown), ..RecSync::new() };
+    let storage = RecStorage::default().with_body("/sd/repo/notes.md", "last-synced");
+    let mut ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, "old".into());
+    ed.show_unsynced(vec![editor::Unsynced { path: "notes.md".into(), deleted: false }]);
+    let mut rt = runtime(ed, storage.clone(), sync, RecFiles::default());
+    rt.service_one(Effect::Pull(PullIntent::Discard));
+    assert!(storage.0.borrow().loads.is_empty(), "a dispatch that never left must reload nothing");
+    assert_eq!(rt.ed.text(), "old", "the buffer must be untouched");
 }
 
 // ---- sync outcome ---------------------------------------------------------

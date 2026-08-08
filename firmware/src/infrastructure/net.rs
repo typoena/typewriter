@@ -213,13 +213,8 @@ pub fn tune_libgit2() {
 pub enum NetRequest {
     /// `:gs` — commit the dirty paths and push (the upload half).
     Push(PushRequest),
-    /// `:gl` — fetch, then fast-forward or rebase (the download half). Carries
-    /// the dirty-journal snapshot (`Storage::take_dirty`): before fetching, the
-    /// thread folds those saved-but-unpushed paths into a local commit so the
-    /// fetch can replant them onto origin, then the working copy matches HEAD and
-    /// the apply-diff belt can't fight a device-side save. Empty for a plain
-    /// fetch (nothing was dirty).
-    Pull(BTreeSet<String>),
+    /// `:gl` — fetch, then fast-forward or rebase (the download half).
+    Pull(PullRequest),
     /// `:update` — check for a newer firmware release and, if one exists, stream
     /// it into the inactive OTA slot over HTTPS. Carries nothing: the running
     /// version and the manifest URL are known to the firmware. Rides this thread
@@ -235,6 +230,23 @@ pub enum NetRequest {
 /// is spliced out. An unchanged path is a no-op, so over-reporting is safe.
 pub struct PushRequest {
     pub paths: BTreeSet<String>,
+}
+
+/// A request to pull. `paths` is `Storage::take_dirty`'s snapshot — the
+/// saved-but-unpushed paths — and `discard` decides their fate before the
+/// fetch, per the answer given on the unsynced card.
+pub struct PullRequest {
+    /// The dirty-journal snapshot, repo-relative. Empty for a plain fetch
+    /// (nothing was dirty), in which case `discard` is moot.
+    pub paths: BTreeSet<String>,
+    /// Throw this work away instead of committing it: restore each path from
+    /// HEAD and unlink the ones HEAD never had ([`discard_paths`]), so the pull
+    /// arrives at a working copy that matches the last sync.
+    ///
+    /// Irreversible, and the confirmation for it is two deliberate steps up in
+    /// the UI (the card names every file, then a y/n names the count). Nothing
+    /// down here re-asks.
+    pub discard: bool,
 }
 
 /// What the net thread reports back, tagged by the request kind so the UI can
@@ -337,7 +349,7 @@ pub fn run_net_service(
                     }
                 },
             ),
-            NetRequest::Pull(paths) => NetOutcome::Pull(
+            NetRequest::Pull(req) => NetOutcome::Pull(
                 match pull_cycle(
                     &sys_loop,
                     &mut wifi,
@@ -345,7 +357,7 @@ pub fn run_net_service(
                     &mut nvs,
                     &mut clock_synced,
                     &mut tls_ready,
-                    &paths,
+                    &req,
                 ) {
                     Ok(o) => o,
                     Err(e) => {
@@ -623,7 +635,7 @@ fn pull_cycle(
     nvs: &mut Option<EspDefaultNvsPartition>,
     clock_synced: &mut bool,
     tls_ready: &mut bool,
-    paths: &BTreeSet<String>,
+    req: &PullRequest,
 ) -> Result<PullOutcome> {
     if remote_url().is_empty() || gh_user().is_empty() || token().is_empty() || wifi_ssid().is_empty() {
         bail!("git config missing — provision the card's typoena.conf (installer / wizard) or set TW_* in firmware/.env and rebuild");
@@ -632,7 +644,7 @@ fn pull_cycle(
     ensure_online(sys_loop, wifi, modem, nvs, clock_synced, tls_ready)?;
 
     let t_pull = Instant::now();
-    let outcome = pull_once(paths)?;
+    let outcome = pull_once(req)?;
     log::info!(
         ":gl timing — fetch+ff {}ms, total {}ms",
         t_pull.elapsed().as_millis(),
@@ -810,6 +822,60 @@ fn push_once(paths: &BTreeSet<String>) -> Result<PushOutcome> {
         min_free_heap()
     );
     Ok(PushOutcome::Pushed(short(oid)))
+}
+
+/// Roll `paths` back to their last-synced state — the confirmed `d` on the
+/// unsynced card. A path HEAD has is overwritten from HEAD's blob; a path HEAD
+/// has never seen (a note written on the device since the last sync) has no
+/// version to return to, so it leaves the card. The device's `git checkout --`
+/// plus `git clean`, restricted to the journal's paths: O(paths), the same
+/// reason [`stage_and_commit`] never walks the tree.
+///
+/// **Destroys writing, and nothing here can undo it** — the confirmations are
+/// two steps up in the UI (see [`PullRequest::discard`]). The caller has
+/// already taken the journal, so the paths are forgotten whatever happens next.
+///
+/// Never fails the pull: a per-path error is logged and skipped. A path that
+/// couldn't be restored is simply still dirty on the card while the journal has
+/// forgotten it — recoverable by editing and saving it again, whereas aborting
+/// the pull here would strand the ones already rolled back.
+fn discard_paths(repo: &Repository, paths: &BTreeSet<String>) {
+    // `None` on an unborn branch (a card provisioned from an empty remote):
+    // nothing is committed yet, so every recorded path is a device-side
+    // creation and the loop below unlinks them all.
+    let head_tree = repo.head().ok().and_then(|h| h.peel_to_tree().ok());
+    let (mut restored, mut removed) = (0usize, 0usize);
+    for path in paths {
+        let abs = format!("{REPO_DIR}/{path}");
+        let blob = head_tree
+            .as_ref()
+            .and_then(|t| t.get_path(std::path::Path::new(path)).ok())
+            .and_then(|e| repo.find_blob(e.id()).ok());
+        match blob {
+            Some(blob) => {
+                // The parent dir may itself have gone with a `:delete`, so
+                // recreate the chain before writing HEAD's bytes back.
+                if let Some(dir) = std::path::Path::new(&abs).parent() {
+                    if let Err(e) = fs::create_dir_all(dir) {
+                        log::warn!("discard: mkdir for {path} FAILED ({e:#}); left as-is");
+                        continue;
+                    }
+                }
+                match fs::write(&abs, blob.content()) {
+                    Ok(()) => restored += 1,
+                    Err(e) => log::warn!("discard: restoring {path} FAILED ({e:#}); left as-is"),
+                }
+            }
+            None => match fs::remove_file(&abs) {
+                Ok(()) => removed += 1,
+                // Already gone: a `:delete` the remote never saw. The discard
+                // wanted exactly this state, so it is a success, not an error.
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => removed += 1,
+                Err(e) => log::warn!("discard: unlinking {path} FAILED ({e:#}); left as-is"),
+            },
+        }
+    }
+    log::info!("discard — {restored} path(s) restored from HEAD, {removed} removed from the card");
 }
 
 /// Build the commit for `paths` as an O(depth) TreeBuilder splice onto HEAD's
@@ -1133,14 +1199,18 @@ fn update_tracking(repo: &Repository, branch: &str, tip: Oid) -> Result<()> {
 /// refusing we replant our local commit(s) onto origin ([`rebase_local_onto`])
 /// and end `LocalAhead` for `:gs` to push.
 ///
-/// `paths` is the dirty-journal snapshot. Before touching the network we fold
-/// those saved-but-unpushed paths into a local commit ([`stage_and_commit`],
+/// `req.paths` is the dirty-journal snapshot. Before touching the network we
+/// fold those saved-but-unpushed paths into a local commit ([`stage_and_commit`],
 /// the commit half of `:gs` without the push): that makes `:gl` self-sufficient
 /// — the ff/rebase below replants the commit onto origin so a plain `:gs`
 /// finishes it, no computer needed — and, because the working copy now matches
 /// the new HEAD, the SAFE belt can't fight a device-side save. The UI has
 /// already confirmed this commit (it is user-visible). Empty `paths` is a plain
 /// fetch.
+///
+/// `req.discard` swaps that fold for [`discard_paths`] — the confirmed "throw
+/// it away and pull" answer. Either way the card ends matching HEAD before the
+/// fetch, which is what keeps the SAFE checkout below quiet.
 ///
 /// The fast-forward is checkout-then-ref-move, with a **SAFE** checkout: it
 /// refuses to overwrite a working-copy file whose content differs from HEAD's.
@@ -1151,10 +1221,12 @@ fn update_tracking(repo: &Repository, branch: &str, tip: Oid) -> Result<()> {
 /// the splice never updates the index, so its stat cache is stale and SAFE
 /// re-hashes each file the pull wants to change — fine for a few notes, and
 /// still O(changed), never O(tree).
-fn pull_once(paths: &BTreeSet<String>) -> Result<PullOutcome> {
+fn pull_once(req: &PullRequest) -> Result<PullOutcome> {
+    let paths = &req.paths;
     log::info!(
-        "pull started — {} unpushed path(s) to fold in, free heap {} ({} internal)",
+        "pull started — {} unpushed path(s) to {}, free heap {} ({} internal)",
         paths.len(),
+        if req.discard { "DISCARD" } else { "fold in" },
         free_heap(),
         internal_free_heap()
     );
@@ -1174,8 +1246,13 @@ fn pull_once(paths: &BTreeSet<String>) -> Result<PullOutcome> {
     // network. stage_and_commit moves the branch ref (commits onto "HEAD") and
     // returns None when the paths are already committed (a no-op splice), so
     // `head` only advances when there was genuinely new work.
+    //
+    // Or, if the writer answered `d` on the unsynced card, roll those same
+    // paths back instead — no commit, and `head` stays put.
     if !paths.is_empty() {
-        if let Some(committed) = stage_and_commit(&repo, paths)? {
+        if req.discard {
+            discard_paths(&repo, paths);
+        } else if let Some(committed) = stage_and_commit(&repo, paths)? {
             log::info!(
                 "pull: committed {} unpushed path(s) locally as {} before fetch",
                 paths.len(),
@@ -1714,11 +1791,18 @@ pub struct NetService {
     card: Rc<Storage>,
     tx: Sender<NetRequest>,
     rx: Receiver<NetOutcome>,
+    /// Whether the in-flight pull is a discard — read by
+    /// [`poll_outcome`](app::NetService::poll_outcome) to settle the journal.
+    /// A discard rolls the working copy back *before* the fetch, so its paths
+    /// are clean even if the fetch then fails, and must not be returned to
+    /// pending the way a failed commit-and-pull's are. `Cell` because the port
+    /// takes `&self`; this whole adapter lives on the UI task only.
+    discarding: std::cell::Cell<bool>,
 }
 
 impl NetService {
     pub fn new(card: Rc<Storage>, tx: Sender<NetRequest>, rx: Receiver<NetOutcome>) -> Self {
-        Self { card, tx, rx }
+        Self { card, tx, rx, discarding: std::cell::Cell::new(false) }
     }
 }
 
@@ -1736,25 +1820,45 @@ impl app::NetService for NetService {
         }
     }
 
-    fn pull(&self, commit_dirty: bool) -> app::PullDispatch {
+    fn pull(&self, intent: editor::PullIntent) -> app::PullDispatch {
         // A bare `:gl` with unpushed saves doesn't refuse anymore — it folds
         // them into a local commit first so the fetch can rebase them onto
-        // origin. But that commit is user-visible, so the first pass asks the UI
-        // to confirm; the confirmed retry arrives with commit_dirty = true.
-        if !commit_dirty && self.card.has_dirty() {
-            log::info!(":gl — dirty journal non-empty; asking to confirm the pre-fetch commit");
-            return app::PullDispatch::NeedsCommitConfirm;
+        // origin. But that commit is user-visible, so the first pass hands the
+        // UI the journal's paths to show and ask about; the answer arrives as a
+        // second pull carrying Commit or Discard.
+        if intent == editor::PullIntent::Ask && self.card.has_dirty() {
+            let files = self
+                .card
+                .dirty_paths()
+                .into_iter()
+                .map(|path| {
+                    // A journal entry whose file is gone is a `:delete` the
+                    // remote hasn't seen — worth tagging on the card, since it
+                    // is the one row a discard *restores* rather than removes.
+                    let deleted = !std::path::Path::new(&format!("{REPO_DIR}/{path}")).is_file();
+                    editor::Unsynced { path, deleted }
+                })
+                .collect::<Vec<_>>();
+            log::info!(
+                ":gl — {} unsynced path(s); asking the UI before the pre-fetch commit",
+                files.len()
+            );
+            return app::PullDispatch::NeedsConfirm(files);
         }
+        let discard = intent == editor::PullIntent::Discard;
+        self.discarding.set(discard);
         // Snapshot the journal into `in_flight` (empty when nothing was dirty);
-        // the net thread commits those paths before fetching, and poll_outcome
-        // settles the snapshot when the outcome lands — succeeded forgets it,
-        // failed returns it to pending — exactly as push does.
+        // the net thread commits (or discards) those paths before fetching, and
+        // poll_outcome settles the snapshot when the outcome lands — succeeded
+        // forgets it, failed returns it to pending — exactly as push does.
         let paths = self.card.take_dirty();
-        match self.tx.send(NetRequest::Pull(paths)) {
+        match self.tx.send(NetRequest::Pull(PullRequest { paths, discard })) {
             Ok(()) => app::PullDispatch::Dispatched,
             Err(_) => {
                 // Thread gone — nothing will report back, so return the snapshot
-                // to pending ourselves (mirrors push's ThreadDown path).
+                // to pending ourselves (mirrors push's ThreadDown path). Nothing
+                // was discarded either: the rollback runs on that thread.
+                self.discarding.set(false);
                 self.card.push_failed();
                 app::PullDispatch::ThreadDown
             }
@@ -1800,10 +1904,16 @@ impl app::NetService for NetService {
                 // integrated → forget it (the work is committed, and a stranded
                 // local commit is pushed by the next `:gs`); failed → back to
                 // pending. Empty snapshot → both are no-ops.
+                //
+                // A discard forgets them either way: the rollback ran before
+                // the fetch, so those paths match HEAD now whatever the fetch
+                // did, and returning them to pending would re-offer files that
+                // no longer differ from anything.
                 match &o {
-                    PullOutcome::Failed(_) => self.card.push_failed(),
+                    PullOutcome::Failed(_) if !self.discarding.get() => self.card.push_failed(),
                     _ => self.card.push_succeeded(),
                 }
+                self.discarding.set(false);
                 app::NetOutcome::Pull(match o {
                     PullOutcome::Pulled(oid) => app::PullOutcome::Pulled(oid),
                     PullOutcome::Rebased(oid) => app::PullOutcome::Rebased(oid),

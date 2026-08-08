@@ -213,6 +213,7 @@ impl Editor {
                 Mode::Rest => "REST",
                 Mode::About => "ABOUT",
                 Mode::Confirm => "CONFIRM",
+                Mode::Unsynced => "UNSYNCED",
                 // Guarded out above; a stale label beats a panic if that drifts.
                 Mode::Command => "COMMAND",
             };
@@ -331,6 +332,73 @@ impl Editor {
         let s = tail_chars(&format!("{}{}", self.cmd_prompt, self.cmdline), WRITE_COLS - 1);
         let style = MonoTextStyle::new(&FONT_10X20, BinaryColor::On);
         Text::with_baseline(&s, Point::new(2, HEIGHT as i32 - CH), style, Baseline::Top)
+            .draw(f)
+            .infallible();
+    }
+
+    /// Draw the unsynced-saves card ([`Mode::Unsynced`]) over the writing
+    /// column — the same modal panel geometry as
+    /// [`draw_palette`](Self::draw_palette), so the side panel (and its
+    /// snackbar, which carries the discard confirm) stays put. A title row with
+    /// the count, a rule, the file list, and the key hint on the bottom row.
+    ///
+    /// Rows are repo-relative and right-tagged `(deleted)` for a `:delete` the
+    /// remote hasn't seen. A list longer than the card scrolls with `j`/`k`;
+    /// the scroll offset is clamped here (the key handler lets it run free, as
+    /// View mode does) and a truncated list says so on the hint row, so the
+    /// count in the title is never quietly larger than what you can see.
+    pub(crate) fn draw_unsynced(&self, f: &mut Frame) {
+        Rectangle::new(Point::new(0, 0), Size::new(DIVIDER_X as u32, HEIGHT as u32))
+            .into_styled(PrimitiveStyle::with_fill(BinaryColor::Off))
+            .draw(f)
+            .infallible();
+        let style = MonoTextStyle::new(&FONT_10X20, BinaryColor::On);
+        let max_chars = WRITE_COLS - 1; // leave a right margin
+        let n = self.unsynced.len();
+
+        let title = format!("Unsynced saves ({n})");
+        Text::with_baseline(&title, Point::new(2, 0), style, Baseline::Top)
+            .draw(f)
+            .infallible();
+        Rectangle::new(Point::new(0, CH), Size::new(DIVIDER_X as u32, 1))
+            .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
+            .draw(f)
+            .infallible();
+
+        let list_top = CH + 3;
+        let hint_y = HEIGHT as i32 - CH;
+        let visible = (((hint_y - list_top) / CH).max(1)) as usize;
+        let start = self.unsynced_scroll.min(n.saturating_sub(visible));
+        for (row, file) in self.unsynced.iter().enumerate().skip(start).take(visible) {
+            let y = list_top + (row - start) as i32 * CH;
+            // The tag is pinned to the right edge and the path truncated to
+            // clear it, so a long path can never overwrite the `(deleted)`
+            // that explains why discard will not restore this row.
+            const TAG: &str = "(deleted)";
+            let room = if file.deleted { max_chars - TAG.len() - 1 } else { max_chars };
+            let label: String = file.path.chars().take(room).collect();
+            Text::with_baseline(&label, Point::new(2, y), style, Baseline::Top)
+                .draw(f)
+                .infallible();
+            if file.deleted {
+                let x = 2 + (max_chars - TAG.len()) as i32 * CW;
+                Text::with_baseline(TAG, Point::new(x, y), style, Baseline::Top)
+                    .draw(f)
+                    .infallible();
+            }
+        }
+
+        // Both actions name their pull: `d` is discard-*and-pull*, not a bare
+        // discard, and a hint that said only "discard" would read as a third
+        // option that abandons the sync.
+        // 60 chars at the widest — the row fits the 62-column card, so the
+        // scrolling variant keeps the cancel key rather than trading it away.
+        let hint = if n > visible {
+            "Enter commit & pull  d discard & pull  jk scroll  Esc cancel"
+        } else {
+            "Enter commit & pull   d discard & pull   Esc cancel"
+        };
+        Text::with_baseline(hint, Point::new(2, hint_y), style, Baseline::Top)
             .draw(f)
             .infallible();
     }

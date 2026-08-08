@@ -650,6 +650,15 @@ impl Storage {
         !d.pending.is_empty() || !d.in_flight.is_empty()
     }
 
+    /// The recorded paths, repo-relative and sorted, *without* taking them —
+    /// what the unsynced card lists so a `:gl` can show you what you left
+    /// behind. Read-only: a bare `:gl` must be able to name the set and then be
+    /// cancelled with the journal untouched.
+    pub fn dirty_paths(&self) -> Vec<String> {
+        let d = self.dirty.borrow();
+        d.pending.union(&d.in_flight).cloned().collect()
+    }
+
     /// Snapshot the dirty paths for a push (repo-relative). The snapshot
     /// moves to `in_flight` — the journal keeps carrying it — until the UI
     /// task reports the outcome: [`Storage::push_succeeded`] forgets it,

@@ -191,6 +191,33 @@ impl Editor {
         self.parked.retain(|b| b.dirty);
     }
 
+    /// Drop the parked buffers for `paths` (absolute) whether clean or dirty —
+    /// the inverse of [`drop_clean_parked`](Self::drop_clean_parked)'s
+    /// last-writer-wins rule, and deliberately so: these are the files a
+    /// confirmed discard just rolled back, and a surviving RAM copy would write
+    /// the thrown-away text back to the card on the next save.
+    pub fn drop_parked_paths(&mut self, paths: &[String]) {
+        self.parked.retain(|b| !paths.contains(&b.path));
+    }
+
+    /// Drop the active buffer without touching the card — the file it mirrored
+    /// is already gone (a discard unlinked a note the remote never had). Lands
+    /// exactly where `:delete` does: the most-recently-parked buffer, or an
+    /// empty unnamed scratch if none is resident. Queues no
+    /// [`Effect::Delete`] — there is nothing left to unlink.
+    pub fn abandon_active(&mut self) {
+        let path = core::mem::take(&mut self.path);
+        self.remove_from_file_list(&path);
+        self.recent.retain(|p| p != &path);
+        match self.parked.pop() {
+            Some(b) => {
+                self.note_recent(&b.path);
+                self.activate(b);
+            }
+            None => self.set_active(String::new(), Scope::Tracked, String::new()),
+        }
+    }
+
     /// The shared save path for the `:w` family and Cmd+S: lint first (when
     /// `format_on_save` is set), then queue the [`Effect::Save`]. The full
     /// format is skipped in Insert — `:w` runs from the command line so it
@@ -609,20 +636,11 @@ impl Editor {
             self.set_notice("no file to delete");
             return;
         }
-        let path = core::mem::take(&mut self.path);
-        let scope = self.scope;
-        self.requests.push(Effect::Delete { path: path.clone(), scope });
-        self.remove_from_file_list(&path);
-        self.recent.retain(|p| p != &path);
-        // The current buffer is being discarded, not parked: restore the most
-        // recently parked buffer if one is resident, else fall back to scratch.
-        match self.parked.pop() {
-            Some(b) => {
-                self.note_recent(&b.path);
-                self.activate(b);
-            }
-            None => self.set_active(String::new(), Scope::Tracked, String::new()),
-        }
+        let (path, scope) = (self.path.clone(), self.scope);
+        self.requests.push(Effect::Delete { path, scope });
+        // The current buffer is being discarded, not parked — same landing as
+        // a discarded file's, so both go through `abandon_active`.
+        self.abandon_active();
     }
 
     /// `:pub` / `:publish` — mark the active file for publication by renaming it

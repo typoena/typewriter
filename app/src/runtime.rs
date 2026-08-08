@@ -18,7 +18,7 @@
 use std::time::Instant;
 
 use display::Frame;
-use editor::{Editor, Effect, Mode, Scope, PREFS_PATH};
+use editor::{Editor, Effect, Mode, PullIntent, Scope, PREFS_PATH, REPO_DIR};
 use hal::{Keyboard, Screen};
 
 use crate::ports::{
@@ -60,6 +60,11 @@ pub struct Runtime<S: Screen> {
     /// read by the idle branch's kbd-flag repaint).
     kbd: bool,
     kbd_changed: bool,
+    /// Absolute paths of an in-flight [`PullIntent::Discard`], captured from
+    /// the unsynced card at dispatch. Consumed when the pull outcome lands, to
+    /// evict the resident buffers whose text the discard threw away. Empty
+    /// except across that one round trip.
+    pending_discard: Vec<String>,
 }
 
 impl<S: Screen> Runtime<S> {
@@ -98,6 +103,7 @@ impl<S: Screen> Runtime<S> {
             last_kbd,
             kbd: last_kbd,
             kbd_changed: false,
+            pending_discard: Vec::new(),
         }
     }
 
@@ -204,13 +210,33 @@ impl<S: Screen> Runtime<S> {
                 PushDispatch::Dispatched => self.ed.set_notice("syncing..."),
                 PushDispatch::ThreadDown => self.ed.set_notice("sync: git thread down"),
             },
-            Effect::Pull { commit_dirty } => match self.net.pull(commit_dirty) {
-                PullDispatch::Dispatched => self.ed.set_notice("pulling..."),
-                // Unpushed saves: ask before folding them into a commit. On
-                // `y` the editor re-queues Pull { commit_dirty: true }.
-                PullDispatch::NeedsCommitConfirm => self.ed.confirm_pull_commit(),
-                PullDispatch::ThreadDown => self.ed.set_notice("pull: git thread down"),
-            },
+            Effect::Pull(intent) => {
+                // A confirmed discard is about to roll these paths back on the
+                // SD card, so remember them *before* dispatching: the resident
+                // buffers holding the text being thrown away have to be settled
+                // when the outcome lands, or the next save writes it back.
+                // Taken from the list the writer actually answered, not the
+                // dirty journal — that belongs to the backend, which has by now
+                // already taken and moved on from it.
+                if intent == PullIntent::Discard {
+                    self.pending_discard = self
+                        .ed
+                        .unsynced()
+                        .iter()
+                        .map(|u| format!("{REPO_DIR}/{}", u.path))
+                        .collect();
+                }
+                match self.net.pull(intent) {
+                    PullDispatch::Dispatched => self.ed.set_notice("pulling..."),
+                    // Unpushed saves: name them and ask. The card's answer
+                    // re-queues Pull with Commit or Discard.
+                    PullDispatch::NeedsConfirm(files) => self.ed.show_unsynced(files),
+                    PullDispatch::ThreadDown => {
+                        self.pending_discard.clear(); // nothing will report back
+                        self.ed.set_notice("pull: git thread down")
+                    }
+                }
+            }
             Effect::LoadLinkTarget { path } => {
                 let text = match self.storage.load_path(&path) {
                     Ok(t) => Some(t),
@@ -293,8 +319,14 @@ impl<S: Screen> Runtime<S> {
         // save_on_idle: once input has paused, quietly persist a dirty named
         // buffer. Silent — no snackbar, no forced flash. Fires once per idle
         // window, so a failing save can't busy-loop. Falls through afterwards.
+        //
+        // Held off while the unsynced card is up: that card is a decision about
+        // the exact set of paths it is displaying, and a save landing behind it
+        // would journal a file the list never showed — so a confirmed discard
+        // would take one more file than the writer agreed to.
         if !self.idle_saved
             && self.ed.prefs().save_on_idle
+            && !self.ed.showing_unsynced()
             && self.ed.dirty()
             && !self.ed.path().is_empty()
             && self.last_activity.elapsed().as_millis() >= IDLE_SAVE_MS
@@ -327,11 +359,23 @@ impl<S: Screen> Runtime<S> {
         let notice = match outcome {
             NetOutcome::Push(o) => push_notice(&o),
             NetOutcome::Pull(o) => {
+                // A confirmed discard rolled the working copy back *before* the
+                // fetch, so its buffers are stale whatever the fetch then did —
+                // including a failure. Settled first, and unconditionally.
+                let discarded = std::mem::take(&mut self.pending_discard);
+                if !discarded.is_empty() {
+                    self.settle_discarded(&discarded);
+                }
                 // Pulled and Rebased both move the working copy under us; the
                 // stale resident buffers must re-read the disk.
                 let moved_working_copy =
                     matches!(o, PullOutcome::Pulled(_) | PullOutcome::Rebased(_));
                 let notice = pull_notice(&o);
+                if !discarded.is_empty() && !moved_working_copy {
+                    // The discard alone changed the card, so the palette's file
+                    // list is stale even though the pull moved nothing.
+                    self.files.request_rewalk();
+                }
                 if moved_working_copy {
                     // Clean parked buffers are dropped (they reload on the next
                     // switch); the clean active buffer is re-read now; a RAM-dirty
@@ -378,6 +422,31 @@ impl<S: Screen> Runtime<S> {
             return;
         }
         self.panel.show_notice(&mut self.ed);
+    }
+
+    /// Settle the resident buffers after a confirmed discard rolled `paths`
+    /// (absolute) back on the card. Every RAM copy of those files now holds
+    /// text that no longer exists anywhere else, so it must not survive to be
+    /// written back — this is the one place that overrides the
+    /// last-writer-wins rule the pull path uses, because throwing that text
+    /// away is precisely what was confirmed.
+    ///
+    /// A discarded path that won't re-read is a note the remote never had: the
+    /// rollback had no version to restore it to, so it left the card entirely
+    /// and the buffer goes with it.
+    fn settle_discarded(&mut self, paths: &[String]) {
+        log::info!("discard: settling {} resident path(s)", paths.len());
+        self.ed.drop_parked_paths(paths);
+        if !paths.iter().any(|p| p == self.ed.path()) {
+            return;
+        }
+        match self.storage.load_path(self.ed.path()) {
+            Ok(text) => self.ed.refresh_active(text),
+            Err(e) => {
+                log::info!("discard removed {} ({e:#}); dropping the buffer", self.ed.path());
+                self.ed.abandon_active();
+            }
+        }
     }
 
     /// Persist a buffer to `path`. Errors are logged, never propagated: the
