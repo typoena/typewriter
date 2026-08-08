@@ -202,14 +202,13 @@ below.
       board. The old edge-gap chain reproduced the USB-C pitch *exactly*, which is
       what confirms `usbc_w = 8.5`, but its 5 mm µSD gap gave 16.25 against a
       measured 15.0: the slot was 1.25 mm too far right, twice the slack that
-      could have covered it. Centres are 12.25 / 27.75 / 42.75 off the board edge.
-      Cross-checked: a measured 4.0 mm part-to-part gap against the 3.75 the pitch
+      could have covered it. Cross-checked: a measured 4.0 mm part-to-part gap against the 3.75 the pitch
       and widths imply — 0.25 mm apart, which is what confirms `sd_w = 14.0` (at
       13.0 the two readings would disagree by a full millimetre).
-- [ ] **Where the port cluster sits on the board is still unmeasured** — the 8 mm
-      from PCB 2's left edge to the charge connector is the last of the old chain.
-      The pitches are right, so an error here slides all three ports together.
-      One reading retires it: board left edge to charge-port centre.
+- [x] **Where the cluster sits on the board** — 7 mm, PCB 2's left edge to the
+      charge shell (`chg_gap`), replacing the old chain's 8. The last unmeasured
+      link in the block, and the one everything hangs off: it slides all three
+      ports together. Centres are now 11.25 / 26.75 / 41.75 off the board edge.
 - [ ] **No blanket widening.** Rejected +2 mm on every opening: at a 15 mm
       keyboard→µSD pitch it leaves a 0.55 mm rib between those two, under two
       perimeters in a 2.4 mm wall, so the openings merge instead of printing. The

@@ -199,10 +199,11 @@ port_z   = [pcb2_z+usbc_cz, pcb2_z+usbc_cz, pcb2_z+sd_cz];
 // but its 5 mm µSD gap gave 16.25 against a measured 15.0 — the slot was 1.25 mm
 // too far right, twice the slack that would have covered it.
 port_pitch = [15.5, 15.0];                   // charge->keyboard, keyboard->µSD
-// The one link NOT measured: where the cluster sits relative to the board's left
-// edge. Still the old chain's 8 mm gap, so an error here slides all three ports
-// together — caliper board-edge-to-charge-centre to retire it.
-chg_cx   = 8 + usbc_w/2;                                 // -> 12.25
+// Where the cluster sits on the board: measured edge to edge, PCB 2's left edge
+// to the charge shell (was 8 off the old chain). This one slides all three ports
+// together, so it is the reading the whole block hangs off.
+chg_gap  = 7;
+chg_cx   = chg_gap + usbc_w/2;                           // -> 11.25
 port_x   = [pcb2_x0 + chg_cx,                                        // -> 12.25
             pcb2_x0 + chg_cx + port_pitch[0],                        // -> 27.75
             pcb2_x0 + chg_cx + port_pitch[0] + port_pitch[1]];       // -> 42.75
