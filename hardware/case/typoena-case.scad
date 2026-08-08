@@ -140,13 +140,19 @@ pwr_btn  = true;             // set false to omit the switch hole entirely
 pwr_d    = 13.5;             // switch barrel Ø (the part Julien bought)
 pwr_fit  = 0.4;              // panel-hole clearance on top of the barrel Ø
 pwr_r    = (pwr_d + pwr_fit) / 2;
+pwr_body_d = 17;             // WIDEST thing behind the panel — nut across corners,
+                             // body OD, solder lugs. NOT the barrel: this is what
+                             // decides the clearance below.        << MEASURE >>
 pwr_inset= 20;               // button CENTRE, measured in from the RIGHT outer face
 pwr_x    = W - pwr_inset;    // 156 — past the µSD (right edge @ 136.6), 5 mm of
                              // flat wall left before the back-right corner blend
-// A Ø13.9 hole 20 mm in from the right wall sits ABOVE PCB 2 in X, not beside it
-// (the board runs to x=167.6). So the barrel has to sail over the board: the hole
-// starts 1.5 mm above PCB 2's tallest point instead of sitting in the port row.
-pwr_z    = bp_t + standoff_h + pcb2_h + pwr_r + 1.5;   // ~22 — hole spans z 15..29
+// The switch is a loose panel-mount part wired back to PCB 2, not mounted on it.
+// At Ø13.5 it cannot avoid PCB 2 in plan — the board runs to x=167.6, and the only
+// clear X band is the 13.6 mm board gap, narrower than the hole and already taken
+// by the back-centre baseplate post. So the barrel MUST fly over the board, and
+// the clearance below it is the reserve for components PCB 2 doesn't have yet:
+pwr_clear = 4;               // headroom kept free above PCB 2 for future parts
+pwr_z    = bp_t + standoff_h + pcb2_h + pwr_clear + pwr_body_d/2;   // ~26
 
 // ---- baseplate / chassis --------------------------------------------------
 bp_gap     = 0.5;  // clearance so it drops into the shell

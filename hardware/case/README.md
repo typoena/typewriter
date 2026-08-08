@@ -83,13 +83,20 @@ below.
   the back wall (`pwr_*`), Ø13.5 barrel, centre **20 mm in from the right outer
   face** (`pwr_inset`). It breaks the battery-side power feed, so the machine is
   genuinely off between sessions instead of draining the LiPo; it sits clear of
-  the typing path. At that Ø it lands *over* PCB 2 in X rather than beside it
-  (the board runs to x ≈ 167.6), so `pwr_z` is derived to start 1.5 mm above
-  PCB 2's tallest point — the barrel sails over the board instead of into it.
-  That puts it ~11 mm higher than the port row; **the switch body must be short
-  enough not to foul the sloped deck underside**, and PCB 2 must stay within
-  `pcb2_h`. No reset/BOOT button is exposed (S3 auto-download makes both
-  recovery-only); like the ESP32's own USB-C they're reached by opening the case.
+  the typing path. It is a **loose part wired back to PCB 2**, not mounted on it.
+
+  At Ø13.5 it cannot sit beside PCB 2: the board runs to x ≈ 167.6, leaving only
+  6 mm to the right wall, and the one clear X band is the 13.6 mm board gap —
+  narrower than the hole, and already taken by the back-centre baseplate post. So
+  the barrel flies **over** the board, and the gap underneath is deliberate
+  headroom for parts PCB 2 doesn't carry yet: `pwr_z` reserves `pwr_clear = 4 mm`
+  above `pcb2_h`, which leaves **10.4 mm of build height free above the board
+  face** across the button's footprint. The driver is `pwr_body_d` (nut across
+  corners / body OD, ~17 mm — `<< MEASURE >>`), *not* the barrel Ø: the nut is the
+  widest thing behind the panel and therefore the part that reaches lowest.
+
+  No reset/BOOT button is exposed (S3 auto-download makes both recovery-only);
+  like the ESP32's own USB-C they're reached by opening the case.
 - **LiPo** flat across the front in baseplate cage nibs (foam/VHB does the rest).
   The shallow (24 mm) front of the wedge is dead space the tall board stack can't
   use, and **3700 mAh is the biggest flat cell that fits it** (96 × 33.5 × 10.3);
