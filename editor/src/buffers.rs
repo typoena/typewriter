@@ -191,17 +191,23 @@ impl Editor {
         self.parked.retain(|b| b.dirty);
     }
 
-    /// The shared save path for the `:w` family and Cmd+S: format first (when
-    /// `format_on_save` is set), then queue the [`Effect::Save`]. Formatting is
-    /// skipped in Insert — `:w` runs from the command line so it always formats,
-    /// but a Cmd+S mid-typing must not reflow the current line under the caret
-    /// (the same reasoning `save_on_idle` uses to never reflow mid-session).
-    /// Outside Insert the caret keeps its column across the format (see
-    /// [`format_buffer`](Self::format_buffer)). The dirty guard for Cmd+S lives
-    /// in [`handle`](Self::handle).
+    /// The shared save path for the `:w` family and Cmd+S: lint first (when
+    /// `format_on_save` is set), then queue the [`Effect::Save`]. The full
+    /// format is skipped in Insert — `:w` runs from the command line so it
+    /// always formats, but a Cmd+S mid-typing must not reflow the current line
+    /// under the caret (the same reasoning `save_on_idle` uses to never reflow
+    /// mid-session). Mid-Insert it still runs the caret-safe
+    /// [`terminate_buffer`](Self::terminate_buffer), so every explicit save
+    /// leaves the buffer newline-terminated. Outside Insert the caret keeps its
+    /// column across the format (see [`format_buffer`](Self::format_buffer)).
+    /// The dirty guard for Cmd+S lives in [`handle`](Self::handle).
     pub(crate) fn write_active(&mut self) {
-        if self.prefs.format_on_save && self.mode != Mode::Insert {
-            self.format_buffer();
+        if self.prefs.format_on_save {
+            if self.mode == Mode::Insert {
+                self.terminate_buffer();
+            } else {
+                self.format_buffer();
+            }
         }
         self.request_save_active();
     }

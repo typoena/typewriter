@@ -369,9 +369,24 @@ pub(crate) fn pad_cell(cell: &str, w: usize, align: Align) -> String {
 
 
 impl Editor {
+    /// The lint pass's caret-safe subset, for a Cmd+S that lands mid-Insert:
+    /// terminate the buffer without reflowing the line under the caret. The
+    /// append is at the very end, past every caret offset, so the caret does not
+    /// move — including the common case of a caret sitting at the old end.
+    ///
+    /// Deliberately no [`checkpoint`](Self::checkpoint): the Insert session is
+    /// one undo group (taken on entering Insert), and splitting it on a save
+    /// would make `u` mid-typing undo the terminator instead of the sentence.
+    pub(crate) fn terminate_buffer(&mut self) {
+        if !self.text.is_empty() && !self.text.ends_with('\n') {
+            self.text.push('\n');
+        }
+    }
+
     /// `:fmt` — normalize the buffer (align tables, collapse duplicate blank
-    /// lines, strip trailing whitespace) and keep the caret on roughly the same
-    /// line (buffer length changes, so exact restoration isn't possible).
+    /// lines, strip trailing whitespace, terminate with a newline) and keep the
+    /// caret on roughly the same line (buffer length changes, so exact
+    /// restoration isn't possible).
     pub(crate) fn format_buffer(&mut self) {
         self.checkpoint(); // `:fmt` (and format-on-save) is undoable
         let row = substr(&self.text, ..self.caret).bytes().filter(|&b| b == b'\n').count();

@@ -434,13 +434,14 @@ fn cmd_s_from_insert_saves_without_leaving_insert() {
     send(&mut e, "draft");
     e.handle(Key::Save);
     assert_eq!(e.mode(), Mode::Insert, "Cmd+S must not leave Insert");
-    assert_eq!(e.text(), "draft", "Cmd+S must not type an 's'");
+    assert_eq!(e.text(), "draft\n", "Cmd+S must not type an 's'");
+    assert_eq!(e.caret, "draft".len(), "the caret stayed where the typing left it");
     assert_eq!(
         e.take_effects(),
         vec![Effect::Save {
             path: "/sd/repo/notes.md".into(),
             scope: Scope::Tracked,
-            contents: "draft".into(),
+            contents: "draft\n".into(),
         }]
     );
 }
@@ -449,8 +450,9 @@ fn cmd_s_from_insert_saves_without_leaving_insert() {
 fn cmd_s_from_insert_does_not_reformat_mid_session() {
     // format_on_save is on by default, but a Cmd+S while still in Insert must
     // NOT reflow the line — stripping the trailing spaces the user is mid-way
-    // through and yanking the caret to line start would be hostile. `:w` from
-    // Normal still formats (see `gs_formats_the_buffer_before_pushing`).
+    // through and yanking the caret to line start would be hostile. Only the
+    // terminator lands. `:w` from Normal still formats (see
+    // `gs_formats_the_buffer_before_pushing`).
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
     assert!(e.prefs.format_on_save);
     e.handle(Key::Char('i'));
@@ -461,9 +463,28 @@ fn cmd_s_from_insert_does_not_reformat_mid_session() {
         vec![Effect::Save {
             path: "/sd/repo/notes.md".into(),
             scope: Scope::Tracked,
-            contents: "hello   ".into(), // verbatim — not reflowed
+            contents: "hello   \n".into(), // spaces kept — only the terminator added
         }]
     );
+}
+
+#[test]
+fn cmd_s_mid_line_in_insert_leaves_the_caret_untouched() {
+    // The caret need not sit at the end mid-Insert (arrow keys, Backspace): the
+    // terminator is appended past every offset, so nothing under the caret moves.
+    let mut e = Editor::with_file(
+        "/sd/repo/notes.md".into(),
+        Scope::Tracked,
+        "one\ntwo".to_string(), // no terminator, as an externally authored file arrives
+    );
+    e.handle(Key::Char('i')); // entering Insert checkpoints, so the buffer is dirty
+    e.caret = 1; // between 'o' and 'n' on row 0
+    let before = e.caret;
+    e.handle(Key::Save);
+    assert_eq!(kinds(&e.take_effects()), vec![Kind::Save]);
+    assert_eq!(e.text(), "one\ntwo\n");
+    assert_eq!(e.caret, before, "the caret did not move");
+    assert_eq!(e.mode(), Mode::Insert);
 }
 
 #[test]
