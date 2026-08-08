@@ -197,11 +197,21 @@ below.
       1 mm *above* the shell bottoms (`sd_rise`) where the model had them level.
       With 1.2 mm of slack on every panel opening (`port_fit`, `pwr_fit`) that
       gives USB-C 9.7 × 4.2, µSD 15.2 × 3.2, switch Ø14.7.
-- [x] **Port X centres derive from the widths now.** They used to be literals
-      (12 / 27 / 42.5) worked out by hand from the datasheet widths, so calipering
-      the parts left them silently 1.5 mm out at the µSD — more than the 0.6 mm a
-      side of slack could absorb. The chain walks the measured 8/7/5 gaps from the
-      board's left edge instead: 12.25 / 27.75 / 44.0.
+- [x] **Port X spacing is measured centre to centre**, 15.5 (charge→keyboard) and
+      15.0 (keyboard→µSD) — the only spacing a caliper can reach on a populated
+      board. The old edge-gap chain reproduced the USB-C pitch *exactly*, which is
+      what confirms `usbc_w = 8.5`, but its 5 mm µSD gap gave 16.25 against a
+      measured 15.0: the slot was 1.25 mm too far right, twice the slack that
+      could have covered it. Centres are 12.25 / 27.75 / 42.75 off the board edge.
+- [ ] **Where the port cluster sits on the board is still unmeasured** — the 8 mm
+      from PCB 2's left edge to the charge connector is the last of the old chain.
+      The pitches are right, so an error here slides all three ports together.
+      One reading retires it: board left edge to charge-port centre.
+- [ ] **No blanket widening.** Rejected +2 mm on every opening: at a 15 mm
+      keyboard→µSD pitch it leaves a 0.55 mm rib between those two, under two
+      perimeters in a 2.4 mm wall, so the openings merge instead of printing. The
+      rib is 2.55 mm as it stands and that is the number to watch before any
+      opening grows again.
 - [ ] **One port number still unmeasured:** `sd_h = 2.0`, the cage height. It only
       sets the *top* of the µSD opening now that the bottom is pinned by `sd_rise`,
       so it's the least dangerous of the block — but it's the last datasheet figure

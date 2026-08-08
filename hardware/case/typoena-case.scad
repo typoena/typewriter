@@ -191,17 +191,21 @@ pcb2_z   = bp_t + standoff_h + pcb_t;        // PCB 2 top face height off the fl
 // per-port centre heights off the floor       [charge, keyboard, µSD]
 port_z   = [pcb2_z+usbc_cz, pcb2_z+usbc_cz, pcb2_z+sd_cz];
 // PCB 2 is flipped vs how you view it: the charge end sits inward (low X), the
-// µSD/power end faces the RIGHT wall. Walk the connectors from the LEFT board
-// edge (pcb2_x0) using the measured 8/7/5 gaps BETWEEN them. Derived from the
-// widths rather than typed: the centres were once literals worked out from the
-// datasheet widths, so calipering the parts silently left them 1.5 mm out.
-port_gap = [8, 7, 5];                        // board edge->charge, then between
-chg_x0   = port_gap[0];                                  // -> 8.0
-kbd_x0   = chg_x0 + usbc_w + port_gap[1];                // -> 23.5
-sd_x0    = kbd_x0 + usbc_w + port_gap[2];                // -> 37.0
-port_x   = [pcb2_x0 + chg_x0 + usbc_w/2,     // charge   -> 12.25 off the board edge
-            pcb2_x0 + kbd_x0 + usbc_w/2,     // keyboard -> 27.75
-            pcb2_x0 + sd_x0  + sd_w/2];      // µSD      -> 44.0
+// µSD/power end faces the RIGHT wall.
+// Spacing is MEASURED centre to centre, which is what a caliper can actually
+// reach on a populated board — edge gaps can't be got at once the shells are on.
+// This is also what caught the µSD: the old 8/7/5 edge-gap chain reproduced the
+// USB-C pitch exactly (15.5, so usbc_w = 8.5 and its 7 mm gap are both right),
+// but its 5 mm µSD gap gave 16.25 against a measured 15.0 — the slot was 1.25 mm
+// too far right, twice the slack that would have covered it.
+port_pitch = [15.5, 15.0];                   // charge->keyboard, keyboard->µSD
+// The one link NOT measured: where the cluster sits relative to the board's left
+// edge. Still the old chain's 8 mm gap, so an error here slides all three ports
+// together — caliper board-edge-to-charge-centre to retire it.
+chg_cx   = 8 + usbc_w/2;                                 // -> 12.25
+port_x   = [pcb2_x0 + chg_cx,                                        // -> 12.25
+            pcb2_x0 + chg_cx + port_pitch[0],                        // -> 27.75
+            pcb2_x0 + chg_cx + port_pitch[0] + port_pitch[1]];       // -> 42.75
 
 // ---- power on/off switch (latching push button, inline in the battery feed) --
 // A push-on / push-off (latching) button that makes/breaks the battery-side power
@@ -224,7 +228,7 @@ pwr_body_d = 14;             // WIDEST thing behind the panel — nut across cor
                              // body OD, solder lugs. NOT the barrel: this is what
                              // decides the clearance below.  Measured off the part.
 pwr_inset= 20;               // button CENTRE, measured in from the RIGHT outer face
-pwr_x    = W - pwr_inset;    // 156 — past the µSD (right edge @ 139.2), 4.6 mm of
+pwr_x    = W - pwr_inset;    // 156 — past the µSD (right edge @ 138.0), 4.6 mm of
                              // flat wall left before the back-right corner blend
 // The switch is a loose panel-mount part wired back to PCB 2, not mounted on it.
 // At Ø13.5 it cannot avoid PCB 2 in plan — the board runs to x=167.6, and the only
