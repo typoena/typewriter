@@ -22,6 +22,8 @@
 //    "plan"        – exploded horizontal section: deck lifted off the cavity
 //    "plan_up"     – just the top half (deck / screen / bracket)
 //    "plan_down"   – just the bottom half (cavity: standoffs, posts, ports)
+//    "io_coupon"   – TEST PRINT: a flat slice of the back wall with only the
+//                    I/O openings (2x USB-C, µSD, power button) — dry-fit check
 // ============================================================================
 
 show = "assembled";
@@ -342,6 +344,30 @@ module baseplate() {
 }
 
 // ===========================================================================
+//  I/O fit coupon  (test print — the back wall's openings, nothing else)
+// ---------------------------------------------------------------------------
+//  A slice of the REAL back wall, taken by intersecting case_body() with a box,
+//  so the wall thickness, the opening shapes and their spacing are the shipping
+//  geometry rather than a re-derivation. Dry-fit the two USB-C shells, a µSD
+//  card and the power button in this before committing to a 10-hour body print.
+//  Kept inside x <= W-corner_r so the slab is perfectly flat and lays on the bed.
+// ===========================================================================
+io_x0 = pcb2_x0 - 6;                 // just left of the charge port
+io_x1 = W - corner_r;                // back wall stays flat up to the corner tangent
+io_z0 = bp_t;                        // floor level
+io_z1 = pwr_z + pwr_r + 6;           // 6 mm of margin above the button hole
+
+module io_coupon() {
+    // lay the wall flat, outer face down, front-left corner at the origin
+    translate([-io_x0, -io_z0, D]) rotate([-90, 0, 0])
+    intersection() {
+        case_body();
+        translate([io_x0, D-wall-0.01, io_z0])
+            cube([io_x1-io_x0, wall+0.02, io_z1-io_z0]);
+    }
+}
+
+// ===========================================================================
 //  assemblies
 // ===========================================================================
 module ghost_screen() {
@@ -447,4 +473,6 @@ if (show == "assembled") {
     plan_up();       // just the top half — deck, screen, bracket
 } else if (show == "plan_down") {
     plan_down();     // just the bottom half — cavity, standoffs, ports
+} else if (show == "io_coupon") {
+    color(C_body) io_coupon();
 }

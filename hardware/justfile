@@ -38,6 +38,8 @@ render:
     # two bespoke cameras: the straight-on nameplate hero, and the low back 3/4
     cd case && openscad -o renders/nameplate.png  {{base}} --camera=0,0,0,62,0,0,0   -D 'show="body"'      typoena-case.scad
     cd case && openscad -o renders/front34.png    {{base}} --camera=0,0,0,72,0,200,0 -D 'show="assembled"' typoena-case.scad
+    # the I/O fit coupon, straight down on its face
+    cd case && openscad -o renders/io-coupon.png  {{base}} --camera=0,0,0,0,0,0,0    -D 'show="io_coupon"' typoena-case.scad
 
 # regenerate the integrated-keyboard variant previews (60% + 40%)
 render-kb:
@@ -64,3 +66,7 @@ stl:
     cd case && openscad -o baseplate.stl    -D 'show="baseplate"' typoena-case.scad
     cd case && openscad -o typoena-case.stl -D 'show="assembled"' typoena-case.scad
     cd case && zip -qj stl.zip body.stl bracket.stl baseplate.stl
+
+# export just the back-wall I/O fit coupon (quick test print before the body)
+stl-io:
+    cd case && openscad -o io-coupon.stl -D 'show="io_coupon"' typoena-case.scad

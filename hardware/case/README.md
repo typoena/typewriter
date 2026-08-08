@@ -29,12 +29,13 @@ Needs [OpenSCAD](https://openscad.org). From `hardware/`:
 ```sh
 just render   # regenerate every case/renders/*.png
 just stl      # export body / bracket / baseplate STLs
+just stl-io   # export the back-wall I/O fit coupon (quick test print)
 just open     # open the model in OpenSCAD
 ```
 
 `show` accepts `assembled` · `body` · `bracket` · `baseplate` · `print_plate` ·
 `section` (vertical cut) · `plan` (exploded horizontal) · `plan_up` / `plan_down`
-(each half alone).
+(each half alone) · `io_coupon` (the I/O fit test print).
 
 ## Dimensions
 
@@ -129,6 +130,13 @@ below.
 - To make the recessed `TYPOENA` engrave read: a swipe of paint pen in the recess,
   or a 3–4 layer filament swap across the nameplate band mid-print.
 - 2.4 mm walls + open bottom keep material low.
+- **Print the I/O coupon first.** `just stl-io` exports `io-coupon.stl` — a flat
+  slice of the real back wall carrying only the four openings (2× USB-C, µSD,
+  power button) at their real spacing and wall thickness. Print it face-down (no
+  support, ~10 min), dry-fit the connectors, the card and the switch, and adjust
+  `usbc_*` / `sd_*` / `pwr_fit` before committing to the body print.
+
+![The I/O fit coupon — charge, keyboard, µSD, power button](renders/io-coupon.png)
 - Print body deck-up (or on its back) for little/no support; bracket and baseplate
   print flat. Nameplate font is set by `name_font` (current: **Monaspace
   Krypton**, `brew install --cask font-monaspace`; run `fc-cache -f` so the CLI
