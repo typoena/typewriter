@@ -3,10 +3,12 @@
 // ----------------------------------------------------------------------------
 //  The one-piece writer: same reclined e-paper deck as typoena-case.scad, with
 //  a keyboard tray grafted onto the front (AlphaSmart / Freewrite silhouette).
-//  The keyboard is an off-the-shelf QMK hotswap PCB in a standard tray mount:
+//  The keyboard is an off-the-shelf QMK PCB in a standard tray mount:
 //
 //    kb = "60"  — GH60-footprint PCB (DZ60/YMDK…), 285 x 94.6
-//    kb = "40"  — OLKB Planck, 233.6 x 82.6, ortholinear
+//    kb = "40"  — Planck-footprint ortho PCB, 226.5 x 73.5, MIT (47 keys, 2u
+//                 space). The Planck itself is discontinued; buy a clone that
+//                 advertises Planck-case compatibility (JJ40, Niu Mini).
 //
 //  It connects over USB *internally*: a short cable runs from the keyboard PCB
 //  through a slot in the shared wall into the wedge cavity. PCB 2's keyboard
@@ -36,16 +38,21 @@ show = "kb_assembled";
 kb   = "60";                 // "60" (GH60 tray) | "40" (Planck)
 
 // ---- keyboard PCB + plate (datasheet / ecosystem-standard numbers) ---------
-kb_pcb_w   = kb=="60" ? 285.00 : 233.60;
-kb_pcb_d   = kb=="60" ?  94.60 :  82.60;
-kb_plate_w = kb=="60" ? 285.75 : 233.60;   // universal 60% plate is the widest part
-kb_plate_d = kb=="60" ?  95.25 :  82.60;
+kb_pcb_w   = kb=="60" ? 285.00 : 226.50;
+kb_pcb_d   = kb=="60" ?  94.60 :  73.50;
+kb_plate_w = kb=="60" ? 285.75 : 226.50;   // universal 60% plate is the widest part
+kb_plate_d = kb=="60" ?  95.25 :  73.50;   // sandwich plate follows the PCB outline
 // tray-mount posts, (x from PCB LEFT edge, y from PCB TOP/back edge).
-// << VERIFY against the actual PCB drawing (DZ60 / Planck) before printing >>
+// The 40 set is the Planck's five M2 (Ø2.2) holes off OLKB's own CAD part
+// (olkb_parts/planck/planck-pcb-module.kicad_mod, origin = board centre); the
+// ten Ø2.9 holes there are acrylic-sandwich standoffs, unused here.
+// << 60 set still VERIFY against a DZ60 drawing before printing >>
 kb_holes   = kb=="60"
-    ? [[25.2,27.9],[128.2,47.8],[259.8,27.9],[190.5,85.2]]          // GH60 std
-    : [[6.5,6.5],[227.1,6.5],[6.5,76.1],[227.1,76.1],[116.8,41.3]]; // placeholder
-kb_usb_x   = kb=="60" ? 19 : 116.8;  // USB-C centre from PCB left edge << VERIFY >>
+    ? [[25.2,27.9],[128.2,47.8],[259.8,27.9],[190.5,85.2]]      // GH60 std
+    : [[18.25,17.75],[208.25,17.75],[18.25,55.75],[208.25,55.75],[113.25,36.75]];
+// USB-C centre from PCB left edge. Same CAD part: the Planck's is a 13 mm notch
+// in the back edge, rear-LEFT — not centred, so the passthrough slot is off-axis.
+kb_usb_x   = kb=="60" ? 19 : 37.25;
 
 // ---- bay geometry -----------------------------------------------------------
 kb_int_w  = kb_plate_w + 0.75;   // plate floats on the switches; 0.75 wiggle
@@ -63,7 +70,7 @@ DT        = kb_d + D;            // total body depth
 // MUST be a literal: an include-override is evaluated at the base file's first
 // W assignment, before any variant variable exists (expressions land undef).
 // Keep the kb/W pair in sync — the assert below refuses a mismatch.
-//   kb="60" -> W = 291.30      kb="40" -> W = 239.15   ( = kb_int_w + 2*wall )
+//   kb="60" -> W = 291.30      kb="40" -> W = 232.05   ( = kb_int_w + 2*wall )
 W = 291.30;
 assert(abs(W - (kb_int_w + 2*wall)) < 0.01,
        "W is out of sync with kb — see the table above this assert");

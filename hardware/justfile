@@ -4,10 +4,10 @@
 scad := "case/typoena-case.scad"
 
 # integrated-keyboard variant (see case/README-kb.md). kb and W must move as a
-# pair — the model asserts they match:  60% -> 291.30   40% -> 239.15
+# pair — the model asserts they match:  60% -> 291.30   40% -> 232.05
 scad_kb := "typoena-case-kb.scad"
 kb60    := "-D 'kb=\"60\"' -D 'W=291.30'"
-kb40    := "-D 'kb=\"40\"' -D 'W=239.15'"
+kb40    := "-D 'kb=\"40\"' -D 'W=232.05'"
 
 # shared OpenSCAD flags (everything but the camera + the part to show).
 # $fn is pinned here so preview quality is stable no matter what the file's
