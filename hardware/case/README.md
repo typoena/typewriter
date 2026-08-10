@@ -292,9 +292,20 @@ below.
       a ~31 mm drop before the U-turn bend and the lateral run to the driver.
       Solved with a **100 mm FPC extension**. The cavity now reserves the
       **front-left plenum** for it (see PCB 1 above) — 56 × 24 mm of floor open to
-      the deck, directly below the slot's front end. Two follow-ups once it
-      arrives: bench-test contrast *before* printing the body (see below), and
-      measure the adapter board to confirm it and the ~60 mm of slack sit in there.
+      the deck, directly below the slot's front end, and PCB 1's connector is
+      confirmed at the **front-left**, so the drop is near-vertical. Two follow-ups
+      once it arrives: bench-test contrast *before* printing the body (see below),
+      and measure the adapter board to confirm it and the ~60 mm of slack sit in
+      there. Also caliper **how far along the front edge** the connector sits: the
+      slot spans x 3.5…13.5, so a connector further inboard adds a lateral run
+      across the plenum before the drop.
+- [ ] **Battery pigtail reach.** The cell sits in the front-right and the TP4056 is
+      on PCB 2 at the back — 33.7 mm from the cell's back edge to PCB 2's front
+      edge, plus the lateral run to B+/B−, so budget **50–60 mm**. The EEMB 103395's
+      JST-PH lead is nominally ~50 mm, which is marginal. If it comes up short, a
+      JST-PH extension is the right fix; sliding the cell back (`bat_y0 = 38.1`
+      puts it 2 mm off PCB 2) costs the wiring bay and buries 33 mm of tall
+      cavity — see the LiPo note above.
 - [ ] **Extension contrast risk.** On these COG-on-flex panels the charge-pump
       capacitors live on the driver board and the FPC carries the *generated*
       high-voltage rails (VGH/VGL/VSH/VSL) back to the COG. Added length adds
