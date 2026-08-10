@@ -59,14 +59,31 @@ No glue on the fragile 1 mm glass; every part stays serviceable.
 ![Bare body shell — screen recess through the deck, FPC slot on the left edge](renders/body.png)
 
 **Screen.** The glass drops into the deck recess from behind (the walls locate it
-in X/Y). Front to back the stack is: deck **bezel lip** (covers ~4–5 mm of the
-inactive border only, `lip_t = 1.4 mm`) → **glass** → non-adhesive closed-cell
-**foam** gasket (~1 mm, spreads the clamp load) → printed **bracket** screwed to 4
-bosses. The lip stops the glass falling out the front; the bracket stops it
-dropping into the cavity. The FPC folds back through an internal clearance on the
-**left** (kept under the bezel, so invisible outside) to PCB 1's driver. For a
-screwless build, cantilever clips work but point-load the glass edge; I'd default
-to foam + bracket.
+in X/Y). Front to back the stack is: deck **bezel lip** (covers the inactive
+border only, `lip_t = 1.4 mm`) → **glass** → non-adhesive closed-cell **foam**
+gasket (`foam_t = 3 mm` free, squashed to `foam_c = 2.6`) → printed **bracket**
+screwed to 4 bosses. The lip stops the glass falling out the front; the bracket
+stops it dropping into the cavity. The FPC folds back through an internal
+clearance on the **left** (kept under the bezel, so invisible outside) to PCB 1's
+driver. For a screwless build, cantilever clips work but point-load the glass
+edge; I'd default to foam + bracket.
+
+The bosses' **free ends are the bracket's seating face** (`br_seat = 5 mm` below
+the deck's outer face). The screw pulls the bracket onto that shoulder and stops,
+so the foam squash — and therefore the clamp on a brittle panel — is set by
+geometry rather than by how hard you turn the screwdriver. That is also why the
+foam is 3 mm and not 1: the seat has to sit far enough behind the glass to leave
+the boss **4 mm of blind M2 bite**, which **sizes the screw at M2 × 6**. Longer
+and it bottoms out before the bracket seats. The pilot stops `pilot_skin = 1 mm`
+short of the deck's outer face, so nothing shows on the side the user looks at.
+
+Locating tolerances, once the printer's `print_bloat` is taken off: the pocket
+gives the glass **0.25 mm of play per side** in X and Y, against a window margin
+of 1.00 mm (X) / 0.50 mm (Y) over the active area — so a drifted panel shifts the
+bezel by a quarter of a millimetre and can never clip a pixel. Both numbers derive
+from `print_bloat`, so a mis-calibrated extruder moves them together. Don't try to
+make the bracket locate anything: its own clearance holes float ±0.7 mm on the
+screws. The pocket locates, the bracket only clamps.
 
 ![Midline section: glass clamped between front lip and rear foam + bracket](renders/section.png)
 ![The bracket — four corner holes, window clears the active area, left edge relieved for the FPC](renders/bracket.png)
@@ -133,7 +150,9 @@ below.
 
 **Assembly order.**
 
-1. Lay glass into the deck recess, add foam, screw the bracket to the 4 bosses.
+1. Lay glass into the deck recess, add foam, screw the bracket to the 4 bosses
+   (M2 × 6). Drive them until the bracket sits flat on the boss shoulders and
+   stop — the shoulder is the stop, not the foam.
 2. Screw PCB 1 (back-left) and PCB 2 (back-right) to the standoffs; set the LiPo
    into its front nibs.
 3. Connect the FPC through the slot; run the PCB 1 ↔ PCB 2 ribbon and battery

@@ -88,7 +88,14 @@ glass_gap = 0.5 + print_bloat;   // clearance around the glass in its pocket. Th
                    // glass is rigid and brittle: a pocket that prints 0.5 under
                    // doesn't take it at all, which costs more than the 0.25 mm
                    // per side of registration the compensation gives away.
-foam_t    = 1.0;   // non-adhesive closed-cell foam gasket behind the glass
+foam_t    = 3.0;   // non-adhesive closed-cell foam gasket behind the glass, FREE
+                   // thickness. It also buys the bosses their thread depth: the
+                   // seat sits foam_c behind the glass, so a thin gasket leaves
+                   // nowhere to tap. See br_seat.
+foam_c    = 2.6;   // ...and its thickness once the bracket bottoms on the boss
+                   // seats. The squash (foam_t - foam_c) IS the clamp preload —
+                   // set by geometry, not by how hard the screw is turned. The
+                   // glass is brittle and there is no torque spec.
 bracket_t = 2.6;   // printed retaining frame thickness
 fpc_w     = 34 + 2 + print_bloat;   // ribbon-slot span along the LEFT short edge
                    // (the FPC side) — measured ribbon 34 mm, + 2 mm clearance.
@@ -399,16 +406,26 @@ module screw_pilots() {
         translate([p[0], p[1], bp_t-1]) cylinder(h=post_pilot_h+1, r=post_pilot);
 }
 
-// 4 bosses just OUTSIDE the glass pocket for the retaining bracket (M2 self-tap)
-br_boss_len = lip_t + G_t + foam_t + bracket_t + 6;
-module bracket_cols(r, over=0) {
+// 4 bosses just OUTSIDE the glass pocket for the retaining bracket (M2 self-tap).
+// CONTRACT: the boss's free end IS the bracket's seating face. The screw pulls the
+// bracket onto it and stops there, so glass clamp and foam squash both follow from
+// br_seat instead of from screwdriver feel. A boss that reaches PAST the bracket
+// seats nothing — the v0 length (…+ bracket_t + 6) drove a Ø6.8 column straight
+// through the bracket's Ø3.4 screw hole, 277 mm³ of interference.
+br_seat     = lip_t + G_t + foam_c;   // seat depth below the deck's outer face
+br_boss_len = br_seat - lip_t;        // the column itself: pocket floor -> seat
+pilot_skin  = 1.0;   // deck left over the BLIND pilot on the face the user sees.
+                     // 0.4 mm was two bridged layers over a Ø2.5 hole: a
+                     // self-tapper punches through and dimples the visible deck.
+module bracket_cols(r, z0, h) {
     on_deck() for (p = boss_xy)
-        translate([glass_dx + p[0], screen_cy + glass_dy + p[1],
-                   -lip_t-br_boss_len-over])
-            cylinder(h=br_boss_len+2*over, r=r);
+        translate([glass_dx + p[0], screen_cy + glass_dy + p[1], z0])
+            cylinder(h=h, r=r);
 }
-module bracket_bosses() { bracket_cols(boss_r); }
-module bracket_pilots() { bracket_cols(boss_pilot, 1); }
+module bracket_bosses() { bracket_cols(boss_r, -br_seat, br_boss_len); }
+// runs 1 mm past the seat so the cut is clean, and stops pilot_skin short of the
+// deck face — 4 mm of M2 bite, which sizes the screw at M2 x 6.
+module bracket_pilots() { bracket_cols(boss_pilot, -br_seat-1, br_seat-pilot_skin+1); }
 
 // deck cuts: through-aperture, glass pocket (leaves the front lip), FPC slot
 module screen_cuts() {
@@ -495,7 +512,7 @@ module bracket() {
     // FPC U-turn clearance: a gap in the LEFT frame member. The flex leaves the
     // glass's back plane and folds ~180° to dive into the cavity toward the
     // breakout; a safe bend radius (~1.5-2 mm) makes that loop ~4 mm deep, too
-    // deep for the 1 mm foam gap, so it fouls this rigid frame unless relieved
+    // deep for the foam gap, so it fouls this rigid frame unless relieved
     // here. Lines up with the body's FPC slot (screen_cuts) and the foam relief.
     difference() {
         // The bracket is placed on the GLASS centre, but its window has to clear
@@ -597,14 +614,13 @@ module ghost_boards() {
     ghost_pcb(pcb2_x0, pcb2_y0, pcb2_x1, pcb2_y1, pcb2_h);   // back-right, low I/O
 }
 module placed_bracket() {
-    on_deck() translate([glass_dx, screen_cy+glass_dy,
-                         -lip_t-G_t-foam_t-bracket_t])
+    on_deck() translate([glass_dx, screen_cy+glass_dy, -br_seat-bracket_t])
         color(C_bracket) bracket();
 }
 // foam gasket (non-adhesive) — a border frame between glass and bracket, with
 // its LEFT border opened over the FPC span so the U-turning flex isn't clamped
-module foam() {
-    linear_extrude(foam_t)
+module foam(t=foam_t) {
+    linear_extrude(t)
         difference() {
             rrect(P_w+4, P_h+4, 3);
             translate([active_off_x, active_off_y]) rrect(A_ap_w, A_ap_h, 2);
@@ -613,8 +629,8 @@ module foam() {
         }
 }
 module placed_foam() {
-    on_deck() translate([glass_dx, screen_cy+glass_dy, -lip_t-G_t-foam_t])
-        color(C_foam) foam();
+    on_deck() translate([glass_dx, screen_cy+glass_dy, -br_seat])
+        color(C_foam) foam(foam_c);      // drawn squashed, i.e. as assembled
 }
 // full coloured assembly, reused by the plan sections
 module plan_assembly() {
