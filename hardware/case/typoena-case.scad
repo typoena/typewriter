@@ -277,8 +277,15 @@ post_out   = 8;    // how far the box is driven THROUGH the wall before
 post_pilot = (2.3 + print_bloat)/2;   // Ø2.3 pilot. A self-tapper wants a tight
                    // pilot, but Ø2.3 printing as Ø1.8 is past tight and splits
                    // the boss — compensation protects the part, not the fit.
-post_pilot_h = 14; // BLIND on purpose: the front bosses now merge into the deck,
-                   // so a through pilot would break out of its outer face.
+post_pilot_h = 14; // BLIND on purpose: a through pilot would break out of the
+                   // deck's outer face.
+post_h     = post_pilot_h + 4;   // boss height above bp_t — the screw's engagement
+                   // plus a 4 mm roof over the blind pilot. Taller buys nothing:
+                   // the load path is screw -> boss -> wall and lives entirely in
+                   // this band, and the deck a full-height boss would reach is
+                   // already carried by the walls it meets. It does still catch
+                   // the front bracket bosses (their feet land ~4 mm inside the
+                   // corner blocks), so those are braced at both ends.
 
 // ---- colours (for the assembled render) -----------------------------------
 C_body   = "#B6CEB4";
@@ -379,12 +386,13 @@ module feet_plate() {
 }
 // Solid pads only — the pilots are cut in case_body(), see the contract there.
 // They start at bp_t so the baseplate seats under them instead of through them,
-// and run past the deck so body_outer() caps them on the deck's own surface.
+// and stop at post_h; the intersection is what trims their overshoot flush with
+// the walls they are driven through.
 module screw_bosses() {
     intersection() {
         body_outer();
         for (b = post_box)
-            translate([b[0], b[2], bp_t]) cube([b[1]-b[0], b[3]-b[2], Hb]);
+            translate([b[0], b[2], bp_t]) cube([b[1]-b[0], b[3]-b[2], post_h]);
     }
 }
 module screw_pilots() {

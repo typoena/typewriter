@@ -117,8 +117,12 @@ below.
   `post_box` is driven straight through the shell and `body_outer()` trims it
   flush, so the fusion can't drift when `wall` or `corner_r` moves. They start at
   `bp_t` so the plate seats *under* them; the 2.6 mm void that leaves is the
-  plate's own volume, and the boss's first layer bridges off the wall. A **cable
-  relief** notch lets the keyboard cable exit and route to the front.
+  plate's own volume, and the boss's first layer bridges off the wall. They stop
+  at `post_h` — the screw's engagement plus a 4 mm roof over the blind pilot —
+  because the load path is screw → boss → wall and lives entirely in that band;
+  running them to the deck cost 41% more plastic and propped nothing the walls
+  weren't already carrying. A **cable relief** notch lets the keyboard cable exit
+  and route to the front.
 
 ![The baseplate — PCB standoffs, front battery nibs, three screw clearances](renders/baseplate.png)
 ![Exploded plan: deck/screen half lifted above the cavity — two boards, front battery, screw bosses, ports](renders/plan.png)
