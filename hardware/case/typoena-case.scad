@@ -142,16 +142,27 @@ br_m  = 9;     // the other three
 
 // ---- mounting, boards & battery (defined here: the ports below depend on it)
 bp_t           = 2.6;    // baseplate thickness
-standoff_h     = 3;      // board standoff height — keep LOW so 22 mm PCB 1 clears the deck
+standoff_h     = 3;      // board standoff height. PCB 1's FRONT edge is the tight
+                         // spot in the whole cavity: the ceiling is 28.35 there
+                         // (see pcb1_y0), so the 22 mm stack on 3 mm standoffs
+                         // clears by 0.75. Nothing taller than 3 goes in.
 standoff_pilot = (1.6 + print_bloat)/2;   // pilot Ø1.6 for an M2 self-tapper
                          // (PCB holes are Ø2) — see post_pilot on the compensation
 pcb_t          = 1.6;    // PCB thickness (for port-height maths)
-// PCB 1 = ESP32 devkit + e-ink driver + MT3608 boost. 70(X) x 50(Y), back-LEFT:
-// short FPC to the deck's left slot, and the 22 mm Dupont/header side sits under
-// the tall REAR of the wedge. Rigid board is only 10 mm; 22 mm is the vertical
-// F-F jumpers. Its own USB-C is reached by opening the case — no wall cutout.
-pcb1_x0 = 4;             pcb1_x1 = pcb1_x0 + 70;   // X  4 .. 74
-pcb1_y0 = 46;            pcb1_y1 = pcb1_y0 + 50;   // Y 46 .. 96  (behind screen mid)
+// PCB 1 = ESP32 devkit + e-ink driver + MT3608 boost. 50(X) x 70(Y), back-LEFT,
+// long axis running FRONT-BACK. Standing it up out of the old 70(X) x 50(Y) is
+// what buys the screen ribbon its run: the board's FPC end now lands at the
+// front-left, directly under the FRONT end of the deck slot (world y 27..61), and
+// the front-left volume ahead of it — which the battery used to cross — is the
+// flex's plenum. The header/Dupont side comes to rest on the BACK edge, so the
+// 22 mm vertical F-F jumpers stay under the tall rear of the wedge and the ribbon
+// to PCB 2 stays short. Rigid board is only 10 mm; 22 mm is the jumpers.
+// Its own USB-C is reached by opening the case — no wall cutout.
+pcb1_x0 = 4;             pcb1_x1 = pcb1_x0 + 50;   // X  4 .. 54
+// Y 26 .. 96. Both ends are hard against something: the back edge keeps 5.6 mm
+// for the ribbon to leave, and the front edge is where the wedge's ceiling
+// (28.35) comes closest to the 22 mm stack — see standoff_h.
+pcb1_y0 = 26;            pcb1_y1 = pcb1_y0 + 70;
 pcb1_h  = 22;            // tallest point (rigid stack + vertical Dupont)
 // PCB 2 = µSD + 2x USB-C + TP4056. 80(X) x 20(Y), along the BACK wall, right end;
 // connectors overhang its back edge by 8 mm to meet the wall.
@@ -164,9 +175,18 @@ pcb1_holes = [[pcb1_x0+2,pcb1_y0+2],[pcb1_x1-2,pcb1_y0+2],
               [pcb1_x0+2,pcb1_y1-2],[pcb1_x1-2,pcb1_y1-2]];
 pcb2_holes = [[pcb2_x0+2,pcb2_y0+2],[pcb2_x1-2,pcb2_y0+2],
               [pcb2_x0+2,pcb2_y1-2],[pcb2_x1-2,pcb2_y1-2]];
-// LiPo 3700 mAh (96 x 33.5 x 10.3), flat across the FRONT — dead wedge space,
-// CG low + forward. Leads exit toward the charger (back-right). Cell measured.
+// LiPo 3700 mAh (96 x 33.5 x 10.3), flat in the FRONT-RIGHT — the void inside the
+// L the two boards make (PCB 1 down the left, PCB 2 across the back). Shallow
+// wedge space the board stack can't use, CG low + forward, leads out to the
+// charger on PCB 2. Cell measured.
+// NOT centred on the case any more: the front-LEFT corner it used to cross is the
+// screen ribbon's plenum, and that is the whole point of the layout. X is boxed in
+// on both sides — PCB 1's edge at 54, the front-right screw boss's free face at
+// 160.5 — so 106.5 mm of band holds a 96 mm cell and the 6 / 4.5 either side is
+// all the slack there is.
 bat_w = 96;  bat_d = 33.5;  bat_h = 10.3;
+bat_x0 = pcb1_x1 + 6;                          // X 60 .. 156, right of PCB 1
+bat_x1 = bat_x0 + bat_w;
 bat_y0 = wall + 4;                             // front edge just off the front wall
 
 // ---- ports on the back wall  (I/O board = PCB 2) --------------------------
@@ -240,9 +260,10 @@ pwr_x    = W - pwr_inset;    // 156 — past the µSD (right edge @ 138.0), 4.6 
                              // flat wall left before the back-right corner blend
 // The switch is a loose panel-mount part wired back to PCB 2, not mounted on it.
 // At Ø13.5 it cannot avoid PCB 2 in plan — the board runs to x=167.6, and the only
-// clear X band is the 13.6 mm board gap, narrower than the hole and already taken
-// by the back-centre baseplate post. So the barrel MUST fly over the board, and
-// the clearance below it is the reserve for components PCB 2 doesn't have yet:
+// clear X band is the board gap, which turning PCB 1 widened to 33.6 without
+// helping: the back-centre baseplate post sits in the middle of it and leaves
+// 12.3 mm a side, still under the Ø13.9 hole. So the barrel MUST fly over the
+// board, and the clearance below it is the reserve for parts PCB 2 doesn't have:
 pwr_clear = 4;               // headroom kept free above PCB 2 for future parts
 pwr_z    = bp_t + standoff_h + pcb2_h + pwr_clear + pwr_body_d/2;   // ~26
 
@@ -547,8 +568,8 @@ module baseplate() {
             // board standoffs on top (PCB 1 back-left + PCB 2 back-right)
             for (h = concat(pcb1_holes, pcb2_holes))
                 translate([h[0], h[1], bp_t]) cylinder(h=standoff_h, r=3);
-            // battery cage nibs (front LiPo; foam/VHB tape does the rest)
-            for (cx=[W/2-bat_w/2-1, W/2+bat_w/2+1], cy=[bat_y0-1, bat_y0+bat_d+1])
+            // battery cage nibs (front-right LiPo; foam/VHB tape does the rest)
+            for (cx=[bat_x0-1, bat_x1+1], cy=[bat_y0-1, bat_y0+bat_d+1])
                 translate([cx, cy, bp_t]) cylinder(h=5, r=1.6);
         }
         // screw clearance up into the body bosses (2 front corners + 1 back centre)
@@ -594,9 +615,9 @@ module ghost_screen() {
     on_deck() translate([glass_dx, screen_cy+glass_dy, -lip_t-G_t/2])
         color(C_screen) cube([G_w, G_h, G_t], center=true);
 }
-// LiPo lying flat on the baseplate at the front
+// LiPo lying flat on the baseplate, front-right
 module ghost_battery() {
-    translate([W/2, bat_y0+bat_d/2, bp_t+bat_h/2])
+    translate([(bat_x0+bat_x1)/2, bat_y0+bat_d/2, bp_t+bat_h/2])
         color("#3f7d4f") cube([bat_w, bat_d, bat_h], center=true);
 }
 // a board slab on its standoffs + a translucent envelope for its tall parts

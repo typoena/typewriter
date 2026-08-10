@@ -44,11 +44,12 @@ Baked into the model from the datasheets:
 
 - **Panel (GDEY0579T93):** glass 150.92 × 56.94 × 1.0 mm, active area
   139.00 × 47.74 mm, pitch 0.1755 mm.
-- **PCB 1** (50 × 70 mm): ESP32-S3 devkit + e-ink driver + MT3608 5 V boost;
+- **PCB 1** (50 W × 70 D mm): ESP32-S3 devkit + e-ink driver + MT3608 5 V boost;
   ~10 mm stack, ~22 mm at the vertical F-F Dupont rows. Ø2 hole each corner.
-- **PCB 2** (20 × 80 mm): µSD + two USB-C (charge, keyboard) + TP4056 charger;
+  Stands with its **long axis front-back**, FPC end forward.
+- **PCB 2** (80 W × 20 D mm): µSD + two USB-C (charge, keyboard) + TP4056 charger;
   connectors overhang the board edge by 8 mm. Ø2 hole each corner.
-- **Battery:** LiPo 3700 mAh, 96 × 33.5 × 10.3 mm, flat across the front.
+- **Battery:** LiPo 3700 mAh, 96 × 33.5 × 10.3 mm, flat in the front-right.
 - **Body:** 176 W × 104 D, 24 mm front → 58 mm back, deck reclined ~21°. Walls
   2.4 mm, deck 2.6 mm, corner radius 8 mm.
 
@@ -92,8 +93,19 @@ screws. The pocket locates, the bracket only clamps.
 below.
 
 - **PCB 1** back-left on low printed standoffs (`standoff_h = 3`, M2 self-tap into
-  `pcb1_holes`). It's in the rear half because the tall Dupont stack (~22 mm) only
-  clears under the high back of the wedge; the FPC exit is right above it.
+  `pcb1_holes`), **turned so its long side runs front-back** (x 4…54, y 26…96).
+  That orientation is what gives the screen ribbon a run: the board's FPC end sits
+  at the **front-left**, right under the front end of the deck slot (which reaches
+  y ≈ 27), and the front-left corner ahead of it — 56 × 24 mm of floor, open to
+  the deck — is the **flex plenum** where the 100 mm extension's slack lives. The
+  header side lands on the board's **back** edge, so the ~22 mm Dupont rows stay
+  under the high rear of the wedge and the ribbon to PCB 2 stays short.
+
+  The board's **front edge is the tightest spot in the cavity**: the ceiling is
+  28.35 mm there, so a 22 mm stack on 3 mm standoffs clears by **0.75 mm**. That
+  is the reason `standoff_h` can't grow, and the reason the tall rows belong at the
+  back. If the front of the board ever has to carry something tall, the lever is
+  `Hf` — +2 mm buys 2 mm of headroom and costs ~1° of deck recline.
 - **PCB 2** back-right along the back wall (`pcb2_holes`); connectors poke out
   through the back-wall ports (`port_x` / `port_z`). From the right-wall end in:
   power switch, µSD, keyboard, charge.
@@ -104,8 +116,9 @@ below.
   the typing path. It is a **loose part wired back to PCB 2**, not mounted on it.
 
   At Ø13.5 it cannot sit beside PCB 2: the board runs to x ≈ 167.6, leaving only
-  6 mm to the right wall, and the one clear X band is the 13.6 mm board gap —
-  narrower than the hole, and already taken by the back-centre baseplate boss. So
+  6 mm to the right wall, and the one clear X band is the board gap. Turning PCB 1
+  widened that gap from 13.6 to 33.6 mm without helping — the back-centre baseplate
+  boss sits in the middle of it and leaves 12.3 mm a side, still under Ø13.9. So
   the barrel flies **over** the board, and the gap underneath is deliberate
   headroom for parts PCB 2 doesn't carry yet: `pwr_z` reserves `pwr_clear = 4 mm`
   above `pcb2_h`, which leaves **10.4 mm of build height free above the board
@@ -123,11 +136,19 @@ below.
   wall at the default 20.
 
 ![Back elevation — the I/O all lives in the right half; the button sits above the port baseline](renders/back.png)
-- **LiPo** flat across the front in baseplate cage nibs (foam/VHB does the rest).
-  The shallow (24 mm) front of the wedge is dead space the tall board stack can't
-  use, and **3700 mAh is the biggest flat cell that fits it** (96 × 33.5 × 10.3);
-  the heaviest part up front also keeps the centre of gravity low and forward. The
-  latching power switch keeps that capacity from bleeding between sessions.
+- **LiPo** flat in the **front-right** in baseplate cage nibs (foam/VHB does the
+  rest) — the void inside the **L** the two boards make, PCB 1 down the left and
+  PCB 2 across the back. The shallow (24 mm) front of the wedge is dead space the
+  tall board stack can't use, and **3700 mAh is the biggest flat cell that fits it**
+  (96 × 33.5 × 10.3); the heaviest part up front also keeps the centre of gravity
+  low and forward. The latching power switch keeps that capacity from bleeding
+  between sessions.
+
+  It is **not centred on the case** — the front-left corner it used to cross is the
+  flex plenum, and that is the point of the layout. X is boxed in both ways: PCB 1's
+  edge at 54 and the front-right screw boss's free face at 160.5 leave a 106.5 mm
+  band for a 96 mm cell, so the **6 / 4.5 mm either side is all the slack there
+  is** — a fatter cell has to come out of the plenum or out of `W`.
 - The baseplate screws up into **three bosses** (two front corners + one in the
   back gap between the boards; the back corners are taken by the standoffs). Each
   is a rectangular pad **fused into the walls it sits against** — the box in
@@ -143,20 +164,21 @@ below.
   plate. A **cable relief** notch lets the keyboard cable exit and route to the
   front.
 
-![The baseplate — PCB standoffs, front battery nibs, three screw clearances](renders/baseplate.png)
-![Exploded plan: deck/screen half lifted above the cavity — two boards, front battery, screw bosses, ports](renders/plan.png)
+![The baseplate — PCB standoffs, front-right battery nibs, three screw clearances](renders/baseplate.png)
+![Exploded plan: deck/screen half lifted above the cavity — two boards, front-right battery, screw bosses, ports](renders/plan.png)
 ![Top half (plan_up) — deck underside: the screen in its recess and the bracket bosses](renders/plan-up.png)
-![Bottom half (plan_down) — the cavity: PCB 1 back-left, PCB 2 back-right, battery front, bosses, ports](renders/plan-down.png)
+![Bottom half (plan_down) — the cavity: PCB 1 standing front-back at the left, PCB 2 back-right, battery in the L's front-right void, the flex plenum front-left](renders/plan-down.png)
 
 **Assembly order.**
 
 1. Lay glass into the deck recess, add foam, screw the bracket to the 4 bosses
    (M2 × 6). Drive them until the bracket sits flat on the boss shoulders and
    stop — the shoulder is the stop, not the foam.
-2. Screw PCB 1 (back-left) and PCB 2 (back-right) to the standoffs; set the LiPo
-   into its front nibs.
-3. Connect the FPC through the slot; run the PCB 1 ↔ PCB 2 ribbon and battery
-   leads to the charger.
+2. Screw PCB 1 (back-left, FPC end forward) and PCB 2 (back-right) to the
+   standoffs; set the LiPo into its front-right nibs.
+3. Connect the FPC through the slot into PCB 1's front-left end, and coil the
+   extension's slack into the front-left plenum; run the PCB 1 ↔ PCB 2 ribbon and
+   the battery leads to the charger.
 4. Screw the baseplate up into the three bosses.
 
 ## Tune first
@@ -268,9 +290,11 @@ below.
 - [ ] FPC **reach**: the panel's own ribbon is 20 mm, but the glass back plane
       sits ~38 mm off the floor at mid-deck and PCB 1's top face is at 7.2 mm —
       a ~31 mm drop before the U-turn bend and the lateral run to the driver.
-      Solved with a **100 mm FPC extension**. Two follow-ups once it arrives:
-      bench-test contrast *before* printing the body (see below), and measure the
-      adapter board so the cavity gets a home for it and for the ~60 mm of slack.
+      Solved with a **100 mm FPC extension**. The cavity now reserves the
+      **front-left plenum** for it (see PCB 1 above) — 56 × 24 mm of floor open to
+      the deck, directly below the slot's front end. Two follow-ups once it
+      arrives: bench-test contrast *before* printing the body (see below), and
+      measure the adapter board to confirm it and the ~60 mm of slack sit in there.
 - [ ] **Extension contrast risk.** On these COG-on-flex panels the charge-pump
       capacitors live on the driver board and the FPC carries the *generated*
       high-voltage rails (VGH/VGL/VSH/VSL) back to the COG. Added length adds
