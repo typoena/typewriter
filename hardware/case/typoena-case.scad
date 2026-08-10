@@ -277,15 +277,14 @@ post_out   = 8;    // how far the box is driven THROUGH the wall before
 post_pilot = (2.3 + print_bloat)/2;   // Ø2.3 pilot. A self-tapper wants a tight
                    // pilot, but Ø2.3 printing as Ø1.8 is past tight and splits
                    // the boss — compensation protects the part, not the fit.
-post_pilot_h = 14; // BLIND on purpose: a through pilot would break out of the
-                   // deck's outer face.
-post_h     = post_pilot_h + 4;   // boss height above bp_t — the screw's engagement
-                   // plus a 4 mm roof over the blind pilot. Taller buys nothing:
-                   // the load path is screw -> boss -> wall and lives entirely in
-                   // this band, and the deck a full-height boss would reach is
-                   // already carried by the walls it meets. It does still catch
-                   // the front bracket bosses (their feet land ~4 mm inside the
-                   // corner blocks), so those are braced at both ends.
+post_h     = 10;   // boss height above bp_t. The WALLS carry the boss, so height
+                   // is only ever about thread engagement — 8 mm of M2.5 in PLA
+                   // is >3x its Ø, well past the 2-2.5x a self-tapper wants.
+                   // Anything above the pilot is inert: the load path is
+                   // screw -> boss -> wall and never leaves this band.
+post_pilot_h = post_h - 2;   // BLIND, with a 2 mm roof. A through pilot would let
+                   // an over-long screw push its tip into the cavity, and at the
+                   // front corners that lands in the bracket boss overhead.
 
 // ---- colours (for the assembled render) -----------------------------------
 C_body   = "#B6CEB4";
