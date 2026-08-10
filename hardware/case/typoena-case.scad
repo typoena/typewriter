@@ -95,14 +95,19 @@ glass_gap = 0.5 + print_bloat;   // clearance around the glass in its pocket. Th
                    // glass is rigid and brittle: a pocket that prints 0.5 under
                    // doesn't take it at all, which costs more than the 0.25 mm
                    // per side of registration the compensation gives away.
-foam_t    = 3.0;   // non-adhesive closed-cell foam gasket behind the glass, FREE
+foam_t    = 5.0;   // non-adhesive closed-cell foam gasket behind the glass, FREE
                    // thickness. It also buys the bosses their thread depth: the
                    // seat sits foam_c behind the glass, so a thin gasket leaves
                    // nowhere to tap. See br_seat.
-foam_c    = 2.6;   // ...and its thickness once the bracket bottoms on the boss
+foam_c    = 3.5;   // ...and its thickness once the bracket bottoms on the boss
                    // seats. The squash (foam_t - foam_c) IS the clamp preload —
                    // set by geometry, not by how hard the screw is turned. The
                    // glass is brittle and there is no torque spec.
+                   // CONTRACT: keep the squash in the 25-40% band. Below ~15% the
+                   // print tolerance on br_seat eats the whole preload and the
+                   // glass rattles; past ~45% a closed-cell foam densifies and the
+                   // clamp force runs away on a brittle part. foam_t never moves
+                   // without foam_c moving with it.
 bracket_t = 2.6;   // printed retaining frame thickness
 fpc_w     = 34 + 2 + print_bloat;   // ribbon-slot span along the LEFT short edge
                    // (the FPC side) — measured ribbon 34 mm, + 2 mm clearance.
@@ -453,7 +458,9 @@ module bracket_cols(r, z0, h) {
 }
 module bracket_bosses() { bracket_cols(boss_r, -br_seat, br_boss_len); }
 // runs 1 mm past the seat so the cut is clean, and stops pilot_skin short of the
-// deck face — 4 mm of M2 bite, which sizes the screw at M2 x 6.
+// deck face — 4.9 mm of pilot below the seat. An M2 x 6 spends 2.6 of its length
+// in the bracket and takes 3.4 of that, so the screw seats the bracket and never
+// bottoms in the blind hole. Going longer than M2 x 7 breaks that.
 module bracket_pilots() { bracket_cols(boss_pilot, -br_seat-1, br_seat-pilot_skin+1); }
 
 // deck cuts: through-aperture, glass pocket (leaves the front lip), FPC slot
