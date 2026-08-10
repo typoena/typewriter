@@ -60,6 +60,6 @@ Model: `hardware/case/typoena-case.scad`; assembly + print notes:
 | Filament, body                | PLA/PETG, matte **sage `#B6CEB4`** ⟨ref?⟩                 |                                                               |
 | Filament, bracket + baseplate | PLA/PETG, cream or brass ⟨ref?⟩                           | Two-tone via filament swap                                    |
 | Screws                        | **M2 self-tapping** ⟨length/qty ref?⟩                     | PCB standoffs (×8), bracket bosses (×4), baseplate posts (×3) |
-| Foam gasket                   | Non-adhesive closed-cell foam, ~1 mm ⟨ref?⟩               | Spreads the bracket's clamp load on the 1 mm glass            |
+| Foam gasket                   | **A4 Technologie MOU-BL-5-A** — closed-cell PE foam, 48 kg/m³, 5 × 200 × 300 mm, €2.40 ([a4.fr](https://www.a4.fr/mousse-polyethylene-45kg-m3-5-x-200-x-300-mm-bleue.html)) | Non-adhesive. Spreads the bracket's clamp load on the 1 mm glass, and its squash (`foam_t` 5.0 → `foam_c` 3.5, 30 %) IS the clamp preload — see the CONTRACT on `foam_c`. Density matters: 48 kg/m³ ≈ Plastazote LD45; cosplay EVA (85–125) is too firm at this squash. Cut as a frame, not a pad — `module foam()` is the template |
 | Battery fixing                | Foam / VHB tape ⟨ref?⟩                                    | Plus the baseplate cage nibs                                  |
 | Feet (optional)               | Printed (modelled) vs stick-on rubber bumpers — undecided | Open TODO in the case README                                  |
