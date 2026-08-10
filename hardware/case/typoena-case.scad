@@ -22,7 +22,7 @@
 //    "section"     – vertical cross-section: how the screen is trapped
 //    "plan"        – exploded horizontal section: deck lifted off the cavity
 //    "plan_up"     – just the top half (deck / screen / bracket)
-//    "plan_down"   – just the bottom half (cavity: standoffs, posts, ports)
+//    "plan_down"   – just the bottom half (cavity: standoffs, bosses, ports)
 //    "io_coupon"   – TEST PRINT: a flat slice of the back wall with only the
 //                    I/O openings (2x USB-C, µSD, power button) — dry-fit check
 // ============================================================================
@@ -264,10 +264,21 @@ foot_bore_r = (3.6 + print_bloat)/2;   // screw clearance through the foot
 foot_cb_r   = (6.0 + print_bloat)/2;   // head counterbore radius
 foot_cb_h   = 2.0;   // head counterbore depth (from the foot's ground face) — Z,
                      // so layer height governs it, not print_bloat
-post_r     = 4.2;  // corner screw posts inside the shell (M2.5 self-tap)
+// Baseplate screw bosses. Rectangular pads FUSED INTO THE WALLS they sit against,
+// not free-standing posts: the box overshoots the shell by post_out and the
+// intersection with body_outer() trims it flush, so "touching the wall" is a
+// property of the construction instead of a number that drifts when wall or
+// corner_r moves. The v0 round posts stood 4.4 mm clear of every wall and 3.3 mm
+// short of the deck — they hung off the bracket bosses, whose M2 pilots they
+// plugged, and they overlapped the baseplate over their whole bottom 2.6 mm.
+post_pad   = 4.5;  // material from the screw axis out to the boss's FREE faces
+post_out   = 8;    // how far the box is driven THROUGH the wall before
+                   // body_outer() trims it — any value past the wall works
 post_pilot = (2.3 + print_bloat)/2;   // Ø2.3 pilot. A self-tapper wants a tight
                    // pilot, but Ø2.3 printing as Ø1.8 is past tight and splits
-                   // the post — compensation protects the part, not the fit.
+                   // the boss — compensation protects the part, not the fit.
+post_pilot_h = 14; // BLIND on purpose: the front bosses now merge into the deck,
+                   // so a through pilot would break out of its outer face.
 
 // ---- colours (for the assembled render) -----------------------------------
 C_body   = "#B6CEB4";
@@ -318,12 +329,24 @@ module body_cavity() {
     }
 }
 
-// baseplate screw posts: two at the FRONT corners + one at the BACK centre.
-// The back corners are taken by the PCB 1 / PCB 2 standoffs, so a corner post
-// there would clash — the third post drops into the gap between the two boards.
-post_xy = [[corner_r+3,          corner_r+3],     // front-left
-           [W-corner_r-3,        corner_r+3],     // front-right
-           [(pcb1_x1+pcb2_x0)/2, D-corner_r-3]];  // back-centre, in the board gap
+// baseplate screw bosses: two at the FRONT corners + one at the BACK centre.
+// The back corners are taken by the PCB 1 / PCB 2 standoffs, so a corner boss
+// there would clash — the third drops into the gap between the two boards.
+// The back screw stays 6 mm off the wall's inner face: the baseplate's own edge
+// is at D-wall-bp_gap/2, so any closer and the plate keeps under 3 mm of rim
+// outboard of the clearance hole for the head to pull against.
+post_xy = [[corner_r+3,          corner_r+3],     // front-left  corner
+           [W-corner_r-3,        corner_r+3],     // front-right corner
+           [(pcb1_x1+pcb2_x0)/2, D-wall-6]];      // back-centre, in the board gap
+// Boss footprints [x0, x1, y0, y1]. A face driven past the shell is a FUSED face:
+// the two front boxes run out through both corner walls, the back one through the
+// back wall. Their free faces sit post_pad from the screw axis.
+post_box = [[-post_out,              post_xy[0][0]+post_pad,
+             -post_out,              post_xy[0][1]+post_pad],
+            [post_xy[1][0]-post_pad, W+post_out,
+             -post_out,              post_xy[1][1]+post_pad],
+            [post_xy[2][0]-post_pad, post_xy[2][0]+post_pad,
+             post_xy[2][1]-post_pad, D+post_out]];
 // Foot centres. The two FRONT feet are concentric with the front screw posts on
 // purpose: the screw then lands dead centre in the disc, so the head counterbore
 // keeps a full 4 mm of wall all round. Offset even 3 mm and that wall drops to
@@ -354,27 +377,31 @@ module feet_plate() {
     for (i = [0:len(foot_pos)-1])
         translate([foot_r + i*(2*foot_r + 4), foot_r, 0]) foot(foot_pos[i][2]);
 }
-module corner_posts() {
-    for (p = post_xy) {
-        h = (p[1] < D/2) ? Hf-top_wall : Hb-top_wall;
-        translate([p[0], p[1], 0]) difference() {
-            cylinder(h=h, r=post_r);
-            translate([0,0,-1]) cylinder(h=h+2, r=post_pilot);
-        }
+// Solid pads only — the pilots are cut in case_body(), see the contract there.
+// They start at bp_t so the baseplate seats under them instead of through them,
+// and run past the deck so body_outer() caps them on the deck's own surface.
+module screw_bosses() {
+    intersection() {
+        body_outer();
+        for (b = post_box)
+            translate([b[0], b[2], bp_t]) cube([b[1]-b[0], b[3]-b[2], Hb]);
     }
+}
+module screw_pilots() {
+    for (p = post_xy)
+        translate([p[0], p[1], bp_t-1]) cylinder(h=post_pilot_h+1, r=post_pilot);
 }
 
-// 4 bosses just OUTSIDE the glass pocket for the retaining bracket
-module bracket_bosses() {
-    on_deck() for (p = boss_xy) {
-        blen = lip_t + G_t + foam_t + bracket_t + 6;
-        translate([glass_dx + p[0], screen_cy + glass_dy + p[1], -lip_t-blen])
-        difference() {
-            cylinder(h=blen, r=boss_r);
-            translate([0,0,-1]) cylinder(h=blen+2, r=boss_pilot);   // M2 self-tap
-        }
-    }
+// 4 bosses just OUTSIDE the glass pocket for the retaining bracket (M2 self-tap)
+br_boss_len = lip_t + G_t + foam_t + bracket_t + 6;
+module bracket_cols(r, over=0) {
+    on_deck() for (p = boss_xy)
+        translate([glass_dx + p[0], screen_cy + glass_dy + p[1],
+                   -lip_t-br_boss_len-over])
+            cylinder(h=br_boss_len+2*over, r=r);
 }
+module bracket_bosses() { bracket_cols(boss_r); }
+module bracket_pilots() { bracket_cols(boss_pilot, 1); }
 
 // deck cuts: through-aperture, glass pocket (leaves the front lip), FPC slot
 module screen_cuts() {
@@ -429,9 +456,15 @@ module case_body() {
     difference() {
         union() {
             difference() { body_outer(); body_cavity(); }
-            corner_posts();
+            screw_bosses();
             bracket_bosses();
         }
+        // CONTRACT: every pilot is cut AFTER the bosses are unioned. Cut one
+        // inside its own boss and a neighbour that grows into it fills it back
+        // in silently — which is what the v0 corner posts did to both front
+        // bracket pilots, blinding them 6 mm into a 12 mm boss.
+        screw_pilots();
+        bracket_pilots();
         screen_cuts();
         port_cuts();
         power_cut();
@@ -494,7 +527,7 @@ module baseplate() {
             for (cx=[W/2-bat_w/2-1, W/2+bat_w/2+1], cy=[bat_y0-1, bat_y0+bat_d+1])
                 translate([cx, cy, bp_t]) cylinder(h=5, r=1.6);
         }
-        // screw clearance up into the body posts (2 front corners + 1 back centre)
+        // screw clearance up into the body bosses (2 front corners + 1 back centre)
         for (p = post_xy)
             translate([p[0], p[1], -foot_h-1])
                 cylinder(h=bp_t+foot_h+2, r=(3.2 + print_bloat)/2);   // M2.5 clear
