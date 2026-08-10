@@ -218,12 +218,12 @@ port_x   = [pcb2_x0 + chg_cx,                                        // -> 12.25
 // handles flashing), so like the ESP32's own USB-C they're reached by opening up.
 pwr_btn  = true;             // set false to omit the switch hole entirely
 pwr_d    = 13.5;             // switch barrel Ø (the part Julien bought)
-pwr_fit  = panel_slip + print_bloat;   // panel-hole clearance on the barrel Ø,
-                             // matching the ports. HAZARD: Ø14.7 exceeds pwr_body_d,
-                             // so nothing on the switch bears against the wall —
-                             // the panel no longer retains it. Holds only if the
-                             // retaining nut/bezel measures wider than the hole;
-                             // caliper it, and drop back to 0.4 if it doesn't.
+pwr_fit  = 0.4;              // panel-hole clearance on the barrel Ø. NOT the ports'
+                             // panel_slip + print_bloat: the first printed coupon
+                             // dropped the switch in perfectly at this 0.4 (Ø13.9),
+                             // and the 1.2 that followed came out loose — Ø14.7 is
+                             // wider than pwr_body_d, so nothing bore against the
+                             // wall. Measured on the print; leave it alone.
 pwr_r    = (pwr_d + pwr_fit) / 2;
 pwr_body_d = 14;             // WIDEST thing behind the panel — nut across corners,
                              // body OD, solder lugs. NOT the barrel: this is what

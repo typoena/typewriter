@@ -195,8 +195,10 @@ below.
       the *plug* envelope, and `sd_w` 13.0 was the same kind of guess. Calipered:
       USB-C shell 8.5 × 2.75–3.0, µSD cage 14.0 wide, and the cage bottom sits
       1 mm *above* the shell bottoms (`sd_rise`) where the model had them level.
-      With 1.2 mm of slack on every panel opening (`port_fit`, `pwr_fit`) that
-      gives USB-C 9.7 × 4.2, µSD 15.2 × 3.2, switch Ø14.7.
+      With 1.2 mm of slack on every port opening (`port_fit`) that gives USB-C
+      9.7 × 4.2 and µSD 15.2 × 3.2. Dry-fitted on the second coupon: everything
+      goes in, USB-C the snuggest of them. The switch keeps its own, smaller
+      `pwr_fit` — see below.
 - [x] **Port X spacing is measured centre to centre**, 15.5 (charge→keyboard) and
       15.0 (keyboard→µSD) — the only spacing a caliper can reach on a populated
       board. The old edge-gap chain reproduced the USB-C pitch *exactly*, which is
@@ -223,17 +225,16 @@ below.
       fit in the model now derives from the single `print_bloat` constant, so the
       value is one line to change and nothing else moves. It is still an *estimate*
       off the jammed first coupon: caliper the printed coupon's openings against
-      nominal (9.7 × 4.2, 15.2 × 3.2, Ø14.7) and set `print_bloat` to the delta
+      nominal (9.7 × 4.2, 15.2 × 3.2) and set `print_bloat` to the delta
       before committing to the 10-hour body print. Compensation is XY only — Z is
       layer height, and first-layer squish is the slicer's elephant-foot setting.
-- [ ] **Switch retention at `pwr_fit = 1.2`.** Ø14.7 is wider than `pwr_body_d`
-      (14.0, the widest measured feature behind the panel), so as modelled nothing
-      on the switch bears against the wall — the hole no longer retains it. This
-      is only safe if the retaining nut or front bezel is wider than 14.7. Caliper
-      that feature: if it is, record it and the fit stands; if it isn't, `pwr_fit`
-      goes back to 0.4 and a tight-printing hole gets solved with slicer hole
-      compensation instead. The same reading also sharpens `pwr_z`, which is
-      derived from `pwr_body_d`.
+- [x] **Switch hole settled on the print: `pwr_fit = 0.4`, Ø13.9.** The first
+      coupon took the switch perfectly at that hole; the 1.2 that followed printed
+      Ø14.7, wider than `pwr_body_d` (14.0, the widest measured feature behind the
+      panel), so nothing bore against the wall and the panel stopped retaining it.
+      Back to 0.4, and the switch alone is exempt from the `panel_slip +
+      print_bloat` slack the ports carry — the printer's bloat is already inside
+      that measured 0.4.
 - [ ] FPC **reach**: the panel's own ribbon is 20 mm, but the glass back plane
       sits ~38 mm off the floor at mid-deck and PCB 1's top face is at 7.2 mm —
       a ~31 mm drop before the U-turn bend and the lateral run to the driver.
