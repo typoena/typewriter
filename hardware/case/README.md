@@ -88,7 +88,7 @@ below.
 
   At Ø13.5 it cannot sit beside PCB 2: the board runs to x ≈ 167.6, leaving only
   6 mm to the right wall, and the one clear X band is the 13.6 mm board gap —
-  narrower than the hole, and already taken by the back-centre baseplate post. So
+  narrower than the hole, and already taken by the back-centre baseplate boss. So
   the barrel flies **over** the board, and the gap underneath is deliberate
   headroom for parts PCB 2 doesn't carry yet: `pwr_z` reserves `pwr_clear = 4 mm`
   above `pcb2_h`, which leaves **10.4 mm of build height free above the board
@@ -111,14 +111,19 @@ below.
   use, and **3700 mAh is the biggest flat cell that fits it** (96 × 33.5 × 10.3);
   the heaviest part up front also keeps the centre of gravity low and forward. The
   latching power switch keeps that capacity from bleeding between sessions.
-- The baseplate screws up into **three posts** (two front corners + one in the
-  back gap between the boards; the back corners are taken by the standoffs). A
-  **cable relief** notch lets the keyboard cable exit and route to the front.
+- The baseplate screws up into **three bosses** (two front corners + one in the
+  back gap between the boards; the back corners are taken by the standoffs). Each
+  is a rectangular pad **fused into the walls it sits against** — the box in
+  `post_box` is driven straight through the shell and `body_outer()` trims it
+  flush, so the fusion can't drift when `wall` or `corner_r` moves. They start at
+  `bp_t` so the plate seats *under* them; the 2.6 mm void that leaves is the
+  plate's own volume, and the boss's first layer bridges off the wall. A **cable
+  relief** notch lets the keyboard cable exit and route to the front.
 
 ![The baseplate — PCB standoffs, front battery nibs, three screw clearances](renders/baseplate.png)
-![Exploded plan: deck/screen half lifted above the cavity — two boards, front battery, screw posts, ports](renders/plan.png)
+![Exploded plan: deck/screen half lifted above the cavity — two boards, front battery, screw bosses, ports](renders/plan.png)
 ![Top half (plan_up) — deck underside: the screen in its recess and the bracket bosses](renders/plan-up.png)
-![Bottom half (plan_down) — the cavity: PCB 1 back-left, PCB 2 back-right, battery front, posts, ports](renders/plan-down.png)
+![Bottom half (plan_down) — the cavity: PCB 1 back-left, PCB 2 back-right, battery front, bosses, ports](renders/plan-down.png)
 
 **Assembly order.**
 
@@ -127,7 +132,7 @@ below.
    into its front nibs.
 3. Connect the FPC through the slot; run the PCB 1 ↔ PCB 2 ribbon and battery
    leads to the charger.
-4. Screw the baseplate up into the three posts.
+4. Screw the baseplate up into the three bosses.
 
 ## Tune first
 
@@ -161,7 +166,7 @@ below.
   finds it).
 - **No feet on this version** (`feet_mode = "none"`). They are modelled and can
   come back as their own part with `feet_mode = "separate"` + `just stl-feet` —
-  four Ø14 × 3.5 discs, the front pair concentric with the screw posts and bored
+  four Ø14 × 3.5 discs, the front pair concentric with the screw bosses and bored
   for the heads so the baseplate still unscrews. What they must *not* go back to
   is `"fused"`: hanging off the plate they leave it resting on four small discs,
   turning the whole baseplate into a 3.5 mm overhang that wants support across its
@@ -255,7 +260,7 @@ below.
       ready as a separate part; see the screw-head note below before bringing them
       back or leaving them out for good.
 - [ ] **Baseplate screw heads are now the contact points.** With no feet the plate
-      sits flat on the desk and the three post screws protrude from its underside,
+      sits flat on the desk and the three boss screws protrude from its underside,
       so the case rocks on them and they drag on the surface. `bp_t` is only
       2.6 mm, so a counterbore is too deep to be safe — the fix is a countersink
       (~1.4 mm at 90°, leaving 1.2 mm of plate) plus flat-head screws. Not applied
