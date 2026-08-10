@@ -50,7 +50,7 @@ Baked into the model from the datasheets:
 - **PCB 2** (80 W × 20 D mm): µSD + two USB-C (charge, keyboard) + TP4056 charger;
   connectors overhang the board edge by 8 mm. Ø2 hole each corner.
 - **Battery:** LiPo 3700 mAh, 96 × 33.5 × 10.3 mm, flat in the front-right.
-- **Body:** 176 W × 104 D, 24 mm front → 58 mm back, deck reclined ~21°. Walls
+- **Body:** 176 W × 104 D, 26 mm front → 60 mm back, deck reclined ~21°. Walls
   2.4 mm, deck 2.6 mm, corner radius 8 mm.
 
 ## How the hardware goes in (glueless)
@@ -101,11 +101,20 @@ below.
   header side lands on the board's **back** edge, so the ~22 mm Dupont rows stay
   under the high rear of the wedge and the ribbon to PCB 2 stays short.
 
-  The board's **front edge is the tightest spot in the cavity**: the ceiling is
-  28.35 mm there, so a 22 mm stack on 3 mm standoffs clears by **0.75 mm**. That
-  is the reason `standoff_h` can't grow, and the reason the tall rows belong at the
-  back. If the front of the board ever has to carry something tall, the lever is
-  `Hf` — +2 mm buys 2 mm of headroom and costs ~1° of deck recline.
+  The board's **front edge is the tightest spot in the cavity**, and it is what
+  set the body's height. Turning the board moved it out of the tall rear into the
+  shallow front and cut the clearance over it from 8.5 mm to **0.75 mm** — positive,
+  but no margin at all, and the ~22 mm figure is the loosest measurement in the
+  model (how tall the F-F Dupont rows stand depends on how they seat). So `Hf`/`Hb`
+  carry **+2 mm** over the original 24/58: the ceiling is now 30.35 mm there and a
+  22 mm stack on 3 mm standoffs clears by **2.75 mm**.
+
+  That pair moves **together** on purpose. `theta` is their difference over the
+  pillar span, so a matched shift translates the deck plane vertically and leaves
+  the recline (21.12°), `deck_L`, `screen_cy` and the whole screen clamp untouched —
+  the only visible cost is a machine 2 mm taller at both ends. Raising `Hf` alone
+  would have flattened the deck by ~1°. `standoff_h` still can't grow and the tall
+  rows still belong at the back edge; the +2 is margin, not permission.
 - **PCB 2** back-right along the back wall (`pcb2_holes`); connectors poke out
   through the back-wall ports (`port_x` / `port_z`). From the right-wall end in:
   power switch, µSD, keyboard, charge.
@@ -138,7 +147,7 @@ below.
 ![Back elevation — the I/O all lives in the right half; the button sits above the port baseline](renders/back.png)
 - **LiPo** flat in the **front-right** in baseplate cage nibs (foam/VHB does the
   rest) — the void inside the **L** the two boards make, PCB 1 down the left and
-  PCB 2 across the back. The shallow (24 mm) front of the wedge is dead space the
+  PCB 2 across the back. The shallow (26 mm) front of the wedge is dead space the
   tall board stack can't use, and **3700 mAh is the biggest flat cell that fits it**
   (96 × 33.5 × 10.3); the heaviest part up front also keeps the centre of gravity
   low and forward. The latching power switch keeps that capacity from bleeding

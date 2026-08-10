@@ -60,8 +60,13 @@ kb_int_d  = kb_plate_d + 0.75;
 kb_d      = wall + kb_int_d;     // bay depth; the wedge's own front wall is the
                                  // SHARED wall between bay and cavity
 kb_floor  = 3.0;                 // integral bay floor (no baseplate up front)
-kb_post_h = 8.0;                 // floor -> PCB bottom << VERIFY vs USB slot >>
-Hk        = 22;                  // bay rim: hides the plate edge, caps sit proud
+// CONTRACT: these two track Hf. Hf is the bay/cavity shared wall, so the wall
+// behind the TOP KEY ROW rises with it while the keyboard stack does not — at the
+// base file's +2 and these left at 8.0 / 22 the caps drop from 3.1 mm proud of
+// that wall to 1.1 and the back row sits in a well. Both carry the same +2, which
+// restores 3.1 proud of the wall and 5.1 of the front rim exactly.
+kb_post_h = 10.0;                // floor -> PCB bottom << VERIFY vs USB slot >>
+Hk        = 24;                  // bay rim: hides the plate edge, caps sit proud
 DT        = kb_d + D;            // total body depth
 
 // width now comes from the keyboard, not the screen — this override reflows the

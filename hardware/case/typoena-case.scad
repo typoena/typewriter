@@ -46,8 +46,15 @@ panel_slip  = 0.7;
 // ---- body envelope --------------------------------------------------------
 W        = 176;   // width  (X)  — screen 150.9 + bezel + walls
 D        = 104;   // depth  (Y)  — front (keyboard) .. back (ports)
-Hf       = 24;    // height at the FRONT edge
-Hb       = 58;    // height at the BACK edge  (Hf<Hb makes the reclined deck)
+// The two heights MOVE AS A PAIR: theta is their difference over the pillar span,
+// so shifting both by the same amount translates the whole deck plane vertically
+// and leaves the recline, deck_L, screen_cy and the entire screen clamp untouched.
+// That is what the +2 over the original 24/58 bought — headroom over PCB 1's front
+// edge, which turning the board on end had cut to 0.75. See standoff_h.
+// In the kb variant Hf is also the bay/cavity SHARED WALL, so Hk and kb_post_h
+// must move with it or the top keycap row sinks into the wall — see README-kb.md.
+Hf       = 26;    // height at the FRONT edge
+Hb       = 60;    // height at the BACK edge  (Hf<Hb makes the reclined deck)
 wall     = 2.4;   // side/back wall thickness
 top_wall = 2.6;   // deck thickness (before the bezel lip is cut into it)
 corner_r = 8;     // rounded vertical + top-edge radius (the "machined" look)
@@ -143,9 +150,10 @@ br_m  = 9;     // the other three
 // ---- mounting, boards & battery (defined here: the ports below depend on it)
 bp_t           = 2.6;    // baseplate thickness
 standoff_h     = 3;      // board standoff height. PCB 1's FRONT edge is the tight
-                         // spot in the whole cavity: the ceiling is 28.35 there
+                         // spot in the whole cavity: the ceiling is 30.35 there
                          // (see pcb1_y0), so the 22 mm stack on 3 mm standoffs
-                         // clears by 0.75. Nothing taller than 3 goes in.
+                         // clears by 2.75 — and only because Hf/Hb carry +2 for
+                         // exactly this. At the original 24/58 it was 0.75.
 standoff_pilot = (1.6 + print_bloat)/2;   // pilot Ø1.6 for an M2 self-tapper
                          // (PCB holes are Ø2) — see post_pilot on the compensation
 pcb_t          = 1.6;    // PCB thickness (for port-height maths)
@@ -161,7 +169,7 @@ pcb_t          = 1.6;    // PCB thickness (for port-height maths)
 pcb1_x0 = 4;             pcb1_x1 = pcb1_x0 + 50;   // X  4 .. 54
 // Y 26 .. 96. Both ends are hard against something: the back edge keeps 5.6 mm
 // for the ribbon to leave, and the front edge is where the wedge's ceiling
-// (28.35) comes closest to the 22 mm stack — see standoff_h.
+// (30.35) comes closest to the 22 mm stack — see standoff_h.
 pcb1_y0 = 26;            pcb1_y1 = pcb1_y0 + 70;
 pcb1_h  = 22;            // tallest point (rigid stack + vertical Dupont)
 // PCB 2 = µSD + 2x USB-C + TP4056. 80(X) x 20(Y), along the BACK wall, right end;

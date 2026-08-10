@@ -40,9 +40,19 @@ translated back by the bay depth. The bay is additive:
   the same part gives the 226.5 × 73.5 outline and puts the USB notch rear-left,
   37.25 mm in, not centred).
   Plate floats on the switches, walls locate it with 0.75 mm wiggle. The rim
-  (`Hk = 22` at the front) hides the plate edge, caps sit proud; toward the
+  (`Hk = 24` at the front) hides the plate edge, caps sit proud; toward the
   deck it rises to meet the wedge's front-top edge flush, so bay and deck
   join without a seam.
+
+  **`Hk` and `kb_post_h` track the base model's `Hf`.** `Hf` isn't only the
+  wedge's front height here — it *is* the bay/cavity shared wall, the wall behind
+  the top key row. Raise it and that wall climbs while the keyboard stack stays
+  put: at the base model's +2 with these left alone, the caps drop from **3.1 mm
+  proud of the wall to 1.1 mm** and the back row sits in a well. Both carry the
+  same +2 (`Hk` 22→24, `kb_post_h` 8→10), which restores 3.1 mm over the wall and
+  5.1 mm over the front rim exactly, and the plate stays hidden. `kb_cable_cut`
+  derives from `kb_pcb_z`, so the USB passthrough follows the taller posts on its
+  own — no third number to chase.
 - **Internal USB.** The keyboard stays a stock QMK device. Its cable leaves
   through a slot in the shared wall into the wedge cavity. PCB 2's keyboard
   USB-C faces **out** the back wall, so it can't take an internal plug — PCB 2
@@ -81,7 +91,9 @@ model asserts if they drift.
       the shared-wall slot and clear PCB 2's cavity side. The slot is rear-left
       now, so re-check it against PCB 2's position rather than assuming centre.
 - [ ] **MIT stabiliser clearance** — a 2u space wants a PCB-mount stab hanging
-      below the PCB; confirm `kb_post_h = 8` still leaves room over the bay floor.
+      below the PCB; confirm `kb_post_h = 10` still leaves room over the bay floor.
+      It now sits the PCB 13 mm up off a 3 mm floor, so there is 10 mm under the
+      board — the +2 that came with the body's height helps here.
 - [ ] **PCB 2 header** for the internal keyboard cable (4-pin, parallel to the
       keyboard USB-C) — decide JST-PH vs soldered pigtail.
 - [ ] Everything on the base model's own list (battery dims, active-area offset).
