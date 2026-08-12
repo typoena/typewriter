@@ -61,33 +61,76 @@ No glue on the fragile 1 mm glass; every part stays serviceable.
 
 **Screen.** The glass drops into the deck recess from behind (the walls locate it
 in X/Y). Front to back the stack is: deck **bezel lip** (covers the inactive
-border only, `lip_t = 1.4 mm`) → **glass** → non-adhesive closed-cell **foam**
-gasket (`foam_t = 3 mm` free, squashed to `foam_c = 2.6`) → printed **bracket**
+border only, `lip_t = 2.4 mm`) → **glass** → non-adhesive closed-cell **foam**
+gasket (`foam_t = 5 mm` free, squashed to `foam_c = 3.5` — a 30% squash) → printed
+**bracket**
 screwed to 4 bosses. The lip stops the glass falling out the front; the bracket
 stops it dropping into the cavity. The FPC folds back through an internal
 clearance on the **left** (kept under the bezel, so invisible outside) to PCB 1's
 driver. For a screwless build, cantilever clips work but point-load the glass
 edge; I'd default to foam + bracket.
 
-The bosses' **free ends are the bracket's seating face** (`br_seat = 5 mm` below
+The bosses' **free ends are the bracket's seating face** (`br_seat = 6.9 mm` below
 the deck's outer face). The screw pulls the bracket onto that shoulder and stops,
 so the foam squash — and therefore the clamp on a brittle panel — is set by
 geometry rather than by how hard you turn the screwdriver. That is also why the
-foam is 3 mm and not 1: the seat has to sit far enough behind the glass to leave
-the boss **4 mm of blind M2 bite**, which **sizes the screw at M2 × 6**. Longer
-and it bottoms out before the bracket seats. The pilot stops `pilot_skin = 1 mm`
-short of the deck's outer face, so nothing shows on the side the user looks at.
+foam is 5 mm and not 1: the seat has to sit far enough behind the glass to leave
+the boss room for a **heat-set insert** (see *Fasteners* below). The bore stops
+`pilot_skin = 2.0 mm` short of the deck's outer face, so nothing shows on the side
+the user looks at — and that skin, not the thread, is what set `lip_t`.
 
 Locating tolerances, once the printer's `print_bloat` is taken off: the pocket
 gives the glass **0.25 mm of play per side** in X and Y, against a window margin
 of 1.00 mm (X) / 0.50 mm (Y) over the active area — so a drifted panel shifts the
 bezel by a quarter of a millimetre and can never clip a pixel. Both numbers derive
 from `print_bloat`, so a mis-calibrated extruder moves them together. Don't try to
-make the bracket locate anything: its own clearance holes float ±0.7 mm on the
-screws. The pocket locates, the bracket only clamps.
+make the bracket locate anything either way: its clearance holes are **Ø3.9 on a
+Ø3.5 shank**, deliberately sloppy. The pocket locates, the bracket only clamps.
 
 ![Midline section: glass clamped between front lip and rear foam + bracket](renders/section.png)
 ![The bracket — four corner holes, window clears the active area, left edge relieved for the FPC](renders/bracket.png)
+
+**Fasteners.** Everything that screws into the **body** uses one family: a
+**ruthex RX-6-32×3.8** brass heat-set insert (Ø5.4 flange / Ø4.7 body, 3.8 long,
+datasheet bore **Ø4.8 × 4.8 min**, **1.8 mm minimum wall**) taking a **#6-32** pan
+screw — 7 mm of thread under a flat 1 mm × Ø6.5 head. Both parts are measured, not
+catalogue numbers. These are the two joints that get *opened*: the baseplate on
+every service, the bracket on every glass swap, and a self-tapped thread in PLA is
+good for a handful of cycles before it's a stripped hole in a 10-hour print.
+
+| | bracket → deck (×4) | baseplate → body (×3) |
+| --- | --- | --- |
+| boss | Ø8.9 (was Ø6.8), **1.8 mm** of wall | rectangular pad, **2.35 mm** to the free faces |
+| bore | Ø4.8 × 4.9 blind, **2.0 mm of deck** left over it | Ø4.8 × 7.1 blind, 2.9 mm of roof |
+| screw crosses | 3.6 mm of bracket | 1.4 mm of plate |
+| thread in brass | **2.9 mm** | **3.8 mm** (the whole insert) |
+| head | bears on the bracket, inside the case | in a **lamage** in the plate's underside, flush with the desk |
+
+(Wall figures are the *modelled* ones, taken off the modelled bore — the bore
+prints ~0.5 under and the boss ~0.5 over, so the real part has ~0.25 mm more a side
+than the table claims. The asserts check the pessimistic number.)
+
+Both bores get a **Ø5.8 × 0.5 flange relief** at the mouth: a flange that stops
+proud holds the mating part off its seat, and that would spend the foam preload or
+rock the plate. The bore is deliberately *deeper* than the insert (it has to take
+the screw tip), so **the flange relief is the only stop** — press until the flange
+bottoms and the face is flat, and don't chase depth by feel.
+
+The **PCBs are not in this family.** They screw *down* into the baseplate, whose
+standoffs are 3 mm tall — nowhere near an insert's 4.8 mm bore, and growing them
+would spend the 2.75 mm of ceiling over PCB 1's front edge that the body's +2 mm
+was bought to get. They stay **M2 self-tappers into Ø1.6 pilots**.
+
+The depth budget is why `lip_t` went 1.4 → 2.4 and `bracket_t` 2.6 → 3.6. Between
+the bracket's seat and the deck's *outer face* there is only `br_seat`, and the
+bore eats it from below: 6.9 = bore 4.9 + skin 2.0. At the old numbers that sum came
+to 5.9 against a `br_seat` of 5.9 — the bore would have surfaced **exactly** on the
+machine's showpiece face, with the screw tip arriving there and the iron melting
+brass into it. There is nowhere else to buy that skin, so it came half from
+the visible lip (a deeper bezel well) and half from the invisible bracket, and the
+glass ends up 1 mm deeper in a stiffer clamp. `typoena-case.scad` **asserts** the
+walls, the skin, the roof and the thread engagement — a plausible-looking edit to
+any of those four numbers fails the render instead of the print.
 
 **Boards.** Mount everything to the **baseplate** on the bench, then close from
 below.
@@ -155,9 +198,10 @@ below.
 
   It is **not centred on the case** — the front-left corner it used to cross is the
   flex plenum, and that is the point of the layout. X is boxed in both ways: PCB 1's
-  edge at 54 and the front-right screw boss's free face at 160.5 leave a 106.5 mm
-  band for a 96 mm cell, so the **6 / 4.5 mm either side is all the slack there
-  is** — a fatter cell has to come out of the plenum or out of `W`.
+  edge at 54 and the front-right screw boss's free face at 160.0 leave a 106.0 mm
+  band for a 96 mm cell, so the **6 / 4.0 mm either side is all the slack there
+  is** — a fatter cell has to come out of the plenum or out of `W`. (It was 4.5:
+  `post_pad` grew 0.5 to keep 2.35 mm of wall around the insert bore.)
 - The baseplate screws up into **three bosses** (two front corners + one in the
   back gap between the boards; the back corners are taken by the standoffs). Each
   is a rectangular pad **fused into the walls it sits against** — the box in
@@ -166,12 +210,14 @@ below.
   `bp_t` so the plate seats *under* them; the 2.6 mm void that leaves is the
   plate's own volume, and the boss's first layer bridges off the wall. They are
   only `post_h` = **10 mm** tall: the walls carry the boss, so height is purely
-  thread engagement, and an 8 mm blind pilot gives ~7.4 mm of M2.5 bite (≈3× its
-  Ø) once the screw has crossed the 2.6 mm plate. Running them to the deck was
-  67% more plastic propping nothing the walls weren't already carrying. **This
-  sizes the screw at M2.5 × 10** — a ×12 bottoms out on the roof and jacks the
-  plate. A **cable relief** notch lets the keyboard cable exit and route to the
-  front.
+  about clearing the Ø4.8 × 7.1 insert bore with a roof left on it. Running them
+  to the deck was 67% more plastic propping nothing the walls weren't already
+  carrying. The insert goes in from **below**, into the boss face the plate seats
+  against — the iron reaches it straight down through the open bottom of the shell,
+  so press all three *before* any board goes in. The **back** post sits 7.5 mm off
+  the wall's inner face (was 6): the plate has to keep ≥3 mm of rim outboard of the
+  Ø7.4 lamage for the head to pull against, and at 6 that rim was 1.55 mm. A
+  **cable relief** notch lets the keyboard cable exit and route to the front.
 
 ![The baseplate — PCB standoffs, front-right battery nibs, three screw clearances](renders/baseplate.png)
 ![Exploded plan: deck/screen half lifted above the cavity — two boards, front-right battery, screw bosses, ports](renders/plan.png)
@@ -180,8 +226,13 @@ below.
 
 **Assembly order.**
 
+0. **Press the 7 inserts first, on the bare body**: 4 into the bracket bosses under
+   the deck, 3 into the baseplate bosses (from below). Iron at ~250 °C, straight
+   in, stop when the flange bottoms in its relief and the face is flat. The
+   bracket four point at the deck's visible face with 2 mm of PLA behind them —
+   these are the ones to go slowly on.
 1. Lay glass into the deck recess, add foam, screw the bracket to the 4 bosses
-   (M2 × 6). Drive them until the bracket sits flat on the boss shoulders and
+   (#6-32 × 7). Drive them until the bracket sits flat on the boss shoulders and
    stop — the shoulder is the stop, not the foam.
 2. Screw PCB 1 (back-left, FPC end forward) and PCB 2 (back-right) to the
    standoffs; set the LiPo into its front-right nibs.
@@ -223,7 +274,8 @@ below.
 - **No feet on this version** (`feet_mode = "none"`). They are modelled and can
   come back as their own part with `feet_mode = "separate"` + `just stl-feet` —
   four Ø14 × 3.5 discs, the front pair concentric with the screw bosses and bored
-  for the heads so the baseplate still unscrews. What they must *not* go back to
+  at the lamage Ø so a **driver** still reaches the recessed head (a shank-sized
+  hole would put it out of reach and the plate could never come off). What they must *not* go back to
   is `"fused"`: hanging off the plate they leave it resting on four small discs,
   turning the whole baseplate into a 3.5 mm overhang that wants support across its
   footprint, standoffs and nibs floating above it. As it stands all three parts
@@ -323,17 +375,31 @@ below.
       and still look wrong. Run a full black/white refresh through the extension
       on the bench and compare against the direct connection before the body
       print commits the geometry.
+- [ ] **The 7 heat-sets are the one irreversible step on the body print.** The
+      geometry is checked (walls, skin, roof and thread engagement are asserted;
+      the screw and insert envelopes were booleaned against the solids and come
+      back empty), but nothing in the model can hold the **iron**. Two live risks
+      on the first body:
+      - **Over-pressing the bracket four.** The bore is 4.9 deep for a 3.8 insert,
+        so there is ~1.1 mm of slack under a flange that has already bottomed, and
+        only **2.0 mm of deck** past that — on the face the user looks at. Press to
+        the flange relief and stop; if a first deck dimples or blushes there, take
+        `lip_t` up before touching anything else (each +1 is +1 of skin, and the
+        only cost is a deeper bezel well).
+      - **The screw length is a tape-measure datum.** Bore depths are budgeted at
+        `scr_thread_max = 8` against a measured 7, so a 7.5 mm batch is already
+        covered; a 10 mm one is not, and on the bracket it would arrive at the
+        deck skin. Caliper one screw before driving 4 into the deck.
 - [ ] Optional **hinged lid** over the deck (protects the glass in a bag) — called
       for in `docs/hardware.md`, not yet modelled.
 - [ ] Feet — **deferred to a later version** (`feet_mode = "none"`). Modelled and
-      ready as a separate part; see the screw-head note below before bringing them
-      back or leaving them out for good.
-- [ ] **Baseplate screw heads are now the contact points.** With no feet the plate
-      sits flat on the desk and the three boss screws protrude from its underside,
-      so the case rocks on them and they drag on the surface. `bp_t` is only
-      2.6 mm, so a counterbore is too deep to be safe — the fix is a countersink
-      (~1.4 mm at 90°, leaving 1.2 mm of plate) plus flat-head screws. Not applied
-      yet: it depends on which screws are actually used.
+      ready as a separate part. With the heads now flush there is nothing forcing
+      them back: the plate sits flat on the desk on its own face.
+- [x] ~~**Baseplate screw heads are now the contact points.**~~ Solved by the
+      **lamage**: Ø7.4 × 1.2 flat-bottomed, so the flat 1 mm head finishes 0.2
+      below the face the machine stands on, with 1.4 mm of plate left over it. The
+      countersink this note proposed is the wrong tool for a flat head — a cone
+      would touch it on one rim circle instead of its whole underside.
 
 ### The panel measurement
 
