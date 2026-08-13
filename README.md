@@ -1,5 +1,9 @@
 # Typoena
 
+<p align="center">
+  <img src="docs/assets/typo.svg" alt="Typo, o tucano" width="160">
+</p>
+
 A distraction-free, hackable, DIY writing machine. ESP32-S3 + e-ink + a real
 mechanical keyboard. You write Markdown, you commit, you push. Nothing else
 runs on it.
