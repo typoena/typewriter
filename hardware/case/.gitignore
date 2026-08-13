@@ -1,4 +1,4 @@
-# generated mesh exports — regenerate with `just stl`
-*.stl
+# the STLs themselves are committed (regenerate with `just stl`); only the
+# handoff bundles are generated on demand
 stl.zip
 stl-kb.zip
