@@ -120,7 +120,9 @@ bottoms and the face is flat, and don't chase depth by feel.
 The **PCBs are not in this family.** They screw *down* into the baseplate, whose
 standoffs are 3 mm tall — nowhere near an insert's 4.8 mm bore, and growing them
 would spend the 2.75 mm of ceiling over PCB 1's front edge that the body's +2 mm
-was bought to get. They stay **M2 self-tappers into Ø1.6 pilots**.
+was bought to get. They stay **M2 self-tappers into Ø1.6 pilots**, and that Ø1.6
+is the *modelled* number — the pilots are exempt from `print_bloat` (like
+`pwr_fit`), because a self-tapper wants the printed hole tight, not nominal.
 
 The depth budget is why `lip_t` went 1.4 → 2.4 and `bracket_t` 2.6 → 3.6. Between
 the bracket's seat and the deck's *outer face* there is only `br_seat`, and the

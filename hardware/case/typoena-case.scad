@@ -54,7 +54,7 @@ panel_slip  = 0.7;
 // handful of cycles and then it is a stripped hole in a 10-hour print.
 // The PCBs are NOT in this family: they screw DOWN into the baseplate, whose
 // standoffs are 3 mm tall — nowhere near an insert's depth. They stay M2
-// self-tappers into Ø1.6 pilots (see standoff_pilot).
+// self-tappers into Ø1.6 pilots, modelled AS PRINTED (see standoff_pilot).
 ins_hole_d  = 4.8;   // hole the datasheet asks for, AS PRINTED (blind or through)
 ins_min_h   = 4.8;   // ...and its minimum DEPTH. Same number as the diameter by
                      // coincidence only — never fold the two together
@@ -220,12 +220,12 @@ standoff_h     = 3;      // board standoff height. PCB 1's FRONT edge is the tig
                          // (see pcb1_y0), so the 22 mm stack on 3 mm standoffs
                          // clears by 2.75 — and only because Hf/Hb carry +2 for
                          // exactly this. At the original 24/58 it was 0.75.
-standoff_pilot = (1.6 + print_bloat)/2;   // pilot Ø1.6 for an M2 self-tapper
-                         // (PCB holes are Ø2). The last self-tapped thread in the
-                         // model — everything screwing into the BODY takes a
-                         // heat-set insert now. A self-tapper wants a tight pilot,
-                         // but the compensation still has to be there: Ø1.6
-                         // printing as Ø1.1 is past tight and splits the standoff.
+standoff_pilot = 1.6/2;  // pilot Ø1.6 for an M2 self-tapper (PCB holes are Ø2).
+                         // The last self-tapped thread in the model — everything
+                         // screwing into the BODY takes a heat-set insert now.
+                         // Exempt from print_bloat, like pwr_fit: a self-tapper
+                         // wants the PRINTED hole tight, and Ø1.6 + bloat printed
+                         // near the screw's own Ø2, leaving nothing to bite.
 pcb_t          = 1.6;    // PCB thickness (for port-height maths)
 // PCB 1 = ESP32 devkit + e-ink driver + MT3608 boost. 50(X) x 70(Y), back-LEFT,
 // long axis running FRONT-BACK. Standing it up out of the old 70(X) x 50(Y) is
