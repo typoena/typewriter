@@ -36,6 +36,11 @@ $fn = 20;
 // once and every fit below derives from it — recalibrate the extruder and this
 // is a one-line change instead of a sweep. XY only: Z is layer height, and the
 // first-layer squish is the slicer's elephant-foot setting, not this.
+// RULE: compensate a hole only when a PART has to end up inside it — glass,
+// ribbon, connector, insert, plate, screw head. A hole a fastener merely drives
+// through is left at nominal and the screw is turned harder; paying 0.5 mm there
+// only thins the wall around it. Self-tapping pilots go further and WANT the
+// printed hole under nominal (standoff_pilot, pwr_fit).
 // The value is still an estimate off the jammed first coupon. The I/O coupon
 // measures it exactly — caliper its openings against nominal and set this to
 // the delta before the body print (see README, "Printer offset").
@@ -189,10 +194,8 @@ boss_r     = boss_bore + ins_wall;            // Ø8.9 modelled. Taken off the
                      // MODELLED bore, not the printed one, so the wall the assert
                      // checks is the pessimistic one — the bore prints under and
                      // the boss over, both in our favour.
-br_screw_r = (scr_clear_d + print_bloat)/2;   // #6-32 clearance through the bracket.
-                     // The M3 line fit this replaces was an open worry in the
-                     // README: Ø3.0 modelled against an M3's Ø3.0 shank had no
-                     // clearance at all and depended on print_bloat being right.
+br_screw_r = scr_clear_d/2;   // #6-32 clearance through the bracket. Uncompensated:
+                     // a screw that meets a tight hole is turned through it.
 // Bracket fixing points, in GLASS-local X/Y (the bracket is placed on the glass,
 // so these are its hole positions and the bosses' positions both).
 // Both pairs already clear the glass pocket in Y, so their X is free to slide —
@@ -361,15 +364,17 @@ foot_h     = 3.5;
 //              battery nibs floating above it. The other two modes print
 //              flat-face-down with every feature growing upward off the bed.
 feet_mode = "none";
-// Screw features are all holes a real fastener passes through or bites into, so
-// each is written as its true diameter + print_bloat, halved for a radius.
 // ---- the three baseplate screws (#6-32 into body inserts) -----------------
 // The head sits in a LAMAGE in the plate's underside, flush with the face that
 // rests on the desk. With feet_mode="none" that face IS the machine's contact
 // patch: heads left proud would be the four points it stands on, and the plate
 // would rock on three of them.
-bp_screw_r = (scr_clear_d + print_bloat)/2;      // shank clearance through the plate
-bp_head_r  = (scr_head_d + 0.4 + print_bloat)/2; // lamage: Ø6.5 head + 0.4 slop
+bp_screw_r = scr_clear_d/2;                      // shank clearance through the plate,
+                     // uncompensated like every other screw hole — turned through.
+bp_head_r  = (scr_head_d + 0.4 + print_bloat)/2; // lamage: Ø6.5 head + 0.4 slop.
+                     // The ONE screw feature still compensated: a head cannot be
+                     // turned into a hole that is under its own Ø, it just stops
+                     // proud — and proud heads are what this plate stands on.
 bp_head_h  = scr_head_h + 0.2;   // flat-bottomed, 0.2 deeper than the head so it
                      // can only ever end up below the face, never level with it.
                      // Z, so layer height governs this, not print_bloat.

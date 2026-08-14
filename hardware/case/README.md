@@ -85,8 +85,10 @@ gives the glass **0.25 mm of play per side** in X and Y, against a window margin
 of 1.00 mm (X) / 0.50 mm (Y) over the active area — so a drifted panel shifts the
 bezel by a quarter of a millimetre and can never clip a pixel. Both numbers derive
 from `print_bloat`, so a mis-calibrated extruder moves them together. Don't try to
-make the bracket locate anything either way: its clearance holes are **Ø3.9 on a
-Ø3.5 shank**, deliberately sloppy. The pocket locates, the bracket only clamps.
+make the bracket locate anything either way: the pocket locates, the bracket only
+clamps. Its clearance holes are **Ø3.9 modelled on a Ø3.5 shank** and are *not*
+compensated, so they print near the shank — drive the screws through the bracket
+rather than expecting it to drop over them.
 
 ![Midline section: glass clamped between front lip and rear foam + bracket](renders/section.png)
 ![The bracket — four corner holes, window clears the active area, left edge relieved for the FPC](renders/bracket.png)
@@ -338,8 +340,11 @@ below.
       left in it. The dry-fit also checks the 8/7/5 gaps the X chain trusts.
 - [ ] **Confirm `print_bloat` on the coupon.** The machine over-extrudes ~0.5 mm
       on diameter — holes that much small, outer features that much large. Every
-      fit in the model now derives from the single `print_bloat` constant, so the
-      value is one line to change and nothing else moves. It is still an *estimate*
+      fit in the model derives from the single `print_bloat` constant, so the
+      value is one line to change and nothing else moves. Only holes a *part* has
+      to end up inside are compensated (glass, ribbon, connectors, inserts, plate,
+      screw head); a hole a fastener merely drives through stays at nominal and the
+      screw is turned harder. It is still an *estimate*
       off the jammed first coupon: caliper the printed coupon's openings against
       nominal (9.7 × 4.2, 15.2 × 3.2) and set `print_bloat` to the delta
       before committing to the 10-hour body print. Compensation is XY only — Z is
