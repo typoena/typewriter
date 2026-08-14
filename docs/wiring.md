@@ -27,13 +27,16 @@
 | 21        | `CHRG` (optional)      | HW-373 charge status, open-drain, low = charging       |
 | 0         | BOOT button            | Devkit strapping pin; QC operator confirm              |
 | 48        | WS2812 LED             | On-devkit RGB (board rev v1.0 — not 38)                |
-| ⟨TBD⟩     | `PWR_HOLD`             | Output → 2N7002 gate (see power signals below)         |
-| ⟨TBD⟩     | `PWR_SENSE`            | Input, internal pull-up ← button via 10 kΩ             |
-| ⟨TBD⟩     | Battery sense (v0.10)  | Must be **ADC1** (GPIO 1/8/9) — Wi-Fi disables ADC2    |
+| 40        | `PWR_HOLD`             | Output → 2N7002 gate (see power signals below)         |
+| 41        | `PWR_SENSE`            | Input, internal pull-up ← button via 10 kΩ             |
+| 1         | Battery sense (v0.10)  | **ADC1** — Wi-Fi disables ADC2                         |
 
-Free for later: 1, 2, 8, 9 (ADC1), 16/17/18, 38, 39, 40, 41, 42, 47.
+Free for later: 2, 8, 9 (ADC1), 16/17/18, 38, 39, 42, 47.
 Off-limits: 26–37 (flash + octal PSRAM), 43/44 (console UART), 0/3/45/46
 (strapping).
+
+The three power GPIOs (40, 41, 1) were fixed by the PCB 1 layout — rationale in
+[`hardware/pcb/README.md`](../hardware/pcb/README.md#decisions-this-board-forced).
 
 ## E-paper — DESPI-C579 header → devkit (PCB 1)
 
@@ -97,17 +100,17 @@ devkit's **5V pin** and the keyboard VBUS; all grounds are common.
 
 | Signal        | GPIO  | Wiring                                                                |
 | ------------- | ----- | --------------------------------------------------------------------- |
-| `PWR_HOLD`    | ⟨TBD⟩ | → 2N7002 gate (100 kΩ pulldown)                                       |
-| `PWR_SENSE`   | ⟨TBD⟩ | ← button through 10 kΩ series, internal pull-up                       |
+| `PWR_HOLD`    | 40    | → 2N7002 gate (100 kΩ pulldown)                                       |
+| `PWR_SENSE`   | 41    | ← button through 10 kΩ series, internal pull-up                       |
 | `CHRG`        | 21    | ← HW-373 charge-status pad, one wire (optional — pad access unconfirmed) |
-| Battery sense | ⟨TBD⟩ | Planned (v0.10): 100k/100k divider + 100 nF into ADC1 — or MAX17048   |
+| Battery sense | 1     | Planned (v0.10): 100k/100k divider + 100 nF into ADC1 — or MAX17048   |
 
 ## Off-board connectors
 
 | Connector    | Family                | Wiring                                                                                       |
 | ------------ | --------------------- | -------------------------------------------------------------------------------------------- |
 | Battery      | JST-PH 2.0 mm 2-pin   | Pack plug → PCB 2 pigtail. :alert-triangle: polarity not standardized — verify red = B+ first |
-| Power button | JST-XH 2.54 mm 2-pin  | Panel-mount button → latch-gate net + GND; gate signal only (µA)                             |
+| Power button | JST-XH 2.54 mm 2-pin  | Panel-mount button → `J5` on PCB 1: latch-gate net + GND; gate signal only (µA). LED wires left unwired |
 | Panel FPC    | 24-pin FPC            | Folds back through the case's internal clearance slot into the DESPI-C579                    |
 
 ## PCB 1 ↔ PCB 2 harness
@@ -118,10 +121,12 @@ the case README). Nets crossing the boards:
 
 - SD SPI: GPIO 14/15/13/10 + 3V3 + GND
 - Keyboard USB: GPIO 19/20 + 5 V (VBUS) + GND
-- Power: load node → MT3608 input (the soft-latch feed), plus `PWR_HOLD`,
-  `PWR_SENSE`, and optional `CHRG`
-- ⟨TBD⟩ which board hosts the discrete power-path parts (FETs, diodes, latch
-  network) — placement not yet decided
+- Power: mains 5 V (charge USB-C VBUS / HW-373) and battery OUT+ from PCB 2 into
+  the power path on PCB 1, plus optional `CHRG`
+
+The discrete power-path parts (FETs, diodes, latch network) all sit on **PCB 1**
+with the MCU and the button connector `J5`, so `PWR_HOLD`/`PWR_SENSE` never
+cross the harness. PCB 2 (20 × 80 mm) had no room left.
 
 ## Devkit pinout (board rev v1.0)
 
