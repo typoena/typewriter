@@ -77,7 +77,7 @@ so the foam squash — and therefore the clamp on a brittle panel — is set by
 geometry rather than by how hard you turn the screwdriver. That is also why the
 foam is 5 mm and not 1: the seat has to sit far enough behind the glass to leave
 the boss room for a **heat-set insert** (see *Fasteners* below). The bore stops
-`pilot_skin = 2.0 mm` short of the deck's outer face, so nothing shows on the side
+`pilot_skin = 2.1 mm` short of the deck's outer face, so nothing shows on the side
 the user looks at — and that skin, not the thread, is what set `lip_t`.
 
 Locating tolerances, once the printer's `print_bloat` is taken off: the pocket
@@ -94,51 +94,53 @@ rather than expecting it to drop over them.
 ![The bracket — four corner holes, window clears the active area, left edge relieved for the FPC](renders/bracket.png)
 
 **Fasteners.** Everything that screws into the **body** uses one family: a
-**ruthex RX-6-32×3.8** brass heat-set insert (Ø5.4 flange / Ø4.7 body, 3.8 long,
-datasheet bore **Ø4.8 × 4.8 min**, **1.8 mm minimum wall**) taking a **#6-32** pan
-screw — 7 mm of thread under a flat 1 mm × Ø6.5 head. Both parts are measured, not
+**ruthex RX-6-32×3.8** brass heat-set insert (Ø4.7 body, 3.8 long, datasheet bore
+**Ø4.8 × 4.8 min**, **1.8 mm minimum wall**) taking a **#6-32** pan screw — 7 mm
+of thread under a flat 1 mm × Ø6.5 head. Both parts are measured, not
 catalogue numbers. These are the two joints that get *opened*: the baseplate on
 every service, the bracket on every glass swap, and a self-tapped thread in PLA is
 good for a handful of cycles before it's a stripped hole in a 10-hour print.
 
 | | bracket → deck (×4) | baseplate → body (×3) |
 | --- | --- | --- |
-| boss | Ø8.9 (was Ø6.8), **1.8 mm** of wall | rectangular pad, **2.35 mm** to the free faces |
-| bore | Ø4.8 × 4.9 blind, **2.0 mm of deck** left over it | Ø4.8 × 7.1 blind, 2.9 mm of roof |
+| boss | Ø8.9 (was Ø6.8), **2.05 mm** of wall | rectangular pad, **2.6 mm** to the free faces |
+| bore | Ø4.8 × 4.8 blind, **2.1 mm of deck** left over it | Ø4.8 × 6.6 blind, 3.4 mm of roof |
 | screw crosses | 3.6 mm of bracket | 1.4 mm of plate |
-| thread in brass | **2.9 mm** | **3.8 mm** (the whole insert) |
+| thread in brass | **3.4 mm** | **3.8 mm** (the whole insert) |
 | head | **no lamage** — bears on the bracket's face, inside the case | in a **lamage** in the plate's underside, flush with the desk |
 
-The only lamage in the model is that one, under the three baseplate heads. The
-step you can see inside *every* boss — bracket and baseplate alike — is the
-Ø5.8 × 0.5 **flange relief**, sunk so the insert's Ø5.4 flange finishes below
-the seat instead of holding the mating part off it. Different feature, different
-job: one clears a screw head, the other clears a brass flange.
+Both bores are **plain Ø4.8 cylinders** — no relief, no step, no lead-in for the
+insert's head end: the iron melts its own seat, so the bore is not a clearance fit
+and nothing about the insert's outline is modelled. The **lamage** under the three
+baseplate heads is now the only counterbore in the model.
 
-(Wall figures are the *modelled* ones, taken off the modelled bore — the bore
-prints ~0.5 under and the boss ~0.5 over, so the real part has ~0.25 mm more a side
-than the table claims. The asserts check the pessimistic number.)
+That Ø4.8 is the *modelled* number and it is **exempt from `print_bloat`**, like
+`standoff_pilot` and `pwr_fit`: a hole a fastener melts (or cuts) its way into
+wants the printed hole tight, not nominal. Compensated, it would print at Ø4.8
+around a Ø4.7 body and leave the brass loose in the hole it should be gripping.
+The wall figures in the table are taken off that modelled bore, so the real part
+has ~0.25 mm more a side than the table claims — the asserts check the pessimistic
+number.
 
-Both bores get a **Ø5.8 × 0.5 flange relief** at the mouth: a flange that stops
-proud holds the mating part off its seat, and that would spend the foam preload or
-rock the plate. The bore is deliberately *deeper* than the insert (it has to take
-the screw tip), so **the flange relief is the only stop** — press until the flange
-bottoms and the face is flat, and don't chase depth by feel.
+Both bores are deliberately **deeper than the insert** (they have to swallow the
+screw tip), and with the relief gone **nothing in the part stops the press**. Sink
+each insert flush with the boss's free end by eye or with a depth stop on the iron:
+that face is a seating face on both joints — proud brass spends the foam preload on
+the bracket, and rocks the plate on the baseplate.
 
 The **PCBs are not in this family.** They screw *down* into the baseplate, whose
 standoffs are 3 mm tall — nowhere near an insert's 4.8 mm bore, and growing them
 would spend the 2.75 mm of ceiling over PCB 1's front edge that the body's +2 mm
-was bought to get. They stay **M2 self-tappers into Ø1.6 pilots**, and that Ø1.6
-is the *modelled* number — the pilots are exempt from `print_bloat` (like
-`pwr_fit`), because a self-tapper wants the printed hole tight, not nominal.
+was bought to get. They stay **M2 self-tappers into Ø1.6 pilots**, modelled the
+same way as the insert bores — under nominal, exempt from `print_bloat`.
 
 The depth budget is why `lip_t` went 1.4 → 2.4 and `bracket_t` 2.6 → 3.6. Between
 the bracket's seat and the deck's *outer face* there is only `br_seat`, and the
-bore eats it from below: 6.9 = bore 4.9 + skin 2.0. At the old numbers that sum came
-to 5.9 against a `br_seat` of 5.9 — the bore would have surfaced **exactly** on the
-machine's showpiece face, with the screw tip arriving there and the iron melting
-brass into it. There is nowhere else to buy that skin, so it came half from
-the visible lip (a deeper bezel well) and half from the invisible bracket, and the
+bore eats it from below: 6.9 = bore 4.8 + skin 2.1. At the old numbers the bore came
+to 5.4 against a `br_seat` of 5.9 — **0.5 mm** of skin on the machine's showpiece
+face, with the screw tip arriving under it and the iron melting brass into it.
+There is nowhere else to buy that skin, so it came half from the visible lip (a
+deeper bezel well) and half from the invisible bracket, and the
 glass ends up 1 mm deeper in a stiffer clamp. `typoena-case.scad` **asserts** the
 walls, the skin, the roof and the thread engagement — a plausible-looking edit to
 any of those four numbers fails the render instead of the print.
@@ -212,7 +214,7 @@ below.
   edge at 54 and the front-right screw boss's free face at 160.0 leave a 106.0 mm
   band for a 96 mm cell, so the **6 / 4.0 mm either side is all the slack there
   is** — a fatter cell has to come out of the plenum or out of `W`. (It was 4.5:
-  `post_pad` grew 0.5 to keep 2.35 mm of wall around the insert bore.)
+  `post_pad` grew 0.5 to keep 2.6 mm of wall around the insert bore.)
 - The baseplate screws up into **three bosses** (two front corners + one in the
   back gap between the boards; the back corners are taken by the standoffs). Each
   is a rectangular pad **fused into the walls it sits against** — the box in
@@ -221,7 +223,7 @@ below.
   `bp_t` so the plate seats *under* them; the 2.6 mm void that leaves is the
   plate's own volume, and the boss's first layer bridges off the wall. They are
   only `post_h` = **10 mm** tall: the walls carry the boss, so height is purely
-  about clearing the Ø4.8 × 7.1 insert bore with a roof left on it. Running them
+  about clearing the Ø4.8 × 6.6 insert bore with a roof left on it. Running them
   to the deck was 67% more plastic propping nothing the walls weren't already
   carrying. The insert goes in from **below**, into the boss face the plate seats
   against — the iron reaches it straight down through the open bottom of the shell,
@@ -239,9 +241,10 @@ below.
 
 0. **Press the 7 inserts first, on the bare body**: 4 into the bracket bosses under
    the deck, 3 into the baseplate bosses (from below). Iron at ~250 °C, straight
-   in, stop when the flange bottoms in its relief and the face is flat. The
-   bracket four point at the deck's visible face with 2 mm of PLA behind them —
-   these are the ones to go slowly on.
+   in, stop when the brass is **flush with the boss's face** — the bore is deeper
+   than the insert, so nothing bottoms out for you. The bracket four point at the
+   deck's visible face with 2.1 mm of PLA behind them — these are the ones to go
+   slowly on.
 1. Lay glass into the deck recess, add foam, screw the bracket to the 4 bosses
    (#6-32 × 7). Drive them until the bracket sits flat on the boss shoulders and
    stop — the shoulder is the stop, not the foam.
@@ -391,15 +394,16 @@ below.
       print commits the geometry.
 - [ ] **The 7 heat-sets are the one irreversible step on the body print.** The
       geometry is checked (walls, skin, roof and thread engagement are asserted;
-      the screw and insert envelopes were booleaned against the solids and come
-      back empty), but nothing in the model can hold the **iron**. Two live risks
+      the screw and insert-body envelopes were booleaned against the solids and
+      come back empty — the insert's head end has no relief, it melts its own seat
+      by design), but nothing in the model can hold the **iron**. Two live risks
       on the first body:
-      - **Over-pressing the bracket four.** The bore is 4.9 deep for a 3.8 insert,
-        so there is ~1.1 mm of slack under a flange that has already bottomed, and
-        only **2.0 mm of deck** past that — on the face the user looks at. Press to
-        the flange relief and stop; if a first deck dimples or blushes there, take
-        `lip_t` up before touching anything else (each +1 is +1 of skin, and the
-        only cost is a deeper bezel well).
+      - **Over-pressing the bracket four.** The bore is 4.8 deep for a 3.8 insert
+        and has no stop in it, so there is 1 mm of slack under a flush insert and
+        only **2.1 mm of deck** past that — on the face the user looks at. Sink
+        to flush and stop; if a first deck dimples or blushes there, take `lip_t`
+        up before touching anything else (each +1 is +1 of skin, and the only cost
+        is a deeper bezel well).
       - **The screw length is a tape-measure datum.** Bore depths are budgeted at
         `scr_thread_max = 8` against a measured 7, so a 7.5 mm batch is already
         covered; a 10 mm one is not, and on the bracket it would arrive at the

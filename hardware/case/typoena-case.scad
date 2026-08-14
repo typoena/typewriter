@@ -37,10 +37,11 @@ $fn = 20;
 // is a one-line change instead of a sweep. XY only: Z is layer height, and the
 // first-layer squish is the slicer's elephant-foot setting, not this.
 // RULE: compensate a hole only when a PART has to end up inside it — glass,
-// ribbon, connector, insert, plate, screw head. A hole a fastener merely drives
+// ribbon, connector, plate, screw head. A hole a fastener merely drives
 // through is left at nominal and the screw is turned harder; paying 0.5 mm there
-// only thins the wall around it. Self-tapping pilots go further and WANT the
-// printed hole under nominal (standoff_pilot, pwr_fit).
+// only thins the wall around it. A hole a fastener MELTS or CUTS its own way into
+// goes further and WANTS the printed hole under nominal (ins_hole_d,
+// standoff_pilot, pwr_fit).
 // The value is still an estimate off the jammed first coupon. The I/O coupon
 // measures it exactly — caliper its openings against nominal and set this to
 // the delta before the body print (see README, "Printer offset").
@@ -50,9 +51,14 @@ panel_slip  = 0.7;
 
 // ---- fasteners ------------------------------------------------------------
 // ONE family for everything that screws into the BODY: a ruthex RX-6-32x3.8
-// brass heat-set insert (#6-32, Ø5.4 flange / Ø4.7 body / 3.8 long) taking a
-// #6-32 pan screw, 7 mm of thread under a 1 mm x Ø6.5 head. Both are measured
-// parts, not catalogue numbers.
+// brass heat-set insert (#6-32, Ø4.7 body / 3.8 long) taking a #6-32 pan screw,
+// 7 mm of thread under a 1 mm x Ø6.5 head. Both are measured parts, not
+// catalogue numbers.
+// The bore is a PLAIN cylinder: no relief is modelled for the insert's head end,
+// the iron sinks it. HAZARD: nothing in the part then says when to stop pressing
+// — the bore is deliberately deeper than the insert, so flush is by eye (or by a
+// depth stop on the iron), and the boss's free end is a seating face on both
+// joints. See the assembly order in the README.
 // WHY inserts and not the self-tapped PLA of v0: these are the two joints that
 // get OPENED — the baseplate every time the machine is serviced, the bracket
 // every time the glass comes out. A self-tapped thread in PLA is good for a
@@ -60,17 +66,18 @@ panel_slip  = 0.7;
 // The PCBs are NOT in this family: they screw DOWN into the baseplate, whose
 // standoffs are 3 mm tall — nowhere near an insert's depth. They stay M2
 // self-tappers into Ø1.6 pilots, modelled AS PRINTED (see standoff_pilot).
-ins_hole_d  = 4.8;   // hole the datasheet asks for, AS PRINTED (blind or through)
+ins_hole_d  = 4.8;   // hole the datasheet asks for, AS MODELLED and exempt from
+                     // print_bloat: the insert melts its own seat, so this is not
+                     // a clearance fit. Compensated it would print at nominal and
+                     // leave the brass loose in the hole it should be gripping.
 ins_min_h   = 4.8;   // ...and its minimum DEPTH. Same number as the diameter by
-                     // coincidence only — never fold the two together
+                     // coincidence only — never fold the two together. Going
+                     // deeper is free and every bore here does; the floor is what
+                     // matters.
 ins_len     = 3.8;   // insert length — the thread the screw actually gets
 ins_wall    = 1.8;   // datasheet minimum material around the hole. Heat-setting
                      // pushes melt outward, so every boss below is sized to beat
                      // this, and asserts hold the line if a radius drifts.
-ins_flange_d = 5.8;  // relief for the Ø5.4 flange, sunk at the boss's free end so
-ins_flange_h = 0.5;  // a flange that stops proud of the face cannot hold the
-                     // mating part off its seat. It costs 0.5 mm of screw reach,
-                     // never a rocking joint.
 scr_thread  = 7.0;   // thread under the head (measured) — this is the one that
                      // sizes ENGAGEMENT, i.e. how much brass the screw actually
                      // grips, and the asserts hold it over 2.5 mm.
@@ -81,14 +88,15 @@ scr_thread_max = 8.0;   // ...and the one that sizes DEPTH, deliberately 1 mm ov
 scr_head_d  = 6.5;   // head Ø  (measured)
 scr_head_h  = 1.0;   // head thickness (measured)
 scr_clear_d = 3.9;   // clearance hole: #6-32 majors at Ø3.5
-// depth of blind insert bore = flange relief + insert + whatever tip is left over,
-// floored at the datasheet's 4.8. `over` is the material in front of the bore
-// (plate crossed, bracket crossed) that the thread spends before it arrives.
-function ins_bore_h(over) = max(ins_min_h,
-                           ins_flange_h + ins_len + (scr_thread_max - over - ins_len));
-// ...and how much brass the screw grips once it has crossed `over` and the flange
-// relief. Capped at the insert: thread past the far end grips nothing.
-function ins_grip(over) = min(ins_len, scr_thread - over - ins_flange_h);
+// depth of a blind insert bore: everything the thread can still bring past `over`
+// (the insert plus whatever tip is left over), floored at the datasheet's 4.8.
+// `over` is the material in front of the bore (plate crossed, bracket crossed)
+// that the thread spends before it arrives. Overshooting costs only boss height,
+// which the roof assert holds — bottoming a screw jacks the joint open.
+function ins_bore_h(over) = max(ins_min_h, scr_thread_max - over);
+// ...and how much brass the screw grips once it has crossed `over`. Capped at the
+// insert: thread past the far end grips nothing.
+function ins_grip(over) = min(ins_len, scr_thread - over);
 
 // ---- body envelope --------------------------------------------------------
 W        = 176;   // width  (X)  — screen 150.9 + bezel + walls
@@ -186,14 +194,16 @@ P_h    = G_h + glass_gap;
 deck_L    = (D - 2*corner_r) / cos(theta);   // deck length along the slope
 screen_cy = deck_L/2;                        // centre it
 // Bracket boss, now a heat-set insert instead of an M3 self-tapper: Ø8.9 against
-// the old Ø6.8, which is the datasheet's ins_wall around a Ø4.8 bore and nothing
-// more. The insert is the reason this boss got fat — see the fastener block.
-boss_bore  = (ins_hole_d + print_bloat)/2;    // Ø4.8 insert bore
-boss_flange = (ins_flange_d + print_bloat)/2; // flange relief at the seat
-boss_r     = boss_bore + ins_wall;            // Ø8.9 modelled. Taken off the
-                     // MODELLED bore, not the printed one, so the wall the assert
-                     // checks is the pessimistic one — the bore prints under and
-                     // the boss over, both in our favour.
+// the old Ø6.8. The insert is the reason this boss got fat — see the fastener
+// block, and boss_r below for why it stayed at Ø8.9.
+boss_bore  = ins_hole_d/2;                    // Ø4.8 insert bore, uncompensated
+boss_r     = 4.45;   // Ø8.9. Sized back when the bore still carried print_bloat,
+                     // and kept there once it lost it: the 0.25 mm of wall that
+                     // freed up is free to keep, and the layout around this
+                     // diameter (boss_x_l, the bracket arm's coverage) is already
+                     // solved. The assert below is what holds the datasheet
+                     // minimum, on the MODELLED bore — the printed one comes out
+                     // under and the boss over, both in our favour.
 br_screw_r = scr_clear_d/2;   // #6-32 clearance through the bracket. Uncompensated:
                      // a screw that meets a tight hole is turned through it.
 // Bracket fixing points, in GLASS-local X/Y (the bracket is placed on the glass,
@@ -397,8 +407,7 @@ post_pad   = 5.0;  // material from the screw axis out to the boss's FREE faces.
                    // cell); an insert that bulges its boss costs a body reprint.
 post_out   = 8;    // how far the box is driven THROUGH the wall before
                    // body_outer() trims it — any value past the wall works
-post_bore   = (ins_hole_d + print_bloat)/2;    // Ø4.8 insert bore
-post_flange = (ins_flange_d + print_bloat)/2;  // flange relief at the boss's face
+post_bore   = ins_hole_d/2;                    // Ø4.8 insert bore, uncompensated
 post_h     = 10;   // boss height above bp_t. The WALLS carry the boss, so height
                    // is only ever about clearing the bore — the load path is
                    // screw -> insert -> boss -> wall and never leaves that band.
@@ -522,10 +531,8 @@ module screw_bosses() {
 }
 module screw_inserts() {
     for (p = post_xy)
-        translate([p[0], p[1], bp_t-1]) {
-            cylinder(h=post_bore_h  + 1, r=post_bore);
-            cylinder(h=ins_flange_h + 1, r=post_flange);   // flange sunk flush
-        }
+        translate([p[0], p[1], bp_t-1])
+            cylinder(h=post_bore_h + 1, r=post_bore);   // run 1 mm past the face
 }
 
 // 4 bosses just OUTSIDE the glass pocket for the retaining bracket (heat-set
@@ -540,15 +547,16 @@ br_boss_len = br_seat - lip_t;        // the column itself: pocket floor -> seat
 // DEPTH BUDGET for the bracket insert, and the reason lip_t and bracket_t both
 // grew. Everything between the boss's seat and the deck's OUTER face — the face
 // the user looks at — is br_seat, and the insert's bore eats into it from below:
-//     br_seat 6.9  =  bore 4.9  +  skin 2.0
+//     br_seat 6.9  =  bore 4.8  +  skin 2.1
 // The bore has to cover the datasheet's 4.8 mm minimum AND a screw tip: 8 mm of
-// budgeted thread less the 3.6 it spends crossing the bracket less the 3.8 of
-// insert leaves 0.8 poking out the far end. At v0's lip_t 1.4 / bracket_t 2.6 that
-// same sum came to 5.9 against a br_seat of 5.9 — the bore would have surfaced
-// EXACTLY on the machine's showpiece face, with the screw tip arriving there and
-// the iron melting brass into it. There is no way to buy that skin back except from
-// lip_t (visible: a deeper bezel well) or bracket_t (invisible), so it came half
-// from each, and the glass ends up 1 mm deeper in a stiffer clamp.
+// budgeted thread less the 3.6 it spends crossing the bracket leaves 4.4 arriving,
+// so here the datasheet floor is the binding one and the tip has 1 mm of room past
+// the insert. At v0's lip_t 1.4 / bracket_t 2.6 the same sum came to 5.4 against a
+// br_seat of 5.9 — 0.5 mm of skin on the machine's showpiece face, with the screw
+// tip arriving under it and the iron melting brass into it. There is no way to buy
+// that skin back except from lip_t (visible: a deeper bezel well) or bracket_t
+// (invisible), so it came half from each, and the glass ends up 1 mm deeper in a
+// stiffer clamp.
 br_bore_h   = ins_bore_h(bracket_t);
 pilot_skin  = br_seat - br_bore_h;   // deck left over the BLIND bore. Asserted
                      // against ins_wall below: it is the one skin on the part
@@ -578,14 +586,12 @@ module bracket_cols(r, z0, h) {
             cylinder(h=h, r=r);
 }
 module bracket_bosses() { bracket_cols(boss_r, -br_seat, br_boss_len); }
-// Insert bore + its flange relief, both run 1 mm past the seat so the cut is clean.
-// The insert goes in from the SEAT side, i.e. from inside the case, iron pointing
-// at the deck — press to the flange relief and stop: the bore is deliberately
-// deeper than the insert (screw tip) and nothing but the flange bottoming out says
-// when to stop.
+// Insert bore, run 1 mm past the seat so the cut is clean. The insert goes in from
+// the SEAT side, i.e. from inside the case, iron pointing at the deck — and this
+// seat is the face the bracket clamps against, so stop the press flush with it
+// (see the hazard in the fastener block).
 module bracket_inserts() {
-    bracket_cols(boss_bore,   -br_seat-1, br_bore_h    + 1);
-    bracket_cols(boss_flange, -br_seat-1, ins_flange_h + 1);
+    bracket_cols(boss_bore, -br_seat-1, br_bore_h + 1);
 }
 
 // deck cuts: through-aperture, glass pocket (leaves the front lip), FPC slot
