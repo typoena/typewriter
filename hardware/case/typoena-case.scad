@@ -1,14 +1,13 @@
 // ============================================================================
-//  Typoena — 3D-printed enclosure  ·  "typewriter body"  ·  rev v0 (concept)
+//  Typoena — 3D-printed enclosure  ·  "typewriter body"
 // ----------------------------------------------------------------------------
 //  A shallow sage wedge. The e-paper strip sits on a reclined deck where a
 //  typewriter's sheet of paper would be; the keyboard you bring rests in front.
 //  No platen part (keeps the print simple) — the rounded back-top edge is a
 //  subtle roll that nods to one for free.
 //
-//  Everything here is PARAMETRIC. Numbers that come from a datasheet are noted;
-//  numbers marked  << MEASURE >>  are best-guesses you must confirm against the
-//  real board / breakout before printing a final.
+//  Everything here is PARAMETRIC. Every number is off a datasheet or measured on
+//  the part; the source is noted where it matters.
 //
 //  Units: millimetres.   Render:  see hardware/case/README.md
 //
@@ -322,9 +321,9 @@ port_pitch = [15.5, 15.0];                   // charge->keyboard, keyboard->µSD
 // together, so it is the reading the whole block hangs off.
 chg_gap  = 7;
 chg_cx   = chg_gap + usbc_w/2;                           // -> 11.25
-port_x   = [pcb2_x0 + chg_cx,                                        // -> 12.25
-            pcb2_x0 + chg_cx + port_pitch[0],                        // -> 27.75
-            pcb2_x0 + chg_cx + port_pitch[0] + port_pitch[1]];       // -> 42.75
+port_x   = [pcb2_x0 + chg_cx,                                        // -> 98.85
+            pcb2_x0 + chg_cx + port_pitch[0],                        // -> 114.35
+            pcb2_x0 + chg_cx + port_pitch[0] + port_pitch[1]];       // -> 129.35
 
 // ---- power on/off switch (latching push button, inline in the battery feed) --
 // A push-on / push-off (latching) button that makes/breaks the battery-side power
