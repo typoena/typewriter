@@ -107,7 +107,13 @@ good for a handful of cycles before it's a stripped hole in a 10-hour print.
 | bore | Ø4.8 × 4.9 blind, **2.0 mm of deck** left over it | Ø4.8 × 7.1 blind, 2.9 mm of roof |
 | screw crosses | 3.6 mm of bracket | 1.4 mm of plate |
 | thread in brass | **2.9 mm** | **3.8 mm** (the whole insert) |
-| head | bears on the bracket, inside the case | in a **lamage** in the plate's underside, flush with the desk |
+| head | **no lamage** — bears on the bracket's face, inside the case | in a **lamage** in the plate's underside, flush with the desk |
+
+The only lamage in the model is that one, under the three baseplate heads. The
+step you can see inside *every* boss — bracket and baseplate alike — is the
+Ø5.8 × 0.5 **flange relief**, sunk so the insert's Ø5.4 flange finishes below
+the seat instead of holding the mating part off it. Different feature, different
+job: one clears a screw head, the other clears a brass flange.
 
 (Wall figures are the *modelled* ones, taken off the modelled bore — the bore
 prints ~0.5 under and the boss ~0.5 over, so the real part has ~0.25 mm more a side
