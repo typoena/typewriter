@@ -476,8 +476,8 @@ module body_cavity() {
 // is at D-wall-bp_gap/2, so any closer and the plate keeps under 3 mm of rim
 // outboard of the LAMAGE for the head to pull against. It was 6 against an M2.5
 // head; the #6-32's Ø7.4 lamage ate that rim down to 1.55 mm, hence the move.
-// Y is free here — the post lives in the x gap between the two boards, and the
-// nearest thing behind it is the baseplate's own cable relief, 15 mm to the right.
+// Y is free here — the post lives in the x gap between the two boards, and that
+// band is clear the whole depth of the plate.
 post_xy = [[corner_r+3,          corner_r+3],     // front-left  corner
            [W-corner_r-3,        corner_r+3],     // front-right corner
            [(pcb1_x1+pcb2_x0)/2, D-wall-7.5]];    // back-centre, in the board gap
@@ -729,8 +729,6 @@ module baseplate() {
         // standoff pilot holes
         for (h = concat(pcb1_holes, pcb2_holes))
             translate([h[0], h[1], bp_t-1]) cylinder(h=standoff_h+2, r=standoff_pilot);
-        // cable / connector relief at the back
-        translate([W/2, D-wall-3, -1]) cube([30, 8, bp_t+2], center=false);
     }
 }
 

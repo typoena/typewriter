@@ -229,8 +229,7 @@ below.
   against — the iron reaches it straight down through the open bottom of the shell,
   so press all three *before* any board goes in. The **back** post sits 7.5 mm off
   the wall's inner face (was 6): the plate has to keep ≥3 mm of rim outboard of the
-  Ø7.4 lamage for the head to pull against, and at 6 that rim was 1.55 mm. A
-  **cable relief** notch lets the keyboard cable exit and route to the front.
+  Ø7.4 lamage for the head to pull against, and at 6 that rim was 1.55 mm.
 
 ![The baseplate — PCB standoffs, front-right battery nibs, three screw clearances](renders/baseplate.png)
 ![Exploded plan: deck/screen half lifted above the cavity — two boards, front-right battery, screw bosses, ports](renders/plan.png)
