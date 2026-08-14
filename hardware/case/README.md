@@ -10,7 +10,9 @@ no platen part (it complicates the print); the rounded back-top edge nods to one
 > is measured — the **3700 mAh** cell included. What has been printed is the
 > back-wall I/O coupon, which is what corrected the port openings; the body,
 > baseplate and bracket have not, and the 7 heat-set inserts are still untried —
-> see **Open questions / TODO**.
+> see **Open questions / TODO**. The coupon **needs a reprint**: the opening
+> *sizes* it validated still stand, but the wiring bay moved every one of them
+> 2 mm up the wall.
 
 ![The deck: bezel lip framing the e-paper aperture](renders/assembled.png)
 ![Assembled body, three-quarter — reclined deck, back wall with port cutouts](renders/front34.png)
@@ -53,7 +55,7 @@ Baked into the model from the datasheets:
 - **PCB 2** (80 W × 20 D mm): µSD + two USB-C (charge, keyboard) + TP4056 charger;
   connectors overhang the board edge by 8 mm. Ø2 hole each corner.
 - **Battery:** LiPo 3700 mAh, 96 × 33.5 × 10.3 mm, flat in the front-right.
-- **Body:** 176 W × 104 D, 26 mm front → 60 mm back, deck reclined ~21°. Walls
+- **Body:** 176 W × 104 D, 28 mm front → 62 mm back, deck reclined ~21°. Walls
   2.4 mm, deck 2.6 mm, corner radius 8 mm.
 
 ## How the hardware goes in (glueless)
@@ -131,10 +133,11 @@ that face is a seating face on both joints — proud brass spends the foam prelo
 the bracket, and rocks the plate on the baseplate.
 
 The **PCBs are not in this family.** They screw *down* into the baseplate, whose
-standoffs are 3 mm tall — nowhere near an insert's 4.8 mm bore, and growing them
-would spend the 2.75 mm of ceiling over PCB 1's front edge that the body's +2 mm
-was bought to get. They stay **M2 self-tappers into Ø1.6 pilots**, modelled the
-same way as the insert bores — under nominal, exempt from `print_bloat`.
+standoffs are 5 mm tall — nowhere near an insert's 4.8 mm bore even so. They stay
+**M2 self-tappers into Ø1.6 pilots**, modelled the same way as the insert bores —
+under nominal, exempt from `print_bloat`. The pilots are blind and their depth
+tracks `standoff_h`, so the screws want to be 2 mm longer than the 3 mm-standoff
+build.
 
 The depth budget is why `lip_t` went 1.4 → 2.4 and `bracket_t` 2.6 → 3.6. Between
 the bracket's seat and the deck's *outer face* there is only `br_seat`, and the
@@ -150,7 +153,12 @@ any of those four numbers fails the render instead of the print.
 **Boards.** Mount everything to the **baseplate** on the bench, then close from
 below.
 
-- **PCB 1** back-left on low printed standoffs (`standoff_h = 3`, M2 self-tap into
+Both boards sit on **5 mm printed standoffs** (`standoff_h`). That gap is the
+**wiring bay**: PCB 1's underside carries the boost/driver interconnect and the
+battery feed, PCB 2's the charger leads and the ribbon back to PCB 1, and at the
+3 mm of the first build there was nowhere for any of it to go.
+
+- **PCB 1** back-left on those standoffs (M2 self-tap into
   `pcb1_holes`), **turned so its long side runs front-back** (x 4…54, y 26…96).
   That orientation is what gives the screen ribbon a run: the board's FPC end sits
   at the **front-left**, right under the front end of the deck slot (which reaches
@@ -164,15 +172,20 @@ below.
   shallow front and cut the clearance over it from 8.5 mm to **0.75 mm** — positive,
   but no margin at all, and the ~22 mm figure is the loosest measurement in the
   model (how tall the F-F Dupont rows stand depends on how they seat). So `Hf`/`Hb`
-  carry **+2 mm** over the original 24/58: the ceiling is now 30.35 mm there and a
-  22 mm stack on 3 mm standoffs clears by **2.75 mm**.
+  carry **+4 mm** over the original 24/58, bought in two goes: +2 to get that
+  0.75 back to a workable **2.75 mm**, and +2 more when the wiring bay took
+  `standoff_h` from 3 to 5 and would otherwise have spent the first +2 straight
+  back. At 28/62 the ceiling is 32.35 mm there and the 29.6 mm stack (plate +
+  standoff + board) clears by 2.75 mm again.
 
   That pair moves **together** on purpose. `theta` is their difference over the
   pillar span, so a matched shift translates the deck plane vertically and leaves
   the recline (21.12°), `deck_L`, `screen_cy` and the whole screen clamp untouched —
-  the only visible cost is a machine 2 mm taller at both ends. Raising `Hf` alone
-  would have flattened the deck by ~1°. `standoff_h` still can't grow and the tall
-  rows still belong at the back edge; the +2 is margin, not permission.
+  the only visible cost is a machine 4 mm taller at both ends than the first
+  sketch. Raising `Hf` alone would have flattened the deck by ~1°. The tall rows
+  still belong at the back edge, and that 2.75 is a floor rather than slack: the
+  model now **asserts** it (`pcb1_ceiling`), so raising `standoff_h` or dropping
+  the heights without the other fails the render instead of the print.
 - **PCB 2** back-right along the back wall (`pcb2_holes`); connectors poke out
   through the back-wall ports (`port_x` / `port_z`). From the right-wall end in:
   power switch, µSD, keyboard, charge.
@@ -205,7 +218,7 @@ below.
 ![Back elevation — the I/O all lives in the right half; the button sits above the port baseline](renders/back.png)
 - **LiPo** flat in the **front-right** in baseplate cage nibs (foam/VHB does the
   rest) — the void inside the **L** the two boards make, PCB 1 down the left and
-  PCB 2 across the back. The shallow (26 mm) front of the wedge is dead space the
+  PCB 2 across the back. The shallow (28 mm) front of the wedge is dead space the
   tall board stack can't use, and **3700 mAh is the biggest flat cell that fits it**
   (96 × 33.5 × 10.3); the heaviest part up front also keeps the centre of gravity
   low and forward. The latching power switch keeps that capacity from bleeding

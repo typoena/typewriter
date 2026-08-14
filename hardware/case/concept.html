@@ -270,7 +270,7 @@
       <p style="margin-top: 10px; font-size: 14px; color: #6b6559">
         <b>Kept as drawn — rev v0.</b> The parametric model in
         <code>typoena-case.scad</code> is the authority now. The heights here
-        track it (26 / 60 mm), but the platen roller and the two knobs below
+        track it (28 / 62 mm), but the platen roller and the two knobs below
         stayed on paper.
       </p>
       <div class="legend">
@@ -399,8 +399,8 @@
     // ---- parameters (mm) ----
     var W = 176,
       D = 104,
-      Hf = 26,
-      Hb = 60 // body: width, depth, front/back height
+      Hf = 28,
+      Hb = 62 // body: width, depth, front/back height
     var SW = 151,
       SH = 57,
       AW = 139.0,
@@ -617,8 +617,8 @@
       s += rect(D - 18, -5, 12, 5, ACCL, INK, 0.4, 1)
       // dims
       s += hdim(0, D, -9, '104  depth', true)
-      s += vdim(0, Hf, -4, '26')
-      s += vdim(0, Hb, D + 4, '60', true)
+      s += vdim(0, Hf, -4, '28')
+      s += vdim(0, Hb, D + 4, '62', true)
       document.getElementById('v-side').innerHTML = s
     })()
 

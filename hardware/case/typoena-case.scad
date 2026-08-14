@@ -63,7 +63,7 @@ panel_slip  = 0.7;
 // every time the glass comes out. A self-tapped thread in PLA is good for a
 // handful of cycles and then it is a stripped hole in a 10-hour print.
 // The PCBs are NOT in this family: they screw DOWN into the baseplate, whose
-// standoffs are 3 mm tall — nowhere near an insert's depth. They stay M2
+// standoffs are 5 mm tall — nowhere near an insert's depth. They stay M2
 // self-tappers into Ø1.6 pilots, modelled AS PRINTED (see standoff_pilot).
 ins_hole_d  = 4.8;   // hole the datasheet asks for, AS MODELLED and exempt from
                      // print_bloat: the insert melts its own seat, so this is not
@@ -103,12 +103,13 @@ D        = 104;   // depth  (Y)  — front (keyboard) .. back (ports)
 // The two heights MOVE AS A PAIR: theta is their difference over the pillar span,
 // so shifting both by the same amount translates the whole deck plane vertically
 // and leaves the recline, deck_L, screen_cy and the entire screen clamp untouched.
-// That is what the +2 over the original 24/58 bought — headroom over PCB 1's front
-// edge, which turning the board on end had cut to 0.75. See standoff_h.
+// That is what the +4 over the original 24/58 bought — headroom over PCB 1's front
+// edge: +2 because turning the board on end had cut it to 0.75, +2 more because
+// the wiring bay under the boards took standoff_h from 3 to 5. See standoff_h.
 // In the kb variant Hf is also the bay/cavity SHARED WALL, so Hk and kb_post_h
 // must move with it or the top keycap row sinks into the wall — see README-kb.md.
-Hf       = 26;    // height at the FRONT edge
-Hb       = 60;    // height at the BACK edge  (Hf<Hb makes the reclined deck)
+Hf       = 28;    // height at the FRONT edge
+Hb       = 62;    // height at the BACK edge  (Hf<Hb makes the reclined deck)
 wall     = 2.4;   // side/back wall thickness
 top_wall = 2.6;   // deck thickness (before the bezel lip is cut into it)
 corner_r = 8;     // rounded vertical + top-edge radius (the "machined" look)
@@ -227,11 +228,11 @@ br_m  = 9;     // the other three
 
 // ---- mounting, boards & battery (defined here: the ports below depend on it)
 bp_t           = 2.6;    // baseplate thickness
-standoff_h     = 3;      // board standoff height. PCB 1's FRONT edge is the tight
-                         // spot in the whole cavity: the ceiling is 30.35 there
-                         // (see pcb1_y0), so the 22 mm stack on 3 mm standoffs
-                         // clears by 2.75 — and only because Hf/Hb carry +2 for
-                         // exactly this. At the original 24/58 it was 0.75.
+standoff_h     = 5;      // board standoff height — also the WIRING BAY under both
+                         // boards. PCB 1's FRONT edge is the tight spot in the
+                         // whole cavity: the ceiling is 32.35 there (see pcb1_y0),
+                         // so the 22 mm stack clears by 2.75, and only because
+                         // Hf/Hb carry +4 for exactly this. Asserted below.
 standoff_pilot = 1.6/2;  // pilot Ø1.6 for an M2 self-tapper (PCB holes are Ø2).
                          // The last self-tapped thread in the model — everything
                          // screwing into the BODY takes a heat-set insert now.
@@ -251,7 +252,7 @@ pcb_t          = 1.6;    // PCB thickness (for port-height maths)
 pcb1_x0 = 4;             pcb1_x1 = pcb1_x0 + 50;   // X  4 .. 54
 // Y 26 .. 96. Both ends are hard against something: the back edge keeps 5.6 mm
 // for the ribbon to leave, and the front edge is where the wedge's ceiling
-// (30.35) comes closest to the 22 mm stack — see standoff_h.
+// (32.35) comes closest to the 22 mm stack — see standoff_h.
 pcb1_y0 = 26;            pcb1_y1 = pcb1_y0 + 70;
 pcb1_h  = 22;            // tallest point (rigid stack + vertical Dupont)
 // PCB 2 = µSD + 2x USB-C + TP4056. 80(X) x 20(Y), along the BACK wall, right end;
@@ -355,7 +356,7 @@ pwr_x    = W - pwr_inset;    // 156 — past the µSD (right edge @ 138.0), 4.6 
 // 12.3 mm a side, still under the Ø13.9 hole. So the barrel MUST fly over the
 // board, and the clearance below it is the reserve for parts PCB 2 doesn't have:
 pwr_clear = 4;               // headroom kept free above PCB 2 for future parts
-pwr_z    = bp_t + standoff_h + pcb2_h + pwr_clear + pwr_body_d/2;   // ~26
+pwr_z    = bp_t + standoff_h + pcb2_h + pwr_clear + pwr_body_d/2;   // ~26.6
 
 // ---- baseplate / chassis --------------------------------------------------
 // Clearance so the plate drops into the shell. Both mating faces are printed and
@@ -579,6 +580,13 @@ assert(ins_grip(bp_t - bp_head_h) >= 2.5, "baseplate screw: not enough thread in
 // the glass pocket — both got tighter when boss_r grew for the insert
 assert(P_w/2 + br_ml >= -boss_x_l + boss_r, "bracket arm no longer covers the left boss");
 assert(boss_y - boss_r >= P_h/2,            "bracket boss has grown into the glass pocket");
+// PCB 1's front edge against the deck underside above it — the tightest spot in
+// the cavity, and the whole reason Hf/Hb carry +4 over the original 24/58. Held
+// here rather than in a comment because standoff_h and the heights are 120 lines
+// apart and either one alone renders clean and fails in plastic.
+pcb1_ceiling = Hf + (pcb1_y0 - corner_r)*tan(theta) - top_wall;
+assert(pcb1_ceiling - (bp_t + standoff_h + pcb1_h) >= 2.5,
+       "PCB 1 front edge: not enough ceiling over the 22 mm stack");
 module bracket_cols(r, z0, h) {
     on_deck() for (p = boss_xy)
         translate([glass_dx + p[0], screen_cy + glass_dy + p[1], z0])
