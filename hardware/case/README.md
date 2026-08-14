@@ -191,9 +191,13 @@ battery feed, PCB 2's the charger leads and the ribbon back to PCB 1, and at the
   power switch, µSD, keyboard, charge.
 - **Power on/off switch** — a latching push button (push-on / push-off) through
   the back wall (`pwr_*`), Ø13.5 barrel, centre **20 mm in from the right outer
-  face** (`pwr_inset`). It breaks the battery-side power feed, so the machine is
-  genuinely off between sessions instead of draining the LiPo; it sits clear of
-  the typing path. It is a **loose part wired back to PCB 2**, not mounted on it.
+  face** (`pwr_inset`). It carries **gate signal only** (µA) — it drives the
+  soft-power latch that opens the load path, so the machine is genuinely off
+  between sessions instead of draining the LiPo, and firmware still shuts down
+  cleanly on flip-off; contract in
+  [v0.10](../../docs/v0.10-battery-and-sleep.md#power-switch--power-path--decided-2026-07-26).
+  It sits clear of the typing path. It is a **loose part wired back to `J5` on
+  PCB 1** (where the latch lives), not mounted on either board.
 
   At Ø13.5 it cannot sit beside PCB 2: the board runs to x ≈ 167.6, leaving only
   6 mm to the right wall, and the one clear X band is the board gap. Turning PCB 1
