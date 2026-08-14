@@ -372,9 +372,8 @@ feet_mode = "none";
 bp_screw_r = scr_clear_d/2;                      // shank clearance through the plate,
                      // uncompensated like every other screw hole — turned through.
 bp_head_r  = (scr_head_d + 0.4 + print_bloat)/2; // lamage: Ø6.5 head + 0.4 slop.
-                     // The ONE screw feature still compensated: a head cannot be
-                     // turned into a hole that is under its own Ø, it just stops
-                     // proud — and proud heads are what this plate stands on.
+                     // The one screw hole still compensated — a head cannot be
+                     // turned through an undersized one, it can only stop proud.
 bp_head_h  = scr_head_h + 0.2;   // flat-bottomed, 0.2 deeper than the head so it
                      // can only ever end up below the face, never level with it.
                      // Z, so layer height governs this, not print_bloat.
@@ -714,9 +713,8 @@ module baseplate() {
                 translate([cx, cy, bp_t]) cylinder(h=5, r=1.6);
         }
         // screw clearance up into the body inserts (2 front corners + 1 back centre),
-        // each with a LAMAGE in the underside so the head finishes flush with the
-        // face that rests on the desk. Flat-bottomed, not a countersink: the head is
-        // a flat 1 mm pan and a cone would only touch it on one rim circle.
+        // each with a lamage in the underside. Flat-bottomed, not a countersink: the
+        // head is a flat 1 mm pan and a cone would only touch it on one rim circle.
         for (p = post_xy)
             translate([p[0], p[1], -foot_h-1]) {
                 cylinder(h=bp_t+foot_h+2, r=bp_screw_r);
