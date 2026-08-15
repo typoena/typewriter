@@ -39,6 +39,12 @@ just stl-feet # export the stick-on feet (deferred — see feet_mode)
 just open     # open the model in OpenSCAD
 ```
 
+The meshes aren't tracked — they're 5 MB of ASCII that git rewrites line by line
+on any geometry change. For a shareable set, tag instead: `git tag case-vX.Y.Z &&
+git push origin case-vX.Y.Z` has CI export from the tagged commit and publish
+`stl.zip`, `stl-kb.zip` and the I/O coupon to
+[Releases](https://github.com/typoena/typewriter/releases).
+
 `show` accepts `assembled` · `body` · `bracket` · `baseplate` · `feet` ·
 `print_plate` · `section` (vertical cut) · `plan` (exploded horizontal) ·
 `plan_up` / `plan_down` (each half alone) · `io_coupon` (the I/O fit test print).

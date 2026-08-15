@@ -1,0 +1,96 @@
+name: Case release
+
+# Publish the printable enclosure meshes when a `case-v*` tag is pushed.
+#
+# The STLs are deliberately NOT in the repo: the OpenSCAD CLI writes ASCII STL,
+# so 5 MB of mesh text got rewritten line by line on every geometry change — a
+# 62-line model edit once dragged 51k lines behind it. See
+# hardware/case/.gitignore. They are cut from the tagged commit here instead.
+#
+# Exporting from a clean CI checkout is the whole point, same as the installer
+# release: the published mesh provably comes from the tagged .scad, so a stale
+# local export can't ship by accident.
+#
+# To release:  git tag case-vX.Y.Z && git push origin case-vX.Y.Z
+
+on:
+  push:
+    tags:
+      - 'case-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # `origin` pushes to both GitHub and a Gitea mirror, and Gitea Actions scans
+    # `.github/workflows` too. Gitea sets `server_url` to its own host; only
+    # github.com should build.
+    if: ${{ github.server_url == 'https://github.com' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hardware
+    steps:
+      - uses: actions/checkout@v5
+
+      # xvfb because the binary brings up a Qt/GL context at startup whatever
+      # the export format, and the runner has no display. zip is what the `stl`
+      # recipes bundle the handoff archives with.
+      - name: Install OpenSCAD
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends openscad xvfb zip
+          openscad --version
+
+      # `just` is not in the Ubuntu archives; this is the maintained action.
+      - uses: extractions/setup-just@v3
+
+      # Reuse the recipes rather than re-spelling the openscad invocations, so
+      # CI and the Mac can't drift. `stl` also writes typoena-case.stl (the full
+      # assembly, reference only) and io-coupon.stl (the back-wall fit test that
+      # README says to print first).
+      - name: Export meshes
+        run: |
+          xvfb-run --auto-servernum just stl
+          xvfb-run --auto-servernum just stl-kb
+
+      # Bare filenames in the sidecars so `sha256sum -c` works from the download
+      # directory, matching the installer release.
+      - name: Checksum sidecars
+        working-directory: hardware/case
+        run: |
+          sha256sum stl.zip > stl.zip.sha256
+          sha256sum stl-kb.zip > stl-kb.zip.sha256
+          sha256sum io-coupon.stl > io-coupon.stl.sha256
+
+      # Notes go through a heredoc rather than an inline --notes string: inside a
+      # block scalar every continuation line keeps its indentation, which would
+      # turn the markdown table below into a code block.
+      - name: Publish release
+        working-directory: hardware/case
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#case-}"
+          base="https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/hardware/case"
+          cat > notes.md <<EOF
+          Printable meshes for the Typoena enclosure, exported by CI from the \`.scad\` at this tag.
+
+          | Asset | What |
+          | --- | --- |
+          | \`stl.zip\` | The three printed parts: body, bracket, baseplate. |
+          | \`stl-kb.zip\` | Integrated-keyboard variant — kb60 and kb40 body + baseplate (the bracket comes from \`stl.zip\`). |
+          | \`io-coupon.stl\` | Back-wall I/O fit coupon. **Print this first** — it dry-fits the connectors in a 45-minute print instead of a 10-hour body. |
+
+          Orientation, supports and the printer-fit constants are in [README.md](${base}/README.md); the keyboard variant is in [README-kb.md](${base}/README-kb.md).
+
+          Verify a download with \`sha256sum -c <asset>.sha256\`.
+          EOF
+          gh release create "${GITHUB_REF_NAME}" \
+            stl.zip stl.zip.sha256 \
+            stl-kb.zip stl-kb.zip.sha256 \
+            io-coupon.stl io-coupon.stl.sha256 \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "Typoena case ${version}" \
+            --notes-file notes.md
