@@ -178,6 +178,9 @@ fpc_slot_x = 10;   // how far the slot reaches ACROSS the glass edge (X). Was 14
                    // ~3.8 mm and is still ample for the flex's U-turn.
 
 // ---- deck nameplate (engraved, faces the user) ----------------------------
+name_on    = false;           // OFF: the deck ships blank. The geometry stays so
+                              // the engrave is one flag away, and because the
+                              // band it sits in is the only free deck area left
 name_text  = "TYPOENA";
 name_size  = 6.5;             // cap height in mm
 name_depth = 0.8;             // engrave depth — raise for a bolder, deeper cut
@@ -322,13 +325,20 @@ port_fit = panel_slip + print_bloat;         // slack on every port opening: the
                                              // plug has to pass with room, and the
                                              // connectors are held by PCB 2, not
                                              // by the panel
-usbc_cz  = 3.5;                              // USB-C opening centre, above PCB top
+pcb2_z   = bp_t + standoff_h + pcb_t;        // PCB 2 top face, off the baseplate's
+                                             // UNDERSIDE — z=0 for the whole model
+// The port block's height is MEASURED as an absolute, on the assembled stack: with
+// PCB 2 on its standoffs the shells span 10.5 .. 13.5 off the baseplate's underside,
+// which is the one datum a caliper can still reach once the board is in (and whose
+// 3.0 span re-confirms usbc_h). It is carried as a height above the board so the
+// block still follows standoff_h. The 3.5 it replaces was a guess, 0.7 mm high.
+usbc_z   = 12.0;                             // shell centre off the baseplate underside
+usbc_cz  = usbc_z - pcb2_z;                  // -> 2.8, above PCB 2's top face
 // The µSD is pinned to the USB-C by a MEASURED step, bottom edge to bottom edge,
 // not by a guess at its centre (sd_cz was 3.0, which put both bottoms level).
 sd_rise  = 1.0;                              // cage bottom, ABOVE the shell bottoms
-sd_cz    = usbc_cz - usbc_h/2 + sd_rise + sd_h/2;   // -> 4.0
-pcb2_z   = bp_t + standoff_h + pcb_t;        // PCB 2 top face height off the floor
-// per-port centre heights off the floor       [charge, keyboard, µSD]
+sd_cz    = usbc_cz - usbc_h/2 + sd_rise + sd_h/2;   // -> 3.3
+// per-port centre heights off the baseplate underside  [charge, keyboard, µSD]
 port_z   = [pcb2_z+usbc_cz, pcb2_z+usbc_cz, pcb2_z+sd_cz];
 // PCB 2 is flipped vs how you view it: the charge end sits inward (low X), the
 // µSD/power end faces the RIGHT wall.
@@ -338,6 +348,9 @@ port_z   = [pcb2_z+usbc_cz, pcb2_z+usbc_cz, pcb2_z+sd_cz];
 // USB-C pitch exactly (15.5, so usbc_w = 8.5 and its 7 mm gap are both right),
 // but its 5 mm µSD gap gave 16.25 against a measured 15.0 — the slot was 1.25 mm
 // too far right, twice the slack that would have covered it.
+// These two are DRY-FITTED, not just measured — the coupon proved the three
+// ports land on the three parts — so the block is RIGID: a later reading may move
+// it bodily, never redistribute it. See the envelope assert at the bottom.
 port_pitch = [15.5, 15.0];                   // charge->keyboard, keyboard->µSD
 // Where the cluster sits on the board: measured edge to edge, PCB 2's left edge
 // to the charge shell (was 8 off the old chain). This one slides all three ports
@@ -626,6 +639,21 @@ assert(post_xy[1][0] - post_pad - bat_x1 >= 2,
        "battery: the cell runs into the front-right screw boss");
 assert(bat_x0 - bat_wall_t - pcb1_x1 >= 2,
        "battery: the cage wall has backed into PCB 1");
+// The I/O block against the one X datum a caliper can reach on the ASSEMBLED
+// machine — the baseplate's right edge — measured to the PARTS, not the openings,
+// so no port_fit is in these numbers. It pins the cluster to the case instead of
+// to pcb2_x0: move the board or chg_gap and the render fails, not the coupon.
+// The block is anchored on the µSD end, which the model already predicted to
+// 0.01 from a datum it knows nothing about. The far end then reads 42.1 across
+// the cluster where the dry-fitted pitches give 41.75, and that 0.35 CANNOT be
+// taken out of a pitch — the coupon proved the pitches on the parts. So it lives
+// at the charge shell (outer flange, or a 42 mm span read across two dissimilar
+// parts) and the only thing worth holding is that it stays inside the opening.
+bp_x1 = W - wall - bp_gap/2;                        // baseplate right edge -> 172.85
+assert(abs(bp_x1 - (port_x[2] + sd_w/2) - 36.5) < 0.01,
+       "I/O block: the microSD is no longer 36.5 in from the baseplate's right edge");
+assert(abs(bp_x1 - (port_x[0] - usbc_w/2) - 78.6) <= port_fit/2,
+       "I/O block: the measured charge-USB-C edge no longer falls inside its opening");
 module bracket_cols(r, z0, h) {
     on_deck() for (p = boss_xy)
         translate([glass_dx + p[0], screen_cy + glass_dy + p[1], z0])
@@ -683,10 +711,11 @@ module power_cut() {
 module nameplate() {
     name_y = (screen_cy - P_h/2) / 2;     // centre of the front deck band
     // centred on the deck, like the window above it — not on the shifted glass
-    on_deck() translate([0, name_y, -name_depth])
-        linear_extrude(name_depth + 0.6)
-            text(name_text, size=name_size, halign="center", valign="center",
-                 font=name_font, spacing=1.1);
+    if (name_on)
+        on_deck() translate([0, name_y, -name_depth])
+            linear_extrude(name_depth + 0.6)
+                text(name_text, size=name_size, halign="center", valign="center",
+                     font=name_font, spacing=1.1);
 }
 
 module case_body() {
@@ -705,7 +734,7 @@ module case_body() {
         screen_cuts();
         port_cuts();
         power_cut();
-        nameplate();                 // engrave (comment out for a blank face)
+        nameplate();                 // engrave — no-op while name_on is false
     }
 }
 

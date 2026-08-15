@@ -41,8 +41,9 @@ render:
     cd case && openscad -o renders/plan.png       {{base}} {{std_cam}} -D 'show="plan"'        typoena-case.scad
     cd case && openscad -o renders/plan-up.png    {{base}} {{std_cam}} -D 'show="plan_up"'     typoena-case.scad
     cd case && openscad -o renders/plan-down.png  {{base}} {{std_cam}} -D 'show="plan_down"'   typoena-case.scad
-    # two bespoke cameras: the straight-on nameplate hero, and the low back 3/4
-    cd case && openscad -o renders/nameplate.png  {{base}} --camera=0,0,0,62,0,0,0   -D 'show="body"'      typoena-case.scad
+    # the low back 3/4. The straight-on deck hero went with the nameplate — put it
+    # back alongside name_on if the engrave ever returns:
+    #   -o renders/nameplate.png {{base}} --camera=0,0,0,62,0,0,0 -D 'show="body"'
     cd case && openscad -o renders/front34.png    {{base}} --camera=0,0,0,72,0,200,0 -D 'show="assembled"' typoena-case.scad
     # the I/O fit coupon, straight down on its face
     cd case && openscad -o renders/io-coupon.png  {{base}} --camera=0,0,0,0,0,0,0    -D 'show="io_coupon"' typoena-case.scad

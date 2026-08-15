@@ -408,8 +408,6 @@ for the same reason and drill the same way.
 
 - Material PLA/PETG. Body in matte **sage** (`#B6CEB4`), bracket/base in cream or
   brass — the two-tone reads "typewriter" for a filament swap.
-- To make the recessed `TYPOENA` engrave read: a swipe of paint pen in the recess,
-  or a 3–4 layer filament swap across the nameplate band mid-print.
 - 2.4 mm walls + open bottom keep material low.
 - **Print the I/O coupon first.** `just stl-io` exports `io-coupon.stl` — a flat
   slice of the real back wall carrying only the four openings (2× USB-C, µSD,
@@ -421,9 +419,14 @@ for the same reason and drill the same way.
 
 ![The I/O fit coupon — charge, keyboard, µSD, power button](renders/io-coupon.png)
 - Print body deck-up (or on its back) for little/no support; bracket and baseplate
-  print flat. Nameplate font is set by `name_font` (current: **Monaspace
-  Krypton**, `brew install --cask font-monaspace`; run `fc-cache -f` so the CLI
-  finds it).
+  print flat.
+- **The deck ships blank** — `name_on = false`. The engraved `TYPOENA` nameplate
+  is still modelled and comes back with that one flag; it sits in the band between
+  the front edge and the screen, the only free deck area there is. If it does come
+  back it needs `name_font` installed (**Monaspace Krypton**, `brew install --cask
+  font-monaspace`, then `fc-cache -f` so the CLI finds it) and something to make
+  the recess read: a swipe of paint pen, or a 3–4 layer filament swap across the
+  band mid-print.
 - **No feet on this version** (`feet_mode = "none"`). They are modelled and can
   come back as their own part with `feet_mode = "separate"` + `just stl-feet` —
   four Ø14 × 3.5 discs, the front pair concentric with the screw bosses and bored
@@ -435,8 +438,6 @@ for the same reason and drill the same way.
   footprint, standoffs and nibs floating above it. As it stands all three parts
   print flat-face-down with every feature growing upward off the bed — no support
   anywhere.
-
-![The recessed TYPOENA engrave on the deck, in Monaspace Krypton](renders/nameplate.png)
 
 ## Open questions / TODO
 
@@ -471,6 +472,13 @@ for the same reason and drill the same way.
       9.7 × 4.2 and µSD 15.2 × 3.2. Dry-fitted on the second coupon: everything
       goes in, USB-C the snuggest of them. The switch keeps its own, smaller
       `pwr_fit` — see below.
+- [x] **Port Z measured as an absolute**, not off the board: with PCB 2 bolted to
+      its standoffs the USB-C shells span **10.5 … 13.5 mm off the baseplate's
+      underside** (`usbc_z` = 12.0 at the centre), which is the only height a
+      caliper can still reach once the board is in — and whose 3.0 mm span
+      re-confirms `usbc_h`. `usbc_cz` (2.8 above the board) now falls out of it;
+      the 3.5 it replaces was a guess and sat the whole block 0.7 mm high. The
+      µSD follows through `sd_rise`, unchanged.
 - [x] **Port X spacing is measured centre to centre**, 15.5 (charge→keyboard) and
       15.0 (keyboard→µSD) — the only spacing a caliper can reach on a populated
       board. The old edge-gap chain reproduced the USB-C pitch *exactly*, which is
@@ -483,6 +491,24 @@ for the same reason and drill the same way.
       charge shell (`chg_gap`), replacing the old chain's 8. The last unmeasured
       link in the block, and the one everything hangs off: it slides all three
       ports together. Centres are now 11.25 / 26.75 / 41.75 off the board edge.
+- [x] **Port X checked against a case datum** — on the *assembled* machine, in
+      from the **baseplate's right edge** (parts, no `port_fit` in the numbers):
+      µSD outer edge at **36.5**, charge USB-C outer edge at **78.6**. The model
+      already put the µSD at 36.50 — predicted to 0.01 mm from a datum the X
+      chain knows nothing about, which is what confirms the block's *position*.
+      Both edges are now **asserted** against `bp_x1`, so moving PCB 2 or
+      `chg_gap` fails the render instead of the coupon.
+- [ ] **0.35 mm of residual at the charge end.** That reading envelopes the
+      cluster at 42.1 where the dry-fitted pitches and widths give 41.75. It
+      cannot be taken out of a pitch — the coupon proved the pitches *on the
+      parts*, so the block is rigid and may only move bodily. Nor is it slack:
+      the comparison is part-to-part, `port_fit` never enters it. So it sits at
+      the charge shell — an outer flange, or a 42 mm span read across two
+      dissimilar parts. Anchored on the µSD, the charge shell would then sit
+      0.35 into its 0.6 mm of per-side slack, clearing by 0.25. Passes, but it is
+      the thinnest margin in the block: **re-check that one edge on the coupon**,
+      and if it is real, widen the *charge* opening alone — its rib to the
+      keyboard is 5.8 mm and can afford it, unlike the 2.55 next door.
 - [ ] **No blanket widening.** Rejected +2 mm on every opening: at a 15 mm
       keyboard→µSD pitch it leaves a 0.55 mm rib between those two, under two
       perimeters in a 2.4 mm wall, so the openings merge instead of printing. The
