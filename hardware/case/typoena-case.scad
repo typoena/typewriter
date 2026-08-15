@@ -272,19 +272,35 @@ pcb1_holes = [[pcb1_x0+2,pcb1_y0+2],[pcb1_x1-2,pcb1_y0+2],
               [pcb1_x0+2,pcb1_y1-2],[pcb1_x1-2,pcb1_y1-2]];
 pcb2_holes = [[pcb2_x0+2,pcb2_y0+2],[pcb2_x1-2,pcb2_y0+2],
               [pcb2_x0+2,pcb2_y1-2],[pcb2_x1-2,pcb2_y1-2]];
-// LiPo 3700 mAh (96 x 33.5 x 10.3), flat in the FRONT-RIGHT — the void inside the
+// LiPo 3700 mAh (94 x 32 x 10.3), flat in the FRONT-RIGHT — the void inside the
 // L the two boards make (PCB 1 down the left, PCB 2 across the back). Shallow
 // wedge space the board stack can't use, CG low + forward, leads out to the
 // charger on PCB 2. Cell measured.
 // NOT centred on the case any more: the front-LEFT corner it used to cross is the
-// screen ribbon's plenum, and that is the whole point of the layout. X is boxed in
-// on both sides — PCB 1's edge at 54, the front-right screw boss's free face at
-// 160.5 — so 106.5 mm of band holds a 96 mm cell and the 6 / 4.5 either side is
-// all the slack there is.
-bat_w = 96;  bat_d = 33.5;  bat_h = 10.3;
-bat_x0 = pcb1_x1 + 6;                          // X 60 .. 156, right of PCB 1
-bat_x1 = bat_x0 + bat_w;
+// screen ribbon's plenum, and that is the whole point of the layout.
+// The cage is NOT symmetric. It is a WALL at the cell's left end and two NIBS at its
+// mid-length: the cell goes in from the right, passes between the nibs — which only
+// hold it in Y — and slides left until it stops on the wall. The v1 four-corner
+// version was replaced because the two left nibs printed poorly and located nothing
+// the wall does not locate better.
+bat_w = 94;  bat_d = 32;  bat_h = 10.3;
+// The WALL is the datum and it is pushed as far LEFT as PCB 1 allows, because the
+// only thing on the right is the front-right screw boss and a pouch cell must not
+// meet its corner. What is left over lands on the boss side, where it is air.
+// Asserted both ways below.
+bat_wall_t   = 2;     // cage wall thickness, grown LEFT (away from the cell), so the
+                      // cell's own position never moves when this does
+bat_gap_pcb1 = 4;     // air between PCB 1's edge and the BACK of that wall
+bat_x0 = pcb1_x1 + bat_gap_pcb1 + bat_wall_t;  // 60 — the wall's face IS the cell's
+                                               // left end (wall itself spans 58..60)
+bat_x1 = bat_x0 + bat_w;                       // 154, leaving 6 mm to the boss
 bat_y0 = wall + 4;                             // front edge just off the front wall
+// The nibs hold Y and nothing else, so they belong at MID-LENGTH: that is where a
+// pouch cell bows if it is going to, and it is the one spot where neither end of the
+// cell can lever itself out from between them.
+bat_nib_x = (bat_x0 + bat_x1)/2;   // 107
+bat_nib_h = 5;        // wall and nibs share it: half the cell's height, the rest is
+                      // the foam/VHB tape's job
 
 // ---- ports on the back wall  (I/O board = PCB 2) --------------------------
 // PCB 2 lies flat at the back-right; its connectors overhang the board's back
@@ -601,6 +617,15 @@ assert(boss_y - boss_r >= P_h/2,            "bracket boss has grown into the gla
 pcb1_ceiling = Hf + (pcb1_y0 - corner_r)*tan(theta) - top_wall;
 assert(pcb1_ceiling - (bp_t + standoff_h + pcb1_h) >= 2.5,
        "PCB 1 front edge: not enough ceiling over the 22 mm stack");
+// The cell's X band, boxed by PCB 1 on one side and the front-right screw boss on
+// the other. The boss one is the load-bearing check: it is a rigid printed corner at
+// the cell's own height, and a pouch cell must never be asked to take it. A 94 mm
+// cell against a wall at bat_x0 = 60 clears it by 6. Caught here because bat_x0 is
+// set 300 lines from post_xy and a plausible edit to either closes the gap silently.
+assert(post_xy[1][0] - post_pad - bat_x1 >= 2,
+       "battery: the cell runs into the front-right screw boss");
+assert(bat_x0 - bat_wall_t - pcb1_x1 >= 2,
+       "battery: the cage wall has backed into PCB 1");
 module bracket_cols(r, z0, h) {
     on_deck() for (p = boss_xy)
         translate([glass_dx + p[0], screen_cy + glass_dy + p[1], z0])
@@ -739,9 +764,13 @@ module baseplate() {
         // board standoffs on top (PCB 1 back-left + PCB 2 back-right)
         for (h = concat(pcb1_holes, pcb2_holes))
             translate([h[0], h[1], bp_t]) cylinder(h=standoff_h, r=3);
-        // battery cage nibs (front-right LiPo; foam/VHB tape does the rest)
-        for (cx=[bat_x0-1, bat_x1+1], cy=[bat_y0-1, bat_y0+bat_d+1])
-            translate([cx, cy, bp_t]) cylinder(h=5, r=1.6);
+        // battery cage (front-right LiPo; foam/VHB tape does the rest). Wall at the
+        // cell's LEFT end — the stop it slides onto — and two nibs at bat_nib_x that
+        // only hold Y. The cell's right end is free: it overhangs the nibs.
+        translate([bat_x0 - bat_wall_t, bat_y0 - 1, bp_t])
+            cube([bat_wall_t, bat_d + 2, bat_nib_h]);
+        for (cy = [bat_y0-1, bat_y0+bat_d+1])
+            translate([bat_nib_x, cy, bp_t]) cylinder(h=bat_nib_h, r=1.6);
     }
 }
 

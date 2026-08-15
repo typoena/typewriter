@@ -62,7 +62,7 @@ Baked into the model from the datasheets:
   Stands with its **long axis front-back**, FPC end forward.
 - **PCB 2** (80 W × 20 D mm): µSD + two USB-C (charge, keyboard) + TP4056 charger;
   connectors overhang the board edge by 8 mm. Ø2 hole each corner.
-- **Battery:** LiPo 3700 mAh, 96 × 33.5 × 10.3 mm, flat in the front-right.
+- **Battery:** LiPo 3700 mAh, 94 × 32 × 10.3 mm, flat in the front-right.
 - **Body:** 176 W × 104 D, 28 mm front → 62 mm back, deck reclined ~21°. Walls
   2.4 mm, deck 2.6 mm, corner radius 8 mm.
 
@@ -231,20 +231,39 @@ battery feed, PCB 2's the charger leads and the ribbon back to PCB 1, and at the
   wall at the default 20.
 
 ![Back elevation — the I/O all lives in the right half; the button sits above the port baseline](renders/back.png)
-- **LiPo** flat in the **front-right** in baseplate cage nibs (foam/VHB does the
+- **LiPo** flat in the **front-right** in a baseplate cage (foam/VHB does the
   rest) — the void inside the **L** the two boards make, PCB 1 down the left and
   PCB 2 across the back. The shallow (28 mm) front of the wedge is dead space the
   tall board stack can't use, and **3700 mAh is the biggest flat cell that fits it**
-  (96 × 33.5 × 10.3); the heaviest part up front also keeps the centre of gravity
+  (94 × 32 × 10.3); the heaviest part up front also keeps the centre of gravity
   low and forward. The latching power switch keeps that capacity from bleeding
   between sessions.
 
+  The cage is **not symmetric**. A **wall** stands at the cell's left end and two
+  **nibs** sit at its mid-length: the cell goes in from the right, passes between the
+  nibs — which hold it in Y only — and slides left until it stops on the wall. The
+  v1 four-corner nib cage went because the two left nibs printed poorly and located
+  nothing the wall doesn't locate better; the surviving pair moved to mid-length
+  because that is where a pouch cell bows, and it is the one spot from which neither
+  end of the cell can lever itself out.
+
   It is **not centred on the case** — the front-left corner it used to cross is the
-  flex plenum, and that is the point of the layout. X is boxed in both ways: PCB 1's
-  edge at 54 and the front-right screw boss's free face at 160.0 leave a 106.0 mm
-  band for a 96 mm cell, so the **6 / 4.0 mm either side is all the slack there
-  is** — a fatter cell has to come out of the plenum or out of `W`. (It was 4.5:
-  `post_pad` grew 0.5 to keep 2.6 mm of wall around the insert bore.)
+  flex plenum, and that is the point of the layout. X is boxed in both ways, and the
+  **wall is pushed as far left as PCB 1 allows** so that everything left over lands
+  on the boss side, where it is air rather than a rigid corner against a pouch cell:
+
+  | | x |
+  | --- | --- |
+  | PCB 1's right edge | 54 |
+  | cage wall (`bat_wall_t` = 2) | 58 … 60 |
+  | cell (94 long) | **60 … 154** |
+  | nibs (`bat_nib_x`) | 107 |
+  | front-right screw boss, free face | 160 |
+
+  That is **4 mm** of air behind the wall and **6 mm** ahead of the cell. Both are
+  asserted (`battery: the cell runs into the front-right screw boss`, `battery: the
+  cage wall has backed into PCB 1`) — `bat_x0` is set 300 lines from `post_xy`, and
+  a plausible edit to either would close the gap in silence.
 - The baseplate screws up into **three bosses** (two front corners + one in the
   back gap between the boards; the back corners are taken by the standoffs). Each
   is a rectangular pad **fused into the walls it sits against** — the box in
@@ -262,7 +281,7 @@ battery feed, PCB 2's the charger leads and the ribbon back to PCB 1, and at the
   Ø6.9 lamage for the head to pull against, and at 6 that rim was 1.8 mm. That rim
   now also absorbs the wander of a lamage that is drilled by hand.
 
-![The baseplate — PCB standoffs, front-right battery nibs, screw pads](renders/baseplate.png)
+![The baseplate — PCB standoffs, front-right battery cage, screw pads](renders/baseplate.png)
 ![Exploded plan: deck/screen half lifted above the cavity — two boards, front-right battery, screw bosses, ports](renders/plan.png)
 ![Top half (plan_up) — deck underside: the screen in its recess and the bracket bosses](renders/plan-up.png)
 ![Bottom half (plan_down) — the cavity: PCB 1 standing front-back at the left, PCB 2 back-right, battery in the L's front-right void, the flex plenum front-left](renders/plan-down.png)
@@ -284,7 +303,8 @@ battery feed, PCB 2's the charger leads and the ribbon back to PCB 1, and at the
    stop — the shoulder is the stop, not the foam.
 3. Screw PCB 1 (back-left, FPC end forward) and PCB 2 (back-right) to the
    standoffs (M2 × 6 self-tappers into the drilled pilots); set the LiPo into its
-   front-right nibs.
+   front-right cage — slide it in from the right, past the two nibs, until it stops
+   on the wall.
 4. Connect the FPC through the slot into PCB 1's front-left end, and coil the
    extension's slack into the front-left plenum; run the PCB 1 ↔ PCB 2 ribbon and
    the battery leads to the charger.
@@ -435,7 +455,12 @@ for the same reason and drill the same way.
       sized off the glass rather than off the pocket, so `glass_gap` no longer
       drags the left arm toward the wall.
 - [x] Real board mounting-hole + port coordinates — done (two-PCB build).
-- [x] Measure the **LiPo** — confirmed 96 × 33.5 × 10.3, `bat_*` unchanged.
+- [x] Measure the **LiPo** — **94 × 32 × 10.3** (was carried as 96 × 33.5).
+- [x] ~~**The cell overruns the front-right screw boss.**~~ It did, by 1 mm, when the
+      cage wall was positioned off the nibs — measured on the printed *baseplate*,
+      which carries no boss, so the clash could not show up on the bench. The wall is
+      now driven the other way, hard against PCB 1's side, and the cell sits at
+      60…154 with 6 mm of air before the boss. Both ends are asserted.
 - [x] Measure the **power switch** — widest-behind-panel 14 mm (`pwr_body_d`).
 - [x] **Port openings sized off the parts.** The first coupon jammed because the
       whole block came off the USB-C spec sheet — `usbc_h` 2.5 and `usbc_w` 8.0 are
