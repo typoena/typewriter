@@ -67,6 +67,10 @@ jobs:
       # Notes go through a heredoc rather than an inline --notes string: inside a
       # block scalar every continuation line keeps its indentation, which would
       # turn the markdown table below into a code block.
+      #
+      # --latest=false is load-bearing: install.sh fetches the installer binary
+      # from the /releases/latest/download shortcut (installer/DESIGN.md), so a
+      # case release taking the "Latest" crown 404s the public install one-liner.
       - name: Publish release
         working-directory: hardware/case
         env:
@@ -93,4 +97,5 @@ jobs:
             io-coupon.stl io-coupon.stl.sha256 \
             --repo "${GITHUB_REPOSITORY}" \
             --title "Typoena case ${version}" \
-            --notes-file notes.md
+            --notes-file notes.md \
+            --latest=false
