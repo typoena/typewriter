@@ -15,6 +15,11 @@ kb40    := "-D 'kb=\"40\"' -D 'W=232.05'"
 base    := "--imgsize=1100,825 --colorscheme=Tomorrow --viewall --autocenter -D '$fn=48'"
 # the standard 3/4 camera used by most previews (rotate 62° tilt, 22° azimuth)
 std_cam := "--camera=0,0,0,62,0,22,0"
+# Binary STL on every export. The CLI defaults to ASCII where the GUI defaults
+# to binary, and ASCII is ~10x the bytes for the same triangles — which is what
+# made these meshes unbearable to track (see case/.gitignore). The flag landed
+# in 2021.01, the version CI installs.
+mesh    := "--export-format=binstl"
 
 # list available recipes
 default:
@@ -54,25 +59,25 @@ render-kb:
 
 # export the integrated-keyboard variant STLs (bracket is shared — see `stl`)
 stl-kb:
-    cd case && openscad -o kb60-body.stl      {{kb60}} -D 'show="kb_body"'      {{scad_kb}}
-    cd case && openscad -o kb60-baseplate.stl {{kb60}} -D 'show="kb_baseplate"' {{scad_kb}}
-    cd case && openscad -o kb40-body.stl      {{kb40}} -D 'show="kb_body"'      {{scad_kb}}
-    cd case && openscad -o kb40-baseplate.stl {{kb40}} -D 'show="kb_baseplate"' {{scad_kb}}
+    cd case && openscad {{mesh}} -o kb60-body.stl      {{kb60}} -D 'show="kb_body"'      {{scad_kb}}
+    cd case && openscad {{mesh}} -o kb60-baseplate.stl {{kb60}} -D 'show="kb_baseplate"' {{scad_kb}}
+    cd case && openscad {{mesh}} -o kb40-body.stl      {{kb40}} -D 'show="kb_body"'      {{scad_kb}}
+    cd case && openscad {{mesh}} -o kb40-baseplate.stl {{kb40}} -D 'show="kb_baseplate"' {{scad_kb}}
     cd case && zip -qj stl-kb.zip kb60-body.stl kb60-baseplate.stl kb40-body.stl kb40-baseplate.stl
 
 # export every STL (3 printable parts, I/O coupon, assembly) + stl.zip bundle
 stl:
-    cd case && openscad -o body.stl         -D 'show="body"'      typoena-case.scad
-    cd case && openscad -o bracket.stl      -D 'show="bracket"'   typoena-case.scad
-    cd case && openscad -o baseplate.stl    -D 'show="baseplate"' typoena-case.scad
-    cd case && openscad -o io-coupon.stl    -D 'show="io_coupon"' typoena-case.scad
-    cd case && openscad -o typoena-case.stl -D 'show="assembled"' typoena-case.scad
+    cd case && openscad {{mesh}} -o body.stl         -D 'show="body"'      typoena-case.scad
+    cd case && openscad {{mesh}} -o bracket.stl      -D 'show="bracket"'   typoena-case.scad
+    cd case && openscad {{mesh}} -o baseplate.stl    -D 'show="baseplate"' typoena-case.scad
+    cd case && openscad {{mesh}} -o io-coupon.stl    -D 'show="io_coupon"' typoena-case.scad
+    cd case && openscad {{mesh}} -o typoena-case.stl -D 'show="assembled"' typoena-case.scad
     cd case && zip -qj stl.zip body.stl bracket.stl baseplate.stl
 
 # export the stick-on feet (only meaningful with feet_mode = "separate")
 stl-feet:
-    cd case && openscad -o feet.stl -D 'show="feet"' -D 'feet_mode="separate"' typoena-case.scad
+    cd case && openscad {{mesh}} -o feet.stl -D 'show="feet"' -D 'feet_mode="separate"' typoena-case.scad
 
 # export just the back-wall I/O fit coupon (quick test print before the body)
 stl-io:
-    cd case && openscad -o io-coupon.stl -D 'show="io_coupon"' typoena-case.scad
+    cd case && openscad {{mesh}} -o io-coupon.stl -D 'show="io_coupon"' typoena-case.scad

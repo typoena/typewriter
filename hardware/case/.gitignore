@@ -1,6 +1,8 @@
 # generated mesh exports — regenerate with `just stl`. Tracked briefly and
-# untracked again: the CLI writes ASCII STL, so a 60-line model change dragged
-# 50k lines of mesh behind it. The .scad is the source; export on demand.
+# untracked again: the CLI wrote ASCII STL, so a 60-line model change dragged
+# 50k lines of mesh behind it. The exports are binary now (see the justfile),
+# but they stay out: the .scad is the source, and a shareable set comes from a
+# `case-v*` tag. Export on demand.
 *.stl
 stl.zip
 stl-kb.zip
