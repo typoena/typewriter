@@ -47,7 +47,7 @@ Design + behavior contract + purchase links:
 | PCB 1       | Perfboard/protoboard **50 × 70 mm** ⟨ref?⟩         | Devkit + DESPI-C579 + MT3608; Ø2 corner holes                           |
 | PCB 2       | Perfboard/protoboard **20 × 80 mm** ⟨ref?⟩         | µSD + 2× USB-C + HW-373; connectors overhang 8 mm                       |
 | Jumper wire | F-F Dupont rainbow jumpers + rainbow ribbon ⟨ref?⟩ | Vertical rows make PCB 1 ~22 mm tall — drives the case's rear placement |
-| FFC coupler | **sourcing map** 24-pin ↔ 24-pin FFC/FPC extension adapter, 0.5 mm pitch — bought ×2 (2026-08-01) | Joins the panel FPC to the extension cable below, for slack routing panel → DESPI-C579 |
+| FFC coupler | **sourcing map** 24-pin ↔ 24-pin FFC/FPC extension adapter, 0.5 mm pitch — bought ×1 (2026-08-01) | Joins the panel FPC to the extension cable below, for slack routing panel → DESPI-C579. **No spare** — the cable is ×2 but this is not |
 | FFC cable   | AWM 20624 flat flex, 24P, 0.5 mm pitch, 100 mm, **Type B** (opposite-side contacts) — bought ×2   | Pairs with the coupler; Type B flips contact side — check orientation at the DESPI-C579 end |
 
 ## Enclosure
