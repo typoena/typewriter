@@ -1,4 +1,6 @@
-# the STLs themselves are committed (regenerate with `just stl`); only the
-# handoff bundles are generated on demand
+# generated mesh exports — regenerate with `just stl`. Tracked briefly and
+# untracked again: the CLI writes ASCII STL, so a 60-line model change dragged
+# 50k lines of mesh behind it. The .scad is the source; export on demand.
+*.stl
 stl.zip
 stl-kb.zip
