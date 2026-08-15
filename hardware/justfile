@@ -16,9 +16,10 @@ base    := "--imgsize=1100,825 --colorscheme=Tomorrow --viewall --autocenter -D 
 # the standard 3/4 camera used by most previews (rotate 62° tilt, 22° azimuth)
 std_cam := "--camera=0,0,0,62,0,22,0"
 # Binary STL on every export. The CLI defaults to ASCII where the GUI defaults
-# to binary, and ASCII is ~10x the bytes for the same triangles — which is what
-# made these meshes unbearable to track (see case/.gitignore). The flag landed
-# in 2021.01, the version CI installs.
+# to binary; measured across case-v1.0.0 (ASCII) vs v1.0.1 (binary), identical
+# triangle counts, ASCII is 3.2x the bytes — and it was line-diffable text,
+# which is what made these meshes unbearable to track (see case/.gitignore).
+# The flag landed in 2021.01, the version CI installs.
 mesh    := "--export-format=binstl"
 
 # list available recipes
