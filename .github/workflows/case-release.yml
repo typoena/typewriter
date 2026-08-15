@@ -51,7 +51,13 @@ jobs:
           # geometry); this workflow decides which assets ship at all.
           paths="hardware/case/*.scad hardware/justfile .github/workflows/case-release.yml"
 
-          prev=$(git describe --tags --abbrev=0 --match 'case-v*' "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+          # Pick the previous tag by creation order, NOT with `describe <tag>^`:
+          # that walks to the parent COMMIT, so re-tagging the very commit the
+          # last release came from — the most obvious nothing-changed case —
+          # looked past it and compared against the release before. Proven on
+          # case-v1.0.3, which published a duplicate of v1.0.2.
+          prev=$(git tag --list 'case-v*' --sort=-creatordate \
+                 | grep -vFx "${GITHUB_REF_NAME}" | head -1)
           if [ -z "$prev" ]; then
             echo "No earlier case-v* tag — first release, exporting."
             echo "changed=true" >> "$GITHUB_OUTPUT"
