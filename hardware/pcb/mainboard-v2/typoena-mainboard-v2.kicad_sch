@@ -1,0 +1,283 @@
+(kicad_sch
+	(version 20250114)
+	(generator "typoena")
+	(generator_version "10.0")
+	(uuid "b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3")
+	(paper "A4")
+	(title_block
+		(title "Typoena mainboard v2")
+		(date "2026-08-15")
+		(rev "A")
+		(company "Typoena")
+		(comment 1 "BQ25896 + TPS63001 + TPS61023 - carte unique PCBA")
+		(comment 2 "Connectivite inter-feuilles par etiquettes globales")
+	)
+	(lib_symbols
+	)
+	(sheet
+		(at 30.48 45.72)
+		(size 76.2 40.64)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "3a1c9e40-0001-4a00-9000-000000000001")
+		(property "Sheetname" "power"
+			(at 30.48 44.449999999999996 0)
+			(effects
+				(font
+					(size 2.54 2.54)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "01-power.kicad_sch"
+			(at 30.48 88.9 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "typoena-mainboard-v2"
+				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3"
+					(page "2")
+				)
+			)
+		)
+	)
+	(text "Alimentation - BQ25896 (charge + power path"
+		(exclude_from_sim no)
+		(at 30.48 93.98 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "42360522-51b2-43ed-8d1f-1542e78cbd3b")
+	)
+	(text "NVDC), TPS63001 3V3, TPS61023 5V clavier, rail"
+		(exclude_from_sim no)
+		(at 30.48 96.98 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "8700be65-57b6-446c-8e01-aa222ad7d2dc")
+	)
+	(text "uSD commute, bouton"
+		(exclude_from_sim no)
+		(at 30.48 99.98 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "cf84ed2f-7dbb-416d-a0c9-72391b8ce93e")
+	)
+	(sheet
+		(at 130.81 45.72)
+		(size 76.2 40.64)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "3a1c9e40-0002-4a00-9000-000000000002")
+		(property "Sheetname" "mcu"
+			(at 130.81 44.449999999999996 0)
+			(effects
+				(font
+					(size 2.54 2.54)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "02-mcu.kicad_sch"
+			(at 130.81 88.9 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "typoena-mainboard-v2"
+				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3"
+					(page "3")
+				)
+			)
+		)
+	)
+	(text "MCU - ESP32-S3-WROOM-1-N16R8, strapping,"
+		(exclude_from_sim no)
+		(at 130.81 93.98 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "deb029ce-3276-457b-b080-5176b7d6fd09")
+	)
+	(text "decouplage"
+		(exclude_from_sim no)
+		(at 130.81 96.98 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "8692b27f-a7fa-4e95-8c5f-68380f690cd3")
+	)
+	(sheet
+		(at 30.48 111.76)
+		(size 76.2 40.64)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "3a1c9e40-0003-4a00-9000-000000000003")
+		(property "Sheetname" "display"
+			(at 30.48 110.49000000000001 0)
+			(effects
+				(font
+					(size 2.54 2.54)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "03-display.kicad_sch"
+			(at 30.48 154.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "typoena-mainboard-v2"
+				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3"
+					(page "4")
+				)
+			)
+		)
+	)
+	(text "Ecran GDEY0579T93 - etage de puissance du §9,"
+		(exclude_from_sim no)
+		(at 30.48 160.02 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "a352105d-a66b-4293-98ab-7ad126e7d168")
+	)
+	(text "FPC 24p, header DESPI de secours"
+		(exclude_from_sim no)
+		(at 30.48 163.02 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "88db7c8a-884b-4c6c-98b4-ca960c5370b2")
+	)
+	(sheet
+		(at 130.81 111.76)
+		(size 76.2 40.64)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "3a1c9e40-0004-4a00-9000-000000000004")
+		(property "Sheetname" "io"
+			(at 130.81 110.49000000000001 0)
+			(effects
+				(font
+					(size 2.54 2.54)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "04-io.kicad_sch"
+			(at 130.81 154.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "typoena-mainboard-v2"
+				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3"
+					(page "5")
+				)
+			)
+		)
+	)
+	(text "IO - USB-C charge/prog, USB-C clavier (hote),"
+		(exclude_from_sim no)
+		(at 130.81 160.02 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "2a32cf6c-a43b-4e34-84fe-1769f9986784")
+	)
+	(text "microSD, pont USB-serie CH343P, extension"
+		(exclude_from_sim no)
+		(at 130.81 163.02 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "48435381-f6a0-47aa-ad43-9c183a2fb185")
+	)
+	(sheet_instances
+		(path "/"
+			(page "1")
+		)
+	)
+	(embedded_fonts no)
+)

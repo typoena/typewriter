@@ -52,6 +52,10 @@ __pycache__/
 # checkout). Everything below is per-machine state or regenerable output.
 *.kicad_prl
 *.kicad_pcb-bak
+# Lock files written while a KiCad editor holds the document open.
+~*.lck
+# LibreOffice lock, if the exported BOM gets opened from the repo.
+.~lock.*#
 *.kicad_sch-bak
 *-backups/
 _autosave-*
