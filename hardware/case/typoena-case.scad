@@ -39,8 +39,9 @@ $fn = 20;
 // ribbon, connector, plate, screw head. A hole a fastener merely drives
 // through is left at nominal and the screw is turned harder; paying 0.5 mm there
 // only thins the wall around it. A hole a fastener MELTS or CUTS its own way into
-// goes further and WANTS the printed hole under nominal (ins_hole_d,
-// standoff_pilot, pwr_fit).
+// goes further and WANTS the printed hole under nominal (ins_hole_d, pwr_fit).
+// A DRILLED hole is outside the rule entirely — a bit cuts its own size, so the
+// baseplate's screw passages and standoff pilots are nominal (see baseplate()).
 // The value is still an estimate off the jammed first coupon. The I/O coupon
 // measures it exactly — caliper its openings against nominal and set this to
 // the delta before the body print (see README, "Printer offset").
@@ -64,7 +65,7 @@ panel_slip  = 0.7;
 // handful of cycles and then it is a stripped hole in a 10-hour print.
 // The PCBs are NOT in this family: they screw DOWN into the baseplate, whose
 // standoffs are 5 mm tall — nowhere near an insert's depth. They stay M2
-// self-tappers into Ø1.6 pilots, modelled AS PRINTED (see standoff_pilot).
+// self-tappers into Ø1.6 pilots, DRILLED not printed (see standoff_pilot).
 ins_hole_d  = 4.8;   // hole the datasheet asks for, AS MODELLED and exempt from
                      // print_bloat: the insert melts its own seat, so this is not
                      // a clearance fit. Compensated it would print at nominal and
@@ -236,9 +237,14 @@ standoff_h     = 5;      // board standoff height — also the WIRING BAY under 
 standoff_pilot = 1.6/2;  // pilot Ø1.6 for an M2 self-tapper (PCB holes are Ø2).
                          // The last self-tapped thread in the model — everything
                          // screwing into the BODY takes a heat-set insert now.
-                         // Exempt from print_bloat, like pwr_fit: a self-tapper
-                         // wants the PRINTED hole tight, and Ø1.6 + bloat printed
-                         // near the screw's own Ø2, leaving nothing to bite.
+                         // NOT MODELLED, like the baseplate screws: the standoffs
+                         // print SOLID and the 8 pilots are DRILLED. A Ø1.6 hole is
+                         // 2-3 perimeters wide, so the printer rounds it to whatever
+                         // its extrusion width allows and the self-tapper meets a
+                         // hole of unknown size. A bit cuts 1.6. Nominal for the
+                         // same reason (no print_bloat), and the number still sizes
+                         // the model: the standoff's Ø6 pad is 2.2 mm of wall around
+                         // it. See README, "Drilling the baseplate".
 pcb_t          = 1.6;    // PCB thickness (for port-height maths)
 // PCB 1 = ESP32 devkit + e-ink driver + MT3608 boost. 50(X) x 70(Y), back-LEFT,
 // long axis running FRONT-BACK. Standing it up out of the old 70(X) x 50(Y) is
@@ -375,24 +381,29 @@ foot_h     = 3.5;
 //              flat-face-down with every feature growing upward off the bed.
 feet_mode = "none";
 // ---- the three baseplate screws (#6-32 into body inserts) -----------------
-// The head sits in a LAMAGE in the plate's underside, flush with the face that
-// rests on the desk. With feet_mode="none" that face IS the machine's contact
-// patch: heads left proud would be the four points it stands on, and the plate
-// would rock on three of them.
-bp_screw_r = scr_clear_d/2;                      // shank clearance through the plate,
-                     // uncompensated like every other screw hole — turned through.
-bp_head_r  = (scr_head_d + 0.4 + print_bloat)/2; // lamage: Ø6.5 head + 0.4 slop.
-                     // The one screw hole still compensated — a head cannot be
-                     // turned through an undersized one, it can only stop proud.
-bp_head_h  = scr_head_h + 0.2;   // flat-bottomed, 0.2 deeper than the head so it
-                     // can only ever end up below the face, never level with it.
-                     // Z, so layer height governs this, not print_bloat.
+// NOT MODELLED. The plate prints SOLID at the three post_xy and both features are
+// DRILLED after the print. The printed lamage came out poor on the first baseplate:
+// it is a flat-bottomed pocket in the FIRST layers, so the plate has to bridge from
+// Ø7.4 back in to Ø3.9 over open air, and the seat the head pulls against ends up
+// being whatever that bridge sagged to. A drill gives a clean flat seat instead —
+// see README, "Drilling the baseplate", for transferring the positions.
+// The three numbers below are the DRILLING SPEC, at nominal: no print_bloat, a bit
+// cuts the size it is. They stay in the model because the geometry that meets the
+// drilled hole is still derived from them — post_bore_h budgets the insert against
+// the plate thickness the screw crosses once the lamage exists, and the two grip
+// asserts check that budget.
+bp_screw_r = scr_clear_d/2;      // Ø3.9 shank clearance, drilled through (Ø4 bit)
+bp_head_r  = (scr_head_d + 0.4)/2;  // Ø6.9 lamage for the Ø6.5 head, 0.4 of slop
+bp_head_h  = scr_head_h + 0.2;   // 1.2 deep — 0.2 past the head so it can only ever
+                     // end up BELOW the plate's underside, never level with it.
+                     // With feet_mode="none" that face is the machine's contact
+                     // patch: a proud head makes it rock on three of four points.
 // The two FRONT feet sit over those holes, so they need a bore that clears the
-// DRIVER, not just the screw: the head is now recessed bp_head_h up inside the
-// plate, and a glued-on foot with a shank-sized hole puts the head out of reach.
-// One bore at the lamage Ø does both jobs (the v0 foot had a bore + its own head
-// counterbore, which the lamage made redundant).
-foot_bore_r = bp_head_r;
+// DRIVER, not just the screw: the head is recessed bp_head_h up inside the plate,
+// and a glued-on foot with a shank-sized hole puts the head out of reach. One bore
+// at the lamage Ø does both jobs (the v0 foot had a bore + its own head counterbore,
+// which the lamage made redundant). Printed, so it carries print_bloat.
+foot_bore_r = bp_head_r + print_bloat/2;
 // Baseplate screw bosses. Rectangular pads FUSED INTO THE WALLS they sit against,
 // not free-standing posts: the box overshoots the shell by post_out and the
 // intersection with body_outer() trims it flush, so "touching the wall" is a
@@ -414,7 +425,9 @@ post_h     = 10;   // boss height above bp_t. The WALLS carry the boss, so heigh
 // Insert goes in from BELOW, into the boss's bottom face at z=bp_t (the face the
 // baseplate seats against), so the iron reaches it straight down through the open
 // bottom of the shell before any board is fitted.
-// over = the plate the thread crosses first: bp_t less the head's lamage.
+// over = the plate the thread crosses first: bp_t less the head's lamage. The
+// lamage is drilled rather than printed, but it is there by the time a screw is
+// turned, so the budget is the same.
 post_bore_h = ins_bore_h(bp_t - bp_head_h);   // BLIND, ~3 mm of roof left under
                    // post_h. A through bore would let an over-long screw push its
                    // tip into the cavity, and at the front corners that lands in
@@ -475,7 +488,8 @@ module body_cavity() {
 // The back screw stays 7.5 mm off the wall's inner face: the baseplate's own edge
 // is at D-wall-bp_gap/2, so any closer and the plate keeps under 3 mm of rim
 // outboard of the LAMAGE for the head to pull against. It was 6 against an M2.5
-// head; the #6-32's Ø7.4 lamage ate that rim down to 1.55 mm, hence the move.
+// head; the #6-32's Ø6.9 lamage ate that rim down to 1.8 mm, hence the move. The
+// rim also absorbs the wander of a lamage that is now drilled, not printed.
 // Y is free here — the post lives in the x gap between the two boards, and that
 // band is clear the whole depth of the plate.
 post_xy = [[corner_r+3,          corner_r+3],     // front-left  corner
@@ -573,7 +587,7 @@ assert(boss_r  - boss_bore  >= ins_wall,  "bracket boss: too little wall for the
 assert(post_pad - post_bore >= ins_wall,  "baseplate boss: too little wall for the insert");
 assert(pilot_skin >= ins_wall,            "deck skin over the bracket insert too thin");
 assert(post_h - post_bore_h >= 1.5,       "baseplate boss: no roof left over the bore");
-assert(bp_t - bp_head_h     >= 1.2,       "baseplate: lamage leaves too little plate");
+assert(bp_t - bp_head_h     >= 1.2,       "baseplate: drilled lamage leaves too little plate");
 assert(ins_grip(bracket_t)        >= 2.5, "bracket screw: not enough thread in the insert");
 assert(ins_grip(bp_t - bp_head_h) >= 2.5, "baseplate screw: not enough thread in the insert");
 // the bracket has to cover the boss it seats on, and the boss has to stay out of
@@ -709,33 +723,25 @@ module bracket() {
 // ===========================================================================
 //  baseplate / chassis
 // ===========================================================================
+// The plate is a pure UNION: it has no hole in it at all. Every fastener feature it
+// carries is DRILLED after the print — the 3 body screws at post_xy (through +
+// lamage) and the 8 standoff pilots. Both were tried as printed geometry on the
+// first plate and both came out badly; the reasons live at bp_screw_r/bp_head_r and
+// at standoff_pilot, the procedure in README, "Drilling the baseplate".
 module baseplate() {
     iw = W - 2*wall - bp_gap;
     id = D - 2*wall - bp_gap;
-    difference() {
-        union() {
-            // plate (centred on the footprint)
-            translate([W/2, D/2, 0]) linear_extrude(bp_t) rrect(iw, id, corner_r-wall);
-            // round feet underneath — only in "fused" mode, see feet_mode
-            if (feet_mode == "fused") feet_parts();
-            // board standoffs on top (PCB 1 back-left + PCB 2 back-right)
-            for (h = concat(pcb1_holes, pcb2_holes))
-                translate([h[0], h[1], bp_t]) cylinder(h=standoff_h, r=3);
-            // battery cage nibs (front-right LiPo; foam/VHB tape does the rest)
-            for (cx=[bat_x0-1, bat_x1+1], cy=[bat_y0-1, bat_y0+bat_d+1])
-                translate([cx, cy, bp_t]) cylinder(h=5, r=1.6);
-        }
-        // screw clearance up into the body inserts (2 front corners + 1 back centre),
-        // each with a lamage in the underside. Flat-bottomed, not a countersink: the
-        // head is a flat 1 mm pan and a cone would only touch it on one rim circle.
-        for (p = post_xy)
-            translate([p[0], p[1], -foot_h-1]) {
-                cylinder(h=bp_t+foot_h+2, r=bp_screw_r);
-                cylinder(h=foot_h+1+bp_head_h, r=bp_head_r);
-            }
-        // standoff pilot holes
+    union() {
+        // plate (centred on the footprint)
+        translate([W/2, D/2, 0]) linear_extrude(bp_t) rrect(iw, id, corner_r-wall);
+        // round feet underneath — only in "fused" mode, see feet_mode
+        if (feet_mode == "fused") feet_parts();
+        // board standoffs on top (PCB 1 back-left + PCB 2 back-right)
         for (h = concat(pcb1_holes, pcb2_holes))
-            translate([h[0], h[1], bp_t-1]) cylinder(h=standoff_h+2, r=standoff_pilot);
+            translate([h[0], h[1], bp_t]) cylinder(h=standoff_h, r=3);
+        // battery cage nibs (front-right LiPo; foam/VHB tape does the rest)
+        for (cx=[bat_x0-1, bat_x1+1], cy=[bat_y0-1, bat_y0+bat_d+1])
+            translate([cx, cy, bp_t]) cylinder(h=5, r=1.6);
     }
 }
 

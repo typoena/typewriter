@@ -7,9 +7,11 @@ no platen part (it complicates the print); the rounded back-top edge nods to one
 
 > **Status: model complete, body print pending.** Outer form, screen retention and
 > the two-board mounting are worked out against the real hardware, and every number
-> is measured — the **3700 mAh** cell included. What has been printed is the
-> back-wall I/O coupon, which is what corrected the port openings; the body,
-> baseplate and bracket have not, and the 7 heat-set inserts are still untried —
+> is measured — the **3700 mAh** cell included. Printed so far: the back-wall I/O
+> coupon, which is what corrected the port openings, and a first **baseplate**,
+> which is what took the screw lamages out of the model — they printed badly and
+> are drilled now (see [Drilling the baseplate](#drilling-the-baseplate)). The body
+> and bracket have not been printed, and the 7 heat-set inserts are still untried —
 > see **Open questions / TODO**. The coupon **needs a reprint**: the opening
 > *sizes* it validated still stand, but the wiring bay moved every one of them
 > 2 mm up the wall.
@@ -117,16 +119,17 @@ good for a handful of cycles before it's a stripped hole in a 10-hour print.
 | bore | Ø4.8 × 4.8 blind, **2.1 mm of deck** left over it | Ø4.8 × 6.6 blind, 3.4 mm of roof |
 | screw crosses | 3.6 mm of bracket | 1.4 mm of plate |
 | thread in brass | **3.4 mm** | **3.8 mm** (the whole insert) |
-| head | **no lamage** — bears on the bracket's face, inside the case | in a **lamage** in the plate's underside, flush with the desk |
+| head | **no lamage** — bears on the bracket's face, inside the case | in a **lamage** in the plate's underside, flush with the desk — **drilled, not printed** (see [Drilling the baseplate](#drilling-the-baseplate)) |
 
 Both bores are **plain Ø4.8 cylinders** — no relief, no step, no lead-in for the
 insert's head end: the iron melts its own seat, so the bore is not a clearance fit
-and nothing about the insert's outline is modelled. The **lamage** under the three
-baseplate heads is now the only counterbore in the model.
+and nothing about the insert's outline is modelled. There is no counterbore left
+anywhere in the model: the baseplate's three passages come out of the printer
+**solid** and are drilled afterwards.
 
 That Ø4.8 is the *modelled* number and it is **exempt from `print_bloat`**, like
-`standoff_pilot` and `pwr_fit`: a hole a fastener melts (or cuts) its way into
-wants the printed hole tight, not nominal. Compensated, it would print at Ø4.8
+`pwr_fit`: a hole a fastener melts (or cuts) its way into wants the printed hole
+tight, not nominal. Compensated, it would print at Ø4.8
 around a Ø4.7 body and leave the brass loose in the hole it should be gripping.
 The wall figures in the table are taken off that modelled bore, so the real part
 has ~0.25 mm more a side than the table claims — the asserts check the pessimistic
@@ -140,10 +143,12 @@ the bracket, and rocks the plate on the baseplate.
 
 The **PCBs are not in this family.** They screw *down* into the baseplate, whose
 standoffs are 5 mm tall — nowhere near an insert's 4.8 mm bore even so. They stay
-**M2 self-tappers into Ø1.6 pilots**, modelled the same way as the insert bores —
-under nominal, exempt from `print_bloat`. The pilots are blind and their depth
-tracks `standoff_h`, so the screws want to be 2 mm longer than the 3 mm-standoff
-build.
+**M2 self-tappers into Ø1.6 pilots** — but those pilots, like the three screw
+passages, are **drilled, not printed** (see
+[Drilling the baseplate](#drilling-the-baseplate)). A Ø1.6 hole is two or three
+perimeters wide, so the printer rounds it to whatever its extrusion width allows and
+the self-tapper arrives at a hole of unknown size; a bit cuts 1.6. Nominal for the
+same reason — a drilled hole is outside the `print_bloat` rule entirely.
 
 The depth budget is why `lip_t` went 1.4 → 2.4 and `bracket_t` 2.6 → 3.6. Between
 the bracket's seat and the deck's *outer face* there is only `br_seat`, and the
@@ -164,7 +169,7 @@ Both boards sit on **5 mm printed standoffs** (`standoff_h`). That gap is the
 battery feed, PCB 2's the charger leads and the ribbon back to PCB 1, and at the
 3 mm of the first build there was nowhere for any of it to go.
 
-- **PCB 1** back-left on those standoffs (M2 self-tap into
+- **PCB 1** back-left on those standoffs (M2 self-tap into the pilots drilled at
   `pcb1_holes`), **turned so its long side runs front-back** (x 4…54, y 26…96).
   That orientation is what gives the screen ribbon a run: the board's FPC end sits
   at the **front-left**, right under the front end of the deck slot (which reaches
@@ -254,30 +259,120 @@ battery feed, PCB 2's the charger leads and the ribbon back to PCB 1, and at the
   against — the iron reaches it straight down through the open bottom of the shell,
   so press all three *before* any board goes in. The **back** post sits 7.5 mm off
   the wall's inner face (was 6): the plate has to keep ≥3 mm of rim outboard of the
-  Ø7.4 lamage for the head to pull against, and at 6 that rim was 1.55 mm.
+  Ø6.9 lamage for the head to pull against, and at 6 that rim was 1.8 mm. That rim
+  now also absorbs the wander of a lamage that is drilled by hand.
 
-![The baseplate — PCB standoffs, front-right battery nibs, three screw clearances](renders/baseplate.png)
+![The baseplate — PCB standoffs, front-right battery nibs, screw pads](renders/baseplate.png)
 ![Exploded plan: deck/screen half lifted above the cavity — two boards, front-right battery, screw bosses, ports](renders/plan.png)
 ![Top half (plan_up) — deck underside: the screen in its recess and the bracket bosses](renders/plan-up.png)
 ![Bottom half (plan_down) — the cavity: PCB 1 standing front-back at the left, PCB 2 back-right, battery in the L's front-right void, the flex plenum front-left](renders/plan-down.png)
 
 **Assembly order.**
 
-0. **Press the 7 inserts first, on the bare body**: 4 into the bracket bosses under
+0. **Drill the baseplate** — 3 screw passages + 8 standoff pilots, none of them are
+   in the print. Mark the screw positions through the still-empty Ø4.8 baseplate
+   boss bores first; doing that before the inserts go in is what makes the marking
+   possible. See [Drilling the baseplate](#drilling-the-baseplate).
+1. **Press the 7 inserts, on the bare body**: 4 into the bracket bosses under
    the deck, 3 into the baseplate bosses (from below). Iron at ~250 °C, straight
    in, stop when the brass is **flush with the boss's face** — the bore is deeper
    than the insert, so nothing bottoms out for you. The bracket four point at the
    deck's visible face with 2.1 mm of PLA behind them — these are the ones to go
    slowly on.
-1. Lay glass into the deck recess, add foam, screw the bracket to the 4 bosses
+2. Lay glass into the deck recess, add foam, screw the bracket to the 4 bosses
    (#6-32 × 7). Drive them until the bracket sits flat on the boss shoulders and
    stop — the shoulder is the stop, not the foam.
-2. Screw PCB 1 (back-left, FPC end forward) and PCB 2 (back-right) to the
-   standoffs; set the LiPo into its front-right nibs.
-3. Connect the FPC through the slot into PCB 1's front-left end, and coil the
+3. Screw PCB 1 (back-left, FPC end forward) and PCB 2 (back-right) to the
+   standoffs (M2 × 6 self-tappers into the drilled pilots); set the LiPo into its
+   front-right nibs.
+4. Connect the FPC through the slot into PCB 1's front-left end, and coil the
    extension's slack into the front-left plenum; run the PCB 1 ↔ PCB 2 ribbon and
    the battery leads to the charger.
-4. Screw the baseplate up into the three bosses.
+5. Screw the baseplate up into the three bosses.
+
+### Drilling the baseplate
+
+**The baseplate has no hole in it at all** — it is a pure union. Both fastener
+features are drilled after the print, because both came out badly on the first plate.
+
+Nothing else about the plate changed: the pad diameters, the standoff height and all
+the positions are still the model's.
+
+#### The three body screws
+
+The lamage is a flat-bottomed pocket in the plate's *first* layers, so the print has
+to bridge from Ø7.4 back in to Ø3.9 over open air, and the seat the head pulls
+against ends up being whatever that bridge sagged to. A drill gives a flat seat.
+
+Two features per hole, from the plate's **underside** (the face that meets the
+desk):
+
+| | Ø | depth | what it is |
+| --- | --- | --- | --- |
+| through hole | **3.9** (Ø4 bit) | through 2.6 | #6-32 shank clearance — the screw is turned through it |
+| lamage | **6.9** (Ø7 bit) | **1.2**, flat-bottomed | the Ø6.5 × 1 pan head, finishing 0.2 **below** the face |
+
+Flat-bottomed, not a countersink: the head is a flat 1 mm pan and a cone would only
+touch it on one rim circle. The head must finish below the underside — with
+`feet_mode = "none"` that face is what the machine stands on, and a proud head makes
+it rock on three of four points. Drill the lamage **first**, then the through hole
+through its centre: a twist bit's point needs full material to centre on.
+
+Positions, from the plate's front-left corner (the long edge is the front; the plate
+is 169.7 × 97.7):
+
+| screw | x | y |
+| --- | --- | --- |
+| front-left | 7.85 | 7.85 |
+| front-right | 161.85 | 7.85 |
+| back-centre | 67.65 | 90.95 |
+
+Better than measuring: **transfer from the body, before the inserts go in.** The
+three boss bores are plain Ø4.8 holes at that point, open from below and pointing
+straight down at the seated plate — sit the plate in the shell and mark their
+centres through them (a Ø4.8 transfer punch, or a pointed marker and then a centre
+punch). Press the inserts afterwards; once the brass is in, its ~Ø2.9 thread no
+longer lines a bit up on anything. The back screw keeps ≥3 mm of plate rim outboard
+of its lamage, which is the wander budget for doing this by hand.
+
+#### The eight standoff pilots
+
+Same story at the other end of the scale: **Ø1.6 is two or three perimeters wide**,
+so the printer rounds the hole to whatever its extrusion width allows and the M2
+self-tapper arrives at a hole of unknown size — sometimes nothing to bite, sometimes
+a split standoff. A bit cuts 1.6.
+
+One hole per standoff, **Ø1.6, from the top face, 6 mm deep** — that is the whole
+thread the design ever had, and it leaves 1.6 mm of plate under the bit. Put a tape
+flag on the drill: going through only opens a Ø1.6 hole in the underside, but it is
+a dust path and the plate is the face the machine stands on. The Ø6 pad leaves
+2.2 mm of wall all round, so there is room for the bit to wander a little.
+
+**Screw length: M2 × 6.** The board is 1.6 mm, the pilot 6 mm, so a ×6 bites 4.4 mm
+and a ×8 bottoms 0.4 mm short of seating and lifts the board off its standoff.
+
+Positions, same frame as above (front-left corner of the plate). PCB 1's four are on
+a **46 × 66** grid, PCB 2's on **76 × 16**; every centre is 2 mm in from its board
+edge, which is the only rule — the rest falls out of `pcb1_*` / `pcb2_*`.
+
+| | x | y | |
+| --- | --- | --- | --- |
+| PCB 1 front-left | 2.85 | 24.85 | ESP32 + driver + boost, back-left, |
+| PCB 1 front-right | 48.85 | 24.85 | long axis front-back |
+| PCB 1 back-left | 2.85 | 90.85 | |
+| PCB 1 back-right | 48.85 | 90.85 | |
+| PCB 2 front-left | 86.45 | 72.45 | µSD + 2× USB-C + TP4056, |
+| PCB 2 front-right | 162.45 | 72.45 | along the back wall, right end |
+| PCB 2 back-left | 86.45 | 88.45 | |
+| PCB 2 back-right | 162.45 | 88.45 | |
+
+Here there is no transfer trick — nothing in the body lines these up. Mark them off
+the plate's own edges, or lay a board on its four standoffs and scribe through its
+Ø2 holes, which is more accurate than the tape measure and is the fit that actually
+matters.
+
+The keyboard variant's bay posts (`bay_posts()` in `typoena-case-kb.scad`) are solid
+for the same reason and drill the same way.
 
 ## Tune first
 
@@ -313,7 +408,8 @@ battery feed, PCB 2's the charger leads and the ribbon back to PCB 1, and at the
   come back as their own part with `feet_mode = "separate"` + `just stl-feet` —
   four Ø14 × 3.5 discs, the front pair concentric with the screw bosses and bored
   at the lamage Ø so a **driver** still reaches the recessed head (a shank-sized
-  hole would put it out of reach and the plate could never come off). What they must *not* go back to
+  hole would put it out of reach and the plate could never come off). Glue them on
+  *after* drilling, and off the drilled holes rather than off the model. What they must *not* go back to
   is `"fused"`: hanging off the plate they leave it resting on four small discs,
   turning the whole baseplate into a 3.5 mm overhang that wants support across its
   footprint, standoffs and nibs floating above it. As it stands all three parts
@@ -438,10 +534,17 @@ battery feed, PCB 2's the charger leads and the ribbon back to PCB 1, and at the
       ready as a separate part. With the heads now flush there is nothing forcing
       them back: the plate sits flat on the desk on its own face.
 - [x] ~~**Baseplate screw heads are now the contact points.**~~ Solved by the
-      **lamage**: Ø7.4 × 1.2 flat-bottomed, so the flat 1 mm head finishes 0.2
+      **lamage**: Ø6.9 × 1.2 flat-bottomed, so the flat 1 mm head finishes 0.2
       below the face the machine stands on, with 1.4 mm of plate left over it. The
       countersink this note proposed is the wrong tool for a flat head — a cone
-      would touch it on one rim circle instead of its whole underside.
+      would touch it on one rim circle instead of its whole underside. Printed it
+      came out badly, so it is **drilled** now — see below.
+- [x] **The printed lamage was poor and is gone from the model.** First baseplate
+      print: the lamage is a flat-bottomed pocket in the *first* layers, so the
+      plate bridges Ø7.4 back in to Ø3.9 over open air and the seat the head pulls
+      against is whatever that bridge sagged to. The plate now prints solid at all
+      three posts and both features are drilled — see
+      [Drilling the baseplate](#drilling-the-baseplate).
 
 ### The panel measurement
 

@@ -106,12 +106,12 @@ module bay_cavity() {
         linear_extrude(Hk) rrect(kb_int_w, kb_int_d, 3);
 }
 
+// Solid, like the wedge's own board standoffs: the Ø1.6 pilots are DRILLED after
+// the print, not modelled. See standoff_pilot in typoena-case.scad.
 module bay_posts() {
     for (h = kb_holes)
-        translate([kb_px0 + h[0], kb_py1 - h[1], kb_floor]) difference() {
+        translate([kb_px0 + h[0], kb_py1 - h[1], kb_floor])
             cylinder(h=kb_post_h, r=3);
-            translate([0,0,-1]) cylinder(h=kb_post_h+2, r=standoff_pilot);
-        }
 }
 
 module bay_feet() {
