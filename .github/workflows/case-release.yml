@@ -11,6 +11,9 @@ name: Case release
 # release: the published mesh provably comes from the tagged .scad, so a stale
 # local export can't ship by accident.
 #
+# A tag whose .scad / justfile / this-workflow are all unchanged since the
+# previous case tag exports nothing — see the `guard` job.
+#
 # To release:  git tag case-vX.Y.Z && git push origin case-vX.Y.Z
 
 on:
@@ -22,11 +25,52 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  # `paths:` is not evaluated for tag pushes — GitHub skips path filtering
+  # entirely when the ref is a tag — so the filter has to live in a job. Diff
+  # this tag against the previous `case-v*` tag over the files that actually
+  # shape the meshes, and don't spin up OpenSCAD when none of them moved.
+  guard:
     # `origin` pushes to both GitHub and a Gitea mirror, and Gitea Actions scans
     # `.github/workflows` too. Gitea sets `server_url` to its own host; only
     # github.com should build.
     if: ${{ github.server_url == 'https://github.com' }}
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+    steps:
+      # Full history: the previous tag has to be reachable to diff against.
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Diff against the previous case tag
+        id: diff
+        run: |
+          # The .scad files are the model; the justfile decides how they are
+          # exported (--export-format changed the assets without touching the
+          # geometry); this workflow decides which assets ship at all.
+          paths="hardware/case/*.scad hardware/justfile .github/workflows/case-release.yml"
+
+          prev=$(git describe --tags --abbrev=0 --match 'case-v*' "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+          if [ -z "$prev" ]; then
+            echo "No earlier case-v* tag — first release, exporting."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if git diff --quiet "$prev" "${GITHUB_REF_NAME}" -- $paths; then
+            echo "Nothing mesh-shaping changed since ${prev}. Skipping the export."
+            echo "The tag still exists; re-tag after a real change, or widen \$paths."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Changed since ${prev}:"
+            git diff --name-only "$prev" "${GITHUB_REF_NAME}" -- $paths
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  release:
+    needs: guard
+    if: ${{ needs.guard.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
