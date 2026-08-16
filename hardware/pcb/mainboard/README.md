@@ -1,7 +1,6 @@
-# Typoena mainboard v2 — carte unique PCBA
+# Typoena mainboard — carte unique PCBA
 
-Projet KiCad 10 **neuf**, indépendant de [`../mainboard/`](../mainboard) (KiCad 9), qui
-reste en place et non modifié comme référence. Rien à migrer, donc rien à casser.
+Projet KiCad 10. Une seule carte porte toute l'électronique de la machine.
 
 | | |
 | --- | --- |
@@ -12,16 +11,15 @@ reste en place et non modifié comme référence. Rien à migrer, donc rien à c
 | Valeurs et leur source | [`DESIGN-NOTES.md`](DESIGN-NOTES.md) |
 
 ```
-typoena-mainboard-v2.kicad_sch   racine : les quatre feuilles
+typoena-mainboard.kicad_sch   racine : les quatre feuilles
 ├── 01-power.kicad_sch     47 composants   chargeur, rails 3V3 et 5V, rail uSD, bouton
 ├── 02-mcu.kicad_sch       10              ESP32-S3, strapping, découplage
 ├── 03-display.kicad_sch   21              étage de puissance du panneau, FPC, secours
 └── 04-io.kicad_sch       19              USB-C ×2, microSD, pont USB-série, extension J10
 ```
 
-Ce que la carte remplace : les deux perfboards, le devkit, et les trois modules externes
-(HW-373, MT3608, DESPI-C579). Ce qu'elle apporte : lecture du niveau de batterie, charge
-propre en usage, coupure sous tension critique, extinction soft.
+Au-delà de l'alimentation et du MCU, la carte assure la lecture du niveau de batterie, la
+charge pendant l'usage, la coupure sous tension critique et l'extinction soft.
 
 ## Prérequis
 
@@ -34,10 +32,6 @@ Développé et vérifié avec **KiCad 10.0.5**. Le format de fichier du schéma 
 `20250114`, partagé avec KiCad 9, donc un KiCad 9 devrait pouvoir l'ouvrir — mais la
 bibliothèque ci-dessous s'installe dans un chemin versionné (`KICAD10_3RD_PARTY`), donc
 il faudrait l'y réinstaller séparément.
-
-> :warning: **Ne pas ouvrir l'ancien projet [`../mainboard/`](../mainboard) avec KiCad 10.**
-> Il est en KiCad 9 et la migration est irréversible. C'est précisément pour ça que la v2
-> est un projet neuf plutôt qu'une évolution.
 
 ### Bibliothèque JLCPCB (CDFER)
 
@@ -80,7 +74,7 @@ cavité existante.
 | Décision | Raison |
 | --- | --- |
 | Format allongé 130 × 45 | épouse une machine de 176 mm de large et laisse un rectangle propre pour la batterie de 94 × 32 mm. À surface égale (~5 800 mm²) le PCB coûte le même prix qu'un 90 × 60 — JLCPCB facture la surface, pas la forme |
-| Module **en débord de bord** | son keepout fait 48 × 41 mm contre 18 × 25,5 mm pour le corps : le faire déborder sort l'essentiel de cette zone stérile de la carte, et c'est la configuration que préfère la datasheet. La contrainte 50 × 70 de la v1 l'interdisait |
+| Module **en débord de bord** | son keepout fait 48 × 41 mm contre 18 × 25,5 mm pour le corps : le faire déborder sort l'essentiel de cette zone stérile de la carte, et c'est la configuration que préfère la datasheet |
 | Les 3 ports utilisateur groupés sur **un bord long** | une seule paroi à percer, et c'est la disposition qui éloigne le plus les convertisseurs à découpage de l'antenne |
 | L'écran **n'impose rien** | on conserve le coupleur FFC et la rallonge 100 mm, donc `J4` se place où le routage l'arrange |
 
@@ -99,7 +93,7 @@ au lieu de 4.
 
 ## PCB — squelette
 
-`typoena-mainboard-v2.kicad_pcb` contient le contour (130 × 45, coins R3), l'**empilage
+`typoena-mainboard.kicad_pcb` contient le contour (130 × 45, coins R3), l'**empilage
 JLCPCB 4 couches** (1,6 mm, finition ENIG), **6 trous de fixation** M2 — les quatre coins
 plus deux à mi-portée, parce qu'une carte de 130 mm fléchit — et les **classes de nets**.
 DRC à 0 violation.
@@ -114,7 +108,8 @@ risqué pour un résultat identique.
 | Classe | Piste | Via | Nets |
 | --- | --- | --- | --- |
 | `Default` | 0,25 mm | 0,6 / 0,3 | tout le reste |
-| `Power` | 0,6 mm | 0,8 / 0,4 | GND, VBAT, VSYS, VBUS, PMID, +3V3, +5V, +3V3_SD, REGN |
+| `Power` | 0,6 mm | 0,8 / 0,4 | VBAT, VSYS, VBUS, PMID, +3V3, +5V, +3V3_SD, REGN |
+| `Ground` | 0,6 mm | 0,8 / 0,4 | GND — le seul net de masse du schéma |
 | `Switching` | 0,6 mm | 0,8 / 0,4 | les nœuds de commutation des trois convertisseurs et de la pompe de charge du panneau |
 | `USB` | 0,25 mm | — | les deux paires D+/D−, en paire différentielle 0,25 / 0,2 |
 
@@ -143,9 +138,9 @@ USB-C charge ──VBUS──┬─► BQ25896 ──BAT──► [JST-PH] LiPo 
 3V3 ──► L 47µH + Si1308EDL + 3× MBR0530 ──► PREVGH / PREVGL ──► FPC 24p ──► panneau
 ```
 
-Le rendement vers le 3V3 passe de **56 %** (boost 5 V puis LDO) à **~90 %**. Tout le
-power path discret de la v1 — deux AO3401A, un 2N7002, SS34, 1N4148 et leur réseau de
-polarisation — disparaît dans le BQ25896.
+Le 3V3 sort du buck-boost à **~90 %** de rendement. Le BQ25896 intègre tout le power
+path — sélection source/batterie, limitation d'entrée, BATFET — donc aucun MOSFET ni
+diode discrète sur le chemin de puissance principal.
 
 ## Plan de broches
 
@@ -216,25 +211,23 @@ buck-boost 3V3 a été choisi **parmi les composants dont l'empreinte existe dé
 
 ## Régénérer
 
-Le schéma a été produit par les scripts de [`tools/`](tools) plutôt qu'à la souris.
-C'est un **amorçage ponctuel, pas un pipeline** : dès que le schéma est retouché dans
-le GUI, les scripts deviennent une archive de la façon dont il a été créé, et il ne
-faut plus les relancer sous peine d'écraser le travail manuel.
+Les scripts de [`tools/`](tools) écrivent le schéma. C'est un **amorçage, pas un
+pipeline** : ils réécrivent les fichiers en entier, donc les relancer après la moindre
+retouche dans le GUI **écrase le travail manuel**.
 
 ```sh
-cd hardware/pcb/mainboard-v2
+cd hardware/pcb/mainboard
 python3 tools/gen_syms.py     # bibliothèque de symboles
 python3 tools/gen_sch.py      # schéma
-kicad-cli sch erc --severity-all -o /tmp/erc.rpt typoena-mainboard-v2.kicad_sch
+kicad-cli sch erc --severity-all -o /tmp/erc.rpt typoena-mainboard.kicad_sch
 ```
 
-`kicad-cli` 10.0.5 est dans le `PATH` sur cette machine. La recette headless de
-[`../README.md`](../README.md) pointe vers un AppImage KiCad 9 sous
-`~/.local/share/com.jean.desktop/`, qui n'existe pas ici.
+`kicad-cli` 10.0.5 est dans le `PATH` sur le poste de bureau ; sur le conteneur il faut
+sourcer son environnement, voir [`../README.md`](../README.md).
 
 ## Ce qui reste à faire
 
-- [ ] **Relire le schéma.** 96 composants, relus par une seule paire d'yeux. L'ERC est à
+- [ ] **Relire le schéma.** 97 composants, relus par une seule paire d'yeux. L'ERC est à
       zéro et le netlist a été vérifié bloc par bloc, mais sur une première carte c'est
       le jalon qui compte — et il coûte incomparablement moins cher qu'après fabrication.
 - [ ] **Tracer les fils.** La connectivité passe par des **étiquettes globales**, pas par
@@ -254,8 +247,9 @@ kicad-cli sch erc --severity-all -o /tmp/erc.rpt typoena-mainboard-v2.kicad_sch
       supprimé si l'on veut économiser une ligne.
 - [ ] **Revérifier les stocks à la commande**, en particulier les références Extended :
       la bibliothèque JLCPCB installée date de juillet 2025.
-- [ ] Reprendre `docs/bom.md` et `../README.md`, qui décrivent encore la v1 comme la
-      carte de référence.
+- [ ] Reprendre `hardware/bom.md`, `hardware/wiring.md` et `hardware/case/` : ils
+      décrivent le montage de banc — devkit et deux perfboards — et non cette carte.
+      Le brochage y est celui du DevKitC-1, donc faux pour le module nu.
 
 ## Points ouverts, à trancher au banc
 

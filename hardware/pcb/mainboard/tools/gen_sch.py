@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Génère le schéma de la mainboard v2.
+"""Génère le schéma de la mainboard.
 
 Connectivité par étiquettes (voir kisch.py). Le schéma est plat : la découpe en
 feuilles hiérarchiques se fait ensuite dans le GUI, elle ne change pas le netlist.
@@ -7,10 +7,10 @@ feuilles hiérarchiques se fait ensuite dans le GUI, elle ne change pas le netli
 import kisch
 from kisch import LIB, uid, wire, label, text, symbol_instance, pin_abs, HEADER
 
-PROJECT = "typoena-mainboard-v2"
+PROJECT = "typoena-mainboard"
 ROOT = "b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3"
 OUT = ("/home/emmanuel/Documents/Developpement/esp32/typewriter/"
-       "hardware/pcb/mainboard-v2/typoena-mainboard-v2.kicad_sch")
+       "hardware/pcb/mainboard/typoena-mainboard.kicad_sch")
 
 # empreintes courantes
 R04 = "Resistor_SMD:R_0402_1005Metric"
@@ -437,7 +437,7 @@ for name, fname, titre in SHEETS:
             body.append(f'\t(no_connect\n\t\t(at {ax} {ay})\n\t\t(uuid "{uid()}")\n\t)\n')
     body.append(text(titre, 25, 30, size=2.5))
     emb = "".join("\t" + LIB.get(l)[0].replace("\n\t", "\n\t\t") + "\n" for l in lib_ids)
-    out = HEADER.format(root=SHEET_UUIDS[name], paper="A2", title="Typoena mainboard v2",
+    out = HEADER.format(root=SHEET_UUIDS[name], paper="A2", title="Typoena mainboard",
                         date="2026-08-15", rev="A", c1=titre[:90], c2="")
     out += "\t(lib_symbols\n" + emb + "\t)\n" + "".join(body)
     out += "\t(embedded_fonts no)\n)\n"
@@ -445,7 +445,7 @@ for name, fname, titre in SHEETS:
     print(f"  {fname:22} {len(par_feuille[name]):3} composants")
 
 # --- feuille racine : uniquement les quatre feuilles filles
-root = HEADER.format(root=ROOT, paper="A4", title="Typoena mainboard v2",
+root = HEADER.format(root=ROOT, paper="A4", title="Typoena mainboard",
                      date="2026-08-15", rev="A",
                      c1="BQ25896 + TPS63001 + TPS61023 - carte unique PCBA",
                      c2="Connectivite inter-feuilles par etiquettes globales")

@@ -49,8 +49,9 @@ Free for later: 2, 8, 9 (ADC1), 16/17/18, 38, 39, 42, 47.
 Off-limits: 26–37 (flash + octal PSRAM), 43/44 (console UART), 0/3/45/46
 (strapping).
 
-The three power GPIOs (40, 41, 1) were fixed by the PCB 1 layout — rationale in
-[`hardware/pcb/README.md`](pcb/README.md#decisions-this-board-forced).
+This is the bench build's pinout. The mainboard PCB assigns these pins
+differently — see [`hardware/pcb/mainboard/README.md`](pcb/mainboard/README.md)
+for the pin plan that ships.
 
 ## E-paper — DESPI-C579 header → devkit (PCB 1)
 

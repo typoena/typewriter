@@ -38,7 +38,7 @@ class SymbolLib:
             path = f"{SYMDIR}/{lib}.kicad_sym"
             if lib == "typoena":
                 path = ("/home/emmanuel/Documents/Developpement/esp32/typewriter/"
-                        "hardware/pcb/mainboard-v2/typoena.kicad_sym")
+                        "hardware/pcb/mainboard/typoena.kicad_sym")
             self._files[lib] = open(path).read()
         return self._files[lib]
 
