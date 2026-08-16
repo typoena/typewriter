@@ -29,25 +29,14 @@
 show = "assembled";
 $fn = 20;
 
-// ---- printer compensation -------------------------------------------------
-// The machine over-extrudes: holes come out ~0.5 mm small across, outer features
-// ~0.5 mm large. That error is the machine's, not the parts', so it lives HERE
-// once and every fit below derives from it — recalibrate the extruder and this
-// is a one-line change instead of a sweep. XY only: Z is layer height, and the
-// first-layer squish is the slicer's elephant-foot setting, not this.
-// RULE: compensate a hole only when a PART has to end up inside it — glass,
-// ribbon, connector, plate, screw head. A hole a fastener merely drives
-// through is left at nominal and the screw is turned harder; paying 0.5 mm there
-// only thins the wall around it. A hole a fastener MELTS or CUTS its own way into
-// goes further and WANTS the printed hole under nominal (ins_hole_d, pwr_fit).
-// A DRILLED hole is outside the rule entirely — a bit cuts its own size, so the
-// baseplate's screw passages and standoff pilots are nominal (see baseplate()).
-// The value is still an estimate off the jammed first coupon. The I/O coupon
-// measures it exactly — caliper its openings against nominal and set this to
-// the delta before the body print (see README, "Printer offset").
-print_bloat = 0.5;
-// The real gap wanted at a panel opening, before the machine eats into it.
-panel_slip  = 0.7;
+// ---- what this model is ---------------------------------------------------
+// NOMINAL GEOMETRY ONLY. Every dimension below is the part as it must END UP,
+// and every clearance is the functional gap wanted on the finished assembly.
+// The machine's own errors — XY over-extrusion, shrink — are NOT modelled here
+// and must not be: they belong to the process, not to the part, and they are
+// corrected in the slicer. The settings, their measured values and how to
+// re-measure them are in MANUFACTURING.md, which is required reading before
+// any print. A part sliced without them will not assemble.
 
 // ---- fasteners ------------------------------------------------------------
 // ONE family for everything that screws into the BODY: a ruthex RX-6-32x3.8
@@ -66,10 +55,9 @@ panel_slip  = 0.7;
 // The PCBs are NOT in this family: they screw DOWN into the baseplate, whose
 // standoffs are 5 mm tall — nowhere near an insert's depth. They stay M2
 // self-tappers into Ø1.6 pilots, DRILLED not printed (see standoff_pilot).
-ins_hole_d  = 4.8;   // hole the datasheet asks for, AS MODELLED and exempt from
-                     // print_bloat: the insert melts its own seat, so this is not
-                     // a clearance fit. Compensated it would print at nominal and
-                     // leave the brass loose in the hole it should be gripping.
+ins_hole_d  = 4.8;   // hole the datasheet asks for. The insert melts its own seat,
+                     // so this is not a clearance fit — the brass must grip what it
+                     // is pressed into.
 ins_min_h   = 4.8;   // ...and its minimum DEPTH. Same number as the diameter by
                      // coincidence only — never fold the two together. Going
                      // deeper is free and every bore here does; the floor is what
@@ -150,10 +138,10 @@ lip_t     = 2.4;   // deck material left in FRONT of the glass (the visible lip)
                    // Was 1.4. It is also HALF THE DEPTH BUDGET for the bracket's
                    // heat-set inserts — the deck over that bore is the face the
                    // user looks at. See br_seat.
-glass_gap = 0.5 + print_bloat;   // clearance around the glass in its pocket. The
-                   // glass is rigid and brittle: a pocket that prints 0.5 under
-                   // doesn't take it at all, which costs more than the 0.25 mm
-                   // per side of registration the compensation gives away.
+glass_gap = 0.5;   // clearance around the glass in its pocket, 0.25 a side. The
+                   // glass is rigid and brittle: a pocket that comes out under
+                   // doesn't take it at all, which costs more than the quarter
+                   // millimetre of registration this gives away.
 foam_t    = 5.0;   // non-adhesive closed-cell foam gasket behind the glass, FREE
                    // thickness. It also buys the bosses their thread depth: the
                    // seat sits foam_c behind the glass, so a thin gasket leaves
@@ -170,8 +158,8 @@ foam_c    = 3.5;   // ...and its thickness once the bracket bottoms on the boss
 bracket_t = 3.6;   // printed retaining frame thickness. Was 2.6; the other half of
                    // the insert depth budget — every mm here is a mm of screw
                    // thread that never reaches the deck. See br_seat.
-fpc_w     = 34 + 2 + print_bloat;   // ribbon-slot span along the LEFT short edge
-                   // (the FPC side) — measured ribbon 34 mm, + 2 mm clearance.
+fpc_w     = 34 + 2;   // ribbon-slot span along the LEFT short edge (the FPC
+                   // side) — measured ribbon 34 mm, + 2 mm clearance.
 fpc_slot_x = 10;   // how far the slot reaches ACROSS the glass edge (X). Was 14;
                    // the glass now sits 3.5 mm left (glass_dx), where 14 would
                    // leave only ~1.8 mm of deck before the left wall. 10 keeps
@@ -187,10 +175,10 @@ name_depth = 0.8;             // engrave depth — raise for a bolder, deeper cu
 name_font  = "Monaspace Krypton";   // install once — see README (Nameplate font)
 
 // through-aperture (a hair bigger than active, still smaller than glass minus
-// 2*lip). Compensated: the aperture must never encroach on the active area, and
-// A_h+1 leaves only 0.5 mm a side to give away.
-A_ap_w = A_w + 2 + print_bloat;
-A_ap_h = A_h + 1 + print_bloat;
+// 2*lip). The aperture must never encroach on the active area, and A_h+1 leaves
+// only 0.5 mm a side to give away.
+A_ap_w = A_w + 2;
+A_ap_h = A_h + 1;
 P_w    = G_w + glass_gap;          // glass pocket (locates the glass in X/Y)
 P_h    = G_h + glass_gap;
 
@@ -200,16 +188,14 @@ screen_cy = deck_L/2;                        // centre it
 // Bracket boss, now a heat-set insert instead of an M3 self-tapper: Ø8.9 against
 // the old Ø6.8. The insert is the reason this boss got fat — see the fastener
 // block, and boss_r below for why it stayed at Ø8.9.
-boss_bore  = ins_hole_d/2;                    // Ø4.8 insert bore, uncompensated
-boss_r     = 4.45;   // Ø8.9. Sized back when the bore still carried print_bloat,
-                     // and kept there once it lost it: the 0.25 mm of wall that
-                     // freed up is free to keep, and the layout around this
+boss_bore  = ins_hole_d/2;                    // Ø4.8 insert bore
+boss_r     = 4.45;   // Ø8.9. More wall than the datasheet minimum, and kept that
+                     // way: the extra is free, and the layout around this
                      // diameter (boss_x_l, the bracket arm's coverage) is already
                      // solved. The assert below is what holds the datasheet
-                     // minimum, on the MODELLED bore — the printed one comes out
-                     // under and the boss over, both in our favour.
-br_screw_r = scr_clear_d/2;   // #6-32 clearance through the bracket. Uncompensated:
-                     // a screw that meets a tight hole is turned through it.
+                     // minimum.
+br_screw_r = scr_clear_d/2;   // #6-32 clearance through the bracket: a screw that
+                     // meets a tight hole is turned through it.
 // Bracket fixing points, in GLASS-local X/Y (the bracket is placed on the glass,
 // so these are its hole positions and the bosses' positions both).
 // Both pairs already clear the glass pocket in Y, so their X is free to slide —
@@ -244,10 +230,9 @@ standoff_pilot = 1.6/2;  // pilot Ø1.6 for an M2 self-tapper (PCB holes are Ø2
                          // print SOLID and the 8 pilots are DRILLED. A Ø1.6 hole is
                          // 2-3 perimeters wide, so the printer rounds it to whatever
                          // its extrusion width allows and the self-tapper meets a
-                         // hole of unknown size. A bit cuts 1.6. Nominal for the
-                         // same reason (no print_bloat), and the number still sizes
-                         // the model: the standoff's Ø6 pad is 2.2 mm of wall around
-                         // it. See README, "Drilling the baseplate".
+                         // hole of unknown size. A bit cuts 1.6. The number still
+                         // sizes the model: the standoff's Ø6 pad is 2.2 mm of wall
+                         // around it. See README, "Drilling the baseplate".
 pcb_t          = 1.6;    // PCB thickness (for port-height maths)
 // PCB 1 = ESP32 devkit + e-ink driver + MT3608 boost. 50(X) x 70(Y), back-LEFT,
 // long axis running FRONT-BACK. Standing it up out of the old 70(X) x 50(Y) is
@@ -321,10 +306,11 @@ usbc_w   = 8.5;  usbc_h = 3.0;               // USB-C shell (W x H), both measur
 sd_w     = 14.0; sd_h   = 2.0;               // microSD cage (W x H). W measured
                                              // (13.0 was the same datasheet guess
                                              // that jammed the USB-C); H is not
-port_fit = panel_slip + print_bloat;         // slack on every port opening: the
-                                             // plug has to pass with room, and the
-                                             // connectors are held by PCB 2, not
-                                             // by the panel
+port_fit = 0.7;                              // slack on every port opening, 0.35 a
+                                             // side: the plug has to pass with room,
+                                             // and the connectors are held by PCB 2,
+                                             // not by the panel — the wall must never
+                                             // bear on a shell and work its joints
 pcb2_z   = bp_t + standoff_h + pcb_t;        // PCB 2 top face, off the baseplate's
                                              // UNDERSIDE — z=0 for the whole model
 // The port block's height is MEASURED as an absolute, on the assembled stack: with
@@ -371,12 +357,18 @@ port_x   = [pcb2_x0 + chg_cx,                                        // -> 98.85
 // handles flashing), so like the ESP32's own USB-C they're reached by opening up.
 pwr_btn  = true;             // set false to omit the switch hole entirely
 pwr_d    = 13.5;             // switch barrel Ø (the part Julien bought)
-pwr_fit  = 0.4;              // panel-hole clearance on the barrel Ø. NOT the ports'
-                             // panel_slip + print_bloat: the first printed coupon
-                             // dropped the switch in perfectly at this 0.4 (Ø13.9),
-                             // and the 1.2 that followed came out loose — Ø14.7 is
-                             // wider than pwr_body_d, so nothing bore against the
-                             // wall. Measured on the print; leave it alone.
+pwr_fit  = 0.4;              // panel-hole clearance on the barrel Ø, far tighter
+                             // than the ports': this switch IS retained by the
+                             // panel, its nut bearing on the wall, so it wants a
+                             // close hole and not port_fit's slack. A coupon at
+                             // Ø14.7 came out loose — wider than pwr_body_d, so
+                             // nothing bore against the wall at all.
+                             // OPEN: the 0.4 was judged on a coupon printed before
+                             // the process was corrected, i.e. on a hole that came
+                             // out Ø13.55, not the Ø13.9 modelled here. Corrected,
+                             // the bearing against pwr_body_d falls to 0.05 a side.
+                             // Re-check the switch on the next coupon; if it is
+                             // loose, this wants ~0.05.
 pwr_r    = (pwr_d + pwr_fit) / 2;
 pwr_body_d = 14;             // WIDEST thing behind the panel — nut across corners,
                              // body OD, solder lugs. NOT the barrel: this is what
@@ -394,11 +386,11 @@ pwr_clear = 4;               // headroom kept free above PCB 2 for future parts
 pwr_z    = bp_t + standoff_h + pcb2_h + pwr_clear + pwr_body_d/2;   // ~26.6
 
 // ---- baseplate / chassis --------------------------------------------------
-// Clearance so the plate drops into the shell. Both mating faces are printed and
-// both err inward: the plate's outer grows by print_bloat while the shell cavity
-// shrinks by it, so the gap is eaten TWICE — uncompensated 0.5 goes negative and
-// the plate simply won't go in.
-bp_gap     = 0.5 + 2*print_bloat;
+// Clearance so the plate drops into the shell, 0.25 a side. This is the one fit
+// where BOTH faces are printed and both err inward, so whatever the process gives
+// away it gives away twice here — the joint that goes tight first, and the reason
+// MANUFACTURING.md calls it the check to make on every new filament.
+bp_gap     = 0.5;
 foot_r     = 7;    // round feet (the little typewriter feet)
 foot_h     = 3.5;
 // "none"     – no feet (current: deferred to a later version)
@@ -416,9 +408,9 @@ feet_mode = "none";
 // Ø7.4 back in to Ø3.9 over open air, and the seat the head pulls against ends up
 // being whatever that bridge sagged to. A drill gives a clean flat seat instead —
 // see README, "Drilling the baseplate", for transferring the positions.
-// The three numbers below are the DRILLING SPEC, at nominal: no print_bloat, a bit
-// cuts the size it is. They stay in the model because the geometry that meets the
-// drilled hole is still derived from them — post_bore_h budgets the insert against
+// The three numbers below are the DRILLING SPEC — a bit cuts the size it is, so
+// they owe nothing to the process. They stay in the model because the geometry
+// that meets the drilled hole derives from them — post_bore_h budgets the insert against
 // the plate thickness the screw crosses once the lamage exists, and the two grip
 // asserts check that budget.
 bp_screw_r = scr_clear_d/2;      // Ø3.9 shank clearance, drilled through (Ø4 bit)
@@ -431,8 +423,8 @@ bp_head_h  = scr_head_h + 0.2;   // 1.2 deep — 0.2 past the head so it can onl
 // DRIVER, not just the screw: the head is recessed bp_head_h up inside the plate,
 // and a glued-on foot with a shank-sized hole puts the head out of reach. One bore
 // at the lamage Ø does both jobs (the v0 foot had a bore + its own head counterbore,
-// which the lamage made redundant). Printed, so it carries print_bloat.
-foot_bore_r = bp_head_r + print_bloat/2;
+// which the lamage made redundant).
+foot_bore_r = bp_head_r;
 // Baseplate screw bosses. Rectangular pads FUSED INTO THE WALLS they sit against,
 // not free-standing posts: the box overshoots the shell by post_out and the
 // intersection with body_outer() trims it flush, so "touching the wall" is a
@@ -447,7 +439,7 @@ post_pad   = 5.0;  // material from the screw axis out to the boss's FREE faces.
                    // cell); an insert that bulges its boss costs a body reprint.
 post_out   = 8;    // how far the box is driven THROUGH the wall before
                    // body_outer() trims it — any value past the wall works
-post_bore   = ins_hole_d/2;                    // Ø4.8 insert bore, uncompensated
+post_bore   = ins_hole_d/2;                    // Ø4.8 insert bore
 post_h     = 10;   // boss height above bp_t. The WALLS carry the boss, so height
                    // is only ever about clearing the bore — the load path is
                    // screw -> insert -> boss -> wall and never leaves that band.
@@ -649,10 +641,19 @@ assert(bat_x0 - bat_wall_t - pcb1_x1 >= 2,
 // taken out of a pitch — the coupon proved the pitches on the parts. So it lives
 // at the charge shell (outer flange, or a 42 mm span read across two dissimilar
 // parts) and the only thing worth holding is that it stays inside the opening.
-bp_x1 = W - wall - bp_gap/2;                        // baseplate right edge -> 172.85
-assert(abs(bp_x1 - (port_x[2] + sd_w/2) - 36.5) < 0.01,
-       "I/O block: the microSD is no longer 36.5 in from the baseplate's right edge");
-assert(abs(bp_x1 - (port_x[0] - usbc_w/2) - 78.6) <= port_fit/2,
+// HELD FROM THE SHELL'S INNER FACE, not from the plate edge: bp_x1 moves with
+// bp_gap while the boards stay put, so a reading taken off the plate is only good
+// for the plate it was taken on. HAZARD: any edit to bp_gap silently invalidates
+// a caliper reading anchored there, and it surfaces as this assert failing on a
+// number nothing about the I/O block had changed. Below are the original readings,
+// 36.5 / 78.6, taken when bp_gap was 1.5 and carried back to the face by that
+// plate's +0.75. At the bp_gap above the caliper should now read 37.00 / 79.10.
+wall_x1 = W - wall;                                 // shell inner right face -> 173.6
+bp_x1   = wall_x1 - bp_gap/2;                       // baseplate right edge -> 173.35,
+                                                    // where the caliper is set down
+assert(abs(wall_x1 - (port_x[2] + sd_w/2) - 37.25) < 0.01,
+       "I/O block: the microSD is no longer 37.25 in from the shell's right face");
+assert(abs(wall_x1 - (port_x[0] - usbc_w/2) - 79.35) <= port_fit/2,
        "I/O block: the measured charge-USB-C edge no longer falls inside its opening");
 module bracket_cols(r, z0, h) {
     on_deck() for (p = boss_xy)
@@ -747,8 +748,8 @@ module bracket() {
     // offset from the glass centre the bracket is placed on.
     // Frame size comes off the GLASS, not the pocket: the margins exist to overlap
     // the glass border, and pocket slack is clearance, not frame. Deriving it from
-    // P_* coupled the frame to glass_gap, so compensating the pocket grew the arm
-    // straight into the left wall (0.89 mm was the whole margin there).
+    // P_* coupled the frame to glass_gap, so any growth in pocket slack drove the
+    // arm straight into the left wall (0.89 mm was the whole margin there).
     ow = G_w + br_ml + br_m;  oh = G_h + 2*br_m;
     br_cx = (br_m - br_ml)/2;
     // FPC U-turn clearance: a gap in the LEFT frame member. The flex leaves the
