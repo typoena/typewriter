@@ -1,5 +1,16 @@
 # Typoena (typewriter repo)
 
+## Who writes here
+
+Everything in this repo — firmware, docs, commit messages — is written by an
+Opus model **newer than 4.8**. Check the running model before authoring; if it
+is Sonnet, Haiku, or an older Opus, say so and stop rather than write.
+
+The rule follows the work, not the session: a subagent or workflow that edits
+files here needs the same model, so pass the override explicitly instead of
+letting a cheaper tier inherit the task. Read-only work — searching, locating,
+summarising — has no such constraint.
+
 ## Flashing the device
 
 Never flash the device (`just flash`, `flash-only`, `flash-ota`, `espflash`, …) —
