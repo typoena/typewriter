@@ -18,7 +18,7 @@ needs **no repo checkout and no Rust toolchain** — just the card.
 - **The installer never flashes.** Devices ship **pre-flashed from
   manufacturing**; setup is SD-card-only. Firmware field updates
   (auto-update) are a **device/roadmap** concern, not the installer's — see
-  [`docs/macroplan.md`](../docs/macroplan.md) (v1.x note).
+  [`docs/plan/macroplan.md`](../docs/plan/macroplan.md) (v1.x note).
 - **The card's repo is a fresh `git clone` from the remote** (HTTPS + PAT),
   written straight onto the card. There is no local source clone to mirror, so
   none of the rsync machinery applies: **no `--ff-only` refresh, no `.gitignore`

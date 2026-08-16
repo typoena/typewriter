@@ -2,7 +2,7 @@
 
 Typoena reads its config and its notes repo from the SD card — it never
 cold-clones the ~566 MB repo over Wi-Fi + mbedTLS (the
-[git-sync sizing decision](../../docs/notes/git-sync-images-and-repo-size.md)).
+[git-sync sizing decision](../../docs/record/notes/git-sync-images-and-repo-size.md)).
 Instead a Mac prepares the card over a reader, and the device only ever takes
 the `open` + fast-forward path. The [`justfile`](../justfile) has three entry
 points, each ejecting the card when done:

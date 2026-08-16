@@ -12,10 +12,10 @@ Format inspired by Michael Nygard's ADR template, kept short on purpose.
 [`../CONTEXT.md`](../CONTEXT.md) — project glossary: **Tracked**, **Local**,
 **Save**, **Push**, plus the principles ("writing tool, not sync engine")
 that constrain [ADR-010] specifically.
-[`macroplan.md`](macroplan.md) — per-version scope (v0.1 → v1.x).
-[`v0.1-mvp-product.md`](v0.1-mvp-product.md) — what the v0.1 device must do.
-[`v0.1-mvp-technical.md`](v0.1-mvp-technical.md) — how v0.1 is built.
-[`qfd.md`](qfd.md) — Quality Function Deployment: requirements → functions →
+[`macroplan.md`](plan/macroplan.md) — per-version scope (v0.1 → v1.x).
+[`v0.1-mvp-product.md`](plan/v0.1-mvp-product.md) — what the v0.1 device must do.
+[`v0.1-mvp-technical.md`](plan/v0.1-mvp-technical.md) — how v0.1 is built.
+[`qfd.md`](quality/qfd.md) — Quality Function Deployment: requirements → functions →
 components, with the tradeoffs from this file ranked by user-facing weight.
 
 ---
@@ -58,9 +58,9 @@ and TLS without writing them, and has Espressif as an actual upstream.
 - We will not use `tokio` or async runtimes in v0.1 — see [ADR-006].
 - Revisit if `esp-idf-rs` upstream stalls or if `gitoxide` doesn't compile
   cleanly against it (spike 7 is the kill-switch — see
-  [v0.1 technical: hardware bring-up order](v0.1-mvp-technical.md#hardware-bring-up-order)).
+  [v0.1 technical: hardware bring-up order](plan/v0.1-mvp-technical.md#hardware-bring-up-order)).
 
-See also: [qfd-tradeoffs.md §7](qfd-tradeoffs.md#7-tradeoffs-and-their-why-linked-to-adrs) for
+See also: [qfd-tradeoffs.md §7](quality/qfd.md#7-tradeoffs-and-their-why-linked-to-adrs) for
 the binary-size / build-time costs traded against ecosystem access.
 
 ---
@@ -99,9 +99,9 @@ refresh regions.
 - If we later want to render to a terminal for desktop testing, we add a
   second backend; the widget API stays.
 
-Implementation: [v0.1 technical → render module](v0.1-mvp-technical.md#module-breakdown).
+Implementation: [v0.1 technical → render module](plan/v0.1-mvp-technical.md#module-breakdown).
 Owns the two top-ranked functions (H1 latency, H2 region area) in
-[qfd-house-1.md §3](qfd-house-1.md#3-house-of-quality--whats--hows).
+[qfd-house-1.md §3](quality/qfd-house-1.md#3-house-of-quality--whats--hows).
 
 ---
 
@@ -154,25 +154,25 @@ as the price of those properties.
 
 - Visible writing column on this panel is ~13 lines. UI must embrace the
   constraint — no multi-pane, no large headers. See
-  [v0.1 product → screen layout](v0.1-mvp-product.md#screen-layout).
+  [v0.1 product → screen layout](plan/v0.1-mvp-product.md#screen-layout).
 - Framebuffer is ~27 KB; keeps PSRAM free for git pack data — a top-3
-  budget item in [qfd-budget.md §6](qfd-budget.md#6-critical-performance-budget).
+  budget item in [qfd-budget.md §6](quality/qfd.md#6-critical-performance-budget).
 - Driver: SSD1683-class. If `epd-waveshare` doesn't already cover this
   panel's controller, ~300 LoC of `embedded-hal` SPI driver. Validated in
-  [spike 2](v0.1-mvp-technical.md#hardware-bring-up-order).
+  [spike 2](plan/v0.1-mvp-technical.md#hardware-bring-up-order).
 - **Per-keystroke latency floor ~100–300 ms** (partial refresh). The render
   module must buffer the active line and flush on a short timer, not redraw
   on every keystroke. Owns the top-ranked H1 latency constraint in
-  [qfd-house-1.md §3](qfd-house-1.md#3-house-of-quality--whats--hows); strategy lives in
+  [qfd-house-1.md §3](quality/qfd-house-1.md#3-house-of-quality--whats--hows); strategy lives in
   [ADR-002].
 - **Scroll is the worst-case refresh operation** — every scroll is a full
   edit-area redraw, either with a visible flash (full refresh) or
   accumulating ghost trails (partial refresh). The concrete scroll strategy
   (continuous-scroll-with-periodic-flush vs. page-down vs. hybrid) is a v0.1
   product decision, not part of this ADR — see
-  [v0.1 product → screen layout](v0.1-mvp-product.md#screen-layout). Tuning
+  [v0.1 product → screen layout](plan/v0.1-mvp-product.md#screen-layout). Tuning
   is a render-module concern in
-  [v0.1 technical](v0.1-mvp-technical.md#module-breakdown).
+  [v0.1 technical](plan/v0.1-mvp-technical.md#module-breakdown).
 - **Industry calibration:** Astrohaus shipped Freewrite Alpha (2023) on a
   reflective LCD specifically to fix typing-latency complaints from their
   e-ink line. The latency cost we're accepting is one the commercial leader
@@ -180,7 +180,7 @@ as the price of those properties.
   do not promise "instant feedback."
 - Idle power on e-ink is structurally ~0, which makes the v0.8 battery
   sizing exercise straightforward — see [ADR-008] and
-  [macroplan → v0.8](macroplan.md#v08--power-battery--sleep--).
+  [macroplan → v0.8](plan/macroplan.md#v010--power-battery--sleep---).
 - 10.3" e-ink upgrade path is preserved by keeping the renderer
   resolution-agnostic. A _non_-e-ink swap (e.g. Sharp Memory LCD) would
   invalidate [ADR-002]'s dirty-rect strategy and force a fresh medium ADR.
@@ -222,10 +222,10 @@ risk table).
   upstream.
 - Auth via PAT in an Authorization header — no SSH (see [ADR-005]).
 - Performance on PSRAM during pack operations is a watched metric — top-3
-  priority in [qfd-budget.md §6](qfd-budget.md#6-critical-performance-budget).
+  priority in [qfd-budget.md §6](quality/qfd.md#6-critical-performance-budget).
 
-Implementation: [v0.1 technical → `git` module](v0.1-mvp-technical.md#module-breakdown)
-and [risks table](v0.1-mvp-technical.md#risks-and-how-well-know-they-bit-us).
+Implementation: [v0.1 technical → `git` module](plan/v0.1-mvp-technical.md#module-breakdown)
+and [risks table](plan/v0.1-mvp-technical.md#risks-and-how-well-know-they-bit-us).
 
 ### Outcome — Spike 7, 2026-07-05: kill-switch fired
 
@@ -237,7 +237,7 @@ switched to **`libgit2` (`git2` crate)** and proved `add → commit → push`
 ([`spikes/spike7-git-push`](../spikes/spike7-git-push/README.md)). The remaining risk is
 now the on-device **libgit2 → xtensa/mbedtls cross-compile** — the very pain
 this ADR chose gix to avoid. Full context:
-[postmortem](postmortems/2026-07-05-spike7-gix-https-push.md). Revisit gix if
+[postmortem](record/postmortems/2026-07-05-spike7-gix-https-push.md). Revisit gix if
 its HTTP(S) push lands upstream before v0.1 ships.
 
 ---
@@ -274,10 +274,10 @@ card alone is not enough.
 
 - The user (= dev, in v0.1) must generate a PAT with `repo` scope and supply
   it as a build-time env var. Provisioning is build-time only — see
-  [v0.1 product → provisioning](v0.1-mvp-product.md#provisioning-build-time-dev-only).
+  [v0.1 product → provisioning](plan/v0.1-mvp-product.md#provisioning-build-time-dev-only).
 - PAT is never logged. Validated in code review.
 - Rotation in v0.1 = wipe NVS and re-run setup. Proper rotation UI is v0.9
-  — see [macroplan → v0.9](macroplan.md#v09--robustness--).
+  — see [macroplan → v0.9](plan/macroplan.md#v09--robustness--).
 - Revisit if we ever want to support multiple remotes per device with
   different credentials.
 
@@ -312,7 +312,7 @@ runtime to tune, no colour-of-functions problem.
 ### Consequences
 
 - ~76 KB of stack space across the five task stacks (8 + 8 + 16 + 12 + 32
-  KB — see [v0.1 technical → threads / tasks](v0.1-mvp-technical.md#threads--tasks)
+  KB — see [v0.1 technical → threads / tasks](plan/v0.1-mvp-technical.md#threads--tasks)
   for the breakdown). Comfortable in the ESP32-S3's 512 KB internal SRAM.
 - Refresh / git / Wi-Fi each get their own thread, so a slow push doesn't
   freeze typing.
@@ -353,8 +353,8 @@ derived key.
 - Config survives SD reformatting.
 - Power-loss safety on FAT is weaker than LittleFS — we mitigate with
   atomic-rename writes (see
-  [v0.1 technical → `persistence`](v0.1-mvp-technical.md#module-breakdown)
-  and [file layout](v0.1-mvp-technical.md#file-layout)).
+  [v0.1 technical → `persistence`](plan/v0.1-mvp-technical.md#module-breakdown)
+  and [file layout](plan/v0.1-mvp-technical.md#file-layout)).
 - **FatFS caveat (Spike 3, verified 2026-07-11):** FatFS's `f_rename` returns
   `FR_EXIST` on an existing destination — it does **not** replace like POSIX
   `rename(2)`. So the atomic save must `f_unlink` the target before renaming the
@@ -368,7 +368,7 @@ derived key.
     the newest complete, fsync'd copy and the only one left. Promote it.
 
   Implemented in `firmware::persistence::Storage::{save,recover}`. See the
-  [Spike 3 postmortem](postmortems/2026-07-05-spike3-sd-cmd59.md#resolution-2026-07-11).
+  [Spike 3 postmortem](record/postmortems/2026-07-05-spike3-sd-cmd59.md#resolution-2026-07-11).
 
 - **SD-card compatibility:** use a genuine card, ideally **≤32 GB (SDHC/FAT32)**.
   Large or counterfeit SDXC cards may reject `CMD59` (SPI-mode CRC) and fail to
@@ -406,10 +406,10 @@ Sizing a battery before measuring is guessing.
 ### Consequences
 
 - v0.1 device is tethered. Not the final aesthetic, but the right MVP —
-  scope is in [v0.1 product → out of scope](v0.1-mvp-product.md#out-of-scope-for-v01).
+  scope is in [v0.1 product → out of scope](plan/v0.1-mvp-product.md#out-of-scope-for-v01).
 - We can decide cell capacity from real numbers in v0.8, not specs sheets.
 - Lid-close detection / deep sleep slips to v0.8 with the battery — see
-  [macroplan → v0.8](macroplan.md#v08--power-battery--sleep--).
+  [macroplan → v0.8](plan/macroplan.md#v010--power-battery--sleep---).
 
 ---
 
@@ -435,7 +435,7 @@ The ESP32-S3 has USB OTG (host capable) and BLE 5. Either transport works.
 
 **USB host (TinyUSB) for v0.1.** BLE-HID is kept as a documented fallback
 if TinyUSB host turns out unstable
-([spike 4](v0.1-mvp-technical.md#hardware-bring-up-order) is the gate).
+([spike 4](plan/v0.1-mvp-technical.md#hardware-bring-up-order) is the gate).
 
 ### Consequences
 
@@ -541,10 +541,10 @@ deliberate v0.1 shortcut. On a real device that means:
 - **rotation requires a reflash**.
 
 This is fine for the dev's own bench unit (it's their token, their device) and is
-why the [Spike 7 postmortem](postmortems/2026-07-05-spike7-gix-https-push.md)
+why the [Spike 7 postmortem](record/postmortems/2026-07-05-spike7-gix-https-push.md)
 lists it as the _last standing shortcut_. It is not fine for a unit in anyone
 else's hands. Resolving it needs a **provisioning path**, which the current design
-(["build-time only, no provisioning module"](v0.1-mvp-technical.md#provisioning--build-time-only-no-module-on-device))
+(["build-time only, no provisioning module"](plan/v0.1-mvp-technical.md#provisioning--build-time-only-no-module-on-device))
 deliberately omits.
 
 ### Options considered
@@ -588,11 +588,11 @@ into [ADR-007](#adr-007-storage-split--fat-on-sd-for-working-copy-littlefs-on-fl
 ### Context
 
 The EPD (SSD1683) and the SD card both want SPI. The v0.1 plan (the boot
-sequence in [v0.1 technical](v0.1-mvp-technical.md#hardware-bring-up-order) and
+sequence in [v0.1 technical](plan/v0.1-mvp-technical.md#hardware-bring-up-order) and
 the storage context of
 [ADR-007](#adr-007-storage-split--fat-on-sd-for-working-copy-littlefs-on-flash-for-config))
 assumed **one shared SPI2 bus** with a per-device chip-select. Spike 3 (verified
-2026-07-11, [postmortem](postmortems/2026-07-05-spike3-sd-cmd59.md)) proved the
+2026-07-11, [postmortem](record/postmortems/2026-07-05-spike3-sd-cmd59.md)) proved the
 SD works on the SPI2 wiring, but surfaced the integration blocker: the EPD driver
 uses esp-idf-hal's `SpiBusDriver`, whose constructor takes an **exclusive
 `spi_device_acquire_bus(BLOCK)` and holds it for the driver's whole lifetime**

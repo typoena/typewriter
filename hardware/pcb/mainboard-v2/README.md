@@ -94,7 +94,7 @@ couche dédiée — et une carte de 130 mm qui fléchit, d'où **5 à 6 points d
 au lieu de 4.
 
 > :warning: **Commander un deuxième coupleur FFC.** Puisqu'on garde la rallonge, le
-> coupleur 24↔24 reste dans le montage — et `docs/bom.md:50` le note acheté à **un seul
+> coupleur 24↔24 reste dans le montage — et `hardware/bom.md:50` le note acheté à **un seul
 > exemplaire, sans rechange**. C'est la seule pièce non redondée de la chaîne.
 
 ## PCB — squelette

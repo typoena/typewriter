@@ -9,13 +9,13 @@ the writer looks at while doing it.
 [`README.md`](README.md) — project overview, hardware, macro roadmap.
 [`docs/adr.md`](docs/adr.md) — load-bearing decisions; **ADR-010** is the
 formal record of the **Push** UX defined below.
-[`docs/qfd.md`](docs/qfd.md) — requirements ↔ functions ↔ components, ranked
+[`docs/quality/qfd.md`](docs/quality/qfd.md) — requirements ↔ functions ↔ components, ranked
 by user-facing weight. References the terms in this file as canonical.
-[`docs/v0.1-mvp-product.md`](docs/v0.1-mvp-product.md) — the v0.1 product
+[`docs/plan/v0.1-mvp-product.md`](docs/plan/v0.1-mvp-product.md) — the v0.1 product
 surface, expressed in this vocabulary.
-[`docs/v0.1-mvp-technical.md`](docs/v0.1-mvp-technical.md) — how v0.1 is
+[`docs/plan/v0.1-mvp-technical.md`](docs/plan/v0.1-mvp-technical.md) — how v0.1 is
 built.
-[`docs/macroplan.md`](docs/macroplan.md) — per-version scope, where new terms
+[`docs/plan/macroplan.md`](docs/plan/macroplan.md) — per-version scope, where new terms
 enter this glossary as versions land (the v0.5 multi-file **Buffer** terms
 are in).
 
@@ -89,7 +89,7 @@ produce the same card: the **Wizard** (on the device itself) and the
 **Installer** (on a Mac). Both sign in through the same GitHub App device
 flow and write the same two artifacts: `/sd/typoena.conf` and a cloned
 `/sd/repo`.
-_Avoid_: provisioning (the engineering function name in `docs/qfd.md`, not
+_Avoid_: provisioning (the engineering function name in `docs/quality/qfd.md`, not
 user-facing language); setup (collides with `:setup`, the in-session reset
 menu); first-boot flow (that names the trigger, not the outcome).
 
@@ -233,7 +233,7 @@ already expects, so the flash is unsurprising there.
   panel surfaces the commit-landed state as soon as
   it exists; the remaining push time is the transport of an already-safe
   thing. Long-form rationale:
-  [`docs/notes/ctrl-g-perceived-latency.md`](docs/notes/ctrl-g-perceived-latency.md).
+  [`docs/record/notes/ctrl-g-perceived-latency.md`](docs/record/notes/ctrl-g-perceived-latency.md).
 - **No state the user didn't ask for.** No banners about pending work, no
   prompts about divergence, no "did you mean to push" warnings. The side
   panel reflects the _current_ action's outcome, nothing else.

@@ -18,17 +18,17 @@ runs on it.
 
 Design & context:
 
-- [Macroplan](docs/macroplan.md) — the week-by-week delivery plan, live
+- [Macroplan](docs/plan/macroplan.md) — the week-by-week delivery plan, live
   per-item status, and per-version scope
-- [QFD](docs/qfd.md) — how every decision is weighted against the
+- [QFD](docs/quality/qfd.md) — how every decision is weighted against the
   user-facing requirements (Goal → Function → How → Component)
 - [ADRs](docs/adr.md) — the decision log, rejected alternatives included
 - [Doc index](docs/README.md) — everything else: per-version specs, notes,
   tradeoff curves
-- [Bill of materials](docs/bom.md) — build it yourself, full part list
-- [Wiring](docs/wiring.md) — every electrical connection, pin by pin
-- [Postmortems](docs/postmortems/README.md) — failure write-ups
-- [Kaizen](docs/kaizen/README.md) — improvement loops
+- [Bill of materials](hardware/bom.md) — build it yourself, full part list
+- [Wiring](hardware/wiring.md) — every electrical connection, pin by pin
+- [Postmortems](docs/record/postmortems/README.md) — failure write-ups
+- [Kaizen](docs/record/kaizen/README.md) — improvement loops
 
 Technical pages, one per subsystem:
 
@@ -78,7 +78,7 @@ v0.10.
 `embedded-graphics`, a custom dual-SSD1683 e-ink driver, libgit2 (via `git2`)
 for `:gs`/`:gl` sync over mbedTLS. The layer-by-layer table — each choice with
 its ADR, measured costs, and the annotated repo layout — is in
-[`docs/stack.md`](docs/stack.md).
+[`docs/reference/stack.md`](docs/reference/stack.md).
 
 ---
 
@@ -105,10 +105,10 @@ around, not against:
 - [~] Use-after-free freeing the in-flight USB transfer on keyboard unplug —
   fixed in code, pending an on-device hot-plug run to confirm.
 
-Retired risks ([gix push](docs/postmortems/2026-07-05-spike7-gix-https-push.md),
-[SD CMD59 rejection](docs/postmortems/2026-07-05-spike3-sd-cmd59.md), TinyUSB HID
+Retired risks ([gix push](docs/record/postmortems/2026-07-05-spike7-gix-https-push.md),
+[SD CMD59 rejection](docs/record/postmortems/2026-07-05-spike3-sd-cmd59.md), TinyUSB HID
 stability, TLS heap, libgit2-on-xtensa) and how they died:
-[`docs/postmortems/`](docs/postmortems/README.md) and the
+[`docs/record/postmortems/`](docs/record/postmortems/README.md) and the
 [bring-up spike log](firmware/docs/bring-up-spikes.md).
 
 These get resolved by writing code, not by deciding harder.

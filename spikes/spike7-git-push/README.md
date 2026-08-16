@@ -1,11 +1,11 @@
 # Spike 7 — git push (desktop half)
 
 > Bring-up spike 7 in
-> [`../../docs/v0.1-mvp-technical.md`](../../docs/v0.1-mvp-technical.md#hardware-bring-up-order).
+> [`../../docs/v0.1-mvp-technical.md`](../../docs/plan/v0.1-mvp-technical.md#hardware-bring-up-order).
 > Decision context: [ADR-004](../../docs/adr.md#adr-004-git-implementation--gitoxide-gix)
 > (git impl) and [ADR-005](../../docs/adr.md#adr-005-auth--https--github-personal-access-token)
 > (auth). Full write-up:
-> [`../../docs/postmortems/2026-07-05-spike7-gix-https-push.md`](../../docs/postmortems/2026-07-05-spike7-gix-https-push.md).
+> [`../../docs/postmortems/2026-07-05-spike7-gix-https-push.md`](../../docs/record/postmortems/2026-07-05-spike7-gix-https-push.md).
 
 Spike 7 proves the `add → commit → push` sequence the on-device `git` module
 will run. Per the technical doc it's **desktop-Rust first, then on device** —

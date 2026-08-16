@@ -58,7 +58,7 @@ board, ideally with a multimeter _before first power-on_.
 
 ## Target pin map (reused from the devkit, unchanged)
 
-Whole-build wiring reference-of-record: [docs/wiring.md](../../docs/wiring.md).
+Whole-build wiring reference-of-record: [hardware/wiring.md](../../hardware/wiring.md).
 
 | Function                    | Bus / pin                                               |
 | --------------------------- | ------------------------------------------------------- |

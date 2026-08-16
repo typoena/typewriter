@@ -84,7 +84,7 @@ atomic round-trip byte-identical. Two findings baked into the code:
 - **Card compatibility.** A 133 GB SDXC card failed init at `CMD59` (SPI-mode
   CRC); a genuine ≤32 GB card works. We keep CRC required and reject bad cards
   with a swap-the-card message rather than run over an unchecked bus. See the
-  [Spike 3 postmortem](../../docs/postmortems/2026-07-05-spike3-sd-cmd59.md).
+  [Spike 3 postmortem](../../docs/record/postmortems/2026-07-05-spike3-sd-cmd59.md).
 - **FatFS rename ≠ POSIX rename.** `f_rename` won't overwrite an existing
   target (returns `FR_EXIST`), so the atomic save unlinks the destination first.
   `storage_sd` pairs this with `*.tmp` boot-recovery (`recover` at mount): if a
@@ -170,5 +170,5 @@ a plain GPIO and the RMT path are exercised.
 ## Order
 
 The bring-up order followed
-[`docs/v0.1-mvp-technical.md`](../../docs/v0.1-mvp-technical.md#hardware-bring-up-order):
+[`docs/plan/v0.1-mvp-technical.md`](../../docs/plan/v0.1-mvp-technical.md#hardware-bring-up-order):
 Wi-Fi/TLS (Spike 6), then git push (Spike 7), then SD (Spike 3) — all verified.

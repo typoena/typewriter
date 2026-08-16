@@ -7,7 +7,7 @@ wizard.
 One crate of the [Typoena project](../README.md) — start there for the
 vision, the hardware, and the design record (macroplan, QFD, ADRs, doc
 index). Firmware-specific design:
-[`v0.1-mvp-technical.md`](../docs/v0.1-mvp-technical.md) — module split,
+[`v0.1-mvp-technical.md`](../docs/plan/v0.1-mvp-technical.md) — module split,
 threads, and the hardware bring-up order.
 
 Technical pages:
@@ -18,7 +18,7 @@ Technical pages:
   version requirement, launch environment
 - [Provisioning an SD card](docs/sd-provisioning.md) — `just init` / `load` /
   `provision`, the config ladder, secrets on the card
-- [Bench board & pinout](docs/board.md) — DevKitC-1 v1.0, pin assignments
+- [Bench board & pinout](../hardware/wiring.md#the-bench-board) — DevKitC-1 v1.0, pin assignments
 - [Bring-up spike log](docs/bring-up-spikes.md) — Spikes 1–6 as verified on
   the bench
 - [Bench QC firmware](docs/bench-qc.md) — go/no-go fixture for the

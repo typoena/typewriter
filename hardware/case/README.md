@@ -206,7 +206,7 @@ battery feed, PCB 2's the charger leads and the ribbon back to PCB 1, and at the
   soft-power latch that opens the load path, so the machine is genuinely off
   between sessions instead of draining the LiPo, and firmware still shuts down
   cleanly on flip-off; contract in
-  [v0.10](../../docs/v0.10-battery-and-sleep.md#power-switch--power-path--decided-2026-07-26).
+  [v0.10](../../docs/plan/v0.10-battery-and-sleep.md#power-switch--power-path--decided-2026-07-26).
   It sits clear of the typing path. It is a **loose part wired back to `J5` on
   PCB 1** (where the latch lives), not mounted on either board.
 

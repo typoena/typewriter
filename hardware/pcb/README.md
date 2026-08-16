@@ -1,7 +1,7 @@
 # Typoena — PCBs
 
 KiCad 9 projects replacing the two perfboards described in
-[`docs/bom.md`](../../docs/bom.md) ("Boards & interconnect"). Board split, sizes
+[`bom.md`](../bom.md) ("Boards & interconnect"). Board split, sizes
 and the case envelope are unchanged, so
 [`hardware/case/typoena-case.scad`](../case/typoena-case.scad) needs no rework.
 
@@ -28,7 +28,7 @@ moves three things the DevKitC-1 used to provide onto our board:
 
 ## Decisions this board forced
 
-`docs/wiring.md` left three GPIOs and one placement question open. The layout
+`hardware/wiring.md` left three GPIOs and one placement question open. The layout
 can't be drawn without answering them, so:
 
 | Was `⟨TBD⟩` | Now | Why |
