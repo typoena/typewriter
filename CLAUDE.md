@@ -29,6 +29,29 @@ comment keeps only the conclusion plus the pointer. One home per rationale: neve
 tell the same story in two comments — pick the natural site (usually the field or
 const), and have the other point to it.
 
+## Documentation describes the present
+
+Code and docs state what **is**, never what *was*. Git history is where the past
+lives, and it's the tool we actually use to reach it — so a doc never needs to
+carry the story forward itself.
+
+Delete on sight, rather than rewrite:
+
+- obituaries for removed things ("the earlier two-board split has been removed…",
+  "superseded by…", "recover it from git history if needed")
+- migration trails and `v1 → vN` framing ("was `⟨TBD⟩` / now", "what changed
+  versus the perfboard build", "this used to be an AMS1117")
+- status prose that only made sense against a former state ("still in place as a
+  reference", "not yet migrated")
+
+Keep the **rationale for what exists now**, stated in the present: why this part,
+this value, this pinout, this hazard. When the reason is genuinely a road already
+travelled — a measured tradeoff, a postmortem — keep the conclusion and link the
+doc in `docs/`, don't retell the trip.
+
+Applies to a rename or a deletion too: after it, no file should mention the old
+name. Not a redirect, not a note — gone.
+
 ## KiCad MCP (hardware/pcb)
 
 PCB work needs the `kicad` MCP server. If its `mcp__kicad__*` tools are absent,

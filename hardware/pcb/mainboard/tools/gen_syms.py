@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Génère hardware/pcb/mainboard-v2/typoena.kicad_sym.
+"""Génère hardware/pcb/mainboard/typoena.kicad_sym.
 
 - BQ25896RTW : dérivé du BQ25895RTW stock (même WQFN-24-EP 4x4), avec les trois
   broches qui diffèrent renommées/retypées (2 D+ -> PSEL, 3 D- -> /PG, 24 DSEL -> NC).
@@ -9,7 +9,7 @@
 import re
 
 STOCK = "/usr/share/kicad/symbols/Battery_Management.kicad_sym"
-OUT = "/home/emmanuel/Documents/Developpement/esp32/typewriter/hardware/pcb/mainboard-v2/typoena.kicad_sym"
+OUT = "/home/emmanuel/Documents/Developpement/esp32/typewriter/hardware/pcb/mainboard/typoena.kicad_sym"
 
 
 def grab(text, start_marker):

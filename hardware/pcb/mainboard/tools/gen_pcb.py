@@ -14,7 +14,7 @@ import re
 import uuid as _uuid
 
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                   "typoena-mainboard-v2.kicad_pcb")
+                   "typoena-mainboard.kicad_pcb")
 
 W, H = 130.0, 45.0       # cotes de la carte, décidées 2026-08-16
 R = 3.0                  # rayon des coins
@@ -60,7 +60,7 @@ MH_PATH = "/usr/share/kicad/footprints/MountingHole.pretty/MountingHole_2.2mm_M2
 
 
 def mounting_hole(x, y, n):
-    """Trou Ø2,2 mm pour vis M2, comme la v1 (auto-taraudeuses dans des entretoises).
+    """Trou Ø2,2 mm : vis M2 auto-taraudeuses dans des entretoises, pas de taraudage.
 
     On recopie l'empreinte de la bibliotheque telle quelle plutot que de la
     redessiner : une copie a la main ne correspond jamais exactement et le DRC
@@ -93,7 +93,7 @@ HEADER = f"""(kicad_pcb
 	)
 	(paper "A3")
 	(title_block
-		(title "Typoena mainboard v2")
+		(title "Typoena mainboard")
 		(date "2026-08-16")
 		(rev "A")
 		(company "Typoena")

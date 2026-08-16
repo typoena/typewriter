@@ -1,4 +1,0 @@
-(sym_lib_table
-  (version 7)
-  (lib (name "typoena")(type "KiCad")(uri "${KIPRJMOD}/typoena.kicad_sym")(options "")(descr "Symboles specifiques au projet: BQ25896, TPS63802, TPS61023"))
-)

@@ -1,4 +1,4 @@
-# Typoena mainboard v2 — valeurs de conception et leur source
+# Typoena mainboard — valeurs de conception et leur source
 
 Chaque valeur non évidente du schéma, avec la page de datasheet dont elle sort. Le
 schéma porte les valeurs ; ce fichier porte le *pourquoi*, une seule fois.

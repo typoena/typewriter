@@ -5,7 +5,7 @@
 	(uuid "3a1c9e40-0004-4a00-9000-000000000004")
 	(paper "A2")
 	(title_block
-		(title "Typoena mainboard v2")
+		(title "Typoena mainboard")
 		(date "2026-08-15")
 		(rev "A")
 		(company "Typoena")
@@ -2990,7 +2990,7 @@
 			(uuid "f0b4981c-b370-4ca2-90a1-e7442507035c")
 		)
 		(instances
-			(project "typoena-mainboard-v2"
+			(project "typoena-mainboard"
 				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
 					(reference "J6")
 					(unit 1)
@@ -3282,7 +3282,7 @@
 			(uuid "bc2ad559-a474-47e2-b8e0-24db65450715")
 		)
 		(instances
-			(project "typoena-mainboard-v2"
+			(project "typoena-mainboard"
 				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
 					(reference "R24")
 					(unit 1)
@@ -3412,7 +3412,7 @@
 			(uuid "afaec7d8-503f-49e3-a0a5-07cf2d2b4c40")
 		)
 		(instances
-			(project "typoena-mainboard-v2"
+			(project "typoena-mainboard"
 				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
 					(reference "R25")
 					(unit 1)
@@ -3587,7 +3587,7 @@
 			(uuid "d8dd160e-bfcd-4e24-b563-461ec6edbd5f")
 		)
 		(instances
-			(project "typoena-mainboard-v2"
+			(project "typoena-mainboard"
 				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
 					(reference "J7")
 					(unit 1)
@@ -3879,7 +3879,7 @@
 			(uuid "6b285c87-d1fc-4e0f-97a8-3870b3038215")
 		)
 		(instances
-			(project "typoena-mainboard-v2"
+			(project "typoena-mainboard"
 				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
 					(reference "R26")
 					(unit 1)
@@ -4009,7 +4009,7 @@
 			(uuid "bcf68adb-531d-4f48-b622-adcd163e4312")
 		)
 		(instances
-			(project "typoena-mainboard-v2"
+			(project "typoena-mainboard"
 				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
 					(reference "R27")
 					(unit 1)
@@ -4166,7 +4166,7 @@
 			(uuid "89e611f7-3312-4029-9415-93724f3cc08d")
 		)
 		(instances
-			(project "typoena-mainboard-v2"
+			(project "typoena-mainboard"
 				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
 					(reference "J8")
 					(unit 1)
@@ -4476,7 +4476,7 @@
 			(uuid "5e83a602-975f-4855-83c4-f736e4fd73f9")
 		)
 		(instances
-			(project "typoena-mainboard-v2"
+			(project "typoena-mainboard"
 				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
 					(reference "R28")
 					(unit 1)
@@ -4606,7 +4606,7 @@
 			(uuid "a8b54dd9-a477-45cc-821e-c6ebe5516340")
 		)
 		(instances
-			(project "typoena-mainboard-v2"
+			(project "typoena-mainboard"
 				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
 					(reference "R29")
 					(unit 1)
@@ -4736,7 +4736,7 @@
 			(uuid "579c9cc8-ce63-4405-937c-81ae12a338bb")
 		)
 		(instances
-			(project "typoena-mainboard-v2"
+			(project "typoena-mainboard"
 				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
 					(reference "R30")
 					(unit 1)
@@ -4911,7 +4911,7 @@
 			(uuid "addb64f2-c184-4664-810a-30bdae626aaf")
 		)
 		(instances
-			(project "typoena-mainboard-v2"
+			(project "typoena-mainboard"
 				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
 					(reference "U5")
 					(unit 1)
@@ -5281,7 +5281,7 @@
 			(uuid "b5b8384f-1e8d-470e-99e7-943b82fce9d2")
 		)
 		(instances
-			(project "typoena-mainboard-v2"
+			(project "typoena-mainboard"
 				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
 					(reference "C28")
 					(unit 1)
@@ -5411,7 +5411,7 @@
 			(uuid "89d130ac-a0e7-4b75-b07b-11d5c536d2d2")
 		)
 		(instances
-			(project "typoena-mainboard-v2"
+			(project "typoena-mainboard"
 				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
 					(reference "C29")
 					(unit 1)
@@ -5544,7 +5544,7 @@
 			(uuid "bcc96037-5e12-4f9d-a8ea-7e0312bdc4e5")
 		)
 		(instances
-			(project "typoena-mainboard-v2"
+			(project "typoena-mainboard"
 				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
 					(reference "Q5")
 					(unit 1)
@@ -5699,7 +5699,7 @@
 			(uuid "50586ec1-ee2f-49de-b364-dcfcfd93e824")
 		)
 		(instances
-			(project "typoena-mainboard-v2"
+			(project "typoena-mainboard"
 				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
 					(reference "Q6")
 					(unit 1)
@@ -5851,7 +5851,7 @@
 			(uuid "03c1aa73-0881-4576-8155-7108c61d6f60")
 		)
 		(instances
-			(project "typoena-mainboard-v2"
+			(project "typoena-mainboard"
 				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
 					(reference "R31")
 					(unit 1)
@@ -5981,7 +5981,7 @@
 			(uuid "6f0c651c-6da3-4628-9d0d-70600b9f4676")
 		)
 		(instances
-			(project "typoena-mainboard-v2"
+			(project "typoena-mainboard"
 				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
 					(reference "R32")
 					(unit 1)
@@ -6123,7 +6123,7 @@
 			(uuid "8ce21f2b-c9a5-4fca-b1a9-f96416297da2")
 		)
 		(instances
-			(project "typoena-mainboard-v2"
+			(project "typoena-mainboard"
 				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
 					(reference "J10")
 					(unit 1)
@@ -6467,7 +6467,7 @@
 			(uuid "09489671-dd8a-4a63-b883-667830f2c201")
 		)
 		(instances
-			(project "typoena-mainboard-v2"
+			(project "typoena-mainboard"
 				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
 					(reference "J9")
 					(unit 1)
