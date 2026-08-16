@@ -5,22 +5,15 @@ writing machine. The e-paper strip sits on a reclined **deck**, where a
 typewriter's paper would be; you bring your own keyboard for the front. There is
 no platen part (it complicates the print); the rounded back-top edge nods to one.
 
-> **Status: first full print done, second one pending.** Outer form, screen
-> retention and the two-board mounting are worked out against the real hardware,
-> and every number is measured — the **3700 mAh** cell included. Printed so far:
-> the back-wall I/O coupon, which is what corrected the port openings; a first
-> **baseplate**, which is what took the screw lamages out of the model (they
-> printed badly and are drilled now, see
-> [Drilling the baseplate](#drilling-the-baseplate)); and a first **body**, which
-> assembled only after hand work — the screen would not enter its pocket and the
-> PCB standoffs came out too close together. Both are the same cause and it is not
-> a design fault: the machine shrinks **1.35 % in XY**, which cancels between
-> printed parts and only bites where a printed part meets a bought one. That is now
-> corrected **in the slicer** — see **[MANUFACTURING.md](MANUFACTURING.md)**, which
-> is required reading before any print. The 7 heat-set inserts are still untried —
-> see **Open questions / TODO**. The coupon **needs a reprint**: the opening *sizes*
-> it validated still stand, but the wiring bay moved every one of them 2 mm up the
-> wall.
+> **Status: one full print of each part, second body pending.** Outer form,
+> screen retention and the two-board mounting are worked out against the real
+> hardware, and every number is measured — the **3700 mAh** cell included. The
+> machine shrinks **1.35 % in XY**, which cancels between printed parts and only
+> bites where a printed part meets a bought one; it is corrected **in the
+> slicer**, so **[MANUFACTURING.md](MANUFACTURING.md)** is required reading
+> before any print. The 7 heat-set inserts are untried — see **Open questions**.
+> The I/O coupon **needs a reprint**: the opening *sizes* it validated still
+> stand, but the wiring bay moved every one of them 2 mm up the wall.
 
 ![The deck: bezel lip framing the e-paper aperture](renders/assembled.png)
 ![Assembled body, three-quarter — reclined deck, back wall with port cutouts](renders/front34.png)
@@ -119,7 +112,7 @@ good for a handful of cycles before it's a stripped hole in a 10-hour print.
 
 | | bracket → deck (×4) | baseplate → body (×3) |
 | --- | --- | --- |
-| boss | Ø8.9 (was Ø6.8), **2.05 mm** of wall | rectangular pad, **2.6 mm** to the free faces |
+| boss | Ø8.9, **2.05 mm** of wall | rectangular pad, **2.6 mm** to the free faces |
 | bore | Ø4.8 × 4.8 blind, **2.1 mm of deck** left over it | Ø4.8 × 6.6 blind, 3.4 mm of roof |
 | screw crosses | 3.6 mm of bracket | 1.4 mm of plate |
 | thread in brass | **3.4 mm** | **3.8 mm** (the whole insert) |
@@ -445,173 +438,91 @@ for the same reason and drill the same way.
   print flat-face-down with every feature growing upward off the bed — no support
   anywhere.
 
-## Open questions / TODO
+## Open questions
 
-- [x] GDEY0579T93 active-area **offset** — measured. Borders 9.0 left (FPC side) /
-      2.0 right / 4.0 top / 4.0 bottom, so `active_off_x = 3.5`, `active_off_y = 0`.
-      The wide border on the FPC side is the usual COG-on-flex layout.
-- [x] **Window centred on the deck** (`glass_dx`). The glass carries the 3.5 mm
-      offset instead of the window, so the image sits on the machine's centreline
-      rather than leaving a 21 mm bezel against a 14 mm one. It only
-      fits because the bracket's left arm was trimmed (`br_ml = 5.5` against
-      `br_m = 9`) and its left boss pair pulled inboard (`boss_x_l = -77`): at the
-      old symmetric layout the bracket overshot the left wall by 2.6 mm. Verified
-      on the built geometry — bracket X 3.54..168.96 and bosses X 4.10..168.86 in
-      a 2.40..173.60 cavity, so 1.14 mm at the tightest point, and the process eats
-      into that from both sides at once. The frame is sized off the glass rather
-      than off the pocket, so `glass_gap` no longer drags the left arm toward the
-      wall.
-- [x] Real board mounting-hole + port coordinates — done (two-PCB build).
-- [x] Measure the **LiPo** — **94 × 32 × 10.3** (was carried as 96 × 33.5).
-- [x] ~~**The cell overruns the front-right screw boss.**~~ It did, by 1 mm, when the
-      cage wall was positioned off the nibs — measured on the printed *baseplate*,
-      which carries no boss, so the clash could not show up on the bench. The wall is
-      now driven the other way, hard against PCB 1's side, and the cell sits at
-      60…154 with 6 mm of air before the boss. Both ends are asserted.
-- [x] Measure the **power switch** — widest-behind-panel 14 mm (`pwr_body_d`).
-- [x] **Port openings sized off the parts.** The first coupon jammed because the
-      whole block came off the USB-C spec sheet — `usbc_h` 2.5 and `usbc_w` 8.0 are
-      the *plug* envelope, and `sd_w` 13.0 was the same kind of guess. Calipered:
-      USB-C shell 8.5 × 2.75–3.0, µSD cage 14.0 wide, and the cage bottom sits
-      1 mm *above* the shell bottoms (`sd_rise`) where the model had them level.
-      The slack on every port opening is `port_fit = 0.7`, 0.35 a side, giving
-      USB-C **9.37 × 3.87** and µSD **14.87 × 2.87**. The second coupon was
-      dry-fitted at wider openings than these and everything went in, USB-C the
-      snuggest of them — the margin that gave is discussed in
-      [MANUFACTURING.md](MANUFACTURING.md). The switch keeps its own, much smaller
-      `pwr_fit` — see below.
-- [x] **Port Z measured as an absolute**, not off the board: with PCB 2 bolted to
-      its standoffs the USB-C shells span **10.5 … 13.5 mm off the baseplate's
-      underside** (`usbc_z` = 12.0 at the centre), which is the only height a
-      caliper can still reach once the board is in — and whose 3.0 mm span
-      re-confirms `usbc_h`. `usbc_cz` (2.8 above the board) now falls out of it;
-      the 3.5 it replaces was a guess and sat the whole block 0.7 mm high. The
-      µSD follows through `sd_rise`, unchanged.
-- [x] **Port X spacing is measured centre to centre**, 15.5 (charge→keyboard) and
-      15.0 (keyboard→µSD) — the only spacing a caliper can reach on a populated
-      board. The old edge-gap chain reproduced the USB-C pitch *exactly*, which is
-      what confirms `usbc_w = 8.5`, but its 5 mm µSD gap gave 16.25 against a
-      measured 15.0: the slot was 1.25 mm too far right, twice the slack that
-      could have covered it. Cross-checked: a measured 4.0 mm part-to-part gap against the 3.75 the pitch
-      and widths imply — 0.25 mm apart, which is what confirms `sd_w = 14.0` (at
-      13.0 the two readings would disagree by a full millimetre).
-- [x] **Where the cluster sits on the board** — 7 mm, PCB 2's left edge to the
-      charge shell (`chg_gap`), replacing the old chain's 8. The last unmeasured
-      link in the block, and the one everything hangs off: it slides all three
-      ports together. Centres are now 11.25 / 26.75 / 41.75 off the board edge.
-- [x] **Port X checked against a case datum** — on the *assembled* machine, in
-      from the **baseplate's right edge** (parts, no `port_fit` in the numbers):
-      µSD outer edge at **36.5**, charge USB-C outer edge at **78.6**. The model
-      already put the µSD at 36.50 — predicted to 0.01 mm from a datum the X
-      chain knows nothing about, which is what confirms the block's *position*.
-      Both edges are now **asserted**, so moving PCB 2 or `chg_gap` fails the
-      render instead of the coupon. They are held from the shell's inner right
-      face (`wall_x1`), **not** from `bp_x1`: the plate edge moves with `bp_gap`
-      while the boards stay put, so those two readings belong to the plate they
-      were taken on. Carried to the face by that plate's `bp_gap/2` = 0.75 they
-      become **37.25 / 79.35**, and a plate printed at the current `bp_gap` should
-      re-measure **37.00 / 79.10**.
-- [ ] **0.35 mm of residual at the charge end.** That reading envelopes the
-      cluster at 42.1 where the dry-fitted pitches and widths give 41.75. It
-      cannot be taken out of a pitch — the coupon proved the pitches *on the
-      parts*, so the block is rigid and may only move bodily. Nor is it slack:
-      the comparison is part-to-part, `port_fit` never enters it. So it sits at
-      the charge shell — an outer flange, or a 42 mm span read across two
-      dissimilar parts. Anchored on the µSD, the charge shell would then sit
-      0.35 into its 0.6 mm of per-side slack, clearing by 0.25. Passes, but it is
-      the thinnest margin in the block: **re-check that one edge on the coupon**,
-      and if it is real, widen the *charge* opening alone — its rib to the
-      keyboard is 5.8 mm and can afford it, unlike the 2.55 next door.
-- [ ] **No blanket widening.** Rejected +2 mm on every opening: at a 15 mm
+Everything settled is in the sections above; the model `assert`s the numbers a
+plausible edit could break, so those fail the render rather than the print.
+
+- [ ] **0.35 mm of residual at the charge end.** The assembled-machine reading
+      envelopes the cluster at 42.1 where the dry-fitted pitches and widths give
+      41.75. It cannot come out of a pitch — the coupon proved the pitches *on
+      the parts*, so the block is rigid and may only move bodily — and it is not
+      slack, since the comparison is part-to-part and `port_fit` never enters
+      it. So it sits at the charge shell: an outer flange, or a 42 mm span read
+      across two dissimilar parts. Anchored on the µSD, the charge shell sits
+      0.35 into its 0.6 mm of per-side slack and clears by 0.25. Passes, but it
+      is the thinnest margin in the block: **re-check that one edge on the
+      coupon**, and if it is real, widen the *charge* opening alone — its rib to
+      the keyboard is 5.8 mm and can afford it, unlike the 2.55 next door.
+- [ ] **No blanket widening.** +2 mm on every opening is rejected: at a 15 mm
       keyboard→µSD pitch it leaves a 0.55 mm rib between those two, under two
-      perimeters in a 2.4 mm wall, so the openings merge instead of printing. The
-      rib is 2.55 mm as it stands and that is the number to watch before any
+      perimeters in a 2.4 mm wall, so the openings merge instead of printing.
+      The rib is 2.55 mm as it stands and that is the number to watch before any
       opening grows again.
-- [ ] **One port number still unmeasured:** `sd_h = 2.0`, the cage height. It only
-      sets the *top* of the µSD opening now that the bottom is pinned by `sd_rise`,
-      so it's the least dangerous of the block — but it's the last datasheet figure
-      left in it. The dry-fit also checks the 8/7/5 gaps the X chain trusts.
-- [x] **The machine's errors are measured, and they live in the slicer.** The first
-      body assembled only after hand work — the screen would not enter its pocket,
-      the PCB standoffs came out too close together — and both traced to the same
-      cause: **1.35 % of XY shrink**, on top of 0.16 mm of over-extrusion. The
-      model carries **neither** — it is nominal geometry, and the corrections are
-      slicer settings. Values in **[MANUFACTURING.md](MANUFACTURING.md)**; shrink
-      cancels between printed parts, which is why it only surfaced when a printed
-      part had to meet a bought one.
-- [x] **Switch hole settled on the print: `pwr_fit = 0.4`, Ø13.9.** The first
-      coupon took the switch perfectly at that hole; the 1.2 that followed printed
-      Ø14.7, wider than `pwr_body_d` (14.0, the widest measured feature behind the
-      panel), so nothing bore against the wall and the panel stopped retaining it.
-      Back to 0.4, and the switch is deliberately far tighter than the ports — it
-      is the one part *retained* by the panel rather than merely passing through
-      it. **But that 0.4 was read off an uncorrected print**, whose hole came out
-      Ø13.55 and not the Ø13.9 modelled. Sliced correctly, the bearing against
-      `pwr_body_d` falls from 0.23 mm a side to **0.05** — thin, since that bearing
-      is what retains the switch. Re-check it on the next coupon; if it is loose,
-      `pwr_fit` wants about **0.05**.
+- [ ] **One port number still unmeasured:** `sd_h = 2.0`, the cage height. It
+      only sets the *top* of the µSD opening now that the bottom is pinned by
+      `sd_rise`, so it is the least dangerous of the block — but it is the last
+      datasheet figure left in it. The dry-fit also checks the 8/7/5 gaps the X
+      chain trusts.
+- [ ] **Re-check `pwr_fit = 0.4` on a correctly sliced coupon.** That value was
+      read off an uncorrected print whose hole came out Ø13.55 rather than the
+      Ø13.9 modelled. Sliced correctly, the bearing against `pwr_body_d` falls
+      from 0.23 mm a side to **0.05** — thin, and that bearing is what retains
+      the switch. If it is loose, `pwr_fit` wants about **0.05**. The switch is
+      deliberately far tighter than the ports: it is the one part *retained* by
+      the panel rather than merely passing through it, and at `pwr_fit = 1.2`
+      the hole printed Ø14.7, wider than `pwr_body_d`, and the panel stopped
+      retaining it at all.
 - [ ] FPC **reach**: the panel's own ribbon is 20 mm, but the glass back plane
       sits ~38 mm off the floor at mid-deck and PCB 1's top face is at 7.2 mm —
       a ~31 mm drop before the U-turn bend and the lateral run to the driver.
-      Solved with a **100 mm FPC extension**. The cavity now reserves the
-      **front-left plenum** for it (see PCB 1 above) — 56 × 24 mm of floor open to
-      the deck, directly below the slot's front end, and PCB 1's connector is
-      confirmed at the **front-left**, so the drop is near-vertical. Two follow-ups
-      once it arrives: bench-test contrast *before* printing the body (see below),
-      and measure the adapter board to confirm it and the ~60 mm of slack sit in
-      there. Also caliper **how far along the front edge** the connector sits: the
-      slot spans x 3.5…13.5, so a connector further inboard adds a lateral run
-      across the plenum before the drop.
-- [ ] **Battery pigtail reach.** The cell sits in the front-right and the TP4056 is
-      on PCB 2 at the back — 33.7 mm from the cell's back edge to PCB 2's front
-      edge, plus the lateral run to B+/B−, so budget **50–60 mm**. The EEMB 103395's
-      JST-PH lead is nominally ~50 mm, which is marginal. If it comes up short, a
-      JST-PH extension is the right fix; sliding the cell back (`bat_y0 = 38.1`
-      puts it 2 mm off PCB 2) costs the wiring bay and buries 33 mm of tall
-      cavity — see the LiPo note above.
+      Solved with a **100 mm FPC extension**. The cavity reserves the
+      **front-left plenum** for it (see PCB 1 above) — 56 × 24 mm of floor open
+      to the deck, directly below the slot's front end, and PCB 1's connector is
+      confirmed at the **front-left**, so the drop is near-vertical. Two
+      follow-ups once it arrives: bench-test contrast *before* printing the body
+      (see below), and measure the adapter board to confirm it and the ~60 mm of
+      slack sit in there. Also caliper **how far along the front edge** the
+      connector sits: the slot spans x 3.5…13.5, so a connector further inboard
+      adds a lateral run across the plenum before the drop.
+- [ ] **Battery pigtail reach.** The cell sits in the front-right and the TP4056
+      is on PCB 2 at the back — 33.7 mm from the cell's back edge to PCB 2's
+      front edge, plus the lateral run to B+/B−, so budget **50–60 mm**. The
+      EEMB 103395's JST-PH lead is nominally ~50 mm, which is marginal. If it
+      comes up short, a JST-PH extension is the right fix; sliding the cell back
+      (`bat_y0 = 38.1` puts it 2 mm off PCB 2) costs the wiring bay and buries
+      33 mm of tall cavity — see the LiPo note above.
 - [ ] **Extension contrast risk.** On these COG-on-flex panels the charge-pump
       capacitors live on the driver board and the FPC carries the *generated*
       high-voltage rails (VGH/VGL/VSH/VSL) back to the COG. Added length adds
       resistance on exactly those rails, and the classic symptom is faint or
-      ghosty output rather than an outright failure — so it can pass a smoke test
-      and still look wrong. Run a full black/white refresh through the extension
-      on the bench and compare against the direct connection before the body
-      print commits the geometry.
+      ghosty output rather than an outright failure — so it can pass a smoke
+      test and still look wrong. Run a full black/white refresh through the
+      extension on the bench and compare against the direct connection before
+      the body print commits the geometry.
 - [ ] **The 7 heat-sets are the one irreversible step on the body print.** The
       geometry is checked (walls, skin, roof and thread engagement are asserted;
       the screw and insert-body envelopes were booleaned against the solids and
-      come back empty — the insert's head end has no relief, it melts its own seat
-      by design), but nothing in the model can hold the **iron**. Two live risks
-      on the first body:
-      - **Over-pressing the bracket four.** The bore is 4.8 deep for a 3.8 insert
-        and has no stop in it, so there is 1 mm of slack under a flush insert and
-        only **2.1 mm of deck** past that — on the face the user looks at. Sink
-        to flush and stop; if a first deck dimples or blushes there, take `lip_t`
-        up before touching anything else (each +1 is +1 of skin, and the only cost
-        is a deeper bezel well).
-      - **The screw length is a tape-measure datum.** Bore depths are budgeted at
-        `scr_thread_max = 8` against a measured 7, so a 7.5 mm batch is already
-        covered; a 10 mm one is not, and on the bracket it would arrive at the
-        deck skin. Caliper one screw before driving 4 into the deck.
+      come back empty — the insert's head end has no relief, it melts its own
+      seat by design), but nothing in the model can hold the **iron**. Two live
+      risks on the first body:
+      - **Over-pressing the bracket four.** The bore is 4.8 deep for a 3.8
+        insert and has no stop in it, so there is 1 mm of slack under a flush
+        insert and only **2.1 mm of deck** past that — on the face the user
+        looks at. Sink to flush and stop; if a first deck dimples or blushes
+        there, take `lip_t` up before touching anything else (each +1 is +1 of
+        skin, and the only cost is a deeper bezel well).
+      - **The screw length is a tape-measure datum.** Bore depths are budgeted
+        at `scr_thread_max = 8` against a measured 7, so a 7.5 mm batch is
+        already covered; a 10 mm one is not, and on the bracket it would arrive
+        at the deck skin. Caliper one screw before driving 4 into the deck.
 - [ ] Optional **hinged lid** over the deck (protects the glass in a bag) — not
       yet modelled.
-- [ ] Feet — **deferred to a later version** (`feet_mode = "none"`). Modelled and
-      ready as a separate part. With the heads now flush there is nothing forcing
-      them back: the plate sits flat on the desk on its own face.
-- [x] ~~**Baseplate screw heads are now the contact points.**~~ Solved by the
-      **lamage**: Ø6.9 × 1.2 flat-bottomed, so the flat 1 mm head finishes 0.2
-      below the face the machine stands on, with 1.4 mm of plate left over it. The
-      countersink this note proposed is the wrong tool for a flat head — a cone
-      would touch it on one rim circle instead of its whole underside. Printed it
-      came out badly, so it is **drilled** now — see below.
-- [x] **The printed lamage was poor and is gone from the model.** First baseplate
-      print: the lamage is a flat-bottomed pocket in the *first* layers, so the
-      plate bridges Ø7.4 back in to Ø3.9 over open air and the seat the head pulls
-      against is whatever that bridge sagged to. The plate now prints solid at all
-      three posts and both features are drilled — see
-      [Drilling the baseplate](#drilling-the-baseplate).
+- [ ] Feet — **deferred** (`feet_mode = "none"`). Modelled and ready as a
+      separate part. With the heads flush there is nothing forcing them back:
+      the plate sits flat on the desk on its own face.
 
-### The panel measurement
+## The panel measurement
 
 Measured borders, glass edge → active area: **9.0 left** (FPC side) · **2.0
 right** · **4.0 top** · **4.0 bottom**. From those,

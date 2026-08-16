@@ -329,7 +329,7 @@ historical record, the owner is authoritative)
 
 - Close the gap to the ≤ ~10 s target: push is 19.8 s; the splice's 5.0 s
   and the ~7 s of repo-open/negotiation overhead are the next curves.
-  → [v0.7](../../plan/macroplan.md#v07--search--better-git--x).
+  → [v0.7](../../../CHANGELOG.md).
 - The keep-alive race is **avoided, not fixed** (3.5 s ≪ ~30 s) — a future
   multi-pack or cold-cache state could still lose it. Durable fix:
   reconnect-on-stale-connection in the http/stream layer.
@@ -346,7 +346,7 @@ historical record, the owner is authoritative)
   stream error path). _(Unscheduled chore — not version-scoped.)_
 - Instrument the residual ~360 ms/loose-write (suspect: FAT directory-op cost
   in the freshen/refresh path) — one `sd_bench` + `p_mmap`-miss logging pass.
-  → [v0.7](../../plan/macroplan.md#v07--search--better-git--x).
+  → [v0.7](../../../CHANGELOG.md).
 - The images-off-card lever
   ([`../notes/git-sync-images-and-repo-size.md`](../notes/git-sync-images-and-repo-size.md))
-  composes with the splice. → [v0.7](../../plan/macroplan.md#v07--search--better-git--x).
+  composes with the splice. → [v0.7](../../../CHANGELOG.md).

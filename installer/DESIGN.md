@@ -9,7 +9,7 @@ entry point is the one-liner on typoena.dev:
 `install.sh` downloads this prebuilt binary; the binary does the rest. The user
 needs **no repo checkout and no Rust toolchain** — just the card.
 
-## Decisions (2026-07-14)
+## Decisions
 
 - **Self-contained end-user tool.** No `just`, no typewriter checkout. The
   binary bundles what it needs (config templates, snippet catalog). The proven
@@ -89,93 +89,81 @@ it.
 - Config templates + snippet catalog embedded via `include_str!`
   (self-contained).
 
-## Open items (not blocking the current slices)
+## Open items
 
-- ~~**Hosting**~~ — RESOLVED: public GitHub releases on `typoena/typewriter`,
-  one per `installer-v*` tag (latest `installer-v0.4.0`, 2026-07-15; the first,
-  `installer-v0.1.0`, shipped under `jcalixte/typewriter` before the repo moved
-  to the org 2026-07-15); `install.sh` pulls `releases/latest/download`, so
-  cutting a tag is the whole deploy.
-- **Non-macOS** — Linux/Windows later; slice work is macOS-first.
+- **Non-macOS** — Linux/Windows later; the work is macOS-first.
 - **Clone target** — cloning ~hundreds of MB directly onto FAT via a reader;
   measure, and fall back to clone-to-temp-then-copy if it's too slow.
-- **Re-provision** — DONE for the destructive case: an existing card is handled
-  by an explicit **wipe-and-reclone** (`y`-confirmed screen showing origin +
+- **Re-provision** — the destructive case is covered: an existing card goes
+  through an explicit **wipe-and-reclone** (`y`-confirmed screen showing origin +
   HEAD + unpushed-edit count; removes only `repo/` + the dirty journal, then
-  clones fresh). Follow-ups: a config-only rewrite that rotates the PAT /
-  switches Wi-Fi *without* recloning (like `just provision`), and backing up
-  `.typoena-dirty` edits before wiping instead of only warning.
+  clones fresh). Missing: a config-only rewrite that rotates the token or
+  switches Wi-Fi *without* recloning, and backing up `.typoena-dirty` edits
+  before wiping instead of only warning.
 
-## Slice plan
+## The wizard, screen by screen
 
-1. **App shell + Preflight** — DONE 2026-07-14. Branded wizard; card + git
-   detection; `--check` headless mode.
-2. **Configure** — DONE 2026-07-14. Form + derive ladder, masked secrets,
-   Keychain fill, required-field validation.
-3. **SD card** — DONE 2026-07-14 (fresh-card path). Pick card (boot disk
-   excluded) → `git clone` onto it (single pack, clean HTTPS origin) → seed
-   `.typoena.toml` → write `typoena.conf` → strip `._*` → eject; the long clone
-   runs on a worker thread streaming progress. Verified: card detection on real
-   hardware and clone + seed + conf via `--list-cards` / `--dry-run-sd`. Full
-   interactive run + real write/eject await a blank card + a TTY.
-**UX pass (2026-07-15).** Applied across the wizard, no new slices:
-- **Full keyboard nav, no arrows required** — `Tab`/`Shift-Tab` move forward/back
-  through fields *and* steps (spilling at the ends), vim `h/j/k/l` on the
-  non-form steps. Arrows still work.
-- **Progress affordances in the sidebar** — steps show `✓` done / `▸` current /
-  dim pending, plus a `move` box (`Tab next` · `⇧Tab back`) and a live gate hint
-  (`fill required` / `write card first` / `→ <next>`), so "when/where can I go"
-  is always visible.
-- **Preflight hides the Mac's own storage** — the SD-card check reports only
-  genuinely removable cards (via `diskutil`), never names `Macintosh HD`; a
-  machine's own disk showing as "available" alarmed users.
-- **Animated brand header** — a single block caret types the name `typoena`
-  then continues into the site's tagline ("A distraction-free writing machine."),
-  paced against a wall-clock `Instant` (not the render tick, so it's
-  cadence-independent). The caret is solid while writing, blinks for 10 s once
-  both lines are done, then settles. Both lines centred (reserved widths keep
-  them from drifting as they fill), with a blank line of margin above and below.
-- **Live clone progress bar** — `git clone --progress` is streamed by splitting
-  on `\r`/`\n` (line-buffered reading swallows the in-place ticks) and parsed
-  into a gauge (`Receiving objects  42%`); the scrolling log keeps only the
-  phase-final `done.` lines.
+**App shell + Preflight.** Branded wizard with a `--check` headless mode; card
+and git detection. Preflight reports only genuinely removable cards (via
+`diskutil`) and never names `Macintosh HD` — a machine's own disk showing as
+"available" alarms users.
 
-4. **install.sh + release/hosting** — DONE 2026-07-14. Universal macOS binary
-   (lipo arm64+x86_64, stripped) published as a public GitHub release on
-   the firmware repo (now `typoena/typewriter`), first tag `installer-v0.1.0`,
-   with a `.sha256` sidecar; every `installer-v*` tag since re-releases the
-   same way (latest `installer-v0.4.0`).
-   `typoena.dev/install.sh` (in the [[typoena-site]] repo): Darwin guard → curl
-   binary + sidecar from `releases/latest/download` → `shasum -c` verify → `exec
-   … </dev/tty`. Verified end-to-end (mirror, live release, full typoena.dev
-   chain). The interactive TUI run + real card write/eject still await a TTY.
-5. **Sign in with GitHub (device flow)** — DONE 2026-07-15 (`auth.rs`).
-   Replaces hand-creating a PAT: `^G` on Configure asks GitHub for a one-time
-   code (client_id `Iv23liwgnE86ITDpBdnn`, the org-owned "Typoena" GitHub App —
-   public by design, no client secret in the device flow), shows it big,
-   auto-opens github.com/login/device, and polls in the background
-   (`authorization_pending`/`slow_down` honored, Esc cancels via an atomic
-   flag) until the `ghu_` token lands in the GitHub-token field. The panel is
-   modal on Configure (plain Esc/n/q cancel; ^N/^P are inert so a reflexive
-   step-jump can't kill the flow). HTTP is system `curl` (no HTTP crate);
-   GitHub's OAuth endpoints answer form-encoded, parsed by a tiny
-   percent-decoding parser. `ghu_` tokens speak the same
-   `x-access-token:<token>` basic auth as a PAT, so the clone path and the
-   firmware are unchanged; manual PAT paste remains the fallback. If the app
-   has token expiry on, the success message flags the token's lifetime.
-   **Authorization ≠ installation** (hit in the field the same day): the token
-   proves identity, but it can only reach repos the app is *installed* on — a
-   clone of an uninstalled repo 403s (`Write access to repository not
-   granted`). The SD step detects that stderr signature and fails with a hint
-   pointing at `github.com/apps/typoena/installations/new` + Enter-to-retry
-   (no new sign-in needed; token access is evaluated live).
-6. **Proactive access check** — DONE 2026-07-15 (v0.4.0). Since the device
-   flow never installs the app, *every* first-time ^G user would hit that 403
-   — so the token is probed against `GET /repos/{owner}/{repo}` the moment
-   sign-in completes. No access → a yellow flag on Configure with the fix;
-   `^O` opens the install page and a background watcher re-probes (5 s, ~2 min)
-   so the flag turns green the moment the repo is granted. (^I would be the
-   mnemonic, but Ctrl-I *is* Tab on a terminal.) Verdicts remember the remote
-   they judged — editing the field retires a stale flag. Advisory only:
-   non-GitHub hosts and network failures stay silent, the SD step still runs,
-   and slice 5's 403 hint remains the backstop.
+**Configure.** Form + derive ladder, masked secrets, Keychain fill,
+required-field validation.
+
+**SD card.** Pick the card (boot disk excluded) → `git clone` onto it (single
+pack, clean HTTPS origin) → seed `.typoena.toml` → write `typoena.conf` → strip
+`._*` → eject. The clone runs on a worker thread streaming progress: `git clone
+--progress` is split on `\r`/`\n` (line-buffered reading swallows the in-place
+ticks) and parsed into a gauge, and the scrolling log keeps only the phase-final
+`done.` lines.
+
+**Navigation.** `Tab` / `Shift-Tab` move forward and back through fields *and*
+steps, spilling at the ends; vim `h/j/k/l` on the non-form steps; arrows work
+too. The sidebar shows `✓` done / `▸` current / dim pending, a `move` box, and a
+live gate hint (`fill required` / `write card first` / `→ <next>`), so
+"when and where can I go" is always visible.
+
+**Brand header.** A single block caret types `typoena`, then the site's tagline,
+paced against a wall-clock `Instant` rather than the render tick so the cadence
+is frame-rate-independent. Solid while writing, blinks for 10 s once both lines
+land, then settles.
+
+## Sign in with GitHub (device flow)
+
+`^G` on Configure asks GitHub for a one-time code (client_id
+`Iv23liwgnE86ITDpBdnn`, the org-owned "Typoena" GitHub App — public by design,
+no client secret in the device flow), shows it big, auto-opens
+github.com/login/device, and polls in the background
+(`authorization_pending` / `slow_down` honored, Esc cancels via an atomic flag)
+until the `ghu_` token lands in the token field. The panel is modal on Configure
+(plain Esc/n/q cancel; `^N`/`^P` are inert so a reflexive step-jump can't kill
+the flow). HTTP is system `curl` — no HTTP crate; GitHub's OAuth endpoints
+answer form-encoded, parsed by a tiny percent-decoding parser. `ghu_` tokens
+speak the same `x-access-token:<token>` basic auth as a PAT, so the clone path
+and the firmware are unchanged; a manual PAT paste remains the fallback. If the
+app has token expiry on, the success message flags the token's lifetime.
+
+**Authorization ≠ installation.** The token proves identity, but it only reaches
+repos the app is *installed* on — a clone of an uninstalled repo 403s
+(`Write access to repository not granted`), and the device flow never installs
+anything, so every first-time `^G` user would hit it. Two guards:
+
+- the token is probed against `GET /repos/{owner}/{repo}` the moment sign-in
+  completes. No access → a yellow flag on Configure with the fix; `^O` opens the
+  install page and a background watcher re-probes (5 s, ~2 min) so the flag
+  turns green the moment the repo is granted. (`^I` would be the mnemonic, but
+  Ctrl-I *is* Tab on a terminal.) Verdicts remember the remote they judged, so
+  editing the field retires a stale flag. Advisory only: non-GitHub hosts and
+  network failures stay silent.
+- the SD step detects that 403's stderr signature and fails with a hint pointing
+  at `github.com/apps/typoena/installations/new`, plus Enter-to-retry — no new
+  sign-in needed, since token access is evaluated live.
+
+## Release
+
+Public GitHub releases on `typoena/typewriter`, one per `installer-v*` tag: a
+universal macOS binary (lipo arm64+x86_64, stripped) with a `.sha256` sidecar.
+`typoena.dev/install.sh` (in the [[typoena-site]] repo) is a Darwin guard → curl
+of binary + sidecar from `releases/latest/download` → `shasum -c` verify →
+`exec … </dev/tty`. Cutting a tag is the whole deploy.

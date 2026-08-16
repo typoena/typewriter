@@ -19,7 +19,7 @@ command is silently ignored.
 | `:fmt` | Markdown normalizer — table alignment, blank-line collapse, trailing-whitespace strip. |
 | `:pub` `:publish` | Rename `<name>.md` to `<name>.pub.md` and retarget every `[title](…)` link pointing at the old name, card-wide. Refuses on an unnamed scratch, a Local file, a non-`.md` file, an already-published file, or when the `.pub.md` name is taken — it never silently clobbers. |
 
-`:e` was retired: bare `Cmd-P` opens files and `> new file` creates them.
+There is no `:e` — bare `Cmd-P` opens files, `> new file` creates them.
 
 ## Fleeting notes
 

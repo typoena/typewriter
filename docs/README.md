@@ -31,15 +31,12 @@
 
 | Doc | What's in it |
 | --- | --- |
-| [`plan/macroplan.md`](plan/macroplan.md) | The delivery plan: macroplan source, per-release status, and the open checklists for v0.9, v1.0 and v1.x. |
-| [`plan/v0.1-mvp-product.md`](plan/v0.1-mvp-product.md) | v0.1 product design — the founding spec, as shipped. |
-| [`plan/v0.1-mvp-technical.md`](plan/v0.1-mvp-technical.md) | v0.1 technical design — architecture, boot sequence, module breakdown. |
+| [`plan/macroplan.md`](plan/macroplan.md) | The delivery plan: macroplan source and the open checklists for v0.9, v0.10, v1.0 and v1.x. |
 | [`plan/v0.9-onboarding-wizard.md`](plan/v0.9-onboarding-wizard.md) | First-boot setup and `:setup` — the zero-computer provisioning flow. |
 | [`plan/v0.10-battery-and-sleep.md`](plan/v0.10-battery-and-sleep.md) | Power switch, power path, battery, sleep. Design decided, not built. |
 
-Delivered releases are summarised in [`plan/macroplan.md`](plan/macroplan.md)
-and listed in full in [`../CHANGELOG.md`](../CHANGELOG.md). Their behaviour
-lives in the reference pages above, not in per-release specs.
+Delivered releases are listed in full in [`../CHANGELOG.md`](../CHANGELOG.md).
+Their behaviour lives in the reference pages above, not in per-release specs.
 
 ## Quality — how requirements are weighed
 

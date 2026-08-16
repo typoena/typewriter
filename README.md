@@ -8,13 +8,12 @@ A distraction-free, hackable, DIY writing machine. ESP32-S3 + e-ink + a real
 mechanical keyboard. You write Markdown, you commit, you push. Nothing else
 runs on it.
 
-> **Status: v0.8 shipped, hardware on bench.** v0.1 (MVP — boots, edits,
-> pushes) shipped 2026-07-11; v0.2 through v0.8 (vim navigation and editing,
-> file palette + multi-buffer, Markdown affordances, `/` search, `:gs` push /
-> `:gl` pull, focus mode, `:update` OTA, command palette + font picker)
-> followed within two weeks — firmware is at 0.8.0. v0.9 (robustness) is
-> underway; its zero-computer first-boot wizard already landed. Live
-> per-item status: the Macroplan, first link below.
+> **Status: firmware 0.8.0, hardware on the bench.** The device boots, edits,
+> and syncs: vim navigation and editing, a file palette over multiple buffers,
+> Markdown affordances, `/` search, `:gs` push / `:gl` pull, focus mode,
+> `:update` OTA, a command palette and font picker, and a zero-computer
+> first-boot wizard. v0.9 (robustness) is the open release — per-item status in
+> the Macroplan, release contents in the [CHANGELOG](CHANGELOG.md).
 
 Design & context:
 

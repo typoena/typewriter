@@ -16,9 +16,7 @@ revision wires the on-board WS2812 RGB LED to **GPIO 48**; v1.1 moved it to
 GPIO 38, so match assignments against this diagram, not the v1.1 one. The octal
 PSRAM consumes **GPIO 26–37**, so those are unavailable for peripherals.
 
-![ESP32-S3-DevKitC-1 v1.0 pinout](assets/esp32-s3-devkitc-1-v1.0-pinout.jpg)
-
-Source: [Espressif ESP32-S3-DevKitC-1 v1.0 user guide][devkitc-1-v1.0].
+Pinout diagram: [Espressif ESP32-S3-DevKitC-1 v1.0 user guide][devkitc-1-v1.0].
 
 [devkitc-1-v1.0]: https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-devkitc-1/user_guide_v1.0.html
 
@@ -141,7 +139,3 @@ the case README). Nets crossing the boards:
 The discrete power-path parts (FETs, diodes, latch network) all sit on **PCB 1**
 with the MCU and the button connector `J5`, so `PWR_HOLD`/`PWR_SENSE` never
 cross the harness. PCB 2 (20 × 80 mm) had no room left.
-
-## Devkit pinout (board rev v1.0)
-
-![ESP32-S3-DevKitC-1 v1.0 pinout](../firmware/docs/esp32-s3-devkitc-1-v1.0-pinout.jpg)

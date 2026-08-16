@@ -6,8 +6,8 @@
 > `init → commit → push` over mbedTLS HTTPS **on hardware** (2026-07-06). See
 > "On-device push COMPLETE" below.
 >
-> Context: Spike 7 in
-> [`../v0.1-mvp-technical.md`](../../plan/v0.1-mvp-technical.md#hardware-bring-up-order),
+> Context: Spike 7 in the
+> [spike log](../../../firmware/docs/bring-up-spikes.md),
 > git impl [ADR-004](../../adr.md#adr-004-git-implementation--gitoxide-gix), auth
 > [ADR-005](../../adr.md#adr-005-auth--https--github-personal-access-token).
 > Spike program: [`../../spikes/spike7-git-push/`](../../../spikes/spike7-git-push/README.md).

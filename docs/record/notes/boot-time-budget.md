@@ -7,8 +7,8 @@
 > architecturally unavoidable at cold boot.
 >
 > Notes index: [`README.md`](README.md). Docs index:
-> [`../README.md`](../../README.md). Backs the boot-time acceptance criterion in
-> [`../v0.1-mvp-product.md`](../../plan/v0.1-mvp-product.md#acceptance-criteria) and the
+> [`../README.md`](../../README.md). Backs the boot-time budget row in
+> [`qfd.md`](../../quality/qfd.md#6-critical-performance-budget) and the
 > v1.0 goal in [`../macroplan.md`](../../plan/macroplan.md). Refresh cost model:
 > [`../tradeoff-curves/epd-refresh-latency.md`](../tradeoff-curves/epd-refresh-latency.md).
 

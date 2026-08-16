@@ -1,10 +1,9 @@
 # Macroplan — version details
 
 Frequent releases. Each version is a usable artifact, not a checkpoint.
-This file holds the `macroplan` source block (below), a cross-version status
-roll-up, and a one-line summary of each release linking to its dedicated page.
-The user-facing requirements and engineering targets each release feeds into are
-tracked in [`qfd.md`](../quality/qfd.md).
+This file holds the `macroplan` source block and the scope checklists of the
+releases still open. The user-facing requirements and engineering targets each
+release feeds into are tracked in [`qfd.md`](../quality/qfd.md).
 
 ## Macro-plan
 
@@ -113,213 +112,26 @@ week = 2026-06-29
 requires = ["v0.1 it writes, it pushes"]
 ```
 
-## Status — synced 2026-07-22
+## Delivered
 
-The editor **core** has been built 2–3 versions ahead of the device
-**releases**, and is now **extracted into a host-testable `editor` crate** (plus
-a `display` crate for the panel framebuffer) so `cargo test` exercises it off the
-xtensa target. **v0.1 shipped 2026-07-11** (late against the 2026-06-29
-baseline): SD storage, save, and **git push are all wired into the app binary
-and hardware-verified** (`:sync` commits on the SD `/sd/repo` and pushes to a
-test repo), and the **boot splash (Spike 9) is confirmed on the panel** — a
-vector `typoena`-in-a-circle shown at startup while the SD mounts, then the
-editor comes up. **Cold boot verified at 4258 ms** (power-on → cursor,
-2026-07-11; 742 ms under the ≤ 5 s gate). It first measured ~5.5 s; the fix was
-to bring the editor up with a full-area partial (~630 ms) instead of a second
-full refresh (~1.9 s) — panel confirmed clean, no ghosting. The 1-hour soak is
-attested from real use; the remaining post-ship acceptance checks are power-pull
-recovery, 1000-word no-drop, and `Ctrl-G`'s not-yet-built pull-then-retry
-(→ v0.9). **v0.2 navigation is COMPLETE 2026-07-11** — Spike 13's on-panel gutter
-refresh check passed (single-line edit repaints only rows at/below it, no extra
-full refresh), closing the last gate. **v0.2.5 international input** is
-hardware-verified (2026-07-11), and **v0.3 editing is complete in core** the same
-day (register + yank/paste, snapshot undo/redo, `.` repeat — host-tested, and
-partially smoke-tested on the panel: `dd`/`yy`/`Ctrl-r` good, a multi-line-paste
-scroll bug found + fixed). **v0.4 visual + ex is complete in core** the same day
-too — charwise/linewise **Visual** selection (`v`/`V` with `y`/`d`/`c`), the
-read-only View mode moved to `gr`, and the selection drawn as reverse-video on
-the panel; `:e` was deferred to v0.5. Host-tested (83 editor tests); on-device
-smoke-test pending. The firmware crate is bumped to **0.4.0**. Most of v0.6
-Markdown also already runs. Version numbers track shippable device releases, not
-raw core progress — the 0.4.0 bump reflects the v0.4 feature set being met.
-**v0.5 palette + multi-file is DELIVERED 2026-07-12** (firmware **0.5.0**), fully
-on-device confirmed: the Cmd-P fuzzy palette, `:e`/`:enew`/delete across the
-`/sd/repo` + `/sd/local` scopes, and the git-tracked `.typoena.toml` prefs
-(boot-read plus a stay-open palette `>` command mode + `:settings` that edits them
-live and syncs the change). Descoped to later: explicit buffer close, the
-grey-Push-in-Local panel cue, and the multi-file push count.
-**v0.6 Markdown is COMPLETE in core 2026-07-12** (firmware **0.6.0**), host-tested
-(187 editor tests), on-device smoke-test pending. The render affordances (heading
-bold, list continuation, soft-wrap) were done early; the headline is the
-**snippet engine** — a forward-only tab-stop session reached both inline (type a
-prefix + Tab in Insert) and from a **`$` palette** launcher, fed by a git-synced,
-Zed-compatible `.typoena.snippets.json` read at boot (serde_json, confirmed to
-build for xtensa). The `Cmd-P` palette **generalised** into a verb split — bare =
-files, `>` = a command registry (toggles stay open, `format`/`push` one-shots
-close, a two-step `new file`), `$` = snippets — which **retired `:e`**. `just init`
-seeds a curated 17-snippet catalog (Symbols · Structure · Prose, opt-in). One
-caveat: `→`/`≠` sit outside ISO-8859-15 and need a display-layer glyph overlay
-(in flight) to render on the panel; the other 15 draw on the stock font.
-**v0.7 search + better git is CLOSED 2026-07-14** (firmware **0.7.0**), verified
-on-device over three bench runs: `/` search (smartcase + accent-folded, `n`/`N`)
-panel-confirmed, and `:gl` pull proven in all four shapes — the fast-forward
-closing gate passed with an O(changed) `apply_tree_diff` written after libgit2's
-`checkout_tree` crashed the device on run 2. TLS session resumption cut the
-rejected-push reconcile cycle from 59 s to 24 s, and `:sync` was renamed `:gp`.
-Still open post-v0.7: the warm clean-push measurement, the images-off-card
-decision, and the empty-note trailing-newline watch item.
-**v0.7.5 focus mode is DELIVERED 2026-07-17** (firmware **0.7.5**), an unplanned
-same-day insert specced/built/verified in one session: a silent-timer Pomodoro
-(25-min block, no live countdown) that drops a full-screen masking rest card at
-the next typing pause, dismissed by the `Ctrl-C` (continue) / `Ctrl-Q` (quit)
-chords — the grace cap force-broke a continuous-typing block at 27 s on device.
-`:focusdebug` gives a 25-second clock for testing.
-**v0.7.7 OTA firmware update is DELIVERED 2026-07-19** (firmware now **0.7.9**),
-verified on-device across two back-to-back over-the-air installs
-(0.7.7→0.7.8→0.7.9). `:update` pulls a newer image from `typoena.dev/firmware`
-(nginx 302 → a Gitea release asset) into the inactive A/B slot and reboots into
-it — resolving the v1.x "firmware auto-update" open question. Release hosting is
-split: the installer stays on GitHub, firmware releases live on Gitea (the host
-the device's TLS trusts, via ISRG Root X1 in the esp-idf CA bundle). `just ship`
-enforces the rollback bootloader for customer units. Shipped alongside: the
-`:about` version splash, the version in the up-to-date notice, and the active
-filename in the side panel.
-**v0.8 editor: palette + fonts + panel is DELIVERED 2026-07-22** (firmware
-**0.8.0**) — an unplanned batch that took the roadmap's 0.8 slot, pushing the
-planned **battery + sleep to v0.10** and moving **robustness ahead to v0.9**. The
-command palette opens on `Cmd+Shift+P`; the **writing font family** is chosen live
-from the settings palette (alternate mono families baked into MonoFont atlases,
-grid-invariant — this lands **v1.0's runtime-switchable fonts early**); the side
-panel is grouped into **file / sync / vim tiers** with friendlier filenames;
-`:pub` marks a note `.pub.md`; the boot splash is a lowercase wordmark. Reliability:
-the file-walk is **pinned to Core1** so it can't starve the UI (fixed the
-type-to-ink lag), panel ghosting is cleared by scheduled full refreshes, and the
-crate is **pinned to opt-level 2** after `s` miscompiled the wizard into a boot
-loop. Also landed: the **fast-partial typing waveform** (real Good Display
-GDEY0579T93 LUT, ~495 → ~265 ms) behind a **default-off** `fast_partial` pref,
-gated on a longevity + cold soak; a **QC bring-up fixture** for the carrier PCB;
-the first-boot wizard can now **erase and dedicate a bring-your-own SD card** on
-consent (**v0.9's on-device provisioning**); and the git-push "publish" concept
-was renamed **"push"**. Host-tested; fast-partial + QC verified at the bench.
+v0.1 through v0.8 are shipped; the `learning` field of each `[[feature]]` above
+carries what the release cost and what it taught. Release contents, feature by
+feature, are in [`../../CHANGELOG.md`](../../CHANGELOG.md); the behaviour they
+left behind is in [`../reference/`](../reference/commands.md), not here.
 
-Marks: `[x]` done in core · `[~]` partially done · `[ ]` not started. An
-inline `(✓)` marks the done half of a split item.
-
-Each version below links to its dedicated page, which carries the full scope
-checklist and status.
+The versions below are the ones still open. Marks: `[x]` done in core ·
+`[~]` partially done · `[ ]` not started. An inline `(✓)` marks the done half
+of a split item.
 
 ---
-
-## v0.1 — MVP: "it writes, it pushes" — [x]
-
-The minimum thing that justifies the hardware existing — boot, type one file,
-`:w` to save, `:sync` to push to GitHub. **SHIPPED 2026-07-11** (late vs the
-2026-06-29 baseline); cold boot verified at 4258 ms.
-**Design:** [product](v0.1-mvp-product.md) · [technical](v0.1-mvp-technical.md).
-
-## v0.2 — Vim navigation — [x]
-
-Modal Normal/Insert/View, `h j k l`/`w b e`/`0 $`/`gg G` motions, `Ctrl-d/u`
-half-page scroll, the UTF-8-correct buffer, and the absolute line-number gutter.
-**COMPLETE 2026-07-11.**
-
-## v0.2.5 — International input — [x]
-
-US-International dead-key accent composition (à é ê ë ñ ç) in the `keymap`
-crate, plus the Esc→backtick/tilde remap for a 60% board.
-**Hardware-verified 2026-07-11.**
-
-## v0.3 — Vim editing — [x]
-
-Register + yank/paste (`yy`/`p`/`P`), snapshot undo/redo (`u`/`Ctrl-r`), `.`
-repeat, and the `d`/`c` operator grammar + text objects.
-**COMPLETE in core 2026-07-11**, partially smoke-tested on the panel.
-
-## v0.4 — Visual mode + ex commands — [x]
-
-Charwise `v` / linewise `V` selection with `y`/`d`/`c`, the `:` command line
-(`:w`/`:fmt`/`:sync`/`:gl`), and View mode moved to `gr`.
-**COMPLETE in core 2026-07-11**, on-device smoke-test pending.
-
-## v0.5 — File palette + multi-file — [x]
-
-The `Cmd-P` fuzzy file palette, `:e`/`:enew`/delete across `/sd/repo` +
-`/sd/local`, the parked-buffer LRU, and the git-tracked `.typoena.toml` prefs
-with a palette `>` command mode + `:settings`.
-**DELIVERED 2026-07-12** (firmware 0.5.0), fully on-device confirmed.
-Detail: [v0.5-palette-and-multi-file.md](macroplan.md#v05--file-palette--multi-file--x).
-
-## v0.6 — Markdown affordances — [x]
-
-Heading bolding, list continuation, and soft-wrap, plus the trigger-driven
-snippet engine (net-new scope, added 2026-07-08): a tab-stop session reached
-inline (prefix + Tab) and from the `$` palette, fed by a git-synced,
-Zed-compatible `.typoena.snippets.json`; the `Cmd-P` palette generalised into a
-`files`/`>` commands/`$` snippets split (retiring `:e`); and a `just init`
-catalog. **COMPLETE in core 2026-07-12** (firmware 0.6.0), on-device smoke-test
-pending. Detail: [v0.6-markdown.md](macroplan.md#v06--markdown-affordances--x).
-
-## v0.7 — Search + better git — [x]
-
-`/` forward search (`n`/`N`, smartcase + accent-folded) and `:gl` pull (fetch +
-fast-forward only, an O(changed) tree-diff apply); `:sync` renamed `:gp`.
-**CLOSED 2026-07-14** (firmware 0.7.0), panel- and git-path-verified on-device.
-Detail: [v0.7-search-and-git.md](macroplan.md#v07--search--better-git--x).
-
-## v0.7.5 — Focus mode (Pomodoro) — [x]
-
-A silent-timer Pomodoro cycle: a 25-minute **focus** block with no visible
-countdown (the device tracks it silently and imposes the break), then a
-full-screen **rest** card that masks the text. `Ctrl-C` starts the next block,
-`Ctrl-Q` quits — both deliberate chords so a stray key can't end a break behind
-the curtain (a bench run showed a bare `c` was too easy). Rest is themed (white
-card / black in dark theme), untimed, and shows the block's `words · minutes`.
-Surfaced as "focus" (the Pomodoro name is trademarked). Ephemeral — RAM-only,
-off on reboot. A hidden `:focusdebug` runs the block on a 25-**second** clock
-for testing. **DELIVERED 2026-07-17** (firmware 0.7.5), verified on the panel.
-Unplanned same-day insert after v0.7, on the v0.2.5 `.5` precedent.
-Detail: [v0.7.5-focus-mode.md](macroplan.md#v075--focus-mode-pomodoro--x).
-
-## v0.7.7 — OTA firmware update — [x]
-
-Firmware 0.7.7 was a batch, not one feature: alongside OTA it shipped `:reboot`
-([v0.7.6-reboot.md](../reference/commands.md#device)) and the fleeting inbox notes
-([v0.7.7-inbox-notes.md](../reference/commands.md#fleeting-notes)). See
-[`../CHANGELOG.md`](../../CHANGELOG.md) for the full release contents.
-
-Over-the-air update: `:update` pulls a newer image from `typoena.dev/firmware`
-(nginx 302 → a Gitea release asset) into the inactive slot of an A/B partition
-layout (`partitions-ota.csv`) and reboots into it; `just publish-firmware` cuts
-the release + version pointer, `just ship` bakes the rollback bootloader for
-customer units. Installer releases stay on GitHub, firmware releases live on
-Gitea (the host the device's TLS trusts). Shipped with the `:about` version
-splash, the version named in the up-to-date notice, and the active filename in
-the side panel. **DELIVERED 2026-07-19** (firmware 0.7.9), verified on hardware
-across two back-to-back installs. Resolves the v1.x "firmware auto-update" open
-question (below); rationale there.
-
-## v0.8 — Editor: command palette + fonts + panel — [x]
-
-The command palette on `Cmd+Shift+P`, a live **writing-font-family** picker in the
-settings palette (alternate mono families baked into MonoFont atlases), the side
-panel grouped into **file / sync / vim** tiers with friendlier filenames, `:pub`
-to mark a note `.pub.md`, and a lowercase-wordmark boot splash. Reliability rode
-along: the file-walk **pinned to Core1** (no more type-to-ink lag), scheduled
-full refreshes against panel ghosting, and the crate **pinned to opt-level 2**
-(opt-`s` miscompiled the wizard into a boot loop). Plus the **default-off**
-fast-partial typing waveform (Good Display GDEY0579T93 LUT, ~495 → ~265 ms, soak
-pending), a **QC bring-up fixture** for the carrier PCB, wizard SD-card dedication,
-and the git-push "publish" → "push" rename. **DELIVERED 2026-07-22** (firmware
-0.8.0), host-tested; fast-partial + QC verified at the bench. An unplanned insert
-that took the 0.8 slot — battery + sleep moved to v0.10, robustness to v0.9.
 
 ## v0.9 — Robustness — [~]
 
 Crash-safe writes, interrupted-push recovery, SD removal handling, Wi-Fi
 reconnect, and on-device provisioning (the first release usable by a non-author).
 **On-device provisioning is DELIVERED early (✓)** — the zero-computer first-boot
-wizard, verified on device, now also erases and dedicates a bring-your-own SD card
-on consent. The rest is **not started.** Moved ahead of battery + sleep.
+wizard, verified on device, which also erases and dedicates a bring-your-own SD
+card on consent. The rest is **not started.**
 
 - [ ] Crash-safe writes (write to `.tmp`, fsync, rename) — NB FatFS `f_rename`
       refuses to overwrite, so it's unlink-then-rename + `*.tmp` boot-recovery
@@ -378,8 +190,7 @@ early in v0.8**). **Not started.**
 
 - [ ] Boot time ≤ 3 s to usable cursor — 4.26 s at v0.1 ship; **regressed to
       ~8.7 s on a real 1098-file card** once the v0.5 palette walk joined the
-      boot path (4.3 s of readdir-over-SPI, already d_type-optimised — see the
-      [v0.5 walk amendment](macroplan.md#v05--file-palette--multi-file--x)), so the walk must
+      boot path (4.3 s of readdir-over-SPI, already d_type-optimised), so the walk must
       go async/deferred, and the ~1.9 s cold-boot full refresh + ~0.74 s PSRAM
       memtest are the remaining levers (see
       [`notes/boot-time-budget.md`](../record/notes/boot-time-budget.md))

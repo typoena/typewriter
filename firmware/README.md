@@ -6,9 +6,8 @@ wizard.
 
 One crate of the [Typoena project](../README.md) — start there for the
 vision, the hardware, and the design record (macroplan, QFD, ADRs, doc
-index). Firmware-specific design:
-[`v0.1-mvp-technical.md`](../docs/plan/v0.1-mvp-technical.md) — module split,
-threads, and the hardware bring-up order.
+index). The layer-by-layer stack and the annotated repo layout:
+[`docs/reference/stack.md`](../docs/reference/stack.md).
 
 Technical pages:
 

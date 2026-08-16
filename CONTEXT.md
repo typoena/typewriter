@@ -11,13 +11,8 @@ the writer looks at while doing it.
 formal record of the **Push** UX defined below.
 [`docs/quality/qfd.md`](docs/quality/qfd.md) — requirements ↔ functions ↔ components, ranked
 by user-facing weight. References the terms in this file as canonical.
-[`docs/plan/v0.1-mvp-product.md`](docs/plan/v0.1-mvp-product.md) — the v0.1 product
-surface, expressed in this vocabulary.
-[`docs/plan/v0.1-mvp-technical.md`](docs/plan/v0.1-mvp-technical.md) — how v0.1 is
-built.
-[`docs/plan/macroplan.md`](docs/plan/macroplan.md) — per-version scope, where new terms
-enter this glossary as versions land (the v0.5 multi-file **Buffer** terms
-are in).
+[`docs/reference/commands.md`](docs/reference/commands.md) — every `:` command
+and `>` palette action these terms name.
 
 ## Language
 
@@ -51,7 +46,7 @@ when you mean the in-memory copy rather than the bytes on the card.
 **Open**:
 Bringing a **File** into the **active buffer**, via `Cmd-P` (the file
 palette); new files are created with `:enew <file>` or the palette's
-`> new file` (`:e` was retired in v0.6). Scope is read from where the file
+`> new file`. Scope is read from where the file
 lives (`/sd/repo` → **Tracked**, `/sd/local` → **Local**), never chosen at
 open time.
 _Avoid_: load (implementation talk for the disk read behind an Open).
@@ -162,8 +157,8 @@ refresh** clears. Never launders. Driver: `update_part`. Has two **scopes**:
   A partial over the whole panel height (all rows), for an edit that erases or
   moves ink — delete, scroll, mode switch, theme flip — where a **windowed**
   partial would leave ghost fragments of the vacated ink. Logged `area`.
-  _Avoid_: **full-area** (retired 2026-07-25 — it carried "full" but is a
-  _partial_, colliding with **full refresh**).
+  _Avoid_: **full-area** — it carries "full" but is a _partial_, colliding
+  with **full refresh**.
 
 **Idle full refresh**:
 A **full refresh** the render engine defers to a typing pause rather than firing

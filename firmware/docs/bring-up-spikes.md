@@ -169,6 +169,5 @@ a plain GPIO and the RMT path are exercised.
 
 ## Order
 
-The bring-up order followed
-[`docs/plan/v0.1-mvp-technical.md`](../../docs/plan/v0.1-mvp-technical.md#hardware-bring-up-order):
-Wi-Fi/TLS (Spike 6), then git push (Spike 7), then SD (Spike 3) — all verified.
+Risk-first: Wi-Fi/TLS (Spike 6), then git push (Spike 7), then SD (Spike 3) —
+each spike proving one risk before the next layer was committed to.

@@ -2,9 +2,9 @@
 
 Standing challenges between the scored QFD houses ([`qfd.md`](qfd.md)) and
 the product actually being built: places where the model and reality tell
-different stories. This page holds the disputes still *open* — claims about what
-the product is that the houses cannot yet express, argued with evidence on both
-sides rather than settled by fiat.
+different stories — claims about what the product is that the houses cannot yet
+express, argued with evidence on both sides rather than settled by fiat.
+Resolved entries stay, with their argument and their outcome.
 
 **Rule of engagement.** When the house and the builder disagree, neither is
 silently corrected. The challenge lands here with the claim, the house's
@@ -19,61 +19,51 @@ resolves silently is not.
 
 ## D1 — Flow is the product's center, and the house can't see it
 
-**Opened 2026-07-17 · RESOLVED 2026-07-17.** The author took the
-second candidate fix (a reach outcome WHAT); see **Outcome** below.
+**Opened 2026-07-17 · RESOLVED 2026-07-17** with a reach outcome WHAT; see
+**Outcome** below.
 
 **The claim** (the author): the product's most important quality is not
 the two weight-10 WHATs (W1 sub-second typing response, W3 power-loss
 safety) but **the way the device puts you in flow**: writing, vim modes,
-the palette, an installer that asks almost nothing of the user. Everything
-is one command away. In 5S terms the product is the first 2S applied at
-every layer: **seiri** (remove what doesn't belong: no notifications, no
-apps, no browser; W7 made physical) and **seiton** (a place for everything,
-everything within one motion: every file one Cmd-P away, every action one
-`:command` away, every edit one home-row motion away, the whole product one
-`curl | sh` away).
+the palette, an installer that asks almost nothing of the user. In 5S terms
+the product is the first 2S applied at every layer — **seiri** (no
+notifications, no apps, no browser; W7 made physical) and **seiton** (every
+file one Cmd-P away, every action one `:command` away, every edit one
+home-row motion away, the whole product one `curl | sh` away).
 
-**What the house says instead:** House 1 ranks heap-during-Push,
+**What the house said instead:** House 1 ranked heap-during-Push,
 partial-refresh area, reconnect time, and save durability as the top
-characteristics; House 2 sends the next unit of effort to C5/C12; the
-onboarding-and-editing surface (C17–C20) ranks #15–18.
+characteristics; House 2 sent the next unit of effort to C5/C12, with the
+onboarding-and-editing surface (C17–C20) at #15–18.
 
-**Evidence for the claim: revealed preference.** The July effort record
-is the palette, visual mode, `.` repeat, smartcase + accent-folded search,
-Cmd+S, scroll margin, the one-command installer, the zero-computer wizard.
-The house flagged this as rank-vs-effort divergence and explained it as a
-one-off reach purchase (W15). The claim reads the same record the other
-way: the builder's hands kept returning to the seiton layer because that
-*is* the product, and the weights are what lagged. When effort persistently
-disagrees with a priority matrix, either discipline is failing or the
-WHATs are stale.
+**Evidence: revealed preference.** The July effort record is the palette,
+visual mode, `.` repeat, smartcase search, the one-command installer, the
+zero-computer wizard. The house read that as a one-off reach purchase (W15);
+the claim reads it as the weights lagging the product. When effort
+persistently disagrees with a priority matrix, either discipline is failing
+or the WHATs are stale.
 
-**Sharper still: most of the seiton layer has no WHAT at all.** Vim modes,
-the palette, search, `.` repeat (the shipped editing grammar) map to no
-W-row. They shelter under W7 ("nothing on the device competes with prose",
-weight 8) at best, a row that voices *absence of distraction*, not
-*presence of reach*. The house never voted for the features that most
+**Sharper still: most of the seiton layer had no WHAT at all.** Vim modes,
+the palette, search and `.` repeat mapped to no W-row; they sheltered under
+W7 ("nothing competes with prose"), which voices *absence of distraction*,
+not *presence of reach*. The house never voted for the features that most
 distinguish the product, and they got built anyway.
 
 **The reconciliation (both readings survive).** W1 and W3 don't become
-unimportant under the claim; they change role, from identity to
-**preconditions**. A 630 ms repaint on every deletion breaks flow
-mechanically; one lost paragraph breaks it psychologically and permanently
-(you start hedging, copying text out, distrusting `:w`). The floor is
-real. But the floor is also table stakes: a Freewrite has instant keys and
-durable saves too. What it lacks is seiton: no modal editing, no palette,
-no one-motion reach to anything. The two 10s are what you stand on; the
-ordering is what you bought the device for.
+unimportant; they change role, from identity to **preconditions**. A 630 ms
+repaint on every deletion breaks flow mechanically; one lost paragraph breaks
+it permanently. But the floor is table stakes — a Freewrite has instant keys
+and durable saves too, and lacks seiton entirely. The two 10s are what you
+stand on; the ordering is what you bought the device for.
 
-**Why the house is structurally blind here.** Flow is a holistic WHAT:
-it exists in the *composition* of W7 + W8 + W2 + W13 + W15 plus the un-rowed
-editing grammar, not in any one row. Column sums fragment it, so the house
-underprices it by construction. This is the inverse of the narrow-voter
-bias that once hid H8 (one absolute voter read as unimportant): here a
-broad, emergent quality has many weak voices and no loud one. Adding a
-"flow" row would not fix it: a row that touches every HOW weakly adds
-noise, not signal, and re-introduces the solution-in-the-requirements
-smell that got the old W13/W14 rewritten.
+**Why the house is structurally blind here.** Flow is holistic: it lives in
+the *composition* of W7 + W8 + W2 + W13 + W15 plus the un-rowed editing
+grammar, not in any one row, so column sums fragment it and the house
+underprices it by construction. This is the inverse of the narrow-voter bias
+that once hid H8: a broad, emergent quality with many weak voices and no loud
+one. A "flow" row would not fix it — a row touching every HOW weakly adds
+noise, and re-introduces the solution-in-the-requirements smell that got the
+old W13/W14 rewritten.
 
 **The 5S reading** (the product frame behind the claim, kept for the
 roadmap):
@@ -86,31 +76,14 @@ roadmap):
 | Seiketsu (standardize) | The order is the same everywhere | Partial: `.typoena.toml` carries prefs; a re-flashed or second device should feel identical |
 | Shitsuke (sustain) | The discipline keeps itself | Unbuilt: whatever makes the device sustain a writing *practice*, not just a session |
 
-**What acting on the claim would change.** Candidate moves not taken on
-the day of the claim (re-deriving four houses on an assertion minutes old
-would bake it in rather than test it):
+**Rejected fixes:** re-weighting the flow cluster alone (wants a second look
+at *all* weights, not a spot-raise), and naming flow as an umbrella caption
+above the table (cheap, changes nothing). The rank-vs-effort flag that fed
+this entry is retired in [`qfd-house-2.md`](qfd-house-2.md) §5.
 
-- **Re-weight the flow cluster** (W7 and W13 up, possibly W2), then
-  recompute the full cascade. Honest but heavy; wants a second look at
-  *all* weights, not a spot-raise.
-- **Give the editing grammar a WHAT**: an outcome row for reach
-  ("any file, any edit, any action is one motion away"), which is a
-  requirement, not a solution, and would finally give C-rows like the
-  palette a voter. The most likely concrete fix. **Taken, same day.**
-- **Accept flow as an umbrella**: name it above the table the way W13's
-  typography note works, and keep the arithmetic as the floor-model it is.
-  Cheapest; risks being a caption that changes nothing.
-
-**Trigger to resolve:** the next House-1 re-score taken for its own
-reasons (a WHAT or HOW changes) must decide this rather than carry it;
-the weights question rides along for free. Early trigger: the
-rank-vs-effort flag fires a **second** time with the effort again in the
-seiton layer. Once is a reach purchase; twice is the weights being wrong.
-*(Both triggers discharged by the resolution below; the flag itself is
-retired in [`qfd-house-2.md`](qfd-house-2.md) §5.)*
-
-**Outcome (2026-07-17).** The author chose the reach-WHAT fix and the
-cascade was re-derived the same day: **W16** "any file, any action, any edit point is one
+**Outcome.** The author chose to give the editing grammar its own outcome
+WHAT — a requirement, not a solution — and the cascade was re-derived:
+**W16** "any file, any action, any edit point is one
 motion away" (weight 10, joining W1/W3, identity alongside its
 preconditions), **H17** reach cost (≤ 6 keystrokes median, unmeasured;
 now §6 budget row 9), and a **Navigate** function row. The holistic
@@ -118,11 +91,10 @@ now §6 budget row 9), and a **Navigate** function row. The holistic
 the claim quantitatively: **H1 type latency rose #5 to #2** and **C7, the
 widget/editor layer where the palette and modal grammar live, rose
 #5 to #2 past libgit2**. The derived ranking now points where the July
-effort went, which is what this entry predicted a correct re-score would
-show. Residual worth keeping: Typoena's 5 on the new W16 perception row
+effort went, which is what this entry predicted. Residual worth keeping: Typoena's 5 on the new W16 perception row
 is self-scored on the product's home turf (flagged in §3); and the
-re-verification pass caught two unrelated pre-existing slips (House 4's
-importance column, §3's H8/H12 ordering), both fixed and ledgered.
+re-verification pass caught two unrelated slips (House 4's importance column,
+§3's H8/H12 ordering), both fixed and ledgered.
 
 ---
 
@@ -176,7 +148,7 @@ and any residual H2 latency weighting is dead.
 
 **The claim** (this audit): focus mode — the silent Pomodoro behind `:focus`
 (v0.7.5) — is a shipped feature that **no WHAT names**, and its behaviour runs
-against one that exists. `Panel::rest_if_due` ([`app/src/render.rs`](../app/src/render.rs),
+against one that exists. `Panel::rest_if_due` ([`app/src/render.rs`](../../app/src/render.rs),
 called from the idle/pause branch of the run loop, `runtime.rs:244`) drops a
 full-screen Rest card **on a timer**: at the first typing pause after a block
 completes, with no keystroke from the writer. W8 is "the UI never moves except

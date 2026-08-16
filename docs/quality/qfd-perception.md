@@ -108,15 +108,15 @@ score should be re-checked against it.
   competitors but cost is not a WHAT in [§1](qfd-house-1.md#1-customer-requirements-the-whats), so it's absent here.
   Worth a row if a v0.x WHAT ever calls it out.
 
-[ADR-001]: adr.md#adr-001-language-and-runtime--rust-on-esp-idf-rs-std
-[ADR-002]: adr.md#adr-002-ui-strategy--custom-widgets-on-embedded-graphics-not-ratatui
-[ADR-003]: adr.md#adr-003-display-medium--e-ink-gdey0579t93-panel
-[ADR-004]: adr.md#adr-004-git-implementation--gitoxide-gix
-[ADR-005]: adr.md#adr-005-auth--https--github-personal-access-token
-[ADR-006]: adr.md#adr-006-concurrency--stdthread--channels-no-async-runtime
-[ADR-007]: adr.md#adr-007-storage-split--fat-on-sd-for-working-copy-littlefs-on-flash-for-config
-[ADR-008]: adr.md#adr-008-mvp-power--wall-powered-battery-deferred-to-v08
-[ADR-009]: adr.md#adr-009-keyboard-transport--usb-host-tinyusb
-[ADR-010]: adr.md#adr-010-push-ux--atomic-ctrl-g-auto-timestamp-commit-message-no-user-prompt
-[ADR-011]: adr.md#adr-011-credential-provisioning--how-the-pat-reaches-the-device-and-is-protected-at-rest
-[ADR-012]: adr.md#adr-012-sd-on-its-own-spi3-host-not-shared-with-the-epd-on-spi2
+[ADR-001]: ../adr.md#adr-001-language-and-runtime--rust-on-esp-idf-rs-std
+[ADR-002]: ../adr.md#adr-002-ui-strategy--custom-widgets-on-embedded-graphics-not-ratatui
+[ADR-003]: ../adr.md#adr-003-display-medium--e-ink-gdey0579t93-panel
+[ADR-004]: ../adr.md#adr-004-git-implementation--gitoxide-gix
+[ADR-005]: ../adr.md#adr-005-auth--https--github-personal-access-token
+[ADR-006]: ../adr.md#adr-006-concurrency--stdthread--channels-no-async-runtime
+[ADR-007]: ../adr.md#adr-007-storage-split--fat-on-sd-for-working-copy-littlefs-on-flash-for-config
+[ADR-008]: ../adr.md#adr-008-mvp-power--wall-powered-battery-deferred-to-v08
+[ADR-009]: ../adr.md#adr-009-keyboard-transport--usb-host-tinyusb
+[ADR-010]: ../adr.md#adr-010-push-ux--atomic-ctrl-g-auto-timestamp-commit-message-no-user-prompt
+[ADR-011]: ../adr.md#adr-011-credential-provisioning--how-the-pat-reaches-the-device-and-is-protected-at-rest
+[ADR-012]: ../adr.md#adr-012-sd-on-its-own-spi3-host-not-shared-with-the-epd-on-spi2

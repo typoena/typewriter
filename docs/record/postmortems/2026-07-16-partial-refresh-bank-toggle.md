@@ -5,11 +5,11 @@
 > refresh the band is re-written to *both* controller RAM banks (the GxEPD2
 > `writeImageAgain` sequence). Lines no longer flap during fast typing.
 >
-> Context: partial refresh landed in Spike 5, windowed-Y in Spike 13 (both in
-> [`../v0.1-mvp-technical.md`](../../plan/v0.1-mvp-technical.md#hardware-bring-up-order)),
+> Context: partial refresh landed in Spike 5, windowed-Y in Spike 13 (both in the
+> [spike log](../../../firmware/docs/bring-up-spikes.md)),
 > panel + driver port [ADR-003](../../adr.md#adr-003-display-medium--e-ink-gdey0579t93-panel),
-> driver: [`../../firmware/src/epd.rs`](../../firmware/src/epd.rs), refresh
-> policy: [`../../firmware/src/main.rs`](../../firmware/src/main.rs).
+> driver: [`screen_epd.rs`](../../../firmware/src/drivers/screen_epd.rs), refresh
+> policy: [`../../firmware/src/main.rs`](../../../firmware/src/main.rs).
 
 ## Summary
 
@@ -116,7 +116,7 @@ single measured edits), and Normal-mode-heavy sessions.
 
 ## The fix
 
-[`epd.rs`](../../firmware/src/epd.rs) `display_frame_partial_window` now ends
+[`screen_epd.rs`](../../../firmware/src/drivers/screen_epd.rs) `display_frame_partial_window` now ends
 with the faithful GxEPD2 sequence — band re-written to both banks, `0x26`
 then `0x24`:
 

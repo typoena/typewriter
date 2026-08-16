@@ -8,7 +8,7 @@
 > [bank-toggle postmortem](2026-07-16-partial-refresh-bank-toggle.md), whose
 > timing analysis flagged this lever. Panel + driver port:
 > [ADR-003](../../adr.md#adr-003-display-medium--e-ink-gdey0579t93-panel),
-> driver: [`../../firmware/src/epd.rs`](../../firmware/src/epd.rs).
+> driver: [`screen_epd.rs`](../../../firmware/src/drivers/screen_epd.rs).
 
 ## Summary
 

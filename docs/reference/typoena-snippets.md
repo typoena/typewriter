@@ -5,7 +5,7 @@
 > existing snippets straight in), synced across devices like your notes. Landed
 > in **v0.6** (see [`macroplan.md`](../plan/macroplan.md)). The editing surfaces — inline
 > Tab-expansion and the `$` palette — are specified in
-> [`v0.6-markdown.md`](../plan/macroplan.md#v06--markdown-affordances--x).
+> [`CHANGELOG.md`](../../CHANGELOG.md).
 >
 > **Three files, three concerns, don't confuse them.** `.typoena.snippets.json`
 > is _content_ (your templates). [`.typoena.toml`](typoena-toml.md) is _behaviour_
@@ -131,17 +131,16 @@ rather than refusing to start over a stray comma.
   which snippet groups you want and it `jq`-merges the selected subset into
   `repo/.typoena.snippets.json` (committed on the device's first `:gs`). It
   writes **only if the file is absent**, so re-running `init` on a card whose
-  clone already carries your library never overwrites it. See
-  [`v0.6-markdown.md`](../plan/macroplan.md#v06--markdown-affordances--x) for the catalog.
-- **On-device hand-edit — deferred.** The palette hides dotfiles, and `:e` was
-  dropped in v0.6, so there is no in-editor path to this file yet. When one is
+  clone already carries your library never overwrites it.
+- **On-device hand-edit — deferred.** The palette hides dotfiles and there is no `:e`, so there is no
+  in-editor path to this file yet. When one is
   wanted it returns as a discoverable `> edit snippets` command that opens the
   file directly, rather than resurrecting a general `:e`.
 
 ## See also
 
-- [`v0.6-markdown.md`](../plan/macroplan.md#v06--markdown-affordances--x) — the editing surfaces, the `$`/`>`
+- [`commands.md`](commands.md) — the `$`/`>`
   palette model, and the setup-recipe snippet catalog.
 - [`typoena-toml.md`](typoena-toml.md) — the sibling prefs file this is kept
   separate from, and the `>` command palette snippets share the surface with.
-- [`macroplan.md`](../plan/macroplan.md) — v0.6 scope.
+- [`../../CHANGELOG.md`](../../CHANGELOG.md) — the release that introduced them.

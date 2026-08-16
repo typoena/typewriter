@@ -9,17 +9,14 @@ design and the conflicts between them. Every decision cell points back to
 [`adr.md`](../adr.md). Strength weights everywhere: **9** strong, **3** medium,
 **1** weak, blank none.
 
-Scope: the shipped device (v0.1 delivered 2026-07-11, v0.5–v0.7 delivered
-2026-07-12/14, v0.9 onboarding in flight; see
-[`v0.1-mvp-product.md`](../plan/v0.1-mvp-product.md),
-[`v0.5-palette-and-multi-file.md`](../plan/macroplan.md#v05--file-palette--multi-file--x),
-[`v0.7-search-and-git.md`](../plan/macroplan.md#v07--search--better-git--x),
+Scope: the shipped device (release contents in
+[`../../CHANGELOG.md`](../../CHANGELOG.md); the onboarding wizard in
 [`v0.9-onboarding-wizard.md`](../plan/v0.9-onboarding-wizard.md)), **plus the
-companion products** that now deliver the getting-started outcome: the macOS
+companion products** that deliver the getting-started outcome: the macOS
 installer ([`../installer/DESIGN.md`](../../installer/DESIGN.md)), the
 typoena.dev site with its `install.sh` one-liner, and the Typoena GitHub App
-(device-flow auth shared by installer and on-device wizard). The remaining
-v0.8–v1.0 trajectory ([README](../../README.md), [macroplan](../plan/macroplan.md)) is
+(device-flow auth shared by installer and on-device wizard). The unbuilt
+v0.9–v1.0 trajectory ([macroplan](../plan/macroplan.md)) is
 kept in mind so we don't paint into a corner. Terminology
 (e.g. **Tracked**, **Local**, **Save**, **Push**) follows the project
 glossary at [`../CONTEXT.md`](../../CONTEXT.md); the WHAT / Function /
@@ -45,7 +42,7 @@ lives on the same page as the tables it mirrors.
   the houses and the builder disagree about what the product *is*, the
   dispute is argued there first, not silently re-scored
 
-## What matters now (as of 2026-07-17)
+## What matters now
 
 **Top engineering priorities** ([§3](qfd-house-1.md#3-house-of-quality--whats--hows),
 by basement Σ): H9 heap during Push (193) · H1 type latency (178) ·
@@ -53,8 +50,7 @@ H2 refresh area per keystroke (177) · H12 network reconnect (160) ·
 H8 save durability (156).
 
 **Component ranking** ([House 2](qfd-house-2.md), derived): C5 e-ink
-panel #1 · C7 widget/editor layer #2 (the headline of the 2026-07-17
-W16/flow re-score) · C12 libgit2 #3 · C2 std runtime #4.
+panel #1 · C7 widget/editor layer #2 · C12 libgit2 #3 · C2 std runtime #4.
 
 **Open gaps** (detail and fallbacks in [§6](#6-critical-performance-budget)):
 
@@ -252,15 +248,15 @@ trigger is a decision being avoided, not deferred.
   landing (H13's "measured only" fulfilled): that starts v0.8 cell
   sizing.
 
-[ADR-001]: adr.md#adr-001-language-and-runtime--rust-on-esp-idf-rs-std
-[ADR-002]: adr.md#adr-002-ui-strategy--custom-widgets-on-embedded-graphics-not-ratatui
-[ADR-003]: adr.md#adr-003-display-medium--e-ink-gdey0579t93-panel
-[ADR-004]: adr.md#adr-004-git-implementation--gitoxide-gix
-[ADR-005]: adr.md#adr-005-auth--https--github-personal-access-token
-[ADR-006]: adr.md#adr-006-concurrency--stdthread--channels-no-async-runtime
-[ADR-007]: adr.md#adr-007-storage-split--fat-on-sd-for-working-copy-littlefs-on-flash-for-config
-[ADR-008]: adr.md#adr-008-mvp-power--wall-powered-battery-deferred-to-v08
-[ADR-009]: adr.md#adr-009-keyboard-transport--usb-host-tinyusb
-[ADR-010]: adr.md#adr-010-push-ux--atomic-ctrl-g-auto-timestamp-commit-message-no-user-prompt
-[ADR-011]: adr.md#adr-011-credential-provisioning--how-the-pat-reaches-the-device-and-is-protected-at-rest
-[ADR-012]: adr.md#adr-012-sd-on-its-own-spi3-host-not-shared-with-the-epd-on-spi2
+[ADR-001]: ../adr.md#adr-001-language-and-runtime--rust-on-esp-idf-rs-std
+[ADR-002]: ../adr.md#adr-002-ui-strategy--custom-widgets-on-embedded-graphics-not-ratatui
+[ADR-003]: ../adr.md#adr-003-display-medium--e-ink-gdey0579t93-panel
+[ADR-004]: ../adr.md#adr-004-git-implementation--gitoxide-gix
+[ADR-005]: ../adr.md#adr-005-auth--https--github-personal-access-token
+[ADR-006]: ../adr.md#adr-006-concurrency--stdthread--channels-no-async-runtime
+[ADR-007]: ../adr.md#adr-007-storage-split--fat-on-sd-for-working-copy-littlefs-on-flash-for-config
+[ADR-008]: ../adr.md#adr-008-mvp-power--wall-powered-battery-deferred-to-v08
+[ADR-009]: ../adr.md#adr-009-keyboard-transport--usb-host-tinyusb
+[ADR-010]: ../adr.md#adr-010-push-ux--atomic-ctrl-g-auto-timestamp-commit-message-no-user-prompt
+[ADR-011]: ../adr.md#adr-011-credential-provisioning--how-the-pat-reaches-the-device-and-is-protected-at-rest
+[ADR-012]: ../adr.md#adr-012-sd-on-its-own-spi3-host-not-shared-with-the-epd-on-spi2

@@ -23,8 +23,8 @@ theme. The `editor` crate is laid out this way.
 
 ## The `editor` crate's `src/tests/`
 
-- [`mod.rs`](../editor/src/tests/mod.rs) is the sole `#[cfg(test)] mod tests;`
-  (declared at the bottom of [`lib.rs`](../editor/src/lib.rs)). It holds **every
+- [``](../../editor/src/tests/) is the sole `#[cfg(test)] mod tests;`
+  (declared at the bottom of [`lib.rs`](../../editor/src/lib.rs)). It holds **every
   shared helper** (`typed`, `command`, `kinds`, `over`, `palette_editor`, …) and
   the fixture consts, and it re-exports the crate root with
   `pub(crate) use crate::*;` so each theme file reaches `Editor`, `Key`,

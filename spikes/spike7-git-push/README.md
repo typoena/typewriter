@@ -1,7 +1,7 @@
 # Spike 7 — git push (desktop half)
 
-> Bring-up spike 7 in
-> [`../../docs/v0.1-mvp-technical.md`](../../docs/plan/v0.1-mvp-technical.md#hardware-bring-up-order).
+> Bring-up spike 7, the desktop half of the
+> [spike log](../../firmware/docs/bring-up-spikes.md).
 > Decision context: [ADR-004](../../docs/adr.md#adr-004-git-implementation--gitoxide-gix)
 > (git impl) and [ADR-005](../../docs/adr.md#adr-005-auth--https--github-personal-access-token)
 > (auth). Full write-up:

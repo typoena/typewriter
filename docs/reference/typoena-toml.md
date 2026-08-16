@@ -9,7 +9,7 @@
 > **Not to be confused with `/sd/typoena.conf`** — that holds the device
 > _secrets_ (Wi-Fi, PAT, remote URL, commit author), is gitignored, and is never
 > committed. `.typoena.toml` is _behaviour_, shared across devices; `typoena.conf`
-> is _secrets_, per-device. See [v0.1 product](../plan/v0.1-mvp-product.md).
+> is _secrets_, per-device.
 
 ## Location
 
@@ -214,8 +214,5 @@ elsewhere in the file are not preserved across a palette toggle.
 
 ## See also
 
-- [`macroplan.md`](../plan/macroplan.md) — v0.5 scope and the decisions behind these keys.
-- [`v0.1-mvp-product.md`](../plan/v0.1-mvp-product.md) — the `typoena.conf` device secrets
-  this file is kept separate from.
 - [`tradeoff-curves/wifi-auto-sync.md`](../record/tradeoff-curves/wifi-auto-sync.md) — why
   `auto_sync` defaults to 10 minutes.

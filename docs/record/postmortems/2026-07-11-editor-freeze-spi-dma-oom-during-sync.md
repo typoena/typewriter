@@ -12,9 +12,9 @@
 > permanent fix (a persistent scratch buffer in `Epd`) is specced below and
 > now tracked in [v0.9 robustness](../../plan/macroplan.md#v09--robustness--).
 >
-> Context: editor loop [`../../firmware/src/main.rs`](../../firmware/src/main.rs),
-> EPD driver [`../../firmware/src/epd.rs`](../../firmware/src/epd.rs), git
-> transport [`../../firmware/src/git_sync.rs`](../../firmware/src/git_sync.rs).
+> Context: editor loop [`../../firmware/src/main.rs`](../../../firmware/src/main.rs),
+> EPD driver [`screen_epd.rs`](../../../firmware/src/drivers/screen_epd.rs), git
+> transport [`net.rs`](../../../firmware/src/infrastructure/net.rs).
 > Display medium [ADR-003](../../adr.md#adr-003-display-medium--e-ink-gdey0579t93-panel);
 > concurrency model (dedicated git thread) [ADR-006](../../adr.md).
 

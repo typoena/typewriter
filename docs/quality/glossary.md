@@ -38,7 +38,7 @@ Five layers, top to bottom:
   Captures a decision about a Component or Function with consequences.
 - **Spike** — time-boxed validation experiment that returns numbers
   before integration. Referenced from
-  [`docs/qfd-budget.md`](qfd.md#6-critical-performance-budget) §6's "Watched on" column.
+  [`qfd.md`](qfd.md#6-critical-performance-budget) §6's "Watched on" column.
 
 ## How the layers connect
 

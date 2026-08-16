@@ -1,7 +1,7 @@
 # Sync latency — where the ~16 s cold `:gs` goes
 
 > **Measured 2026-07-11** on hardware, via the timing log line in
-> [`firmware::infrastructure::net`](../../firmware/src/infrastructure/net.rs) (`push_cycle`;
+> [`firmware::infrastructure::net`](../../../firmware/src/infrastructure/net.rs) (`push_cycle`;
 > the command was `:sync` at the time of the run). A **cold** push
 > (first of a power cycle) is **~16.0 s** power-on of Wi-Fi → `push done`; a
 > **warm** one skips the one-time setup and is just the ~10 s push. This

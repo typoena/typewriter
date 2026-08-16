@@ -6,7 +6,7 @@
 > — the kind of context that's expensive to reconstruct later.
 >
 > Project overview: [`../../README.md`](../../../README.md). Bring-up spikes:
-> [`../v0.1-mvp-technical.md`](../../plan/v0.1-mvp-technical.md#hardware-bring-up-order).
+> [`firmware/docs/bring-up-spikes.md`](../../../firmware/docs/bring-up-spikes.md).
 
 | Date       | Incident                                                                                                         | Status                                                                               |
 | ---------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |

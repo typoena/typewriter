@@ -14,8 +14,8 @@
 >
 > Tradeoff-curves index: [`README.md`](README.md). Docs index:
 > [`../README.md`](../../README.md). QFD budget (§6, H1/H4 rows):
-> [`../qfd-budget.md`](../../quality/qfd.md#6-critical-performance-budget). Driver:
-> [`../../firmware/src/drivers/screen_epd.rs`](../../firmware/src/drivers/screen_epd.rs).
+> [`qfd.md`](../../quality/qfd.md#6-critical-performance-budget). Driver:
+> [`../../firmware/src/drivers/screen_epd.rs`](../../../firmware/src/drivers/screen_epd.rs).
 > Bench origin: [Spike 5](../../../firmware/docs/bring-up-spikes.md#spike-5--partial-refresh--typing-verified-2026-07-04)
 > plus the panel-layout spike; measured points from the
 > 2026-07-16
@@ -48,7 +48,7 @@ set RAM window  →  clock the pixels out over SPI  →  run the update waveform
   slave (`0x80`) pair with the framebuffer split at the seam; every refresh
   drives _both_ controllers full width so the seam/mirror math stays intact
   (`update_part` / `write_frame_bank` in
-  [`screen_epd.rs`](../../firmware/src/drivers/screen_epd.rs)).
+  [`screen_epd.rs`](../../../firmware/src/drivers/screen_epd.rs)).
 
 Fitted through the two measured partial points:
 
@@ -63,7 +63,7 @@ windowed — the clear waveform needs the whole panel.
 ## The points
 
 All measured on-device via the per-refresh log
-(`{mode} refresh #N … {ms} ms` in [`main.rs`](../../firmware/src/main.rs)):
+(`{mode} refresh #N … {ms} ms` in [`main.rs`](../../../firmware/src/main.rs)):
 
 ```
   latency (ms)   Partial refresh: latency vs rows driven
@@ -188,7 +188,7 @@ register above and below that to find out whether the partial OTP LUT's schedule
 is temperature-indexed the way the fast-full LUT is. Higher = faster would open
 the lever; flat across the sweep proves the floor is fixed and closes it.
 
-**How to run.** Set `PARTIAL_TEMP` in [`screen_epd.rs`](../../firmware/src/drivers/screen_epd.rs),
+**How to run.** Set `PARTIAL_TEMP` in [`screen_epd.rs`](../../../firmware/src/drivers/screen_epd.rs),
 flash, type, read `windowed refresh #N … {ms} ms` from the serial log. Note
 ghosting over a full ~64-partial streak (shorter drive shadows sooner), not just
 the first refresh. `[0x64, 0x00]` reproduces the baseline as a control.
@@ -212,7 +212,7 @@ a shorter waveform (`0x32`) touches this number — see the reassessment below.
 ### Experiment log — SPI clock sweep
 
 **What it tests.** The EPD bus clock (`SpiBusDriver` baudrate in
-[`main.rs`](../../firmware/src/main.rs)) sets only the pixel clock-out rate, not
+[`main.rs`](../../../firmware/src/main.rs)) sets only the pixel clock-out rate, not
 the waveform BUSY time. Raising it trims the pre-kick band write and the resync
 writes — a perceived-latency term on the full-area path (~43 ms of write at
 4 MHz), a small one on the windowed path (~6 ms). The risk is signal integrity
@@ -305,7 +305,7 @@ the RAM-window address. A single partial refresh calls it 8× (3 `write_frame_ba
 × 2 controllers, plus 2 in `update_part`), on both the windowed and full-area
 paths alike — the only non-waveform term that touches the typing path too. GxEPD2
 doesn't settle per window write, so it's probably unneeded. Knob: `RAM_SETTLE_MS`
-in [`screen_epd.rs`](../../firmware/src/drivers/screen_epd.rs).
+in [`screen_epd.rs`](../../../firmware/src/drivers/screen_epd.rs).
 
 **The trap: `delay_ms(2)` was never 2 ms.** At `CONFIG_FREERTOS_HZ = 100` the tick
 is 10 ms, and `esp-idf-hal`'s `TickType::new_millis` *rounds up*, so `delay_ms(2)`
@@ -352,10 +352,10 @@ this panel's `0x32` takes 227, wrong phase content, wrong drive voltages, and it
 omitted the `0x37` display-option write. The `0x32`+`0xCF` register path itself
 was live all along.) Good Display supplied the real
 `LUT_DATA_part` on 2026-07-21 (archive `S-GDEY0579T93-FP(LUT)`, kept verbatim in
-[`../../firmware/reference/gdey0579t93-fp-lut/`](../../firmware/reference/gdey0579t93-fp-lut/)),
+[`../../firmware/reference/gdey0579t93-fp-lut/`](../../../firmware/reference/gdey0579t93-fp-lut/README.md)),
 which unblocked it. Gated behind the `fast_partial` pref; only the additive Insert
 path (`windowed-fast`) drives it. Driver:
-[`../../firmware/src/drivers/screen_epd.rs`](../../firmware/src/drivers/screen_epd.rs).
+[`../../firmware/src/drivers/screen_epd.rs`](../../../firmware/src/drivers/screen_epd.rs).
 
 **Two knobs looked plausible; only one moved the number.**
 
@@ -425,7 +425,7 @@ post-saturation tail removed.
   true full refresh — so those dropped too (~456 → ~300 ms at `0x08`).
 
 **How to run.** Edit the FR byte (`FAST_PARTIAL_LUT` index 224) in
-[`screen_epd.rs`](../../firmware/src/drivers/screen_epd.rs), `just flash`, set
+[`screen_epd.rs`](../../../firmware/src/drivers/screen_epd.rs), `just flash`, set
 `fast_partial = true` on the SD `.typoena.toml`, type, read
 `windowed-fast refresh #N … ms`. For a window-position-free A/B, compare the factory
 fallbacks (labelled `full-area`, same `rows 0..=271`) build-to-build. Confirm the ink
@@ -445,7 +445,7 @@ Trigger `0xCF` powers the ±15 V charge pump **up** (booster soft-start), runs t
 waveform, then powers it **down** — on every keystroke. Keep-hot (`0xCC`, same trigger
 minus the disable-analog `0x02` + disable-clock `0x01` bits) leaves the pump energized so
 keystrokes 2..N of a burst would skip the ramp. Wired behind `const FAST_PART_KEEP_HOT`
-in [`screen_epd.rs`](../../firmware/src/drivers/screen_epd.rs).
+in [`screen_epd.rs`](../../../firmware/src/drivers/screen_epd.rs).
 
 **Result: no measurable benefit — reverted.** With it on, windowed-fast held flat at
 ~240 ms (235–244 ms) across a 40+ partial burst, independent of how many keys each refresh

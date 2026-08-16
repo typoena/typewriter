@@ -12,7 +12,7 @@
 >
 > **Revised 2026-07-14** with the first real-device sync measurements (v0.7
 > runs on the real ~560 MB notes repo, see
-> [`../v0.7-search-and-git.md`](../../plan/macroplan.md#v07--search--better-git--x)): the per-sync
+> [`CHANGELOG.md`](../../../CHANGELOG.md)): the per-sync
 > constant roughly **doubles** and its mix shifts from radio to SD/CPU, but the
 > shape, the knee, and the decision all survive — and two v0.7 results make the
 > teardown-between-syncs argument _stronger_.
@@ -92,7 +92,7 @@ arrives, so there is still no reason to stay reachable.)
 > **Status (v0.7) — the shipped firmware still does _not_ cycle the radio.**
 > Wi-Fi comes up lazily on the first git op and then stays associated for the
 > rest of the session: `ensure_online` in
-> [`../../firmware/src/infrastructure/net.rs`](../../firmware/src/infrastructure/net.rs) owns the
+> [`../../firmware/src/infrastructure/net.rs`](../../../firmware/src/infrastructure/net.rs) owns the
 > `wifi` handle and the module never stops, disconnects, or drops it (the
 > `remote.disconnect()` calls in there are git smart-protocol connections, not
 > the radio). So today's device runs the _stay-associated_ strategy this

@@ -32,26 +32,26 @@ requirement comes from.
 | ID  | Requirement                                                                        | Weight | Source                                                                                                                             |
 | --- | ---------------------------------------------------------------------------------- | :----: | ---------------------------------------------------------------------------------------------------------------------------------- |
 |     | **The writing loop**                                                               |        |                                                                                                                                    |
-| W1  | Sub-second visible response to typing                                              |   10   | [product → Write](../plan/v0.1-mvp-product.md#user-stories), [README → UX](../../README.md#ux-boundaries-set-by-the-medium)                   |
-| W16 | Any file, any action, any edit point is one motion away                            |   10   | [house-vs-product.md → D1](house-vs-product.md), [v0.5 → palette](../plan/macroplan.md#v05--file-palette--multi-file--x)                                  |
-| W5  | Quick boot to a writing cursor                                                     |   6    | [product → acceptance](../plan/v0.1-mvp-product.md#acceptance-criteria) (≤ 5 s)                                                            |
+| W1  | Sub-second visible response to typing                                              |   10   | [README → UX](../../README.md#ux-boundaries-set-by-the-medium)                   |
+| W16 | Any file, any action, any edit point is one motion away                            |   10   | [house-vs-product.md → D1](house-vs-product.md), [v0.5 → palette](../../CHANGELOG.md)                                  |
+| W5  | Quick boot to a writing cursor                                                     |   6    | [§6 → H4 boot](qfd.md#6-critical-performance-budget) (≤ 5 s)                                                            |
 | W7  | Nothing on the device competes with prose                                          |   8    | [README → vision](../../README.md#vision)                                                                                             |
 | W8  | The UI never moves except when I move it                                           |   7    | [README → UX](../../README.md#ux-boundaries-set-by-the-medium)                                                                        |
 | W13 | Typography sets a writing-tool tone: typewriter or developer editor, never gadget |   7    | [macroplan → v1.0](../plan/macroplan.md), [README → UX](../../README.md#ux-boundaries-set-by-the-medium)                                      |
 |     | **Trust: words survive power and time**                                           |        |                                                                                                                                    |
-| W3  | Pulling power never corrupts the file                                              |   10   | [product → Recover](../plan/v0.1-mvp-product.md#user-stories), [acceptance](../plan/v0.1-mvp-product.md#acceptance-criteria)                       |
-| W6  | Long sessions without crash / lag / drift                                          |   9    | [product → acceptance](../plan/v0.1-mvp-product.md#acceptance-criteria) (1 h soak)                                                         |
+| W3  | Pulling power never corrupts the file                                              |   10   | [CONTEXT → durability](../../CONTEXT.md#principles), [§6 → H8](qfd.md#6-critical-performance-budget)                       |
+| W6  | Long sessions without crash / lag / drift                                          |   9    | [§6 → H5 soak](qfd.md#6-critical-performance-budget) (1 h)                                                         |
 |     | **Push & scopes**                                                               |        |                                                                                                                                    |
-| W2  | **Pushing** is one deliberate action away                                       |   9    | [product → Push](../plan/v0.1-mvp-product.md#user-stories), [CONTEXT → Push](../../CONTEXT.md#user-facing-actions)                      |
-| W12 | Local-only file scope coexists with git scope (v0.5+)                              |   5    | [README → scopes](../../README.md#vision), [macroplan → v0.5](../plan/macroplan.md#v05--file-palette--multi-file--x)                           |
+| W2  | **Pushing** is one deliberate action away                                       |   9    | [CONTEXT → Push](../../CONTEXT.md#user-facing-actions)                      |
+| W12 | Local-only file scope coexists with git scope (v0.5+)                              |   5    | [README → scopes](../../README.md#vision), [macroplan → v0.5](../../CHANGELOG.md)                           |
 |     | **Ownership & evolution**                                                          |        |                                                                                                                                    |
 | W9  | Codebase absorbs the planned roadmap without rewrite                               |   8    | [macroplan](../plan/macroplan.md)                                                                                                          |
 | W10 | I can repair or fork it with hobbyist tools                                        |   5    | [README → vision](../../README.md#vision)                                                                                             |
 |     | **Away from the desk**                                                             |        |                                                                                                                                    |
-| W11 | Multi-day battery life (v0.8 onward)                                               |   4    | [macroplan → v0.8](../plan/macroplan.md#v010--power-battery--sleep---)                                                                       |
-| W14 | I can carry the device and write away from a desk                                  |   8    | [macroplan → v0.8](../plan/macroplan.md#v010--power-battery--sleep---), [README → hardware](../../README.md#hardware)                           |
+| W11 | Multi-day battery life (v0.8 onward)                                               |   4    | [macroplan → v0.10](../plan/macroplan.md#v010--power-battery--sleep---)                                                                       |
+| W14 | I can carry the device and write away from a desk                                  |   8    | [macroplan → v0.10](../plan/macroplan.md#v010--power-battery--sleep---), [README → hardware](../../README.md#hardware)                           |
 |     | **First run**                                                                      |        |                                                                                                                                    |
-| W4  | Provisioning never interrupts a writing session                                    |   7    | [product → Provisioning](../plan/v0.1-mvp-product.md#provisioning-build-time-dev-only), [macroplan → v0.9](../plan/macroplan.md#v09--robustness--) |
+| W4  | Provisioning never interrupts a writing session                                    |   7    | [wizard → `:setup`](../plan/v0.9-onboarding-wizard.md#setup--reset-is-the-same-wizard-prefilled), [macroplan → v0.9](../plan/macroplan.md#v09--robustness--) |
 | W15 | A first-time user reaches writing without developer tools                          |   7    | [wizard](../plan/v0.9-onboarding-wizard.md) (zero-computer path), [installer](../../installer/DESIGN.md) (one-command Mac path)               |
 
 ### Who is voting — user segments
@@ -432,15 +432,15 @@ design are called out below.
   Worth aiming at via cargo profile / vendor LTO / crate-graph trims;
   worth giving up before reversing [ADR-001].
 
-[ADR-001]: adr.md#adr-001-language-and-runtime--rust-on-esp-idf-rs-std
-[ADR-002]: adr.md#adr-002-ui-strategy--custom-widgets-on-embedded-graphics-not-ratatui
-[ADR-003]: adr.md#adr-003-display-medium--e-ink-gdey0579t93-panel
-[ADR-004]: adr.md#adr-004-git-implementation--gitoxide-gix
-[ADR-005]: adr.md#adr-005-auth--https--github-personal-access-token
-[ADR-006]: adr.md#adr-006-concurrency--stdthread--channels-no-async-runtime
-[ADR-007]: adr.md#adr-007-storage-split--fat-on-sd-for-working-copy-littlefs-on-flash-for-config
-[ADR-008]: adr.md#adr-008-mvp-power--wall-powered-battery-deferred-to-v08
-[ADR-009]: adr.md#adr-009-keyboard-transport--usb-host-tinyusb
-[ADR-010]: adr.md#adr-010-push-ux--atomic-ctrl-g-auto-timestamp-commit-message-no-user-prompt
-[ADR-011]: adr.md#adr-011-credential-provisioning--how-the-pat-reaches-the-device-and-is-protected-at-rest
-[ADR-012]: adr.md#adr-012-sd-on-its-own-spi3-host-not-shared-with-the-epd-on-spi2
+[ADR-001]: ../adr.md#adr-001-language-and-runtime--rust-on-esp-idf-rs-std
+[ADR-002]: ../adr.md#adr-002-ui-strategy--custom-widgets-on-embedded-graphics-not-ratatui
+[ADR-003]: ../adr.md#adr-003-display-medium--e-ink-gdey0579t93-panel
+[ADR-004]: ../adr.md#adr-004-git-implementation--gitoxide-gix
+[ADR-005]: ../adr.md#adr-005-auth--https--github-personal-access-token
+[ADR-006]: ../adr.md#adr-006-concurrency--stdthread--channels-no-async-runtime
+[ADR-007]: ../adr.md#adr-007-storage-split--fat-on-sd-for-working-copy-littlefs-on-flash-for-config
+[ADR-008]: ../adr.md#adr-008-mvp-power--wall-powered-battery-deferred-to-v08
+[ADR-009]: ../adr.md#adr-009-keyboard-transport--usb-host-tinyusb
+[ADR-010]: ../adr.md#adr-010-push-ux--atomic-ctrl-g-auto-timestamp-commit-message-no-user-prompt
+[ADR-011]: ../adr.md#adr-011-credential-provisioning--how-the-pat-reaches-the-device-and-is-protected-at-rest
+[ADR-012]: ../adr.md#adr-012-sd-on-its-own-spi3-host-not-shared-with-the-epd-on-spi2
