@@ -221,28 +221,25 @@ The minimum thing that justifies the hardware existing — boot, type one file,
 
 Modal Normal/Insert/View, `h j k l`/`w b e`/`0 $`/`gg G` motions, `Ctrl-d/u`
 half-page scroll, the UTF-8-correct buffer, and the absolute line-number gutter.
-**COMPLETE 2026-07-11.** Detail: [v0.2-navigation.md](v0.2-navigation.md).
+**COMPLETE 2026-07-11.**
 
 ## v0.2.5 — International input — [x]
 
 US-International dead-key accent composition (à é ê ë ñ ç) in the `keymap`
 crate, plus the Esc→backtick/tilde remap for a 60% board.
 **Hardware-verified 2026-07-11.**
-Detail: [v0.2.5-international-input.md](v0.2.5-international-input.md).
 
 ## v0.3 — Vim editing — [x]
 
 Register + yank/paste (`yy`/`p`/`P`), snapshot undo/redo (`u`/`Ctrl-r`), `.`
 repeat, and the `d`/`c` operator grammar + text objects.
 **COMPLETE in core 2026-07-11**, partially smoke-tested on the panel.
-Detail: [v0.3-editing.md](v0.3-editing.md).
 
 ## v0.4 — Visual mode + ex commands — [x]
 
 Charwise `v` / linewise `V` selection with `y`/`d`/`c`, the `:` command line
 (`:w`/`:fmt`/`:sync`/`:gl`), and View mode moved to `gr`.
 **COMPLETE in core 2026-07-11**, on-device smoke-test pending.
-Detail: [v0.4-visual-and-ex.md](v0.4-visual-and-ex.md).
 
 ## v0.5 — File palette + multi-file — [x]
 
@@ -280,11 +277,15 @@ card / black in dark theme), untimed, and shows the block's `words · minutes`.
 Surfaced as "focus" (the Pomodoro name is trademarked). Ephemeral — RAM-only,
 off on reboot. A hidden `:focusdebug` runs the block on a 25-**second** clock
 for testing. **DELIVERED 2026-07-17** (firmware 0.7.5), verified on the panel.
-Unplanned same-day insert after v0.7, on the
-[v0.2.5](v0.2.5-international-input.md) `.5` precedent.
+Unplanned same-day insert after v0.7, on the v0.2.5 `.5` precedent.
 Detail: [v0.7.5-focus-mode.md](v0.7.5-focus-mode.md).
 
 ## v0.7.7 — OTA firmware update — [x]
+
+Firmware 0.7.7 was a batch, not one feature: alongside OTA it shipped `:reboot`
+([v0.7.6-reboot.md](v0.7.6-reboot.md)) and the fleeting inbox notes
+([v0.7.7-inbox-notes.md](v0.7.7-inbox-notes.md)). See
+[`../CHANGELOG.md`](../CHANGELOG.md) for the full release contents.
 
 Over-the-air update: `:update` pulls a newer image from `typoena.dev/firmware`
 (nginx 302 → a Gitea release asset) into the inactive slot of an A/B partition

@@ -1,7 +1,5 @@
 # Houses 3 & 4 — processes × controls (pipeline reading)
 
-_Next house → [Quality House (empty template)](quality-house-empty.md)_
-
 Third and fourth houses of the QFD cascade (hub: [`qfd.md`](qfd.md)),
 drawn under a deliberate reinterpretation: a solo-built device has no
 factory, so "process" means the toolchain + release pipeline (P1–P9,
@@ -646,9 +644,8 @@ Reading: [the narrative below](#houses-34--the-cascade-to-process-and-controls).
           text width=\qfdWhatTextW cm, align=left]
       at ({\qfdLeftEdge + 0.1}, {-\r + 0.5}) {\t};
 
-  % Row importance = House 3's basement (P rel-%). A prior revision
-  % mistakenly carried the Q basement values here (8 entries for 9 rows);
-  % caught in the 2026-07-17 re-derivation — see qfd-changelog.md.
+  % Row importance = House 3's basement (P rel-%), NOT the Q basement —
+  % that mismatch shows up as 8 entries for 9 rows.
   \foreach \r/\w in {1/{52.4}, 2/{10.0}, 3/{3.7}, 4/{21.4}, 5/{4.5}, 6/{4.5}, 7/{1.3}, 8/{0.4}, 9/{1.9}}
     \node[font=\scriptsize] at ({-\qfdImpW/2}, {-\r + 0.5}) {\w};
 

@@ -752,8 +752,6 @@ impl Storage {
     }
 }
 
-// ---- app::Storage port adapter --------------------------------------------
-
 /// [`app::Storage`] over the SD/FAT [`Storage`]. Shared (`Rc`) with the git
 /// sync and system adapters, which reach the same card and its dirty journal —
 /// all on the single-threaded UI task, so `Rc` (not `Arc`) suffices.

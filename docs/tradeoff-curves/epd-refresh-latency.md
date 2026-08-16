@@ -15,8 +15,9 @@
 > Tradeoff-curves index: [`README.md`](README.md). Docs index:
 > [`../README.md`](../README.md). QFD budget (§6, H1/H4 rows):
 > [`../qfd-budget.md`](../qfd-budget.md#6-critical-performance-budget). Driver:
-> [`../../firmware/src/epd.rs`](../../firmware/src/epd.rs). Bench origin:
-> Spikes 5 + 8 ([`../spikes.md`](../spikes.md)); measured points from the
+> [`../../firmware/src/drivers/screen_epd.rs`](../../firmware/src/drivers/screen_epd.rs).
+> Bench origin: [Spike 5](../../firmware/docs/bring-up-spikes.md#spike-5--partial-refresh--typing-verified-2026-07-04)
+> plus the panel-layout spike; measured points from the
 > 2026-07-16
 > [bank-toggle](../postmortems/2026-07-16-partial-refresh-bank-toggle.md) and
 > [gate-scan](../postmortems/2026-07-16-gate-scan-spike-refuted.md) sessions.
@@ -47,7 +48,7 @@ set RAM window  →  clock the pixels out over SPI  →  run the update waveform
   slave (`0x80`) pair with the framebuffer split at the seam; every refresh
   drives _both_ controllers full width so the seam/mirror math stays intact
   (`update_part` / `write_frame_bank` in
-  [`epd.rs`](../../firmware/src/epd.rs)).
+  [`screen_epd.rs`](../../firmware/src/drivers/screen_epd.rs)).
 
 Fitted through the two measured partial points:
 
@@ -160,7 +161,7 @@ Three things closed it, the first two decisively after the SPI bump:
    4 MHz — worth chasing. At 20 MHz the *entire* full-area SPI excess is ~6 ms,
    so there's almost nothing left to move off the path.
 2. **The overlap benefit is already handled.** Freeing the loop during BUSY only
-   pays if other work can overlap it. Git push (`:gp`) is already on its own
+   pays if other work can overlap it. Git push (`:gs`) is already on its own
    96 KB thread (non-blocking); SD saves are inline but run in the effect-drain
    step *before* the refresh, not inside the BUSY wait, and idle-saves fire only
    on a typing pause. So the loop rarely has blocking work to hide behind BUSY.
@@ -187,7 +188,7 @@ register above and below that to find out whether the partial OTP LUT's schedule
 is temperature-indexed the way the fast-full LUT is. Higher = faster would open
 the lever; flat across the sweep proves the floor is fixed and closes it.
 
-**How to run.** Set `PARTIAL_TEMP` in [`epd.rs`](../../firmware/src/epd.rs),
+**How to run.** Set `PARTIAL_TEMP` in [`screen_epd.rs`](../../firmware/src/drivers/screen_epd.rs),
 flash, type, read `windowed refresh #N … {ms} ms` from the serial log. Note
 ghosting over a full ~64-partial streak (shorter drive shadows sooner), not just
 the first refresh. `[0x64, 0x00]` reproduces the baseline as a control.
@@ -294,7 +295,7 @@ higher SPI ≠ more drain. And SPI is a rounding error next to a refresh's real
 energy cost, the panel DC-DC pump driving ±15 V through the ~543 ms waveform,
 which is set by the LUT and wholly independent of SPI clock. The energy levers
 are *fewer/shorter refreshes* (custom LUT frames, lower full-refresh cadence),
-not the bus rate; device-level draw is dominated by Wi-Fi/TLS during `:gp` and
+not the bus rate; device-level draw is dominated by Wi-Fi/TLS during `:gs` and
 the CPU/PSRAM regardless.
 
 ### Experiment log — `set_ram_area` settle delay
@@ -304,7 +305,7 @@ the RAM-window address. A single partial refresh calls it 8× (3 `write_frame_ba
 × 2 controllers, plus 2 in `update_part`), on both the windowed and full-area
 paths alike — the only non-waveform term that touches the typing path too. GxEPD2
 doesn't settle per window write, so it's probably unneeded. Knob: `RAM_SETTLE_MS`
-in [`epd.rs`](../../firmware/src/epd.rs).
+in [`screen_epd.rs`](../../firmware/src/drivers/screen_epd.rs).
 
 **The trap: `delay_ms(2)` was never 2 ms.** At `CONFIG_FREERTOS_HZ = 100` the tick
 is 10 ms, and `esp-idf-hal`'s `TickType::new_millis` *rounds up*, so `delay_ms(2)`

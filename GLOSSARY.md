@@ -63,12 +63,10 @@ Recurring drifts the docs have had to clean up. Worth naming so we
 catch them early next time.
 
 - **Solution-shape inside a WHAT or Characteristic name.** Naming a
-  specific solution (`Wi-Fi`, `Ctrl-G`, `commit`, `BOM`, `monospace`,
+  specific solution (`Wi-Fi`, `:gs`, `commit`, `BOM`, `monospace`,
   `e-ink`) inside an outcome or attribute. WHATs and Characteristics
   describe outcomes and attributes, not the technology that implements
   them. Move solution names to §7 tradeoffs or the relevant ADR.
-  (See [`docs/qfd-changelog.md`](docs/qfd-changelog.md) §8: W13 reframe, WHAT sweep,
-  H6/H7/H8/H12 sweep.)
 
 - **Measure-vs-attribute drift.** Naming a metric (`success rate`,
   `MTBF`) where an attribute (`reliability`) would be cleaner. The
@@ -78,5 +76,4 @@ catch them early next time.
 - **Function-vs-characteristic conflation.** Calling HOWs
   "engineering functions". A function is a transformation; a
   characteristic is one of its measurable attributes. HOWs _measure_
-  functions; they are not functions. (See
-  [`docs/qfd-changelog.md`](docs/qfd-changelog.md) §8 for the rename cascade.)
+  functions; they are not functions.

@@ -500,7 +500,7 @@ point at [§7](qfd-tradeoffs.md#7-tradeoffs-and-their-why-linked-to-adrs)'s trad
     - C12 · C10 (dirty-path journal `/sd/.typoena-dirty`)
   - **How: HTTPS + GitHub token** ([ADR-005], T5; rejected: SSH, the device transport doesn't speak it)
     - C13 · C14
-  - **How: one atomic `:gp`, auto-timestamp message, replay on rejection** ([ADR-010], T10; rejected: a commit-message prompt, a modal that taxes the writing loop)
+  - **How: one atomic `:gs`, auto-timestamp message, replay on rejection** ([ADR-010], T10; rejected: a commit-message prompt, a modal that taxes the writing loop)
     - C12
 - **Recover** (degraded file state → readable file): serves W3 (10), W6 (9) · measured by H8, plus H6's replay path
   - **How: journal + boot-time reconciliation** (`*.tmp` recovery, stranded-commit replay, soft-reset reconcile)

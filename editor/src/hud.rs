@@ -34,7 +34,6 @@ impl Editor {
     /// tier grows down and the vim tier is pinned up, with the (capped) sync tier
     /// between them, so a long notice can no longer run into the mode strip.
     pub(crate) fn draw_panel(&self, f: &mut Frame) {
-        // The rule dividing writing column from panel, full panel height.
         Rectangle::new(Point::new(DIVIDER_X, 0), Size::new(1, HEIGHT as u32))
             .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
             .draw(f)
@@ -197,9 +196,8 @@ impl Editor {
             .infallible();
         }
 
-        // Mode indicator + pending count/operator echo at the panel's bottom-
-        // left. In Command mode the ':' line (bottom strip) takes over instead.
-        // All event-driven — never repaints per keystroke.
+        // In Command mode the ':' line (bottom strip) takes over instead. All
+        // event-driven — never repaints per keystroke.
         if self.mode != Mode::Command {
             let name = match self.mode {
                 Mode::Normal => "NORMAL",
@@ -263,7 +261,6 @@ impl Editor {
             format!("{words} words · {mins} min"),
             "Ctrl-C continue  ·  Ctrl-Q quit".to_string(),
         ];
-        // Vertically centre the three body-font rows; horizontally centre each.
         let block_h = lines.len() as i32 * CH;
         let mut y = (HEIGHT as i32 - block_h) / 2;
         for line in &lines {
@@ -293,7 +290,6 @@ impl Editor {
                 .infallible();
         };
 
-        // Wordmark + version, vertically centred.
         let version = if self.version.is_empty() {
             "version unknown".to_string()
         } else {
@@ -303,7 +299,6 @@ impl Editor {
         centre(f, "typoena", top);
         centre(f, &version, top + CH);
 
-        // Credit + leave hint, pinned a row above the bottom edge.
         centre(f, "Made with love by Julien Calixte & Emmanuel Colas", HEIGHT as i32 - 3 * CH);
         centre(f, "Enter or q to leave", HEIGHT as i32 - 2 * CH);
     }

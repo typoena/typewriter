@@ -46,10 +46,6 @@ lives on the same page as the tables it mirrors.
 - [`qfd-tradeoffs.md`](qfd-tradeoffs.md) — **§7 tradeoffs** T1–T15
   (got / paid / ADR) and the tensions left deliberately unresolved, each
   with its trigger
-- [`qfd-changelog.md`](qfd-changelog.md) — **§8 ledger**: every
-  inconsistency spotted between the houses and reality, and its fix
-- [`quality-house-empty.md`](quality-house-empty.md) — blank practice copy
-  of the full four-house cascade
 - [`house-vs-product.md`](house-vs-product.md) — standing challenges: when
   the houses and the builder disagree about what the product *is*, the
   dispute is argued there first, not silently re-scored
@@ -131,8 +127,7 @@ sizing).
   time. Every house's TikZ preamble is a copy of House 1's: a style
   change to one must be pasted into all four (across
   [`qfd-house-1.md`](qfd-house-1.md), [`qfd-house-2.md`](qfd-house-2.md),
-  [`qfd-houses-3-4.md`](qfd-houses-3-4.md)) plus
-  [`quality-house-empty.md`](quality-house-empty.md).
+  [`qfd-houses-3-4.md`](qfd-houses-3-4.md)).
 - [Houses 3–4](qfd-houses-3-4.md) re-score when the *pipeline* changes
   shape: a new process step (CI, a second-platform installer,
   auto-update) or a new control (a test rig, release automation) gets a
@@ -151,8 +146,6 @@ sizing).
   says why; and the next House-1 re-score must settle any OPEN entry
   that is waiting on it (none open today: D1/flow resolved 2026-07-17 by
   the W16/H17 re-score).
-- Structural passes and every drift caught get a line in the
-  [§8 ledger](qfd-changelog.md) the day they land.
 
 [ADR-007]: adr.md#adr-007-storage-split--fat-on-sd-for-working-copy-littlefs-on-flash-for-config
 [ADR-008]: adr.md#adr-008-mvp-power--wall-powered-battery-deferred-to-v08

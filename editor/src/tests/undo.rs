@@ -2,8 +2,6 @@
 
 use super::*;
 
-// ---- Undo / redo (v0.3) ----
-
 #[test]
 fn undo_reverts_a_whole_insert_session_at_once() {
     let mut e = Editor::new();

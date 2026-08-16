@@ -33,8 +33,7 @@ fn main() -> anyhow::Result<()> {
     let peripherals = Peripherals::take()?;
     let pins = peripherals.pins;
 
-    // GDEY0579T93 on S3-safe GPIOs (Spike 2 wiring):
-    //   SCK 12 · DIN/MOSI 11 · CS 7 · DC 6 · RST 5 · BUSY 4
+    // Positional arg order: SCK 12 · MOSI 11. CS 7 · DC 6 · RST 5 · BUSY 4 below.
     let spi = SpiDriver::new(
         peripherals.spi2,
         pins.gpio12,
@@ -42,12 +41,10 @@ fn main() -> anyhow::Result<()> {
         None::<AnyIOPin>,
         &DriverConfig::new().dma(Dma::Auto(4096)),
     )?;
-    // EPD SPI clock. Was 4 MHz; the panel (SSD1683) takes 10–20 MHz, and this
-    // clock only affects the pixel clock-out, not the waveform BUSY time — so it
-    // trims the pre-kick band write (~43 ms area at 4 MHz) off perceived
-    // latency on the erase/caret/scroll path. Sweep higher (16/20 MHz) only
-    // while watching the panel for signal-integrity glitches (garbled/missing
-    // bands). See docs/tradeoff-curves/epd-refresh-latency.md.
+    // SSD1683 takes 10–20 MHz. This clock sets only the pixel clock-out, not the
+    // waveform BUSY time, so it trims the pre-kick band write (~43 ms at 4 MHz).
+    // Sweeping higher risks signal-integrity glitches (garbled/missing bands).
+    // See docs/tradeoff-curves/epd-refresh-latency.md.
     let bus = SpiBusDriver::new(spi, &Config::new().baudrate(20.MHz().into()))?;
     let cs = PinDriver::output(pins.gpio7)?;
     let dc = PinDriver::output(pins.gpio6)?;
@@ -58,32 +55,21 @@ fn main() -> anyhow::Result<()> {
     log::info!("EPD reset + init…");
     epd.reset()?;
     epd.init()?;
-    // Boot splash (Spike 9): the Typoena mark, kicked off *async* — the ~2.2 s
-    // full-refresh waveform runs while the SD mounts and the note loads below,
-    // so the splash starts painting as early as the app can drive it and its
-    // wait overlaps the mandatory boot work instead of preceding it. Its full
-    // refresh doubles as the baseline the old white clear used to establish
-    // (writes both RAM banks); the first editor render further down implicitly
-    // waits it out (`wait_ready`) and then replaces it.
+    // Async: the ~2.2 s full-refresh waveform runs while the SD mounts and the
+    // note loads below. It writes both RAM banks, so it doubles as the baseline;
+    // the first editor render waits it out (`wait_ready`) and replaces it.
     epd.display_frame_async(Frame::splash().bytes())?;
 
-    // Mount the SD and load the saved note. We bring the SD up *after* the EPD —
-    // the doc's boot order is SD-first, but a dead panel can't explain a missing
-    // card — and treat a missing card / repo / unreadable note as fatal: a
-    // writing appliance that silently started empty would clobber the note on
-    // the next `:w`. See docs/v0.1-mvp-technical.md, boot sequence.
+    // SD after the EPD, against the doc's SD-first boot order: a dead panel
+    // can't explain a missing card. Fatal-by-design rationale: `boot_storage`.
     let storage = boot_storage(&mut epd);
 
-    // Bring up the USB keyboard in the background; keys arrive via next_key().
     // Before the wizard gate — first-boot setup types on this keyboard.
     usb_kbd::start()?;
 
-    // Device runtime config + the first-boot wizard gate (v0.9 onboarding).
-    // The card's typoena.conf overrides the .env-baked TW_* per field
-    // (slice 0). If the effective config is incomplete or the repo is missing,
-    // the wizard runs *instead of* the editor (slice 2) and hands back the
-    // completed conf; either way the result is installed before the git
-    // thread spawns. Secrets stay out of the log — only which keys exist.
+    // Device runtime config + the first-boot wizard gate. Whatever this block
+    // yields is installed before the net thread spawns. Secrets stay out of the
+    // log — only which keys exist.
     let (sys_loop, nvs, modem) = {
         use esp_idf_svc::eventloop::EspSystemEventLoop;
         use esp_idf_svc::nvs::EspDefaultNvsPartition;
@@ -121,15 +107,9 @@ fn main() -> anyhow::Result<()> {
             } else {
                 log::info!(":setup requested — reopening the wizard prefilled from the card conf");
             }
-            // The gate above asks "is the device usable?" (baked dev values can
-            // answer yes). The wizard provisions the *card*, so it resumes from
-            // the card's own state — never the baked fallback, which would skip
-            // the very steps a blank card needs (and, on the author's device,
-            // mask the whole flow by jumping straight to the repo step). `:setup`
-            // (configured card, marker set) opens the reset menu instead.
-            // `run` is compiled at opt-level 2 to dodge a size-opt Xtensa
-            // miscompile (see its doc comment / Cargo.toml). main keeps its own
-            // `sys_loop`/`nvs` for the net thread below and lends references.
+            // The wizard provisions the *card*, so it resumes from the card's own
+            // state, never the baked fallback — which would skip the very steps a
+            // blank card needs. `run` is opt-level 2; see its doc comment.
             match firmware::infrastructure::wizard_io::run(&mut epd, &storage, &card, setup_requested && !unconfigured, &sys_loop, &nvs, &mut modem) {
                 Ok(c) => c,
                 Err(e) => boot_halt(&mut epd, "Setup stopped", &format!("{e:#}")),
@@ -141,37 +121,26 @@ fn main() -> anyhow::Result<()> {
         (sys_loop, nvs, modem)
     };
 
-    // Editor preferences (.typoena.toml, git-tracked). Read before the boot
-    // buffer is chosen (`open_last_on_boot` decides which file that is) and
-    // before the first render (`line_numbers` shapes the opening frame). A
-    // missing / unreadable / partial file falls back to defaults, so a fresh
-    // card just works.
+    // Read before the boot buffer is chosen (`open_last_on_boot` decides which
+    // file) and before the first render (`line_numbers` shapes the opening frame).
     let prefs = match storage.load_path(PREFS_PATH) {
         Ok(src) => Prefs::parse(&src),
         Err(_) => Prefs::default(),
     };
     log::info!("prefs: {prefs:?}");
-    // Apply the configured timezone before anything reads the wall clock, so
-    // `localtime_r` — and thus the `:inbox` note's dated name/title — reflects the
-    // local calendar day. Empty (the default) leaves the ESP clock at UTC.
+    // Before anything reads the wall clock, so `localtime_r` — and thus the
+    // `:inbox` note's dated name/title — reflects the local calendar day. Empty
+    // (the default) leaves the ESP clock at UTC.
     if !prefs.timezone.is_empty() {
         clock_esp::apply_timezone(&prefs.timezone);
     }
     let (boot_path, boot_scope, saved) = boot_note(&mut epd, &storage, &prefs);
 
-    // Spawn the dedicated net thread — the transport behind `:gs`/`:gl` and
-    // `:update`. It owns the Wi-Fi stack (brought up lazily on the first
-    // request, so the radio stays off until you sync/update) and parks on
-    // `net_tx` until signalled; the work runs off the UI loop, and its outcome
-    // returns on `net_rx` for the snackbar. (The stack is `GIT_STACK`-sized —
-    // libgit2's path-buffer nesting is what dictates it; OTA is shallow by
-    // comparison.)
+    // The net thread owns the Wi-Fi stack, brought up lazily on the first
+    // request, so the radio stays off until you sync or update.
     let (net_tx, net_rx) = {
         use firmware::infrastructure::net::{run_net_service, NetOutcome, NetRequest, GIT_STACK};
 
-        // sys_loop / nvs / modem come from the wizard-gate block above — the
-        // wizard borrows the modem for its join test, then the net thread
-        // owns all three for good.
         let (req_tx, req_rx) = std::sync::mpsc::channel::<NetRequest>();
         let (res_tx, res_rx) = std::sync::mpsc::channel::<NetOutcome>();
         std::thread::Builder::new()
@@ -185,18 +154,9 @@ fn main() -> anyhow::Result<()> {
         (req_tx, res_rx)
     };
 
-    // Seed the editor from the boot note (`boot_note` above: the default
-    // `/sd/repo/notes.md`, or the resumed last file when `open_last_on_boot`
-    // is set). Boots in Normal mode with the caret on the last character (the
-    // resume point) — press `i`/`a`/`o` to write.
     let mut ed = Editor::with_file(boot_path.clone(), boot_scope, saved);
     ed.set_prefs(prefs);
-    // The pure editor core has no build metadata; feed it the running firmware
-    // version so `:about` can show it (same const the OTA check compares).
     ed.set_version(firmware::infrastructure::ota::FW_VERSION);
-    // Snippet library (.typoena.snippets.json, git-tracked). Parsed with
-    // serde_json in the editor crate; a missing / unreadable / malformed file is
-    // non-fatal — the editor simply has no snippets and runs unchanged.
     let snippets = match storage.load_path(SNIPPETS_PATH) {
         Ok(src) => match Snippets::parse(&src) {
             Ok(s) => s,
@@ -210,70 +170,46 @@ fn main() -> anyhow::Result<()> {
     log::info!("snippets: {} loaded", snippets.0.len());
     ed.set_snippets(snippets);
 
-    // Keyboard attach/detach state drives the panel's disconnect flag; seed it
-    // (and the word-count snapshot) before the first render. The loop's own
-    // bookkeeping (last-file marker, idle-save window, focus timer) now lives in
-    // the [`Runtime`].
+    // Seed both before the first render.
     ed.set_keyboard_present(usb_kbd::keyboard_present());
     ed.refresh_stats();
 
-    // First editor render — the moment the splash disappears. Everything
-    // mandatory is ready here: SD mounted, note loaded, prefs applied, input
-    // running (the palette walk continues in the background). `Panel::new` draws
-    // the opening frame and paints it as a area *partial* (~630 ms) that
-    // first waits out the splash's waveform (which the boot work above
-    // overlapped), so the splash→editor swap rides the partial instead of a
-    // second full refresh — shaving ~1.3 s off cold boot. From here the panel
-    // owns the EPD and both reused framebuffers (a repaint never allocates — a
-    // background `:gs` can take the heap to the floor); every repaint goes
-    // through it. See [`app::Panel`].
+    // First editor render — the splash disappears here. `Panel::new` paints the
+    // opening frame as a partial that first waits out the splash's waveform, so
+    // the swap rides the partial instead of a second full refresh (~1.3 s saved).
+    // The panel then owns the EPD and both reused framebuffers: a repaint never
+    // allocates, so a background `:gs` can take the heap to the floor safely.
     let mut panel = Panel::new(epd, &mut ed)?;
-    // Seed Typo's humor shuffle with hardware entropy so the face order differs
-    // run to run — otherwise every boot replays the same fixed sequence. Host
-    // builds skip this and stay deterministic for the tests.
+    // Hardware entropy, so the face order differs run to run. Host builds skip
+    // this and stay deterministic for the tests.
     panel.reseed_humor(unsafe { esp_idf_svc::sys::esp_random() });
 
-    // Boot-time measurement (the ≤ 5 s v0.1 / ≤ 3 s v1.0 target). Two clocks, and
-    // they disagree by ~1.4 s here, so report both. `esp_log_timestamp()` counts
-    // from ~power-on (same value as this line's own log prefix) → the real
-    // cold-boot number. `esp_timer_get_time()` only starts ~1.4 s in, after the
-    // 2nd-stage bootloader + the ~0.74 s PSRAM memtest, so it captures just the
-    // app-side init, not total boot. "Cursor ready" = first editor frame on the
-    // panel, input loop below about to poll.
+    // Two clocks, ~1.4 s apart. `esp_log_timestamp()` counts from ~power-on — the
+    // real cold-boot number. `esp_timer_get_time()` only starts after the
+    // 2nd-stage bootloader + the ~0.74 s PSRAM memtest, so it is app-side init
+    // only. "Cursor ready" = first editor frame on the panel.
     let total_ms = unsafe { esp_idf_svc::sys::esp_log_timestamp() };
     let app_ms = (unsafe { esp_idf_svc::sys::esp_timer_get_time() } / 1000) as u32;
     log::info!("boot: cursor ready — {total_ms} ms since power-on ({app_ms} ms app-side)");
 
-    // OTA self-test: reaching cursor-ready is our health bar, so confirm the
-    // running slot. If this boot is the first after an over-the-air `:update`,
-    // this cancels the pending rollback; otherwise it's a logged no-op.
+    // Reaching cursor-ready is the health bar: on the first boot after an OTA
+    // `:update` this cancels the pending rollback, otherwise it is a logged no-op.
     firmware::infrastructure::ota::mark_running_firmware_valid();
 
-    // The palette's background file index (Ctrl-P). Kick the first walk now —
-    // AFTER the first editor frame is on the panel — so the seconds-long readdir
-    // over SPI doesn't starve the boot-critical SD reads or delay the first
-    // paint. The idle loop feeds finished walks to the editor (recents-only until
-    // then); a pull re-walks the same way. Runs on the walk thread the port owns.
+    // AFTER the first editor frame: the seconds-long readdir over SPI would
+    // otherwise starve the boot-critical SD reads and delay the first paint.
     let files = EspFileWalk::new();
     files.request_rewalk();
 
-    // Share the mounted card across the storage / sync / system adapters — all on
-    // this single UI task, so `Rc` (not `Arc`) is enough. The sync + system
-    // adapters reach the same dirty journal and setup marker through it.
+    // Every adapter below runs on this single UI task, so `Rc` (not `Arc`) is enough.
     let card = Rc::new(storage);
 
-    // The net + system adapters: git + OTA over the radio-owning thread, and the
-    // reboot / reboot-into-setup control surface. Both feed the port-driven
-    // [`Runtime`].
     let net: Box<dyn app::NetService> =
         Box::new(NetService::new(card.clone(), net_tx, net_rx));
     let system: Box<dyn app::System> = Box::new(EspSystem(card.clone()));
 
-    // Assemble the run loop and drive it forever. The editor is seeded, the panel
-    // holds the first frame, and every hardware / infrastructure dependency is
-    // now behind a port; the loop that used to live inline here is the
-    // host-tested [`Runtime`]. The only exits are `:reboot`/`:setup`, which
-    // restart the device — so `run` never returns.
+    // The only exits are `:reboot`/`:setup`, which restart the device — so `run`
+    // never returns.
     let mut runtime = Runtime::new(
         ed,
         panel,
@@ -285,8 +221,6 @@ fn main() -> anyhow::Result<()> {
         Box::new(files),
     );
 
-    // A dump from a previous crash is left in place until Julien deals with it;
-    // surface it in the boot log so it isn't silently forgotten.
     if std::path::Path::new(panic_scribe::EMERGENCY_PATH).exists() {
         log::warn!(
             "panic dump from a previous crash present: {}",
@@ -307,10 +241,9 @@ fn main() -> anyhow::Result<()> {
 }
 
 /// Mount the SD card, or halt with the reason on the panel. A missing CARD is
-/// fatal by design (see the boot-sequence comment in `main`): the note is the
-/// whole point of the appliance, so we refuse to run in a state where the next
-/// save could destroy it. A missing REPO is not fatal here — the wizard gate in
-/// `main` enters first-boot setup instead.
+/// fatal by design: the note is the whole point of the appliance, so we refuse to
+/// run in a state where the next save could destroy it. A missing REPO is not
+/// fatal — the wizard gate in `main` enters first-boot setup instead.
 fn boot_storage(epd: &mut Epd) -> Storage {
     // The firmware shares this mount with the net thread, and libgit2 keeps the
     // pack + idx descriptors open across a push — that overruns the editor's

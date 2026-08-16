@@ -723,7 +723,7 @@ blocking boot. Breakdown + levers:
 [`notes/boot-time-budget.md`](notes/boot-time-budget.md).
 
 ‡ **Push latency, re-measured on the real repo 2026-07-13/14:** on the
-author's real notes repo (~63 k objects), a cold `:gp` is **~24 s** and a warm
+author's real notes repo (~63 k objects), a cold `:gs` is **~24 s** and a warm
 clean push **~19 s**, inside the ≤ 30 s v0.1 target, but the earlier toy-repo
 figures (~16 s cold / ~10 s warm, 2026-07-11) turned out not to transfer:
 push cost scales with repo shape. The mix also inverted: the push leg is
@@ -844,7 +844,7 @@ priority list below come from the basement.
 H17 (reach cost, 117) enters at **#9 on day one, above H5 endurance**:
 a brand-new characteristic out-voting a soak target reads right for a
 product whose center is flow, and is exactly the statement W16 was added
-to make. Its two voters are W16 (strong) and W2 (medium: `:gp` is the
+to make. Its two voters are W16 (strong) and W2 (medium: `:gs` is the
 reach grammar applied to Push).
 
 H13 (current draw, 137) sits at #7, close to the top-six cutoff because
@@ -873,10 +873,8 @@ that touch many WHATs over characteristics that absolutely matter for one WHAT.
 W3 ("Pulling power never corrupts the file", weight 10) was H8's
 strongest single voter, but H8 still sat at #6 because its base was
 narrow. W14's "carrying = bumps = unclean shutdowns" widens H8's voter
-base and lifts it into the top five by arithmetic (#5 after the
-2026-07-17 re-score; an earlier revision of this passage claimed #3,
-overlooking that H12's 160 outranks H8's 156; caught and corrected in
-the same pass, see [§8](qfd-changelog.md#8-inconsistencies-spotted-and-fixed)). §6's "table-stakes correctness"
+base and lifts it into the top five by arithmetic — #5, not #3: H12's
+160 outranks H8's 156. §6's "table-stakes correctness"
 override is no longer the load-bearing argument for H8's prominence;
 its acceptance-criteria override for H4/H5 still is. See [§6](qfd-budget.md#6-critical-performance-budget).
 

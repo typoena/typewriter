@@ -129,7 +129,7 @@ rather than refusing to start over a stray comma.
 - **First-time setup.** [`just init`](../firmware/docs/sd-provisioning.md)
   seeds this file from a curated catalog (`firmware/snippets-catalog/`) — you pick
   which snippet groups you want and it `jq`-merges the selected subset into
-  `repo/.typoena.snippets.json` (committed on the device's first `:sync`). It
+  `repo/.typoena.snippets.json` (committed on the device's first `:gs`). It
   writes **only if the file is absent**, so re-running `init` on a card whose
   clone already carries your library never overwrites it. See
   [`v0.6-markdown.md`](v0.6-markdown.md) for the catalog.

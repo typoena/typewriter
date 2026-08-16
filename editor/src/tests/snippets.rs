@@ -151,8 +151,6 @@ fn undo_after_expansion_restores_the_trigger_word() {
     assert_eq!(e.text, "link");
 }
 
-// ---- `$` snippet palette ----
-
 // r##"…"## so the `"#` in the `"# $1"` heading body doesn't close the string.
 
 #[test]

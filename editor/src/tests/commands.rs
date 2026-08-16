@@ -18,14 +18,13 @@ fn w_command_signals_save_and_returns_to_normal() {
 
 #[test]
 fn gs_command_saves_then_pushes() {
-    // `:gs` queues a save of the current buffer, then the git push.
     assert_eq!(kinds(&command("gs").1), vec![Kind::Save, Kind::Push]);
 }
 
 #[test]
 fn gl_command_signals_pull() {
-    // A bare `:gl` pulls without committing — the host decides whether to prompt
-    // for a pre-fetch commit based on its own dirty journal.
+    // The host decides whether to prompt for a pre-fetch commit, from its own
+    // dirty journal — the editor never commits here.
     let effs = command("gl").1;
     assert_eq!(kinds(&effs), vec![Kind::Pull]);
     assert!(
@@ -206,8 +205,6 @@ fn an_empty_unsynced_list_skips_the_card() {
 
 #[test]
 fn setup_command_requests_the_wizard_when_clean() {
-    // A fresh clean buffer → `:setup` prompts; on `y` it asks the host to reboot
-    // into the wizard.
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
     ex(&mut e, "setup");
     assert!(e.take_effects().is_empty(), "must not act before confirmation");
@@ -243,8 +240,6 @@ fn setup_command_is_refused_with_unsaved_changes() {
 
 #[test]
 fn reboot_command_requests_a_restart_when_clean() {
-    // A fresh clean buffer → `:reboot` prompts; on `y` it asks the host to
-    // restart, nothing to save.
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
     ex(&mut e, "reboot");
     assert!(e.take_effects().is_empty(), "must not restart before confirmation");
@@ -293,8 +288,6 @@ fn reboot_command_refuses_an_unsaved_unnamed_buffer() {
 
 #[test]
 fn update_command_requests_an_ota_check_when_clean() {
-    // A fresh clean buffer → `:update` prompts; on `y` it asks the host to run the
-    // over-the-air update (which ends in a reboot into the new image).
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
     ex(&mut e, "update");
     assert_eq!(e.mode(), Mode::Confirm, "expected the update confirm prompt");
@@ -336,8 +329,6 @@ fn update_command_is_refused_with_unsaved_changes() {
 
 #[test]
 fn about_command_opens_the_full_screen_splash() {
-    // `:about` raises the read-only splash and queues nothing — it neither saves
-    // nor touches the buffer.
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
     e.set_version("0.7.8");
     ex(&mut e, "about");
@@ -470,8 +461,6 @@ fn format_on_save_adds_the_missing_trailing_newline() {
 
 #[test]
 fn format_on_save_keeps_the_caret_on_a_trailing_blank_line() {
-    // Regression: `:w` used to drop the trailing blank line and yank the caret
-    // up onto the last non-empty line. The blank line — and the caret — stay.
     let mut e = Editor::with_file(
         "/sd/repo/notes.md".into(),
         Scope::Tracked,
@@ -495,8 +484,6 @@ fn wq_and_x_alias_save_dropping_the_quit() {
     assert_eq!(kinds(&command("wq").1), vec![Kind::Save]);
     assert_eq!(kinds(&command("x").1), vec![Kind::Save]);
 }
-
-// --- Cmd+S (Key::Save) -----------------------------------------------------
 
 #[test]
 fn cmd_s_saves_a_dirty_buffer_like_w() {
@@ -660,8 +647,6 @@ fn with_text_empty_matches_new() {
     assert_eq!(e.mode(), Mode::Normal);
 }
 
-// ---- Command-line editing (Ctrl-W / Cmd-Backspace while typing `:`) ----
-
 #[test]
 fn ctrl_w_deletes_the_last_word_of_the_command_line() {
     let mut e = Editor::new();
@@ -695,8 +680,6 @@ fn cmd_backspace_clears_the_command_line() {
     assert_eq!(e.cmdline, "");
     assert_eq!(e.mode(), Mode::Command);
 }
-
-// ---- `:pub` / `:publish` — rename `<name>.md` to `<name>.pub.md` ----
 
 #[test]
 fn publish_renames_the_active_md_file_to_pub_md() {
@@ -781,8 +764,6 @@ fn publish_on_an_unnamed_scratch_warns() {
     assert!(e.take_effects().is_empty());
     assert_eq!(e.notice.as_deref(), Some("no file to publish"));
 }
-
-// ---- publish retargets links to the renamed file ----
 
 #[test]
 fn retarget_rewrites_every_spelling_gf_would_follow() {

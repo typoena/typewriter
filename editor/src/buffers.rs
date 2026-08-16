@@ -768,8 +768,6 @@ impl Editor {
         self.file_spans.retain(|&(s, e)| span_str(blob, s, e) != path);
     }
 
-    // --- File palette (Ctrl-P) ---------------------------------------------
-
     /// Feed the palette its file list as **one newline-joined blob** of
     /// absolute paths, enumerated by the host from `/sd/repo` and `/sd/local` —
     /// the blob form is a DRAM constraint, see [`Editor::file_blob`]. Spans are

@@ -409,8 +409,6 @@ impl Editor {
         scored.into_iter().map(|(i, _)| i).collect()
     }
 
-    // --- Palette command mode (`>`) ----------------------------------------
-
     /// Whether the palette is in `>` command mode. VS Code semantics: a leading
     /// `>` in the query switches the file search to the command list. The `>` is
     /// part of [`palette_query`](Self::palette_query), so backspacing it off
@@ -692,8 +690,6 @@ impl Editor {
         self.set_notice(format!("{} - saved", self.command_label(cmd)));
     }
 
-    // --- Palette snippet mode (`$`) ----------------------------------------
-
     /// Whether the palette is in `$` snippet mode. Same sigil mechanism as `>`: a
     /// leading `$` in the query switches the file search to the snippet launcher,
     /// and backspacing it off returns to file mode with no extra state. `$` and `>`
@@ -755,8 +751,6 @@ impl Editor {
         self.insert_snippet(&body);
     }
 
-    // --- Palette link-pick step (`> add local link`) -------------------------
-
     /// Switch the open palette into the link-pick step: the same file list and
     /// fuzzy filter as bare `Cmd-P`, but Enter inserts a markdown link to the
     /// selection at the caret instead of opening it. Reached only from
@@ -813,8 +807,6 @@ impl Editor {
             self.palette_matches().len()
         }
     }
-
-    // --- Visual mode -------------------------------------------------------
 
 }
 

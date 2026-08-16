@@ -15,3 +15,4 @@
 | 2026-07-11 | [Editor freeze — SPI-DMA OOM during a background `:sync`](2026-07-11-editor-freeze-spi-dma-oom-during-sync.md)   | Safety net shipped (paints non-fatal); root-cause eradication specced, not yet built |
 | 2026-07-16 | [Display "buffer toggling" — partial refresh left one RAM bank two frames stale](2026-07-16-partial-refresh-bank-toggle.md) | Fixed + verified on device — band re-written to both banks post-refresh (ping-pong) |
 | 2026-07-16 | [Gate-scan restriction spike — refuted: partial waveform time is MUX-independent](2026-07-16-gate-scan-spike-refuted.md)     | Closed, negative result — never write `0x01`/`0x0F`; custom LUT is the only lever left |
+| 2026-07-20 | [Onboarding wizard Wi-Fi bring-up boot loop (LoadProhibited)](2026-07-20-wizard-wifi-loadprohibited.md)                      | Fixed and verified on device — a size-opt Xtensa miscompile; `wizard_io::run` is pinned to opt-level 2 |

@@ -9,6 +9,7 @@ and the case envelope are unchanged, so
 | ----- | ---- | -------- | ------ |
 | [`mainboard/`](mainboard) (PCB 1) | 50 × 70 mm | ESP32-S3-WROOM-1 + 3V3 LDO + power path + DESPI-C579 / MT3608 headers | **routed** — ERC 0, DRC 0, 0 unconnected pads; Gerbers in [`mainboard/gerbers/`](mainboard/gerbers) |
 | PCB 2 | 20 × 80 mm | µSD + keyboard USB-C + charge USB-C + HW-373 | not started |
+| [`mainboard-v2/`](mainboard-v2/README.md) | single-board PCBA | supersedes the split above — BQ25896 charger + power path, hierarchical 4-sheet schematic, 97 components, ERC 0. Component values and their datasheet sources: [`DESIGN-NOTES.md`](mainboard-v2/DESIGN-NOTES.md) | schematic done |
 
 PCB 1 is 2-layer, SMD on the front only, both layers poured with ground.
 Autorouted (Freerouting), then the ground stitching was pruned by hand — see

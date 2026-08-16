@@ -393,8 +393,7 @@ mod tests {
         out
     }
 
-    // ---- translate: the ASCII invariant the editor relies on ----
-
+    // The editor relies on `translate` emitting ASCII only.
     #[test]
     fn translate_only_emits_ascii() {
         for usage in 0u8..=255 {
@@ -488,8 +487,6 @@ mod tests {
         assert_eq!(translate(0x04, false, false, true), None); // Cmd+a
     }
 
-    // ---- Decoder: edge detection ----
-
     #[test]
     fn key_down_emits_once_then_hold_is_silent() {
         let mut d = Decoder::new();
@@ -523,8 +520,6 @@ mod tests {
         assert_eq!(feed(&mut d, &report(0, &[0x29])), vec![Key::Char('`')]);
     }
 
-    // ---- Decoder: Ctrl+Tab release commits the MRU walk ----
-
     #[test]
     fn ctrl_release_after_ctrl_tab_emits_cycle_commit_once() {
         let mut d = Decoder::new();
@@ -554,8 +549,6 @@ mod tests {
         assert_eq!(feed(&mut d, &report(0, &[])), vec![Key::CycleCommit]);
     }
 
-    // ---- Decoder: Caps Lock dual role ----
-
     #[test]
     fn caps_tap_emits_escape() {
         let mut d = Decoder::new();
@@ -580,8 +573,6 @@ mod tests {
         feed(&mut d, &report(0, &[])); // release
         assert_eq!(feed(&mut d, &report(0x08, &[0x2a])), vec![Key::DeleteLine]); // LGUI
     }
-
-    // ---- Decoder: robustness on malformed / untrusted input ----
 
     #[test]
     fn short_report_is_ignored() {
@@ -631,8 +622,6 @@ mod tests {
         // After reset the same key reads as a fresh down, not a held slot.
         assert_eq!(feed(&mut d, &report(0, &[0x04])), vec![Key::Char('a')]);
     }
-
-    // ---- Composer: US-International dead-key accent folding ----
 
     fn ch(c: char) -> Key {
         Key::Char(c)

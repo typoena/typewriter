@@ -593,8 +593,8 @@ for the same reason and drill the same way.
         `scr_thread_max = 8` against a measured 7, so a 7.5 mm batch is already
         covered; a 10 mm one is not, and on the bracket it would arrive at the
         deck skin. Caliper one screw before driving 4 into the deck.
-- [ ] Optional **hinged lid** over the deck (protects the glass in a bag) — called
-      for in `docs/hardware.md`, not yet modelled.
+- [ ] Optional **hinged lid** over the deck (protects the glass in a bag) — not
+      yet modelled.
 - [ ] Feet — **deferred to a later version** (`feet_mode = "none"`). Modelled and
       ready as a separate part. With the heads now flush there is nothing forcing
       them back: the plate sits flat on the desk on its own face.

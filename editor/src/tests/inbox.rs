@@ -8,8 +8,6 @@ const TODAY: Date = Date { year: 2026, month: 7, day: 18 };
 /// The note `:inbox` names for [`TODAY`].
 const INBOX_TODAY: &str = "/sd/repo/_inbox/2026-07-18.md";
 
-// ---- :inbox / :in --------------------------------------------------------
-
 #[test]
 fn inbox_creates_todays_note_prefilled_dirty_and_in_normal() {
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
@@ -75,8 +73,6 @@ fn inbox_refuses_when_the_clock_is_unset() {
     assert!(!e.dirty());
     assert_eq!(e.notice.as_deref(), Some("clock not set - :gl first"));
 }
-
-// ---- :oldest / :old ------------------------------------------------------
 
 #[test]
 fn oldest_opens_the_chronologically_first_inbox_note() {

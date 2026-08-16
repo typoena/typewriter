@@ -529,8 +529,6 @@ fn running_a_command_confirms_the_new_state_on_the_snackbar() {
     assert_eq!(e.notice.as_deref(), Some("save on idle: off - saved"));
 }
 
-// ---- Preset (non-boolean) prefs: rotate through options on Enter ----
-
 #[test]
 fn next_option_rotates_and_wraps() {
     assert_eq!(next_option("light", &THEME_OPTIONS), "dark");
@@ -688,8 +686,6 @@ fn draw_in_command_mode_does_not_panic() {
     let mut none = palette_type(&["/sd/repo/notes.md"], ">zzzzz"); // "(no command)"
     let _ = none.draw(true);
 }
-
-// ---- `>` command palette generalisation (v0.6) ----
 
 #[test]
 fn command_labels_for_the_new_actions() {
@@ -925,8 +921,6 @@ fn palette_previews_only_the_selected_font() {
     assert!(!writing_ink_in_band(&e.draw(true), 232, 252), "non-font settings show no preview");
 }
 
-// --- Title-typed new files (no extension → slug + `# title` seed) ----------
-
 #[test]
 fn slugify_folds_accents_and_apostrophes() {
     assert_eq!(
@@ -977,8 +971,6 @@ fn folder_completions_offer_only_the_next_segment() {
     // Top level: the scope roots.
     assert_eq!(e.folder_completions(""), vec!["local/", "repo/"]);
 }
-
-// --- `> add local link` -----------------------------------------------------
 
 #[test]
 fn add_link_command_opens_the_file_pick_step() {
@@ -1044,8 +1036,6 @@ fn add_link_wraps_a_spaced_path_in_angle_brackets() {
     e.insert_link_loaded("/sd/repo/my notes.md", None);
     assert!(e.text().contains("[my notes](<my notes.md>)"), "{}", e.text());
 }
-
-// --- `> follow link` ----------------------------------------------------------
 
 #[test]
 fn follow_link_command_runs_the_gf_follow_and_closes() {

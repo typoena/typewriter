@@ -66,10 +66,9 @@ use crate::drivers::wifi_esp::connect_wifi;
 use crate::infrastructure::storage_sd::{LOCAL_DIR, REPO_DIR};
 
 // Baked in at build time from firmware/.env (see build.rs). Empty when unset.
-// Since the runtime conf (v0.9 onboarding slice 0) these are the per-field
-// FALLBACK: the card's /sd/typoena.conf overrides them, so a provisioned card
-// works on a firmware built with an empty .env. A field empty in both is
-// caught by the push/pull guards with a clear message.
+// These are the per-field FALLBACK: the card's /sd/typoena.conf overrides them,
+// so a provisioned card works on a firmware built with an empty .env. A field
+// empty in both is caught by the push/pull guards with a clear message.
 const BAKED_WIFI_SSID: &str = env!("TW_WIFI_SSID");
 const BAKED_WIFI_PASS: &str = env!("TW_WIFI_PASS");
 const BAKED_REMOTE_URL: &str = env!("TW_REMOTE_URL");
@@ -402,7 +401,6 @@ pub fn run_net_service(
                 },
             ),
         };
-        // If the UI task has gone away there's nothing to report to; exit.
         if tx.send(msg).is_err() {
             break;
         }
@@ -451,7 +449,6 @@ pub fn clone_repo(
         }
     };
 
-    // Learn the default branch (main/master/…) from the ref advertisement.
     progress(Phase::ContactingOrigin);
     {
         let (u, t) = (gh_user.to_string(), token.to_string());
@@ -481,7 +478,6 @@ pub fn clone_repo(
         .to_string();
     let _ = remote.disconnect();
 
-    // Shallow-fetch just that branch's tip.
     progress(Phase::Downloading { current: 0, total: 0 });
     {
         let (u, t) = (gh_user.to_string(), token.to_string());
@@ -605,8 +601,6 @@ fn materialize_tree(
 /// One full push: ensure Wi-Fi + clock + trust store (each done once), then
 /// open the repo, stage, commit, and fast-forward push. `progress` receives the
 /// short panel lines described on [`NetOutcome::Progress`].
-// Six of the eight are the net thread's lazily-initialised radio state, threaded
-// through as-is (`pull_cycle` and `update_cycle` take the same set).
 #[allow(clippy::too_many_arguments)]
 fn push_cycle(
     sys_loop: &EspSystemEventLoop,
@@ -653,7 +647,6 @@ fn push_cycle(
 /// up-to-date check, because the whole point is asking origin what's new.
 /// `paths` is the dirty-journal snapshot to commit locally before fetching.
 /// `progress` receives the short panel lines described on [`NetOutcome::Progress`].
-// Same eight-argument shape as `push_cycle` — see the note there.
 #[allow(clippy::too_many_arguments)]
 fn pull_cycle(
     sys_loop: &EspSystemEventLoop,
@@ -947,8 +940,8 @@ fn stage_and_commit(repo: &Repository, paths: &BTreeSet<String>) -> Result<Optio
         None => None,
     };
 
-    // I/O attribution for the ~360 ms/loose-write residual (v0.7 follow-up):
-    // bracket the splice with the p_mmap counters so the log says how many
+    // I/O attribution for the ~360 ms/loose-write residual: bracket the splice
+    // with the p_mmap counters so the log says how many
     // mmap windows (≈ unique pack reads) and how many KB the whole splice
     // issued. Divided by the loose writes (~4/path: blob + tree chain), this
     // pins whether the residual is pack-read I/O or FAT directory ops — the
@@ -1122,10 +1115,9 @@ fn try_push(
     {
         // Time-gated, NOT count-gated: during AddingObjects libgit2 reports
         // `total` = 0 and `current` = objects inserted so far, and a two-commit
-        // push only inserts a few dozen objects — run 5's `current >= last+256`
-        // gate swallowed every callback and the grind stayed silent. libgit2
-        // already rate-limits to ~2/s (MIN_PROGRESS_UPDATE_INTERVAL); gate to
-        // ~1 line per 2 s on top of that.
+        // push only inserts a few dozen objects — an object-count gate swallows
+        // every callback and the grind goes silent. libgit2 already rate-limits
+        // to ~2/s (MIN_PROGRESS_UPDATE_INTERVAL); gate to ~1 line per 2 s on top.
         let mut last: Option<Instant> = None;
         cbs.pack_progress(move |stage, current, total| {
             if last.is_none_or(|t| t.elapsed() >= Duration::from_secs(2)) {
@@ -1161,14 +1153,13 @@ fn try_push(
     // libgit2 compares against origin's advertised tips during negotiation and
     // errors out of push() with ErrorCode::NotFastForward before sending
     // anything, so `push_update_reference` never fires. It's still the
-    // remote-moved-under-us case — reconcilable, not a transport failure
-    // (bit the 2026-07-13 run 3: the real-repo rejection surfaced as "push
-    // transport" and skipped the reconcile built for it).
+    // remote-moved-under-us case — reconcilable, not a transport failure. Misread
+    // it and the rejection surfaces as "push transport" and skips the reconcile.
     remote.push(&[refspec], Some(&mut opts)).map_err(|e| {
-        // Heap post-mortem: runs 5–6 died on a ~7 KB inflateInit inside the
-        // pack build ("failed to init zlib stream on unpack") — the min-ever
-        // lines here say which pool zeroed and whether it was exhaustion or
-        // fragmentation, even when no progress callback got a chance to fire.
+        // Heap post-mortem. The known failure is a ~7 KB inflateInit inside the
+        // pack build ("failed to init zlib stream on unpack"); the min-ever lines
+        // say which pool zeroed and whether it was exhaustion or fragmentation,
+        // even when no progress callback got a chance to fire.
         log_push_heap("push failed");
         if e.code() == git2::ErrorCode::NotFastForward {
             PushFailure::Rejected(format!("{refspec}: {}", e.message()))
@@ -1856,8 +1847,6 @@ fn log_push_heap(stage: &str) {
         allowed / 1024
     );
 }
-
-// ---- app::NetService port adapter ----------------------------------------
 
 use crate::infrastructure::storage_sd::Storage;
 

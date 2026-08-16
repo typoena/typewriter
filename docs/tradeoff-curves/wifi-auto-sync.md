@@ -4,7 +4,7 @@
 > rate-limited_ push — not a wall-clock timer that wakes the device. See
 > [Policy](#policy). Backs the `.typoena.toml` `auto_sync` key in
 > [`../macroplan.md`](../macroplan.md) (v0.5). The runtime behaviour was
-> pencilled for v0.7, but v0.7 closed 2026-07-14 as search + manual `:gl`/`:gp`
+> pencilled for v0.7, but v0.7 closed 2026-07-14 as search + manual `:gl`/`:gs`
 > without it — it is **re-homed to v0.10**
 > ([`../v0.10-battery-and-sleep.md`](../v0.10-battery-and-sleep.md)), alongside
 > the sleep transitions it must respect and the per-sync radio teardown it
@@ -25,13 +25,13 @@
 For a **text** commit the git payload is a few KB — negligible. The cost of one
 sync is (almost) independent of how much you wrote — but it is no longer the
 single fixed radio burst the first version of this doc assumed. Measured on
-device (v0.7 run 4, 2026-07-14, warm clean `:gp` on the real notes repo):
+device (v0.7 run 4, 2026-07-14, warm clean `:gs` on the real notes repo):
 
 ```
 splice commit (SD/CPU, radio not needed)   10.3 s   O(depth) loose writes × ~0.4 s FAT dir scan
 push leg (connect + pack + upload)          5.9 s   TLS-resumed connect 2.4 s (4.0 s first-of-session)
                                           ──────
-warm `:gp` end-to-end                      19.1 s   root-level file ≈ 12–13 s — the splice is depth-bound
+warm `:gs` end-to-end                      19.1 s   root-level file ≈ 12–13 s — the splice is depth-bound
 ```
 
 Both halves are paid once per _dirty_ sync, so energy per unit time still
@@ -59,7 +59,7 @@ measurement; the _shape_ and the knee do not.
 Two refinements the field runs added:
 
 - **A clean tick is free.** Since the dirty-journal plumbing (2026-07-13),
-  `:gp` with an empty journal answers "up to date" without touching the radio
+  `:gs` with an empty journal answers "up to date" without touching the radio
   at all. An auto-sync tick only pays when there is actually something to
   push — idle hours with no edits cost zero regardless of the interval.
 - **The worst case is bounded at ~2×.** If the mirror moved underneath (a Mac
@@ -92,7 +92,7 @@ arrives, so there is still no reason to stay reachable.)
 > **Status (v0.7) — the shipped firmware still does _not_ cycle the radio.**
 > Wi-Fi comes up lazily on the first git op and then stays associated for the
 > rest of the session: `ensure_online` in
-> [`../../firmware/src/git_sync.rs`](../../firmware/src/git_sync.rs) owns the
+> [`../../firmware/src/infrastructure/net.rs`](../../firmware/src/infrastructure/net.rs) owns the
 > `wifi` handle and the module never stops, disconnects, or drops it (the
 > `remote.disconnect()` calls in there are git smart-protocol connections, not
 > the radio). So today's device runs the _stay-associated_ strategy this
@@ -160,7 +160,7 @@ read as a _max-staleness cap_ rather than a timer period:
 - **Push when already awake + dirty**, coalesced into the existing idle-pause,
   rate-limited to at most once per `auto_sync` — so a fast typist pausing every
   20 s doesn't sync 100×/hr. The dirty journal makes the check free: a tick
-  with nothing to push never spins the radio (this is `:gp`'s shipped
+  with nothing to push never spins the radio (this is `:gs`'s shipped
   radio-free up-to-date path).
 - **Push once on the way into sleep** (idle → light sleep, and especially
   lid-close → deep sleep) if dirty. This is the highest-value sync: nearly free

@@ -2,10 +2,9 @@
 
 Standing challenges between the scored QFD houses ([`qfd.md`](qfd.md)) and
 the product actually being built: places where the model and reality tell
-different stories. [`qfd-changelog.md`](qfd-changelog.md#8-inconsistencies-spotted-and-fixed)
-is the ledger of inconsistencies *fixed*; this page holds the disputes still
-*open*, claims about what the product is that the houses cannot yet express,
-argued with evidence on both sides rather than settled by fiat.
+different stories. This page holds the disputes still *open* — claims about what
+the product is that the houses cannot yet express, argued with evidence on both
+sides rather than settled by fiat.
 
 **Rule of engagement.** When the house and the builder disagree, neither is
 silently corrected. The challenge lands here with the claim, the house's
@@ -111,9 +110,7 @@ seiton layer. Once is a reach purchase; twice is the weights being wrong.
 retired in [`qfd-house-2.md`](qfd-house-2.md) §5.)*
 
 **Outcome (2026-07-17).** The author chose the reach-WHAT fix and the
-cascade was re-derived the same day
-([`qfd-changelog.md`](qfd-changelog.md#8-inconsistencies-spotted-and-fixed) has the full
-ledger entry): **W16** "any file, any action, any edit point is one
+cascade was re-derived the same day: **W16** "any file, any action, any edit point is one
 motion away" (weight 10, joining W1/W3, identity alongside its
 preconditions), **H17** reach cost (≤ 6 keystrokes median, unmeasured;
 now §6 budget row 9), and a **Navigate** function row. The holistic
@@ -169,9 +166,7 @@ latency-weighted rank while keeping the row.
 decide whether H2's cells point at latency or at disturbance, and recompute the
 basement Σ / §6 rank accordingly. Early trigger: `fast_partial` graduating to
 default — at that point typing latency is provably owned by the custom waveform,
-and any residual H2 latency weighting is dead. Recorded from the
-[§8 ledger](qfd-changelog.md#8-inconsistencies-spotted-and-fixed) entry that
-flagged it.
+and any residual H2 latency weighting is dead.
 
 ---
 
@@ -267,8 +262,7 @@ weight question D1 already parked.
 ## How to keep this page honest
 
 - One entry per challenge, D-numbered, dated, stamped OPEN or RESOLVED,
-  never deleted. A resolved entry keeps its argument and gains the outcome
-  plus a pointer to the [`qfd-changelog.md`](qfd-changelog.md) ledger line that recorded the cascade.
+  never deleted. A resolved entry keeps its argument and gains the outcome.
 - Every OPEN entry carries a **trigger**. An entry without one is an
   opinion parked where a decision should be.
 - Claims here are single-rater until noted otherwise: same U1 chair as

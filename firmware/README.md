@@ -49,6 +49,12 @@ The first build is slow (esp-idf + libgit2 + mbedTLS); after that it's
 incremental — see [build details](docs/build-details.md). The fast iteration
 loop is host-side: `cargo test -p app -p editor`.
 
+The panel's fast/partial waveform comes from Good Display's vendor reference
+driver, kept verbatim in
+[`reference/gdey0579t93-fp-lut/`](reference/gdey0579t93-fp-lut/README.md) — it is
+the source of truth for the custom `0x32` LUT, which cannot be derived from the
+panel's OTP.
+
 ## Flash
 
 With the board connected over USB, `just flash` (or `cargo run --release`)

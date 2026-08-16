@@ -1,8 +1,8 @@
-# Sync latency — where the ~16 s cold `:gp` goes
+# Sync latency — where the ~16 s cold `:gs` goes
 
 > **Measured 2026-07-11** on hardware, via the timing log line in
-> [`firmware::git_sync`](../../firmware/src/git_sync.rs) (`push_cycle`;
-> the command was `:sync` then, renamed `:gp` 2026-07-14). A **cold** push
+> [`firmware::infrastructure::net`](../../firmware/src/infrastructure/net.rs) (`push_cycle`;
+> the command was `:sync` at the time of the run). A **cold** push
 > (first of a power cycle) is **~16.0 s** power-on of Wi-Fi → `push done`; a
 > **warm** one skips the one-time setup and is just the ~10 s push. This
 > note breaks the number down and records why most of it is a floor, not a
@@ -14,7 +14,7 @@
 > trail](../tradeoff-curves/sync-commit-staging.md)), reconcile became fetch +
 > **soft** reset + journal replay, and TLS session resumption reuses the
 > handshake on reconnects. On the **real notes repo** — which the method below
-> could never complete at all — a cold `:gp` is **24.1 s**, a warm one ≈ 19 s
+> could never complete at all — a cold `:gs` is **24.1 s**, a warm one ≈ 19 s
 > (splice depth × loose-write cost dominates), and an up-to-date `:gl` is
 > ≈ 4.7 s git-side. The waterfall below stands as the dev-repo record of
 > 2026-07-11.
@@ -102,7 +102,7 @@ The big rocks are physics or protocol, not slack:
 
 **Conclusion:** ~16 s cold / ~10 s warm is close to the floor for "commit to FAT +
 one TLS push over Wi-Fi with a fresh clock." It reads as slow only if you wait on
-it — and by design you don't: `:gp` is a deliberate action with a snackbar, and
+it — and by design you don't: `:gs` is a deliberate action with a snackbar, and
 [`ctrl-g-perceived-latency.md`](ctrl-g-perceived-latency.md) argues the perceived
 cost is set by _when durability is surfaced_, not by wall-clock. Recorded here so
 the number is scoped against the protocol, not treated as a regression.

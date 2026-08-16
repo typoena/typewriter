@@ -52,8 +52,6 @@ impl Editor {
         self.caret += s.len();
     }
 
-    // --- Snippets ----------------------------------------------------------
-
     /// Expand a snippet `body` at the caret and enter its tab-stop session. Splits
     /// the body into literal text (stops removed) and their [`parse_snippet_body`]
     /// visit order, inserts the literal, lands the caret on `$1` (or the body end
@@ -478,7 +476,5 @@ impl Editor {
             self.caret = ls;
         }
     }
-
-    // --- Rendering ---------------------------------------------------------
 
 }

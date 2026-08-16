@@ -173,8 +173,7 @@ impl<'d> Epd<'d> {
         Ok(())
     }
 
-    // ---- low-level SPI framing (DC low = command, DC high = data) ----
-
+    // SPI framing: DC low = command, DC high = data.
     fn cmd(&mut self, c: u8) -> Result<(), EspError> {
         self.dc.set_low()?;
         self.cs.set_low()?;
@@ -206,8 +205,6 @@ impl<'d> Epd<'d> {
         }
         Ok(())
     }
-
-    // ---- panel bring-up ----
 
     /// Hardware reset (RST is active-low). ~20 ms pulses per GxEPD2 default.
     pub fn reset(&mut self) -> Result<(), EspError> {

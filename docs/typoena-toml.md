@@ -35,7 +35,7 @@ works with no config present.
 | Key                 | Type   | Default   | Options                             | Effect                                                                                                                 |
 | ------------------- | ------ | --------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `save_on_idle`      | bool   | `true`    | `true` / `false`                    | Auto-save the current buffer on the idle typing-pause, so `:w` is optional.                                            |
-| `format_on_save`    | bool   | `true`    | `true` / `false`                    | Run `:fmt` on the buffer before an explicit `:w`/`:sync`.                                                              |
+| `format_on_save`    | bool   | `true`    | `true` / `false`                    | Run `:fmt` on the buffer before an explicit `:w`/`:gs`.                                                              |
 | `line_numbers`      | bool   | `true`    | `true` / `false`                    | Show the absolute line-number gutter. Off reclaims its columns for text.                                               |
 | `open_last_on_boot` | bool   | `true`    | `true` / `false`                    | Boot into the file that was active at power-off, instead of `notes.md`.                                                |
 | `theme`             | string | `"light"` | `light` / `dark`                    | Panel colour polarity. `dark` inverts the whole frame to white-on-black.                                               |
@@ -78,10 +78,10 @@ of writing. It is a **safety net, not an action**:
 ### `format_on_save`
 
 Runs `:fmt` — table alignment, blank-line collapse, trailing-whitespace strip —
-on the buffer _before_ it is persisted, so `:sync` is **fmt → save → commit →
+on the buffer _before_ it is persisted, so `:gs` is **fmt → save → commit →
 push** and `:w` saves formatted.
 
-**Formatting only happens on an explicit `:w`/`:sync`.** The `save_on_idle`
+**Formatting only happens on an explicit `:w`/`:gs`.** The `save_on_idle`
 auto-save is deliberately left unformatted: if it reformatted on every idle
 pause, tables would reflow and blank lines collapse _mid-session_, with the caret
 jumping under you every time you paused to think. Formatting is a deliberate act;
@@ -104,7 +104,7 @@ Only the **choice** lives in this file. The last-active _path_ is device state,
 not shared behaviour: the firmware keeps it in a device-local marker
 (`/sd/.typoena-last`, beside the dirty journal at the card root), rewritten on
 every buffer switch. It is deliberately **not** stored here — a tracked key
-would dirty the repo on every file switch (riding each `:gp` as noise) and make
+would dirty the repo on every file switch (riding each `:gs` as noise) and make
 two devices fight over a single "last file".
 
 The fallback is safe by construction: a missing marker, a garbled one (power
@@ -152,7 +152,7 @@ palette rotates it through the presets `2m` / `5m` / `10m` / `15m` / `30m`
 (hand-editing can still set any string, e.g. `"0"`/empty to disable). **The value
 is only stored and displayed in v0.5 — nothing reads it yet:** the periodic push
 lands with the sleep work in v0.8 (originally pencilled on v0.7's git work;
-v0.7 closed 2026-07-14 with manual `:gl`/`:gp` only), so
+v0.7 closed 2026-07-14 with manual `:gl`/`:gs` only), so
 cycling the interval today changes what will be honoured _then_, not now.
 Rationale for the `"10m"` default:
 [`tradeoff-curves/wifi-auto-sync.md`](tradeoff-curves/wifi-auto-sync.md).
@@ -187,7 +187,7 @@ Two ways, both landing in the same file:
    boolean flips; the theme and auto-sync interval **rotate through their preset
    options and wrap** — same key, so the palette is uniformly "press Enter to
    change". **The list stays open** so you can change several prefs in a row;
-   **Esc** (or `Cmd-P`) closes it. Each change rides the next `:sync` to your
+   **Esc** (or `Cmd-P`) closes it. Each change rides the next `:gs` to your
    other devices.
 
    `auto_sync` is a value command now, but has no behaviour to drive until v0.8 —

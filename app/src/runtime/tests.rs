@@ -15,8 +15,6 @@ use crate::ports::{
 };
 use crate::render::Panel;
 
-// ---- test doubles ---------------------------------------------------------
-
 /// A screen that accepts every frame — the render engine's paints are no-ops.
 struct MockScreen;
 impl hal::Screen for MockScreen {
@@ -255,8 +253,6 @@ fn runtime(
     )
 }
 
-// ---- pure helpers ---------------------------------------------------------
-
 #[test]
 fn file_stem_strips_dir_and_extension() {
     assert_eq!(file_stem("/sd/repo/notes.md"), "notes");
@@ -298,8 +294,6 @@ fn pull_notice_covers_every_variant() {
     assert_eq!(pull_notice(&PullOutcome::Failed("boom".into())), "boom");
 }
 
-// ---- keyboard flag --------------------------------------------------------
-
 #[test]
 fn attach_between_boot_seed_and_runtime_start_repaints_the_kbd_flag() {
     // Editor::new() carries the boot-frame seed (keyboard_present = false, the
@@ -330,8 +324,6 @@ fn attach_between_boot_seed_and_runtime_start_repaints_the_kbd_flag() {
     rt.tick();
     assert_eq!(*screen.0.borrow(), boot_paints + 1, "settled — no repaint on the next tick");
 }
-
-// ---- effect routing -------------------------------------------------------
 
 #[test]
 fn save_effect_writes_through_storage() {
@@ -584,8 +576,6 @@ fn a_thread_down_discard_leaves_the_buffers_alone() {
     assert_eq!(rt.ed.text(), "old", "the buffer must be untouched");
 }
 
-// ---- sync outcome ---------------------------------------------------------
-
 #[test]
 fn pull_that_moves_the_tree_reloads_active_and_rewalks() {
     let storage = RecStorage::default();
@@ -612,8 +602,6 @@ fn up_to_date_pull_leaves_the_tree_untouched() {
     assert!(storage.0.borrow().loads.is_empty(), "no reload when the tree didn't move");
     assert_eq!(*files.0.borrow(), 0, "no re-walk when the tree didn't move");
 }
-
-// ---- firmware update ------------------------------------------------------
 
 #[test]
 fn update_effect_dispatches_to_sync() {

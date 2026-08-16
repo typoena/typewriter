@@ -176,8 +176,6 @@ fn a_clean_parked_buffer_is_dropped_silently_on_eviction() {
     assert!(e.take_effects().is_empty()); // clean buffer: no save on evict
 }
 
-// ---- Ctrl+Tab (Key::CycleRecent) ----
-
 /// Boot on `a.md`, then open the rest via the palette (installing each load),
 /// so `recent` is seeded most-recent-last-argument-first and all files are
 /// resident up to the ≤3 window.
@@ -299,8 +297,6 @@ fn ctrl_tab_derives_scope_for_local_notes() {
     assert_eq!(e.scope(), Scope::Local);
     assert!(e.take_effects().is_empty());
 }
-
-// ---- :enew / :delete (v0.5 slice 3) ----
 
 #[test]
 fn enew_creates_a_dirty_empty_buffer_and_asks_the_host_for_nothing() {
@@ -475,8 +471,6 @@ fn delete_on_an_unnamed_buffer_is_a_noop() {
     assert!(e.take_effects().is_empty());
     assert_eq!(e.mode(), Mode::Normal); // no prompt: nothing to delete
 }
-
-// --- `gf` — follow the link under the caret -----------------------------------
 
 #[test]
 fn link_target_at_finds_the_span_containing_col() {

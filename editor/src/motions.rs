@@ -29,8 +29,6 @@ impl Editor {
         true
     }
 
-    // --- Command mode (`:`) ------------------------------------------------
-
     /// Offset of the start of the line containing `pos`.
     pub(crate) fn line_start(&self, pos: usize) -> usize {
         let b = self.text.as_bytes();
@@ -180,7 +178,5 @@ impl Editor {
         }
         last
     }
-
-    // --- Edits -------------------------------------------------------------
 
 }

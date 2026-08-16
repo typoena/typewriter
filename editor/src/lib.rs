@@ -1032,8 +1032,6 @@ impl Editor {
         self.replaying = false;
     }
 
-    // --- Insert mode -------------------------------------------------------
-
     fn insert_key(&mut self, key: Key) {
         // A live snippet session (non-empty `snippet_stops`) makes Tab advance to
         // the next stop instead of inserting a tab, and needs its pending offsets
@@ -1099,8 +1097,6 @@ impl Editor {
             }
         }
     }
-
-    // --- Normal mode -------------------------------------------------------
 
     fn normal_key(&mut self, key: Key) {
         let c = match key {
@@ -1607,8 +1603,6 @@ impl Editor {
         self.pending_g = false;
     }
 
-    // --- Undo / redo -------------------------------------------------------
-
     fn view_key(&mut self, key: Key) {
         match key {
             // j/k and Ctrl-n/Ctrl-p both step one row (View is a pure viewport).
@@ -1649,8 +1643,6 @@ impl Editor {
             _ => {}
         }
     }
-
-    // --- Focus mode (Pomodoro) ---------------------------------------------
 
     /// Whether a focus session is running (drives the panel `focus` marker).
     pub fn pomodoro_on(&self) -> bool {
@@ -1760,8 +1752,6 @@ impl Editor {
             });
         }
     }
-
-    // --- Motions (all on the logical buffer) -------------------------------
 
 }
 

@@ -2,8 +2,6 @@
 
 use super::*;
 
-// --- `:gl` pull support (v0.7) ------------------------------------------
-
 #[test]
 fn refresh_active_replaces_text_and_resets_state() {
     let mut e = over("old text");

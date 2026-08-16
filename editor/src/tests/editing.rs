@@ -27,8 +27,6 @@ fn enter_splits_the_line() {
     assert_eq!(e.caret, 4);
 }
 
-// ---- Insert-mode Ctrl+W (Vim `i_CTRL-W` word-class deletion) ----
-
 #[test]
 fn ctrl_w_deletes_a_whitespace_word() {
     let mut e = typed("foo bar");
@@ -168,8 +166,6 @@ fn draw_produces_a_full_frame_for_ascii() {
     let frame = e.draw(true);
     assert_eq!(frame.bytes().len(), display::FB_BYTES);
 }
-
-// ---- Register + yank / paste (v0.3) ----
 
 #[test]
 fn yy_then_p_opens_a_copy_of_the_line_below() {

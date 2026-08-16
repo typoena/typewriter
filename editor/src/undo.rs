@@ -61,6 +61,4 @@ impl Editor {
         self.reset_pending();
     }
 
-    // --- Buffers (multi-file) ----------------------------------------------
-
 }

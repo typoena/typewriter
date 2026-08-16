@@ -2,8 +2,6 @@
 
 use super::*;
 
-// ---- Ctrl-d / Ctrl-u half-page scroll (v0.2) ----
-
 /// The core reason this isn't `HALF_PAGE × move_down`: on one long paragraph
 /// that soft-wraps, half-page-down steps *display* rows, advancing the caret
 /// half a window into the wrap — whereas `j` (logical-line) can't move
@@ -91,8 +89,6 @@ fn half_page_is_a_noop_in_insert_mode() {
     assert_eq!(e.mode(), Mode::Insert);
 }
 
-// ---- scrolloff / vertical scroll margin ----
-
 /// In `vec!["a"; N]` each display row `r` starts at byte `2*r` (`"a\n"`).
 /// A caret parked in the middle keeps `scroll_margin` rows of context on both
 /// sides.
@@ -149,8 +145,6 @@ fn scroll_margin_zero_is_edge_triggered() {
     assert_eq!(row, e.scroll_top() + ROWS - 1, "caret flush on the bottom edge");
 }
 
-// ---- Absolute line-number gutter (v0.2) ----
-
 #[test]
 fn gutter_is_two_digits_plus_separator_for_small_files() {
     let e = Editor::with_text("one\ntwo\nthree".to_string()); // 3 logical lines
@@ -181,8 +175,6 @@ fn draw_with_gutter_produces_a_full_frame() {
     let mut e = Editor::with_text("line one\nline two\nline three".to_string());
     assert_eq!(e.draw(true).bytes().len(), display::FB_BYTES);
 }
-
-// --- Typed input never crosses the divider into the side panel --------------
 
 /// Frame bytes strictly right of the divider: from the byte after the one the
 /// divider rule lands in (x ≥ 632), per row.

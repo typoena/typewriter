@@ -15,7 +15,7 @@ below.
 | T7  | FAT-on-SD + LittleFS-on-flash split             | Desktop can read SD; config survives SD reformat                                                     | Two filesystems to manage; FAT's power-loss weakness mitigated by atomic-rename                                                                       | [ADR-007] |
 | T8  | Wall power for v0.1, battery deferred           | Measure real draw before sizing the cell                                                             | Tethered MVP; not the final aesthetic                                                                                                                 | [ADR-008] |
 | T9  | USB host (TinyUSB) over BLE-HID                 | No radio contention with Wi-Fi during push; keyboard powered from the device                         | One more USB connector on enclosure                                                                                                                   | [ADR-009] |
-| T10 | Atomic Push (`:gp`, was `Ctrl-G`) + auto-timestamp commit message | One action, one outcome; matches the user's existing `gct` workflow; no modal prompt to slow H1 latency | Commit history is timestamp noise; the device authors replay commits the user never sees; reversal would break muscle memory                          | [ADR-010] |
+| T10 | Atomic Push (`:gs`) + auto-timestamp commit message | One action, one outcome; matches the user's existing `gct` workflow; no modal prompt to slow H1 latency | Commit history is timestamp noise; the device authors replay commits the user never sees; reversal would break muscle memory                          | [ADR-010] |
 | T11 | Splice commit over full index write             | Real-repo Push exists at all: ~19–24 s vs 611 s / OOM on the index path; dirty-path journal makes it power-pull-safe | Desktop-side edits to the card are never committed by the device; hand-edits on a computer must be pushed from that computer                         | [sync-commit-staging](tradeoff-curves/sync-commit-staging.md) |
 | T12 | Media stays in git, never on the card           | Killed `:gl`'s last OOM path; pull/apply touches text only; the repo stays whole for remote readers | Stale card media; phantom `git status` noise if the card is mounted on a computer; never hand-commit from the card                                   | (2026-07-14, `is_media_path`) |
 | T13 | Shallow clone + ~30 MB repo gate at onboarding  | First-run clone fits device memory and minutes-scale patience                                        | Repos over the gate are refused at the repo-pick step (libgit2 has no partial clone, so tip media would download even if never written)               | [wizard](v0.9-onboarding-wizard.md) |
@@ -34,7 +34,7 @@ trigger is a decision being avoided, not deferred.
   at ≤ ~2 s per commit and **accepted** for now; the lever is pack-not-loose
   writes. Until then the ≤ 10 s v1.0 H7 target is not honest for deep
   paths. **Trigger to revisit:** a v1.0 planning pass that keeps the ≤ 10 s
-  target, or warm root-level `:gp` regressing past ~15 s.
+  target, or warm root-level `:gs` regressing past ~15 s.
 - **Keep-alive race vs H6.** Run 8's push died on a connection idled out
   during a long marking gap; repack shrank the gap so run 9 succeeded:
   the race is *avoided*, not fixed. Durable fix = reconnect-on-stale in the

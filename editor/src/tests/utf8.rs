@@ -2,8 +2,6 @@
 
 use super::*;
 
-// ---- UTF-8 correctness: accented (Latin-9) input the composer feeds ----
-
 #[test]
 fn insert_accented_char_advances_by_utf8_len() {
     let e = typed("é");

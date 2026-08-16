@@ -193,8 +193,6 @@ fn retarget_site(
     (abs == from).then(|| start + path.len() - 3)
 }
 
-// --- `:fmt` Markdown normalizer ----------------------------------------------
-
 /// Column alignment parsed from a table's `|:--:|` separator row.
 #[derive(Clone, Copy)]
 pub(crate) enum Align {

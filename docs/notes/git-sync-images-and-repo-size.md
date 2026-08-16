@@ -6,7 +6,7 @@
 
 The question that started this: **Typoena** keeps a persistent clone of my
 notes repo (`github.com/jcalixte/notes`) on its SD card and fast-forwards it
-on every `Ctrl-G`. The most likely first failure is a cold clone that's too
+on every `:gs`. The most likely first failure is a cold clone that's too
 big — so the instinct was "clone the least data possible; ignore
 `node_modules`; maybe strip the media." That instinct is mostly wrong, for
 reasons worth writing down before anyone force-pushes a rewritten history.
@@ -151,7 +151,7 @@ restores every image from `.git` if a clean tree is ever wanted.
 
 ## Related
 
-- `firmware/src/bin/git_sync.rs` — the persistent-clone push cycle analysed
+- `firmware/src/infrastructure/net.rs` — the persistent-clone push cycle analysed
   here (milestone #2A).
 - ADR-010 — "writing tool, not sync engine": the principle this decision
   serves.

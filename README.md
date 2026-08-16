@@ -26,7 +26,7 @@ Design & context:
 - [Doc index](docs/README.md) — everything else: per-version specs, notes,
   tradeoff curves
 - [Bill of materials](docs/bom.md) — build it yourself, full part list
-- [Hardware notes](docs/hardware.md) — part rationale and bench status
+- [Wiring](docs/wiring.md) — every electrical connection, pin by pin
 - [Postmortems](docs/postmortems/README.md) — failure write-ups
 - [Kaizen](docs/kaizen/README.md) — improvement loops
 
@@ -103,13 +103,12 @@ around, not against:
 - [ ] Heap fragmentation over a long writing session with the PSRAM allocator.
 - [ ] Real-world e-ink ghosting with the current partial-refresh cadence.
 - [~] Use-after-free freeing the in-flight USB transfer on keyboard unplug —
-  fixed in code, pending an on-device hot-plug run to confirm
-  ([`MEMORY_AUDIT.md`](MEMORY_AUDIT.md) finding #1).
+  fixed in code, pending an on-device hot-plug run to confirm.
 
 Retired risks ([gix push](docs/postmortems/2026-07-05-spike7-gix-https-push.md),
 [SD CMD59 rejection](docs/postmortems/2026-07-05-spike3-sd-cmd59.md), TinyUSB HID
 stability, TLS heap, libgit2-on-xtensa) and how they died:
-[`docs/spikes.md`](docs/spikes.md) and
-[`docs/postmortems/`](docs/postmortems/README.md).
+[`docs/postmortems/`](docs/postmortems/README.md) and the
+[bring-up spike log](firmware/docs/bring-up-spikes.md).
 
 These get resolved by writing code, not by deciding harder.

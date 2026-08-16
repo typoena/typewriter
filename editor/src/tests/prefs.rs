@@ -2,8 +2,6 @@
 
 use super::*;
 
-// ---- Preferences (.typoena.toml) ----
-
 #[test]
 fn prefs_default_matches_the_documented_defaults() {
     let p = Prefs::default();
@@ -133,8 +131,6 @@ fn prefs_parse_reads_face_and_defaults_to_random() {
 fn empty_prefs_file_yields_defaults() {
     assert_eq!(Prefs::parse(""), Prefs::default());
 }
-
-// ---- line_numbers pref (live gutter toggle) ----
 
 #[test]
 fn line_numbers_off_reclaims_the_gutter_columns() {

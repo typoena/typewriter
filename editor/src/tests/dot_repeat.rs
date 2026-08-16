@@ -2,8 +2,6 @@
 
 use super::*;
 
-// ---- `.` repeat (v0.3) ----
-
 #[test]
 fn dot_repeats_x() {
     let mut e = Editor::with_text("abcde".to_string());

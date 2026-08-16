@@ -499,12 +499,12 @@ The user contract held — one deliberate action, auto-message, atomic outcome,
 no prompt — but three mechanics drifted from the letter of this ADR as the
 implementation matured:
 
-- **The trigger is the `:gp` ex command, not `Ctrl-G`.** Push shipped as
-  `:sync`, renamed `:gp` on 2026-07-14 to pair with `:gl` (pull); the palette
-  exposes it as `> push`. The keymap has no `Ctrl-G` binding at all. The
-  muscle-memory lock-in argument transferred intact to the ex command.
-- **The commit message is `Typoena push — unix <epoch>`**
-  (`git_sync.rs`), not the ISO-8601 string this ADR specified. Same
+- **The trigger is the `:gs` ex command, not `Ctrl-G`.** It pairs with `:gl`
+  (pull), Normal mode binds the bare `gs`, and the palette exposes it as
+  `> push`. The keymap has no `Ctrl-G` binding at all. The muscle-memory
+  lock-in argument transferred intact to the ex command.
+- **The commit message is `Typoena push — unix <epoch>`**, not the
+  ISO-8601 string this ADR specified. Same
   contract (device-authored timestamp noise, zero prompts), different
   format; nothing downstream parses it.
 - **Rejected pushes replay, they don't merge.** The decision text said
@@ -514,9 +514,7 @@ implementation matured:
   never materialised. [`CONTEXT.md`](../CONTEXT.md#user-facing-actions)
   documents the replay model.
 
-Heading and anchor kept for link stability;
-[qfd-changelog.md](qfd-changelog.md#8-inconsistencies-spotted-and-fixed) records when the
-drift was caught.
+Heading and anchor kept for link stability.
 
 ---
 
