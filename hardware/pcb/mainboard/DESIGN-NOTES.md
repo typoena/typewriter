@@ -110,12 +110,16 @@ En prime, la sortie fixe supprime le pont 511 k / 91 k et sa dérive.
 | Inductance VSYS→SW | **1 µH** | §8.2 Typical Application |
 | C entrée | 10 µF | §8.2 |
 | C sortie | 2 × 22 µF | §8.2 |
-| Pont FB, R1 (VOUT→FB) | **750 kΩ** 1 % | calcul ci-dessous |
-| Pont FB, R2 (FB→GND) | **100 kΩ** 1 % | idem |
+| Pont FB, R10 (VOUT→FB) | **510 kΩ** 1 % | calcul ci-dessous |
+| Pont FB, R11 (FB→GND) | **68 kΩ** 1 % | idem |
 
-VREF = 595 mV (PWM) → 0,595 × (1 + 750/100) = **5,06 V**, dans la fenêtre USB
-4,75–5,25 V. Les ~6 µA du pont sont sur le rail 5 V, coupé en veille : sans effet sur
+VREF = 595 mV (PWM) → 0,595 × (1 + 510/68) = **5,06 V**, dans la fenêtre USB
+4,75–5,25 V. Les ~8,8 µA du pont sont sur le rail 5 V, coupé en veille : sans effet sur
 le budget.
+
+C'est le **rapport** qui fixe la sortie, à 1 % près sur chaque résistance : toute paire
+de rapport 7,5 donne la même tension. Les valeurs sont hautes pour que le pont, en
+travers de la sortie tant que le boost tourne, ne consomme presque rien.
 
 `EN` (2) porte un **pulldown 100 kΩ** : le rail clavier est **éteint par défaut**, y
 compris GPIO flottant et pendant le deep sleep.

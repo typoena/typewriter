@@ -7182,7 +7182,7 @@
 				)
 			)
 		)
-		(property "Value" "510k"
+		(property "Value" "510k 1%"
 			(at 63.5 182.88000000000002 0)
 			(effects
 				(font
@@ -7312,7 +7312,7 @@
 				)
 			)
 		)
-		(property "Value" "68k"
+		(property "Value" "68k 1%"
 			(at 139.7 182.88000000000002 0)
 			(effects
 				(font

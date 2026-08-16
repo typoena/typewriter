@@ -127,8 +127,8 @@ C("L3", "Device:L", "1uH 4.15A", "Inductor_SMD:L_APV_ANR4030",
 C("C10", "Device:C", "10uF", C08, {"1": "VSYS", "2": "GND"})
 C("C11", "Device:C", "22uF", C08, {"1": "+5V", "2": "GND"})
 C("C12", "Device:C", "22uF", C08, {"1": "+5V", "2": "GND"})
-C("R10", "Device:R", "510k", R04, {"1": "+5V", "2": "FB_5V"})
-C("R11", "Device:R", "68k", R04, {"1": "FB_5V", "2": "GND"})
+C("R10", "Device:R", "510k 1%", R04, {"1": "+5V", "2": "FB_5V"})
+C("R11", "Device:R", "68k 1%", R04, {"1": "FB_5V", "2": "GND"})
 C("R12", "Device:R", "100k", R04, {"1": "KBD_5V_EN", "2": "GND"})
 
 # --- rail uSD commuté
