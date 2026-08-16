@@ -117,12 +117,12 @@ sizing).
 - Each house diagram mirrors the tables on its own page (House 1 the
   §1/§2 catalogues and [`qfd-perception.md`](qfd-perception.md)'s zone,
   House 2 the §5 matrix, Houses 3–4 the P/Q catalogues): re-score the
-  table first, then the drawing, same day. **Diagram and tables stay on
-  one page** — the pre-2026-07-11 split is how they drifted apart last
-  time. Every house's TikZ preamble is a copy of House 1's: a style
-  change to one must be pasted into all four (across
-  [`qfd-house-1.md`](qfd-house-1.md), [`qfd-house-2.md`](qfd-house-2.md),
-  [`qfd-houses-3-4.md`](qfd-houses-3-4.md)).
+  table first, then the drawing, same day. **A diagram stays embedded in the
+  page that owns its tables** — the pre-2026-07-11 split is how they drifted
+  apart last time. The drawings live in
+  [`diagrams/`](diagrams) as `.tikz` files, one per house, each embedded as
+  an image. Their first 219 lines are a byte-identical preamble, so a style
+  change must be pasted into all four.
 - [Houses 3–4](qfd-houses-3-4.md) re-score when the *pipeline* changes
   shape: a new process step (CI, a second-platform installer,
   auto-update) or a new control (a test rig, release automation) gets a

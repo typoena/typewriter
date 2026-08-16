@@ -1,0 +1,329 @@
+% =====================================================================
+% QFD "House of Quality" preamble
+% =====================================================================
+\usetikzlibrary{arrows.meta, positioning, shapes.geometric, shapes.misc, calc, fit, backgrounds}
+
+\newif\ifqfdshowroof          \qfdshowrooftrue
+\newif\ifqfdshowbasement      \qfdshowbasementtrue
+\newif\ifqfdshowcompetitive   \qfdshowcompetitivetrue
+\newif\ifqfdshowlegend        \qfdshowlegendtrue
+\newif\ifqfdshowimportance    \qfdshowimportancetrue
+\newif\ifqfdshowcorrlegend    \qfdshowcorrlegendtrue
+\newif\ifqfdshowevallegend    \qfdshowevallegendtrue
+
+\def\qfdNW{5}
+\def\qfdNH{5}
+\def\qfdWhatW{4.0}
+\def\qfdImpW{0.9}
+\def\qfdCmpW{3}
+\def\qfdHdrH{2.6}
+\def\qfdBasementN{4}
+
+\def\qfdWhatsTitle{Customer needs}
+\def\qfdImpTitle{Imp.\ \%}
+\def\qfdPerceptionTitle{Comparative evaluation}
+\def\qfdPoorLabel{poor}
+\def\qfdExcellentLabel{excellent}
+\def\qfdAltOneLabel{Typoena}
+\def\qfdAltTwoLabel{Competitor A}
+\def\qfdAltThreeLabel{Competitor B}
+\def\qfdRelTitle{Relation}
+\def\qfdCorrTitle{Correlation}
+\def\qfdEvalTitle{Evaluation}
+
+\tikzset{
+  qfdthin/.style ={line width=0.35pt},
+  qfdmed/.style  ={line width=0.7pt},
+  qfdstrong/.style={circle, draw, fill=black,
+                    minimum size=7pt, inner sep=0pt},
+  qfdmod/.style  ={circle, draw,
+                    minimum size=7pt, inner sep=0pt, line width=0.8pt},
+  qfdweak/.style ={regular polygon, regular polygon sides=3, draw,
+                    minimum size=8.5pt, inner sep=0pt, line width=0.7pt},
+  qfdrel/.is choice,
+  qfdrel/S/.style={qfdstrong},
+  qfdrel/M/.style={qfdmod},
+  qfdrel/W/.style={qfdweak},
+  qfdalt1mk/.style={circle, draw, fill=black,
+                    minimum size=6pt, inner sep=0pt, line width=1pt},
+  qfdalt1ln/.style={line width=1.2pt},
+  qfdalt2mk/.style={regular polygon, regular polygon sides=3, draw,
+                    fill=black, minimum size=6pt, inner sep=0pt,
+                    line width=0.7pt},
+  qfdalt2ln/.style={line width=0.7pt, dashed},
+  qfdalt3mk/.style={rectangle, draw, fill=black,
+                    minimum size=5pt, inner sep=0pt, line width=0.7pt},
+  qfdalt3ln/.style={line width=0.7pt, dotted},
+}
+
+\newcommand{\qfdDrawGrid}{%
+  \foreach \c in {1,...,\qfdNHm} \draw[qfdthin] (\c, 0) -- (\c, -\qfdNW);
+  \foreach \r in {1,...,\qfdNWm} \draw[qfdthin] (0, -\r) -- (\qfdNH, -\r);
+  \foreach \r in {1,...,\qfdNWm}
+    \draw[qfdthin] (\qfdLeftEdge, -\r) -- (0, -\r);
+  \ifqfdshowroof
+    \foreach \c in {1,...,\qfdNHm}
+      \draw[qfdthin] (\c, 0) -- (\c, \qfdHdrH);
+  \fi
+  \ifqfdshowcompetitive
+    \foreach \r in {1,...,\qfdNWm}
+      \draw[qfdthin] (\qfdNH, -\r) -- (\qfdNH+\qfdCmpW, -\r);
+  \fi
+  \ifqfdshowbasement
+    \foreach \r in {1,...,\qfdBasementN}
+      \draw[qfdthin] (0, -\qfdNW-\r) -- (\qfdNH, -\qfdNW-\r);
+    \foreach \c in {1,...,\qfdNHm}
+      \draw[qfdthin] (\c, -\qfdNW) -- (\c, -\qfdNW-\qfdBasementN);
+  \fi
+}
+
+\newcommand{\qfdDrawRoof}{%
+  \ifqfdshowroof
+    \foreach \k in {1,...,\qfdNHm} {%
+      \pgfmathsetmacro{\rx}{(\k+\qfdNH)/2}
+      \pgfmathsetmacro{\ry}{\qfdHdrH + (\qfdNH-\k)/2}
+      \pgfmathsetmacro{\lx}{\k/2}
+      \pgfmathsetmacro{\ly}{\qfdHdrH + \k/2}
+      \draw[qfdthin] (\k, \qfdHdrH) -- (\rx, \ry);
+      \draw[qfdthin] (\k, \qfdHdrH) -- (\lx, \ly);
+    }%
+    \draw[qfdmed] (0, \qfdHdrH)
+       -- (\qfdNH/2, \qfdApexY) -- (\qfdNH, \qfdHdrH);
+    \foreach \i in {1,...,\qfdNH}
+      \foreach \k in {1,...,\qfdNH} {%
+        \pgfmathtruncatemacro{\jj}{\i+\k}
+        \ifnum\jj>\qfdNH\relax\else
+          \pgfmathsetmacro{\xx}{\i + \k/2 - 0.5}
+          \pgfmathsetmacro{\yy}{\qfdHdrH + \k/2}
+          \coordinate (C-\i-\jj) at (\xx, \yy);
+        \fi
+      }%
+  \fi
+}
+
+\newcommand{\qfdDrawScale}{%
+  \ifqfdshowcompetitive
+    \foreach \tk in {0,1,2,3,4,5} {%
+      \pgfmathsetmacro{\tx}{\qfdNH + (\tk+0.5)*\qfdCmpW/6}
+      \node[anchor=south, font=\scriptsize] at (\tx, 0.02) {\tk};
+    }%
+    \node[anchor=south, font=\scriptsize\bfseries, align=center,
+          text width=\qfdCmpW cm]
+         at ({\qfdNH + \qfdCmpW/2}, 0.7) {\qfdPerceptionTitle};
+    \node[anchor=north, font=\scriptsize\itshape]
+         at ({\qfdNH + 0.45}, -\qfdNW) {\qfdPoorLabel};
+    \node[anchor=north, font=\scriptsize\itshape]
+         at ({\qfdNH + \qfdCmpW - 0.45}, -\qfdNW) {\qfdExcellentLabel};
+  \fi
+}
+
+\newcommand{\qfdDrawZoneTitles}{%
+  \ifqfdshowimportance
+    \node[rotate=90, anchor=west, font=\footnotesize\bfseries]
+         at ({-\qfdImpW/2}, 0.12) {\qfdImpTitle};
+  \fi
+  \node[font=\scriptsize\bfseries, align=center, text width=\qfdWhatW cm]
+       at ({\qfdLeftEdge + \qfdWhatW/2},
+           {\ifqfdshowroof \qfdHdrH/2 \else 0.6 \fi}) {\qfdWhatsTitle};
+}
+
+\newcommand{\qfdDrawFrames}{%
+  \begin{scope}[qfdmed]
+    \draw (\qfdLeftEdge, 0) rectangle (\qfdNH, -\qfdNW);
+    \ifqfdshowimportance \draw (-\qfdImpW, 0) -- (-\qfdImpW, -\qfdNW); \fi
+    \draw (0, 0) -- (0, -\qfdNW);
+    \ifqfdshowroof
+      \draw (0, 0) rectangle (\qfdNH, \qfdHdrH); \fi
+    \ifqfdshowbasement
+      \draw (0, -\qfdNW) rectangle (\qfdNH, -\qfdNW-\qfdBasementN); \fi
+    \ifqfdshowcompetitive
+      \draw (\qfdNH, 0) rectangle (\qfdNH+\qfdCmpW, -\qfdNW); \fi
+  \end{scope}
+}
+
+\newcommand{\qfdDrawLegend}{%
+  \ifqfdshowlegend
+    \pgfmathsetmacro{\qfdLegX}{%
+      \qfdNH + \ifqfdshowcompetitive \qfdCmpW + 0.7 \else 0.7 \fi}
+    \pgfmathsetmacro{\qfdLegBottom}{%
+      -2.05
+      \ifqfdshowroof    \ifqfdshowcorrlegend - 2.55 \fi \fi
+      \ifqfdshowcompetitive \ifqfdshowevallegend - 2.20 \fi \fi}
+    \pgfmathsetmacro{\qfdLegY}{\qfdHdrH - 0.4}
+    \begin{scope}[shift={(\qfdLegX, \qfdLegY)}]
+      \draw[qfdmed, rounded corners=2pt]
+        (-0.15, 0.4) rectangle (4.5, \qfdLegBottom);
+      \node[anchor=west, font=\footnotesize\bfseries] at (0, 0.1)
+        {\qfdRelTitle};
+      \draw[qfdthin] (0, -0.15) -- (4.35, -0.15);
+      \node[qfdstrong] at (0.22, -0.5)  {};
+        \node[anchor=west] at (0.5, -0.5)  {Strong (9)};
+      \node[qfdmod]    at (0.22, -0.95) {};
+        \node[anchor=west] at (0.5, -0.95) {Medium (3)};
+      \node[qfdweak]   at (0.22, -1.4)  {};
+        \node[anchor=west] at (0.5, -1.4)  {Weak (1)};
+      \ifqfdshowroof \ifqfdshowcorrlegend
+        \node[anchor=west, font=\footnotesize\bfseries] at (0, -2.10)
+          {\qfdCorrTitle};
+        \draw[qfdthin] (0, -2.35) -- (4.35, -2.35);
+        \node[anchor=west] at (0, -2.70) {{$+\!+$}\quad very positive};
+        \node[anchor=west] at (0, -3.05) {{$+$\phantom{$+$}}\quad positive};
+        \node[anchor=west] at (0, -3.40) {{$-$\phantom{$-$}}\quad negative};
+        \node[anchor=west] at (0, -3.75) {{$-\!-$}\quad very negative};
+      \fi \fi
+      \ifqfdshowcompetitive \ifqfdshowevallegend
+        \pgfmathsetmacro{\qfdEvalTop}{%
+          -2.10 \ifqfdshowroof\ifqfdshowcorrlegend - 2.55 \fi\fi}
+        \node[anchor=west, font=\footnotesize\bfseries]
+          at (0, \qfdEvalTop) {\qfdEvalTitle};
+        \pgfmathsetmacro{\qfdEvalSep}{\qfdEvalTop - 0.25}
+        \draw[qfdthin] (0, \qfdEvalSep) -- (4.35, \qfdEvalSep);
+        \pgfmathsetmacro{\qfdLegA}{\qfdEvalTop - 0.55}
+        \draw[qfdalt1ln] (0.05, \qfdLegA) -- (0.45, \qfdLegA);
+          \node[qfdalt1mk] at (0.25, \qfdLegA) {};
+          \node[anchor=west, font=\scriptsize\bfseries] at (0.55, \qfdLegA)
+            {\qfdAltOneLabel};
+        \pgfmathsetmacro{\qfdLegB}{\qfdEvalTop - 0.95}
+        \draw[qfdalt2ln] (0.05, \qfdLegB) -- (0.45, \qfdLegB);
+          \node[qfdalt2mk] at (0.25, \qfdLegB) {};
+          \node[anchor=west] at (0.55, \qfdLegB) {\qfdAltTwoLabel};
+        \pgfmathsetmacro{\qfdLegC}{\qfdEvalTop - 1.35}
+        \draw[qfdalt3ln] (0.05, \qfdLegC) -- (0.45, \qfdLegC);
+          \node[qfdalt3mk] at (0.25, \qfdLegC) {};
+          \node[anchor=west] at (0.55, \qfdLegC) {\qfdAltThreeLabel};
+      \fi \fi
+    \end{scope}
+  \fi
+}
+
+\newenvironment{qfdhouse}{%
+  \begin{tikzpicture}[x=1cm, y=1cm, font=\scriptsize,
+                      line cap=round, line join=round]
+  \ifqfdshowimportance
+    \pgfmathsetmacro{\qfdLeftEdge}{-\qfdWhatW-\qfdImpW}
+  \else
+    \pgfmathsetmacro{\qfdLeftEdge}{-\qfdWhatW}
+  \fi
+  \pgfmathsetmacro{\qfdApexY}{\qfdHdrH + \qfdNH/2}
+  \pgfmathtruncatemacro{\qfdNHm}{\qfdNH - 1}
+  \pgfmathtruncatemacro{\qfdNWm}{\qfdNW - 1}
+  \qfdDrawGrid
+  \qfdDrawRoof
+  \qfdDrawScale
+  \qfdDrawZoneTitles
+}{%
+  \qfdDrawFrames
+  \qfdDrawLegend
+  \end{tikzpicture}%
+}
+
+% --- Dimensions tuned for House 4 (9 processes x 8 controls) ---
+\def\qfdNW{9}
+\def\qfdNH{8}
+\def\qfdWhatW{4.6}
+\def\qfdImpW{0.9}
+\def\qfdHdrH{5.0}
+\def\qfdBasementN{2}
+\qfdshowcompetitivefalse
+\qfdshowevallegendfalse
+\def\qfdImpTitle{\%}
+
+\def\qfdWhatsTitle{Processes (P)}
+
+\begin{document}
+\begin{qfdhouse}
+
+  \pgfmathsetmacro{\qfdWhatTextW}{\qfdWhatW - 0.2}
+  \foreach \r/\t in {%
+    1/{P1 Firmware build (cargo + esp-idf)},
+    2/{P2 libgit2 CMake component build},
+    3/{P3 Flash at manufacturing},
+    4/{P4 Bench hardware assembly},
+    5/{P5 Provision card -- wizard},
+    6/{P6 Provision card -- installer},
+    7/{P7 Installer release cut (tag + sha)},
+    8/{P8 Site deploy (Coolify)},
+    9/{P9 GitHub App / org admin}%
+  }
+    \node[anchor=west, font=\scriptsize,
+          text width=\qfdWhatTextW cm, align=left]
+      at ({\qfdLeftEdge + 0.1}, {-\r + 0.5}) {\t};
+
+  % Row importance = House 3's basement (P rel-%), NOT the Q basement —
+  % that mismatch shows up as 8 entries for 9 rows.
+  \foreach \r/\w in {1/{52.4}, 2/{10.0}, 3/{3.7}, 4/{21.4}, 5/{4.5}, 6/{4.5}, 7/{1.3}, 8/{0.4}, 9/{1.9}}
+    \node[font=\scriptsize] at ({-\qfdImpW/2}, {-\r + 0.5}) {\w};
+
+  \foreach \c/\t in {%
+    1/{Q1 Host test suites (cargo test)},
+    2/{Q2 On-device verification runs},
+    3/{Q3 Build gates (just build / -light)},
+    4/{Q4 Bench instrumentation + telemetry},
+    5/{Q5 Card safety guards},
+    6/{Q6 Checksum + quarantine chain},
+    7/{Q7 Acceptance: soak / boot / power-pull},
+    8/{Q8 End-to-end install-chain check}%
+  }
+    \node[rotate=90, anchor=west, font=\scriptsize]
+      at ({\c - 0.5}, 0.15) {\t};
+
+  % ---------- Relation matrix (S=9, M=3, W=1) — which control guards each process step ----------
+  % P1 row 1: Q1S Q2S Q3S Q4M Q7M
+  \node[qfdrel/S] at ({1 - 0.5}, {-1 + 0.5}) {};
+  \node[qfdrel/S] at ({2 - 0.5}, {-1 + 0.5}) {};
+  \node[qfdrel/S] at ({3 - 0.5}, {-1 + 0.5}) {};
+  \node[qfdrel/M] at ({4 - 0.5}, {-1 + 0.5}) {};
+  \node[qfdrel/M] at ({7 - 0.5}, {-1 + 0.5}) {};
+  % P2 row 2: Q2S Q3S Q4M
+  \node[qfdrel/S] at ({2 - 0.5}, {-2 + 0.5}) {};
+  \node[qfdrel/S] at ({3 - 0.5}, {-2 + 0.5}) {};
+  \node[qfdrel/M] at ({4 - 0.5}, {-2 + 0.5}) {};
+  % P3 row 3: Q2M Q7M
+  \node[qfdrel/M] at ({2 - 0.5}, {-3 + 0.5}) {};
+  \node[qfdrel/M] at ({7 - 0.5}, {-3 + 0.5}) {};
+  % P4 row 4: Q2S Q4M Q7M
+  \node[qfdrel/S] at ({2 - 0.5}, {-4 + 0.5}) {};
+  \node[qfdrel/M] at ({4 - 0.5}, {-4 + 0.5}) {};
+  \node[qfdrel/M] at ({7 - 0.5}, {-4 + 0.5}) {};
+  % P5 row 5: Q1M Q2S Q5S Q8M
+  \node[qfdrel/M] at ({1 - 0.5}, {-5 + 0.5}) {};
+  \node[qfdrel/S] at ({2 - 0.5}, {-5 + 0.5}) {};
+  \node[qfdrel/S] at ({5 - 0.5}, {-5 + 0.5}) {};
+  \node[qfdrel/M] at ({8 - 0.5}, {-5 + 0.5}) {};
+  % P6 row 6: Q5S Q8M
+  \node[qfdrel/S] at ({5 - 0.5}, {-6 + 0.5}) {};
+  \node[qfdrel/M] at ({8 - 0.5}, {-6 + 0.5}) {};
+  % P7 row 7: Q6S Q8S
+  \node[qfdrel/S] at ({6 - 0.5}, {-7 + 0.5}) {};
+  \node[qfdrel/S] at ({8 - 0.5}, {-7 + 0.5}) {};
+  % P8 row 8: Q6M Q8S
+  \node[qfdrel/M] at ({6 - 0.5}, {-8 + 0.5}) {};
+  \node[qfdrel/S] at ({8 - 0.5}, {-8 + 0.5}) {};
+  % P9 row 9: Q8S
+  \node[qfdrel/S] at ({8 - 0.5}, {-9 + 0.5}) {};
+
+  % ---------- Roof ----------
+  \node[font=\scriptsize] at (C-2-4) {$+$};   % device runs generate the telemetry the bench reads
+  \node[font=\scriptsize] at (C-2-7) {$+$};   % on-device runs feed the acceptance evidence
+
+  % ---------- Basement: relative weight / rank ----------
+  \foreach \c/\rel/\rk in {%
+    1/{19.5}/{3},
+    2/{32.4}/{1},
+    3/{22.6}/{2},
+    4/{10.1}/{4},
+    5/{3.3}/{6},
+    6/{0.5}/{8},
+    7/{9.3}/{5},
+    8/{2.4}/{7}%
+  } {
+    \node[font=\scriptsize] at ({\c - 0.5}, {-\qfdNW - 0.5}) {\rel};
+    \node[font=\scriptsize\bfseries]
+      at ({\c - 0.5}, {-\qfdNW - 1.5}) {\rk};
+  }
+  \foreach \k/\lbl in {1/{Rel.\ \%}, 2/{Rank}}
+    \node[anchor=east, font=\scriptsize\itshape]
+      at ({-0.1}, {-\qfdNW - \k + 0.5}) {\lbl};
+
+\end{qfdhouse}
+\end{document}

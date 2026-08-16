@@ -1,8 +1,9 @@
 # Perception scores (guessed)
 
 > Source of truth for the right-hand perception zone of the
-> [House 1](qfd-house-1.md) diagram: re-score here first, then mirror
-> the zone's TikZ coordinates there, same day. Hub: [`qfd.md`](qfd.md).
+> [House 1](qfd-house-1.md) diagram: re-score here first, then mirror the
+> zone's coordinates in [`diagrams/house-1.tikz`](diagrams/house-1.tikz), same
+> day. Hub: [`qfd.md`](qfd.md).
 
 Five products on the 0–5 scale, scored against each WHAT. Reference
 configurations: **reMarkable 2 + Type Folio**, **Freewrite Traveler**,
