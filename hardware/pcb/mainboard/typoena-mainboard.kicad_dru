@@ -1,0 +1,20 @@
+(version 1)
+
+# Isolation pad-à-pad à l'intérieur d'une même empreinte.
+#
+# L'écartement des pastilles d'un composant est fixé par son fabricant : U4
+# (SOT-563) descend à 0,15 mm, U2 (WQFN-24, pas 0,5 mm) à 0,20. Aucune classe de
+# net ne peut être honorée là — Power exige 0,25 et Switching 0,30 — et aucune
+# décision de placement ou de routage ne peut y changer quoi que ce soit.
+#
+# Le plancher reste à 0,1 mm plutôt que d'être désactivé : il attrape encore des
+# pastilles qui se chevauchent, c'est-à-dire une empreinte cassée. Il n'est sûr
+# que parce que ce projet n'utilise que des empreintes de bibliothèque, jamais
+# d'empreinte faite main.
+#
+# Ne couvre que pad-à-pad : la condition exige les deux objets de type Pad, donc
+# l'isolation piste-à-pastille reste sous le contrôle des classes de nets.
+
+(rule "pad-à-pad interne à une empreinte"
+  (constraint clearance (min 0.1mm))
+  (condition "A.Type == 'Pad' && B.Type == 'Pad' && A.Reference == B.Reference"))
