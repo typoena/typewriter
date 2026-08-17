@@ -347,6 +347,16 @@ port_x   = [pcb2_x0 + chg_cx,                                        // -> 98.85
             pcb2_x0 + chg_cx + port_pitch[0],                        // -> 114.35
             pcb2_x0 + chg_cx + port_pitch[0] + port_pitch[1]];       // -> 129.35
 
+// ---- cable-boot lamage at the two USB-C ports ------------------------------
+// The receptacle mouths sit on the wall's INNER face, so a cable's overmould
+// lands on the outer face before the plug is home. The pocket buys back exactly
+// its own depth, and the floor under it is minimum printable because every
+// 0.1 mm left there is 0.1 mm not bought. 1.6 is all the wall has: past that,
+// pcb2_y1 moves back and carries the mouths out into the wall instead.
+usbc_boot_w = 13.0;  usbc_boot_h = 7.6;      // lamage opening (W x H)
+usbc_boot_r = 1.5;
+usbc_boot_d = wall - 0.8;                    // pocket depth -> 1.6, floor 0.8
+
 // ---- power on/off switch (latching push button, inline in the battery feed) --
 // A push-on / push-off (latching) button that makes/breaks the battery-side power
 // feed — press once to power up, again to cut it, so the machine is genuinely OFF
@@ -655,6 +665,13 @@ assert(abs(wall_x1 - (port_x[2] + sd_w/2) - 37.25) < 0.01,
        "I/O block: the microSD is no longer 37.25 in from the shell's right face");
 assert(abs(wall_x1 - (port_x[0] - usbc_w/2) - 79.35) <= port_fit/2,
        "I/O block: the measured charge-USB-C edge no longer falls inside its opening");
+// The lamage is bounded by the WEB to the next opening, not by the port pitch:
+// 1.15 mm to the µSD slot. Thin as that is, it prints as a raised land on the
+// pocket floor rather than a free-standing rib.
+boot_web = min((port_x[1] - usbc_boot_w/2) - (port_x[0] + usbc_boot_w/2),
+               (port_x[2] - (sd_w+port_fit)/2) - (port_x[1] + usbc_boot_w/2));
+assert(boot_web >= 1.0,
+       "I/O block: the USB-C boot lamage leaves under 1 mm of wall to its neighbour");
 module bracket_cols(r, z0, h) {
     on_deck() for (p = boss_xy)
         translate([glass_dx + p[0], screen_cy + glass_dy + p[1], z0])
@@ -698,6 +715,13 @@ module port_cuts() {
             rotate([-90,0,0]) linear_extrude(wall+2)
                 offset(r=0.8) square([pw-1.6, ph-1.6], center=true);
     }
+    for (i=[0:1]) usbc_boot_lamage(i);
+}
+
+module usbc_boot_lamage(i) {
+    translate([port_x[i], D-usbc_boot_d, port_z[i]])
+        rotate([-90,0,0]) linear_extrude(usbc_boot_d+1)
+            rrect(usbc_boot_w, usbc_boot_h, usbc_boot_r);
 }
 
 // power switch mounting hole through the back wall (y = D)

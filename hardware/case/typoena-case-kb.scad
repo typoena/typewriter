@@ -126,12 +126,17 @@ module kb_cable_cut() {
         cube([16, wall + 4, 12], center=false);
 }
 
-// the old external keyboard USB-C opening, filled: that port turns inward
+// the external keyboard USB-C opening, filled: that port turns inward
 // (parallel 4-pin header on PCB 2), so the wall stays blank there.
+// Sized off the lamage, not the shell, or the pocket stays sunk in the wall
+// around a filled slot. The +1 overlap can go no further: the pocket is already
+// 1.15 mm off the µSD slot.
 // Local wedge coordinates — union it inside the translated wedge.
 module kb_port_patch() {
-    translate([port_x[1] - usbc_w/2 - 1, D - wall, port_z[1] - usbc_h/2 - 1])
-        cube([usbc_w + 2, wall, usbc_h + 2]);
+    pw = usbc_boot_w + 1;
+    ph = usbc_boot_h + 1;
+    translate([port_x[1] - pw/2, D - wall, port_z[1] - ph/2])
+        cube([pw, wall, ph]);
 }
 
 module variant_body() {

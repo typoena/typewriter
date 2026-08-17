@@ -452,13 +452,12 @@ plausible edit could break, so those fail the render rather than the print.
       across two dissimilar parts. Anchored on the µSD, the charge shell sits
       0.35 into its 0.6 mm of per-side slack and clears by 0.25. Passes, but it
       is the thinnest margin in the block: **re-check that one edge on the
-      coupon**, and if it is real, widen the *charge* opening alone — its rib to
-      the keyboard is 5.8 mm and can afford it, unlike the 2.55 next door.
-- [ ] **No blanket widening.** +2 mm on every opening is rejected: at a 15 mm
-      keyboard→µSD pitch it leaves a 0.55 mm rib between those two, under two
-      perimeters in a 2.4 mm wall, so the openings merge instead of printing.
-      The rib is 2.55 mm as it stands and that is the number to watch before any
-      opening grows again.
+      coupon**, and if it is real, widen the *charge* slot alone — it sits in the
+      floor of a 13 mm pocket and can grow to that.
+- [ ] **No blanket widening.** What a wider opening spends is the wall *between*
+      openings: **1.15 mm** from the keyboard pocket to the µSD slot, **2.4 mm**
+      between the two pockets, held at 1 mm by an assert. Those are the numbers to
+      watch before an opening grows, not the slots.
 - [ ] **One port number still unmeasured:** `sd_h = 2.0`, the cage height. It
       only sets the *top* of the µSD opening now that the bottom is pinned by
       `sd_rise`, so it is the least dangerous of the block — but it is the last
