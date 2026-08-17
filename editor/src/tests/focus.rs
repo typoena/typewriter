@@ -43,11 +43,11 @@ fn enter_rest_masks_and_swallows_keys() {
 fn rest_ctrl_c_starts_next_block() {
     let (mut e, _) = command("focus");
     e.enter_rest(40, 25);
-    e.handle(Key::Char('c')); // bare c does nothing behind the curtain
+    e.handle(Key::Char('c'));
     assert_eq!(e.mode(), Mode::Rest);
-    e.handle(Key::FocusContinue); // Ctrl-C continues
+    e.handle(Key::FocusContinue);
     assert_eq!(e.mode(), Mode::Normal);
-    assert!(e.pomodoro_on()); // session stays on across the break
+    assert!(e.pomodoro_on());
     assert_eq!(kinds(&e.take_effects()), vec![Kind::FocusStart]);
 }
 
@@ -56,9 +56,9 @@ fn rest_ctrl_q_ends_session() {
     let (mut e, _) = command("focus");
     assert!(e.pomodoro_on());
     e.enter_rest(0, 25);
-    e.handle(Key::Char('q')); // bare q does nothing behind the curtain
+    e.handle(Key::Char('q'));
     assert_eq!(e.mode(), Mode::Rest);
-    e.handle(Key::FocusQuit); // Ctrl-Q quits the session
+    e.handle(Key::FocusQuit);
     assert_eq!(e.mode(), Mode::Normal);
     assert!(!e.pomodoro_on());
     assert_eq!(kinds(&e.take_effects()), vec![Kind::FocusStop]);
@@ -68,7 +68,7 @@ fn rest_ctrl_q_ends_session() {
 fn focusdebug_flips_time_base_without_effect() {
     let (mut e, effects) = command("focusdebug");
     assert!(e.focus_debug());
-    assert!(effects.is_empty()); // the debug flip is host-read, not an effect
+    assert!(effects.is_empty());
     ex(&mut e, "focusdebug");
     assert!(!e.focus_debug());
 }

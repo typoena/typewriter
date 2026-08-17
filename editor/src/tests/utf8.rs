@@ -6,7 +6,7 @@ use super::*;
 fn insert_accented_char_advances_by_utf8_len() {
     let e = typed("é");
     assert_eq!(e.text, "é");
-    assert_eq!(e.caret, 2); // 'é' is two bytes; caret is a byte offset
+    assert_eq!(e.caret, 2);
 }
 
 #[test]
@@ -20,23 +20,23 @@ fn backspace_deletes_whole_multibyte_char() {
 #[test]
 fn normal_hl_step_over_multibyte_chars() {
     let mut e = typed("aéb"); // bytes: a(1) é(2) b(1)
-    e.handle(Key::Escape); // Normal, caret onto 'b' at byte 3
+    e.handle(Key::Escape);
     assert_eq!(e.caret, 3);
-    e.handle(Key::Char('h')); // onto 'é'
+    e.handle(Key::Char('h'));
     assert_eq!(e.caret, 1);
-    e.handle(Key::Char('h')); // onto 'a'
+    e.handle(Key::Char('h'));
     assert_eq!(e.caret, 0);
-    e.handle(Key::Char('l')); // back onto 'é'
+    e.handle(Key::Char('l'));
     assert_eq!(e.caret, 1);
-    e.handle(Key::Char('l')); // onto 'b'
+    e.handle(Key::Char('l'));
     assert_eq!(e.caret, 3);
 }
 
 #[test]
 fn delete_char_under_caret_removes_whole_multibyte() {
     let mut e = typed("aéb");
-    e.handle(Key::Escape); // caret on 'b'
-    e.handle(Key::Char('h')); // caret on 'é'
+    e.handle(Key::Escape);
+    e.handle(Key::Char('h'));
     e.handle(Key::Char('x'));
     assert_eq!(e.text, "ab");
 }
@@ -45,22 +45,22 @@ fn delete_char_under_caret_removes_whole_multibyte() {
 fn de_deletes_through_end_of_accented_word() {
     let mut e = typed("café bar");
     e.handle(Key::Escape);
-    e.handle(Key::Char('0')); // line start, on 'c'
+    e.handle(Key::Char('0'));
     e.handle(Key::Char('d'));
-    e.handle(Key::Char('e')); // delete to the end of "café"
+    e.handle(Key::Char('e'));
     assert_eq!(e.text, " bar");
 }
 
 #[test]
 fn vertical_move_keeps_char_column_across_accents() {
-    let mut e = typed("éé"); // line 0: two 2-byte chars
+    let mut e = typed("éé");
     e.handle(Key::Enter);
     for c in "xxx".chars() {
         e.handle(Key::Char(c));
     }
-    e.handle(Key::Escape); // Normal, on last 'x'
-    e.handle(Key::Char('k')); // up to line 0 at the same character column
-    assert!(e.text.is_char_boundary(e.caret)); // never lands mid-character
+    e.handle(Key::Escape);
+    e.handle(Key::Char('k'));
+    assert!(e.text.is_char_boundary(e.caret));
 }
 
 #[test]
@@ -101,9 +101,9 @@ fn draw_runs_for_symbol_buffer() {
 fn overlay_paints_extra_glyph_over_fallback_box() {
     // The em dash is two solid mid-height bars and nothing else; a fallback
     // box would ink the cell's top row. Gutter off so it lands in column 0.
-    let mut e = Editor::with_text("\u{2014}".into()); // —
+    let mut e = Editor::with_text("\u{2014}".into());
     e.prefs.line_numbers = false;
-    let f = e.draw(false); // no caret
+    let f = e.draw(false);
     assert!((0..10).all(|x| !ink_at(&f, x, 0)), "cell top row must be blank");
     assert!((0..10).all(|x| ink_at(&f, x, 9)), "row 9 must be solid ink");
     assert!((0..10).all(|x| ink_at(&f, x, 10)), "row 10 must be solid ink");
@@ -115,9 +115,9 @@ fn overlay_inverts_extra_glyph_under_selection() {
     // goes black and the dash bars punch back to white paper.
     let mut e = Editor::with_text("\u{2014}x".into());
     e.prefs.line_numbers = false;
-    e.handle(Key::Char('0')); // to column 0 (the em dash)
-    e.handle(Key::Char('v')); // charwise Visual selects the char under the caret
-    let f = e.draw(false); // no active-end caret punch, just the selection
+    e.handle(Key::Char('0'));
+    e.handle(Key::Char('v'));
+    let f = e.draw(false);
     assert!((0..10).all(|x| ink_at(&f, x, 0)), "selected cell top row must be inked");
     assert!((0..10).all(|x| !ink_at(&f, x, 9)), "row 9 dash must punch to white");
     assert!((0..10).all(|x| !ink_at(&f, x, 10)), "row 10 dash must punch to white");

@@ -289,9 +289,9 @@ impl Editor {
     /// when it is later evicted, so switching itself never blocks on IO.
     pub(crate) fn open_path(&mut self, path: String, scope: Scope) {
         if path == self.path {
-            return; // already the active buffer
+            return;
         }
-        self.note_recent(&path); // float it to the top of the palette's MRU
+        self.note_recent(&path);
         self.switch_to(path, scope);
     }
 
@@ -357,8 +357,8 @@ impl Editor {
     pub(crate) fn cycle_recent(&mut self) {
         let len = self.recent.len();
         let start = match self.recent_cycle {
-            Some(i) => i + 1, // continue the walk from the last hop
-            None => 0,        // fresh walk: from the top of the MRU
+            Some(i) => i + 1,
+            None => 0,
         };
         // First entry (cyclically) that isn't the note already on screen.
         // Empty paths never name a real file (see `has_unnamed_dirty`).
@@ -782,7 +782,7 @@ impl Editor {
             if !line.is_empty() {
                 spans.push((start, end));
             }
-            start = end + 1; // past the '\n'
+            start = end + 1;
         }
         spans.sort_by(|&(a, b), &(c, d)| span_str(&blob, a, b).cmp(span_str(&blob, c, d)));
         spans.dedup_by(|&mut (a, b), &mut (c, d)| span_str(&blob, a, b) == span_str(&blob, c, d));

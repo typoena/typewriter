@@ -349,7 +349,7 @@ impl Editor {
                 let title = base.trim().to_string();
                 let slug = slugify(&title);
                 if slug.is_empty() {
-                    return; // no sluggable chars in the title — stay in the step
+                    return;
                 }
                 let arg = format!("{dir}{slug}.md");
                 self.close_palette();
@@ -558,7 +558,7 @@ impl Editor {
         };
         let cands = self.folder_completions(&stem);
         if cands.is_empty() {
-            return; // nothing to complete — leave the name, stay unseeded
+            return;
         }
         // One slot past the candidates cycles back to the typed stem.
         let pos = pos % (cands.len() + 1);
@@ -747,7 +747,7 @@ impl Editor {
             return;
         };
         self.close_palette();
-        self.checkpoint(); // baseline is the buffer before insertion — undo removes it whole
+        self.checkpoint();
         self.insert_snippet(&body);
     }
 

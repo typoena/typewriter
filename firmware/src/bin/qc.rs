@@ -145,18 +145,18 @@ fn main() -> Result<()> {
     // ── #2/#3 EPD (SPI2, Spike 2 wiring). Kept alive for the results mirror. ──
     let spi = SpiDriver::new(
         peripherals.spi2,
-        pins.gpio12,                               // SCK
-        pins.gpio11,                               // MOSI
-        None::<AnyIOPin>,                          // no MISO — panel is write-only
+        pins.gpio12,
+        pins.gpio11,
+        None::<AnyIOPin>,
         &DriverConfig::new().dma(Dma::Auto(4096)),
     )?;
     let bus = SpiBusDriver::new(spi, &Config::new().baudrate(20.MHz().into()))?;
     let mut epd = Epd::new(
         bus,
-        PinDriver::output(pins.gpio6)?,            // DC
-        PinDriver::output(pins.gpio5)?,            // RST
-        PinDriver::output(pins.gpio7)?,            // CS
-        PinDriver::input(pins.gpio4, Pull::Down)?, // BUSY
+        PinDriver::output(pins.gpio6)?,
+        PinDriver::output(pins.gpio5)?,
+        PinDriver::output(pins.gpio7)?,
+        PinDriver::input(pins.gpio4, Pull::Down)?,
     );
     check_epd(&mut epd, &mut report, &mut boot);
 
@@ -207,7 +207,7 @@ fn check_epd(epd: &mut Epd, report: &mut Report, boot: &mut BootButton) {
     //  • < 1.5 s     → BUSY read low the whole time (open BUSY line, pulled down)
     //                  — the panel almost certainly did not actually refresh
     let t = Instant::now();
-    let refresh = epd.clear_screen(0x00); // all black, full refresh
+    let refresh = epd.clear_screen(0x00);
     let ms = t.elapsed().as_millis();
     match refresh {
         Err(e) => report.add("EPD handshake", Verdict::Nok, format!("refresh errored: {e:?}")),
@@ -380,7 +380,7 @@ fn check_charger(report: &mut Report) {
     };
     set_input_pull(pin, sys::gpio_pull_mode_t_GPIO_PULLUP_ONLY);
     FreeRtos::delay_ms(5);
-    let charging = unsafe { sys::gpio_get_level(pin) } == 0; // open-drain, low = charging
+    let charging = unsafe { sys::gpio_get_level(pin) } == 0;
     report.add(
         "Charger",
         Verdict::Ok,

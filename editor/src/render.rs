@@ -133,7 +133,7 @@ impl Editor {
     /// crossing a power of ten (100, 1000, …) reflows the wrap, which is rare.
     pub(crate) fn gutter_cols(&self) -> usize {
         if !self.prefs.line_numbers {
-            return 0; // gutter off: text reclaims the full writing width
+            return 0;
         }
         let digits = self.logical_lines().to_string().len().max(GUTTER_MIN_DIGITS);
         digits + 1
@@ -155,16 +155,16 @@ impl Editor {
     /// a byte offset into the buffer, so caret math stays correct for multi-byte
     /// (accented) characters.
     pub(crate) fn layout(&self) -> Vec<Line> {
-        let cols = self.text_cols(); // writing width after the gutter is reserved
+        let cols = self.text_cols();
         let mut lines: Vec<Line> = Vec::new();
-        let mut base = 0usize; // byte offset of the current logical line's start
+        let mut base = 0usize;
         for logical in self.text.split('\n') {
             let chars: Vec<char> = logical.chars().collect();
             if chars.is_empty() {
                 lines.push(Line { start: base, text: String::new() });
             } else {
-                let mut c = 0usize; // char index within `logical`
-                let mut byte = 0usize; // byte offset of chars[c] within `logical`
+                let mut c = 0usize;
+                let mut byte = 0usize;
                 while c < chars.len() {
                     let remaining = chars.len() - c;
                     let take = if remaining <= cols {
@@ -196,7 +196,7 @@ impl Editor {
                     c += take;
                 }
             }
-            base += logical.len() + 1; // bytes + the '\n' that `split` consumed
+            base += logical.len() + 1;
         }
         lines
     }
@@ -357,8 +357,8 @@ impl Editor {
         let body = display::body_font(&self.prefs.font);
         let text_style = MonoTextStyle::new(body, BinaryColor::On);
         let gutter = self.gutter_cols();
-        let cols = WRITE_COLS - gutter; // text columns after the gutter
-        let gx = gutter as i32 * CW; // text (and cursor) x-origin, past the gutter
+        let cols = WRITE_COLS - gutter;
+        let gx = gutter as i32 * CW;
         // Number field width (the last gutter col is the separator). Saturating so
         // a disabled gutter (`gutter == 0`, line_numbers off) can't underflow; the
         // number draw below is skipped in that case anyway.

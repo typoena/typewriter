@@ -27,13 +27,13 @@ fn repos() -> Vec<RepoChoice> {
 #[test]
 fn first_boot_happy_path() {
     let mut w = Wizard::first_boot();
-    assert_eq!(w.pending(), Some(Effect::ScanWifi)); // scans for networks first
+    assert_eq!(w.pending(), Some(Effect::ScanWifi));
 
     // Scan → pick "MyNet" from the list → type the password → TestWifi.
     assert!(w
         .event(Event::WifiScan(vec!["MyNet".into(), "OtherNet".into()]))
         .is_empty());
-    assert!(w.key(Key::Enter).is_empty()); // pick first row (MyNet) → password
+    assert!(w.key(Key::Enter).is_empty());
     type_str(&mut w, "hunter2");
     let fx = w.key(Key::Enter);
     assert_eq!(
@@ -69,7 +69,7 @@ fn first_boot_happy_path() {
         Effect::WriteConf(c) => {
             assert_eq!(c.token, "ghu_tok");
             assert_eq!(c.gh_user, "you");
-            assert_eq!(c.author_name, "you"); // blank name falls back to login
+            assert_eq!(c.author_name, "you");
             assert_eq!(c.author_email, "you@users.noreply.github.com");
         }
         other => panic!("expected WriteConf, got {other:?}"),
@@ -113,7 +113,7 @@ fn size_gate_refuses_and_allows_repick() {
     assert!(fx.is_empty(), "over-gate pick must not clone: {fx:?}");
     // The refusal shows, and a fresh filter + pick still works.
     let mut f = Frame::new_white();
-    w.draw_into(&mut f); // must not panic with the refusal line up
+    w.draw_into(&mut f);
     w.key(Key::DeleteLine);
     type_str(&mut w, "dotfiles");
     let fx = w.key(Key::Enter);
@@ -129,7 +129,7 @@ fn size_gate_refuses_and_allows_repick() {
 fn wifi_failure_returns_to_password_edit() {
     let mut w = Wizard::first_boot();
     w.event(Event::WifiScan(vec!["MyNet".into()]));
-    w.key(Key::Enter); // pick MyNet → password
+    w.key(Key::Enter);
     type_str(&mut w, "wrong");
     w.key(Key::Enter);
     assert!(w.event(Event::WifiFailed("timeout".into())).is_empty());
@@ -172,7 +172,7 @@ fn auth_failure_restarts_flow_and_esc_requests_fresh_code() {
     assert_eq!(w.pending(), Some(Effect::StartAuth));
     // A failure parks on the retry screen (no auto-retry loop) until Enter.
     assert_eq!(w.event(Event::AuthFailed("expired".into())), vec![]);
-    assert!(w.key(Key::Char('x')).is_empty()); // random keys don't retry
+    assert!(w.key(Key::Char('x')).is_empty());
     assert_eq!(w.key(Key::Enter), vec![Effect::StartAuth]);
     w.event(Event::AuthCode {
         verification_uri: "https://github.com/login/device".into(),
@@ -185,8 +185,8 @@ fn auth_failure_restarts_flow_and_esc_requests_fresh_code() {
 fn open_network_allows_empty_password() {
     let mut w = Wizard::first_boot();
     w.event(Event::WifiScan(vec!["OpenNet".into()]));
-    w.key(Key::Enter); // pick OpenNet → password
-    let fx = w.key(Key::Enter); // empty password committed
+    w.key(Key::Enter);
+    let fx = w.key(Key::Enter);
     assert_eq!(
         fx,
         vec![Effect::TestWifi {
@@ -199,13 +199,13 @@ fn open_network_allows_empty_password() {
 #[test]
 fn manual_entry_navigates_ssid_and_password() {
     let mut w = Wizard::first_boot();
-    w.event(Event::WifiScan(vec![])); // no networks found
-    w.key(Key::Escape); // type it manually → SSID field (seeded empty)
+    w.event(Event::WifiScan(vec![]));
+    w.key(Key::Escape);
     type_str(&mut w, "MyNet");
     w.key(Key::Enter);
-    w.key(Key::Backspace); // empty pass → back on SSID
-    w.key(Key::Backspace); // now eats the SSID's last char
-    w.key(Key::Enter); // Enter on "MyNe" → to password again
+    w.key(Key::Backspace);
+    w.key(Key::Backspace);
+    w.key(Key::Enter);
     type_str(&mut w, "p");
     let fx = w.key(Key::Enter);
     assert_eq!(
@@ -226,10 +226,10 @@ fn scan_filter_and_pick_selects_the_row() {
         "Home-5G".into(),
         "Cafe".into(),
     ]));
-    type_str(&mut w, "home"); // filters to the two Home networks
-    w.key(Key::Down); // move to "Home-5G"
-    w.key(Key::Enter); // pick it → password
-    let fx = w.key(Key::Enter); // empty password
+    type_str(&mut w, "home");
+    w.key(Key::Down);
+    w.key(Key::Enter);
+    let fx = w.key(Key::Enter);
     assert_eq!(
         fx,
         vec![Effect::TestWifi {
@@ -315,15 +315,15 @@ fn qr_renders_modules() {
 fn tab_toggles_password_reveal() {
     let mut w = Wizard::first_boot();
     w.event(Event::WifiScan(vec!["MyNet".into()]));
-    w.key(Key::Enter); // pick MyNet → password field
+    w.key(Key::Enter);
     type_str(&mut w, "abc");
     assert_eq!(w.conf().wifi_pass, "abc");
 
     // Default is shown. Snapshot, hide with Tab, snapshot again.
     let mut shown = Frame::new_white();
     w.draw_into(&mut shown);
-    assert!(w.key(Key::Char('\t')).is_empty()); // Tab is not text…
-    assert_eq!(w.conf().wifi_pass, "abc"); // …and leaves the password alone
+    assert!(w.key(Key::Char('\t')).is_empty());
+    assert_eq!(w.conf().wifi_pass, "abc");
     let mut hidden = Frame::new_white();
     w.draw_into(&mut hidden);
     assert_ne!(
@@ -344,61 +344,61 @@ fn tab_toggles_password_reveal() {
 fn all_screens_draw() {
     let mut f = Frame::new_white();
     let mut w = Wizard::first_boot();
-    w.draw_into(&mut f); // scanning
+    w.draw_into(&mut f);
     w.event(Event::WifiScan(vec!["MyNet".into(), "OtherNet".into()]));
-    w.draw_into(&mut f); // pick list
-    w.key(Key::Escape); // manual SSID entry
-    w.draw_into(&mut f); // WifiEdit field 0
+    w.draw_into(&mut f);
+    w.key(Key::Escape);
+    w.draw_into(&mut f);
     type_str(&mut w, "MyNet");
     w.key(Key::Enter);
-    w.draw_into(&mut f); // WifiEdit password
+    w.draw_into(&mut f);
     w.key(Key::Enter);
-    w.draw_into(&mut f); // testing
+    w.draw_into(&mut f);
     w.event(Event::WifiOk);
-    w.draw_into(&mut f); // auth starting
+    w.draw_into(&mut f);
     w.event(Event::AuthCode {
         verification_uri: "https://github.com/login/device".into(),
         user_code: "ABCD-1234".into(),
     });
-    w.draw_into(&mut f); // QR screen
+    w.draw_into(&mut f);
     w.event(Event::AuthDone {
         token: "t".into(),
         login: "you".into(),
         name: "You".into(),
         email: "you@example.com".into(),
     });
-    w.draw_into(&mut f); // repo loading
+    w.draw_into(&mut f);
     w.event(Event::Repos(repos()));
-    w.draw_into(&mut f); // pick list
+    w.draw_into(&mut f);
     w.key(Key::Enter);
-    w.draw_into(&mut f); // cloning (first repo is over-gate → refused, still picks screen)
+    w.draw_into(&mut f);
     w.event(Event::CloneProgress("downloading".into()));
     w.draw_into(&mut f);
     w.event(Event::CloneDone);
-    w.draw_into(&mut f); // done
+    w.draw_into(&mut f);
 
     // The reset menu and its confirm/progress screens (only reached via `:setup`).
     let mut s = Wizard::setup(full_conf(), true);
-    s.draw_into(&mut f); // reset menu
-    s.key(Key::Down); // GitHub (row 1)
-    s.key(Key::Down); // Notes repo (row 2)
-    s.key(Key::Down); // Factory reset (row 3)
-    s.key(Key::Enter); // → confirm screen
-    s.draw_into(&mut f); // ConfirmWipe (dirty warning shown)
+    s.draw_into(&mut f);
+    s.key(Key::Down);
+    s.key(Key::Down);
+    s.key(Key::Down);
+    s.key(Key::Enter);
+    s.draw_into(&mut f);
     type_str(&mut s, "erase");
-    s.key(Key::Enter); // → Wiping
-    s.draw_into(&mut f); // Wiping
+    s.key(Key::Enter);
+    s.draw_into(&mut f);
 
     // The repo-switch confirmation (reset mode, clean card so the switch isn't
     // gated): Notes repo → list → pick a different repo → confirm.
     let mut r = Wizard::setup(full_conf(), false);
-    r.key(Key::Down); // GitHub
-    r.key(Key::Down); // Notes repo
-    r.key(Key::Enter); // → RepoLoading
+    r.key(Key::Down);
+    r.key(Key::Down);
+    r.key(Key::Enter);
     r.event(Event::Repos(repos()));
-    type_str(&mut r, "dotfiles"); // filter to a different repo
-    r.key(Key::Enter); // → ConfirmRepoSwitch
-    r.draw_into(&mut f); // ConfirmRepoSwitch
+    type_str(&mut r, "dotfiles");
+    r.key(Key::Enter);
+    r.draw_into(&mut f);
 }
 
 /// A fully-provisioned conf, as `:setup` would be handed at boot.
@@ -434,7 +434,7 @@ fn setup_menu_wifi_reruns_scan_then_returns_to_menu() {
     // Row 0 = Wi-Fi → rescan.
     assert_eq!(w.key(Key::Enter), vec![Effect::ScanWifi]);
     w.event(Event::WifiScan(vec!["NewNet".into()]));
-    w.key(Key::Enter); // pick NewNet → password field
+    w.key(Key::Enter);
     type_str(&mut w, "pw");
     // Enter on the password tests Wi-Fi…
     assert_eq!(w.key(Key::Enter), vec![Effect::TestWifi {
@@ -472,17 +472,17 @@ fn setup_menu_reauth_updates_token_then_returns_to_menu() {
     // Re-auth in reset mode persists and returns to the menu — it does NOT walk
     // on to the repo pick (the repo is unchanged).
     assert!(matches!(fx.as_slice(), [Effect::WriteConf(c)] if c.token == "ghu_new"), "got {fx:?}");
-    assert_eq!(w.pending(), None); // on the menu, waiting
+    assert_eq!(w.pending(), None);
 }
 
 /// Navigate the reset menu to the factory-reset confirmation screen.
 fn to_confirm_wipe(dirty: bool) -> Wizard {
     let mut w = Wizard::setup(full_conf(), dirty);
-    w.key(Key::Down); // GitHub account (row 1)
-    w.key(Key::Down); // Notes repo (row 2)
-    w.key(Key::Down); // Factory reset (row 3)
+    w.key(Key::Down);
+    w.key(Key::Down);
+    w.key(Key::Down);
     assert!(w.key(Key::Enter).is_empty(), "opening confirm emits no effect");
-    assert_eq!(w.pending(), None); // waits for the typed word
+    assert_eq!(w.pending(), None);
     w
 }
 
@@ -502,7 +502,7 @@ fn factory_reset_confirms_then_emits_wipe() {
 fn factory_reset_esc_returns_to_menu() {
     let mut w = to_confirm_wipe(false);
     type_str(&mut w, "er");
-    w.key(Key::Escape); // cancel back to the menu (on the Factory-reset row)
+    w.key(Key::Escape);
     // Proof we're back on the menu: Down lands on Done, Enter finishes.
     w.key(Key::Down);
     assert_eq!(w.key(Key::Enter), vec![Effect::Finish]);
@@ -545,8 +545,8 @@ fn wipe_failed_returns_to_menu_with_notice() {
 /// Reset menu → Notes repo (clean card) → the repo pick list loaded.
 fn to_setup_repo_pick() -> Wizard {
     let mut w = Wizard::setup(full_conf(), false);
-    w.key(Key::Down); // GitHub account (row 1)
-    w.key(Key::Down); // Notes repo (row 2)
+    w.key(Key::Down);
+    w.key(Key::Down);
     assert_eq!(w.key(Key::Enter), vec![Effect::FetchRepos]);
     w.event(Event::Repos(repos()));
     w
@@ -557,17 +557,17 @@ fn setup_repo_switch_dirty_guard_refuses() {
     // Unpushed work on the card: a switch (which deletes the working copy)
     // must refuse rather than lose it. Stays on the menu, nothing pending.
     let mut w = Wizard::setup(full_conf(), true);
-    w.key(Key::Down); // GitHub
-    w.key(Key::Down); // Notes repo
+    w.key(Key::Down);
+    w.key(Key::Down);
     assert!(w.key(Key::Enter).is_empty(), "a dirty card must not start a switch");
-    assert_eq!(w.pending(), None); // still on the menu, no FetchRepos
+    assert_eq!(w.pending(), None);
 }
 
 #[test]
 fn setup_repo_switch_clean_lists_repos() {
     let mut w = Wizard::setup(full_conf(), false);
-    w.key(Key::Down); // GitHub
-    w.key(Key::Down); // Notes repo
+    w.key(Key::Down);
+    w.key(Key::Down);
     assert_eq!(w.key(Key::Enter), vec![Effect::FetchRepos]);
 }
 
@@ -575,20 +575,20 @@ fn setup_repo_switch_clean_lists_repos() {
 fn setup_repo_switch_same_repo_is_noop() {
     // Re-choosing the repo already on the card doesn't delete or re-clone it.
     let mut w = to_setup_repo_pick();
-    type_str(&mut w, "you/notes"); // the current repo (matches conf.remote_url)
+    type_str(&mut w, "you/notes");
     assert!(w.key(Key::Enter).is_empty(), "same repo must not clone");
-    assert_eq!(w.pending(), None); // back on the menu, no delete/clone
-    assert_eq!(w.conf().remote_url, "https://github.com/you/notes.git"); // untouched
+    assert_eq!(w.pending(), None);
+    assert_eq!(w.conf().remote_url, "https://github.com/you/notes.git");
 }
 
 #[test]
 fn setup_repo_switch_esc_cancels() {
     let mut w = to_setup_repo_pick();
     type_str(&mut w, "dotfiles");
-    w.key(Key::Enter); // → ConfirmRepoSwitch
+    w.key(Key::Enter);
     assert!(w.key(Key::Escape).is_empty(), "Esc cancels the switch");
-    assert_eq!(w.pending(), None); // back on the menu
-    assert_eq!(w.conf().remote_url, "https://github.com/you/notes.git"); // not committed
+    assert_eq!(w.pending(), None);
+    assert_eq!(w.conf().remote_url, "https://github.com/you/notes.git");
 }
 
 #[test]
@@ -597,12 +597,12 @@ fn setup_repo_switch_needs_the_repo_name_typed() {
     // word is refused, so a stray Enter can't wipe the working copy.
     let mut w = to_setup_repo_pick();
     type_str(&mut w, "dotfiles");
-    w.key(Key::Enter); // → ConfirmRepoSwitch
-    type_str(&mut w, "notes"); // the *current* repo's name, not the target
+    w.key(Key::Enter);
+    type_str(&mut w, "notes");
     assert!(w.key(Key::Enter).is_empty(), "wrong word must not switch");
-    assert_eq!(w.conf().remote_url, "https://github.com/you/notes.git"); // untouched
-    w.key(Key::DeleteLine); // clear the field
-    type_str(&mut w, "DotFiles"); // case-insensitive, matches you/dotfiles
+    assert_eq!(w.conf().remote_url, "https://github.com/you/notes.git");
+    w.key(Key::DeleteLine);
+    type_str(&mut w, "DotFiles");
     let fx = w.key(Key::Enter);
     assert_eq!(fx[0], Effect::DeleteRepo);
     assert_eq!(fx.last(), Some(&Effect::Clone { full_name: "you/dotfiles".into() }));
@@ -614,15 +614,15 @@ fn setup_repo_pick_esc_returns_to_menu() {
     let mut w = to_setup_repo_pick();
     assert!(w.key(Key::Escape).is_empty());
     assert_eq!(w.pending(), None);
-    w.key(Key::Down); // Factory reset (row 3)
-    w.key(Key::Down); // Done (row 4)
+    w.key(Key::Down);
+    w.key(Key::Down);
     assert_eq!(w.key(Key::Enter), vec![Effect::Finish]);
 }
 
 #[test]
 fn setup_repo_switch_different_repo_confirms_then_clones() {
     let mut w = to_setup_repo_pick();
-    type_str(&mut w, "dotfiles"); // a different repo
+    type_str(&mut w, "dotfiles");
     // Picking it opens the confirmation (no effect yet — a switch is destructive).
     assert!(w.key(Key::Enter).is_empty(), "a switch is confirmed first");
     // Typed-word guard: a bare Enter over the empty field does nothing.
@@ -643,10 +643,10 @@ fn setup_repo_switch_different_repo_confirms_then_clones() {
     // Clone done → back to the reset menu (like the other sub-flows), conf written.
     let fx = w.event(Event::CloneDone);
     assert!(matches!(fx.as_slice(), [Effect::WriteConf(_)]), "got {fx:?}");
-    assert_eq!(w.pending(), None); // on the menu
+    assert_eq!(w.pending(), None);
 
     // The switched repo is now the on-disk one: re-picking it no-ops.
-    assert_eq!(w.key(Key::Enter), vec![Effect::FetchRepos]); // Notes repo row again
+    assert_eq!(w.key(Key::Enter), vec![Effect::FetchRepos]);
     w.event(Event::Repos(repos()));
     type_str(&mut w, "dotfiles");
     assert!(w.key(Key::Enter).is_empty(), "the new repo is now on disk");
@@ -660,9 +660,9 @@ fn setup_repo_switch_failed_clone_avoids_noop_trap() {
     // clone), never no-op back onto a repo that isn't there.
     let mut w = to_setup_repo_pick();
     type_str(&mut w, "dotfiles");
-    w.key(Key::Enter); // → ConfirmRepoSwitch
-    type_str(&mut w, "dotfiles"); // confirm word
-    let fx = w.key(Key::Enter); // confirm
+    w.key(Key::Enter);
+    type_str(&mut w, "dotfiles");
+    let fx = w.key(Key::Enter);
     assert_eq!(fx[0], Effect::DeleteRepo);
     // Clone fails → back to the pick list.
     assert_eq!(w.event(Event::CloneFailed("TLS".into())), vec![Effect::FetchRepos]);
@@ -670,8 +670,8 @@ fn setup_repo_switch_failed_clone_avoids_noop_trap() {
     // Re-pick the very repo we were switching to: NOT on disk, so a fresh switch.
     type_str(&mut w, "dotfiles");
     assert!(w.key(Key::Enter).is_empty(), "→ confirm, not a menu no-op");
-    type_str(&mut w, "dotfiles"); // confirm word again
-    let fx = w.key(Key::Enter); // confirm again → the switch effects
+    type_str(&mut w, "dotfiles");
+    let fx = w.key(Key::Enter);
     assert_eq!(fx[0], Effect::DeleteRepo);
     assert_eq!(fx.last(), Some(&Effect::Clone { full_name: "you/dotfiles".into() }));
 }
@@ -682,14 +682,14 @@ fn setup_done_refused_when_switch_incomplete() {
     // would boot a card whose repo is missing. The user must finish a clone.
     let mut w = to_setup_repo_pick();
     type_str(&mut w, "dotfiles");
-    w.key(Key::Enter); // → ConfirmRepoSwitch
-    type_str(&mut w, "dotfiles"); // confirm word
-    w.key(Key::Enter); // confirm → effects
-    w.event(Event::CloneFailed("TLS".into())); // repo deleted, clone failed
-    w.event(Event::Repos(repos())); // land in the pick list
-    w.key(Key::Escape); // Esc back to the menu (repo_on_disk is now None)
-    w.key(Key::Down); // Factory reset (row 3)
-    w.key(Key::Down); // Done (row 4)
+    w.key(Key::Enter);
+    type_str(&mut w, "dotfiles");
+    w.key(Key::Enter);
+    w.event(Event::CloneFailed("TLS".into()));
+    w.event(Event::Repos(repos()));
+    w.key(Key::Escape);
+    w.key(Key::Down);
+    w.key(Key::Down);
     assert!(w.key(Key::Enter).is_empty(), "Done must refuse with no working copy");
 }
 
@@ -763,7 +763,7 @@ fn consent_wipe_failure_returns_to_consent() {
 fn consent_screens_draw() {
     let mut f = Frame::new_white();
     let mut w = Wizard::adopt_blank_card();
-    w.draw_into(&mut f); // consent
-    w.key(Key::Enter); // → Wiping
-    w.draw_into(&mut f); // erasing
+    w.draw_into(&mut f);
+    w.key(Key::Enter);
+    w.draw_into(&mut f);
 }

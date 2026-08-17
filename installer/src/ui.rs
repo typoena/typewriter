@@ -30,7 +30,7 @@ fn busy_line(app: &App, label: &str) -> Line<'static> {
 
 pub fn render(frame: &mut Frame, app: &App) {
     let [header, body, footer] = Layout::vertical([
-        Constraint::Length(EINK_BOX_H + 2), // device-screen box + 1 row margin each side
+        Constraint::Length(EINK_BOX_H + 2),
         Constraint::Min(0),
         Constraint::Length(1),
     ])
@@ -341,7 +341,7 @@ fn render_configure(frame: &mut Frame, area: Rect, app: &App, block: Block) {
             spans.push(Span::styled(
                 " ",
                 Style::new().add_modifier(Modifier::REVERSED),
-            )); // block caret
+            ));
         } else if empty {
             let (text, color) = if f.required() {
                 ("(required)", Color::Yellow)
@@ -782,7 +782,7 @@ mod tests {
         let mut app = App::new();
         for step in Step::ALL {
             app.step = step;
-            let _ = screen(&app); // a layout-array or index panic would fail here
+            let _ = screen(&app);
         }
     }
 
@@ -806,7 +806,7 @@ mod tests {
     #[test]
     fn sidebar_shows_progress_and_movement() {
         let mut app = App::new();
-        app.step = Step::SdCard; // Preflight + Configure are now behind us
+        app.step = Step::SdCard;
         let s = screen(&app);
         assert!(s.contains('✓'), "completed steps should be ticked:\n{s}");
         assert!(s.contains("Tab"), "movement legend should name Tab:\n{s}");
@@ -927,7 +927,7 @@ mod tests {
     fn guessed_ssid_is_flagged_on_the_wifi_field() {
         let mut app = App::new();
         app.step = Step::Configure;
-        app.focus = 0; // Wi-Fi SSID
+        app.focus = 0;
         app.config.wifi_ssid = "SomeNet".into();
         app.config.wifi_ssid_guessed = true;
         assert!(

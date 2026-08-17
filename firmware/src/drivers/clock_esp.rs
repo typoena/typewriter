@@ -34,11 +34,11 @@ fn today_date() -> Option<editor::Date> {
     }
     let year = t.tm_year + 1900;
     if year < 2020 {
-        return None; // clock unset (still at the epoch) — no sync yet this boot
+        return None;
     }
     Some(editor::Date {
         year,
-        month: (t.tm_mon + 1) as u32, // tm_mon is 0-11
+        month: (t.tm_mon + 1) as u32,
         day: t.tm_mday as u32,
     })
 }

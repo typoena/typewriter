@@ -69,7 +69,7 @@ fn a_buffer_loaded_past_a_threshold_starts_baselined_there() {
 
     // ...but writing on to the *next* rung still counts.
     e.handle(Key::Char('g'));
-    e.handle(Key::Char('g')); // caret home so `i` doesn't disturb the tail
+    e.handle(Key::Char('g'));
     write_up_to(&mut e, 2_500);
     assert_eq!(e.notice.as_deref(), Some("5,000 words!"));
 }
@@ -114,7 +114,7 @@ fn a_notice_long_enough_to_reach_the_face_box_wins_over_the_face() {
     );
     e.set_notice("pull FAILED - network unreachable, check wifi and retry :gl");
     assert!(!face_inked(&e.draw(true)), "the wrapped notice owns the tier");
-    e.handle(Key::Char('j')); // any key dismisses the snackbar
+    e.handle(Key::Char('j'));
     assert!(face_inked(&e.draw(true)), "notice gone: Typo is back");
 }
 

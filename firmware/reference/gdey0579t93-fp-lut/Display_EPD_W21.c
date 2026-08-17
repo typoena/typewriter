@@ -53,7 +53,7 @@ void Epaper_Spi_WriteByte(unsigned char TxData)
 void Epaper_READBUSY(void)
 { 
   while(1)
-  {	 //=1 BUSY
+  {
      if(isEPD_W21_BUSY==0) break;;
   }  
 }
@@ -62,7 +62,7 @@ void Epaper_Write_Command(unsigned char cmd)
 {
 	EPD_W21_CS_1;
 	EPD_W21_CS_0;
-	EPD_W21_DC_0;  // D/C#   0:command  1:data
+	EPD_W21_DC_0;
 
 	Epaper_Spi_WriteByte(cmd);
 	EPD_W21_CS_1;
@@ -72,7 +72,7 @@ void Epaper_Write_Data(unsigned char data)
 {
 	EPD_W21_CS_1;
 	EPD_W21_CS_0;
-	EPD_W21_DC_1;  // D/C#   0:command  1:data
+	EPD_W21_DC_1;
 
 	Epaper_Spi_WriteByte(data);
 	EPD_W21_CS_1;
@@ -129,7 +129,7 @@ u8 LUT_DATA[] = // 全刷
 };
 */
 
-u8 LUT_DATA[] = // 全刷
+u8 LUT_DATA[] =
 {
 //10-50  
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
@@ -169,10 +169,10 @@ u8 LUT_DATA[] = // 全刷
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
        
-0x02, 0x00, 0x00,              //FR, XON
-0x27, 0x17, 0x41, 0x00, 0x32, 0x00,     //EOPT VGH VSH1 VSH2 VSL VCOM
+0x02, 0x00, 0x00,
+0x27, 0x17, 0x41, 0x00, 0x32, 0x00,
 };
-u8 LUT_DATA1[] = // 快刷
+u8 LUT_DATA1[] =
 {
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
@@ -211,8 +211,8 @@ u8 LUT_DATA1[] = // 快刷
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
        
-0x02, 0x00, 0x00,              //FR, XON
-0x26, 0x17, 0x41, 0xA8, 0x32, 0x00,     //EOPT VGH VSH1 VSH2 VSL VCOM
+0x02, 0x00, 0x00,
+0x26, 0x17, 0x41, 0xA8, 0x32, 0x00,
 
 
 //fast 1.5s
@@ -221,16 +221,16 @@ u8 LUT_DATA1[] = // 快刷
 void EPD_HW_Init_LUT(void)
 {
 	u8 i;
-	EPD_W21_RST_0;  // Module reset   
-	delay_xms(10);//At least 10ms delay 
+	EPD_W21_RST_0;
+	delay_xms(10);
 	EPD_W21_RST_1;
-	delay_xms(10); //At least 10ms delay 
+	delay_xms(10);
 	
 	Epaper_READBUSY();   
-	Epaper_Write_Command(0x12);  //SWRESET
+	Epaper_Write_Command(0x12);
 	Epaper_READBUSY();   
 	
-    Epaper_Write_Command(0x01); //Driver output control  
+    Epaper_Write_Command(0x01);
     Epaper_Write_Data(0x0F);
     Epaper_Write_Data(0x01);
     Epaper_Write_Data(0x0e);
@@ -245,7 +245,7 @@ void EPD_HW_Init_LUT(void)
     Epaper_Write_Data(0xA6);    
     Epaper_Write_Data(0x0F);
     
-    Epaper_Write_Command(0x3C); //set border 
+    Epaper_Write_Command(0x3C);
     Epaper_Write_Data(0x01);
 
 
@@ -278,14 +278,14 @@ void EPD_HW_Init_LUT(void)
 	    Epaper_Write_Command(0x11);     
     Epaper_Write_Data(0x05); 
   
-    Epaper_Write_Command(0x44); //set Ram-X address start/end position   
+    Epaper_Write_Command(0x44);
     Epaper_Write_Data(0x00);
 //    Epaper_Write_Data(0x00);    //0x12-->(18+1)*8=152
-	  Epaper_Write_Data(0x31);    //0x12-->(18+1)*8=152
+	  Epaper_Write_Data(0x31);
   
-    Epaper_Write_Command(0x45); //set Ram-Y address start/end position          
+    Epaper_Write_Command(0x45);
 //    Epaper_Write_Data(0x97);   //0x97-->(151+1)=152
-    Epaper_Write_Data(0x0F);   //0x97-->(151+1)=152  修改的    
+    Epaper_Write_Data(0x0F);
     Epaper_Write_Data(0x01);
     Epaper_Write_Data(0x00);
     Epaper_Write_Data(0x00); 
@@ -304,16 +304,16 @@ void EPD_HW_Init_LUT(void)
 void EPD_HW_Init_LUT_Fast(void)
 {
 	u8 i;
-	EPD_W21_RST_0;  // Module reset   
-	delay_xms(10);//At least 10ms delay 
+	EPD_W21_RST_0;
+	delay_xms(10);
 	EPD_W21_RST_1;
-	delay_xms(10); //At least 10ms delay 
+	delay_xms(10);
 	
 	Epaper_READBUSY();   
-	Epaper_Write_Command(0x12);  //SWRESET
+	Epaper_Write_Command(0x12);
 	Epaper_READBUSY();   
 	
-    Epaper_Write_Command(0x01); //Driver output control  
+    Epaper_Write_Command(0x01);
     Epaper_Write_Data(0x0F);
     Epaper_Write_Data(0x01);
     Epaper_Write_Data(0x0e);
@@ -328,7 +328,7 @@ void EPD_HW_Init_LUT_Fast(void)
     Epaper_Write_Data(0xA6);    
     Epaper_Write_Data(0x0F);
     
-    Epaper_Write_Command(0x3C); //set border 
+    Epaper_Write_Command(0x3C);
     Epaper_Write_Data(0x01);
 
 
@@ -361,14 +361,14 @@ void EPD_HW_Init_LUT_Fast(void)
 	    Epaper_Write_Command(0x11);     
     Epaper_Write_Data(0x05); 
   
-    Epaper_Write_Command(0x44); //set Ram-X address start/end position   
+    Epaper_Write_Command(0x44);
     Epaper_Write_Data(0x00);
 //    Epaper_Write_Data(0x00);    //0x12-->(18+1)*8=152
-	  Epaper_Write_Data(0x31);    //0x12-->(18+1)*8=152
+	  Epaper_Write_Data(0x31);
   
-    Epaper_Write_Command(0x45); //set Ram-Y address start/end position          
+    Epaper_Write_Command(0x45);
 //    Epaper_Write_Data(0x97);   //0x97-->(151+1)=152
-    Epaper_Write_Data(0x0F);   //0x97-->(151+1)=152  修改的    
+    Epaper_Write_Data(0x0F);
     Epaper_Write_Data(0x01);
     Epaper_Write_Data(0x00);
     Epaper_Write_Data(0x00); 
@@ -387,67 +387,67 @@ void EPD_HW_Init_LUT_Fast(void)
 //SSD1683
 void EPD_HW_Init(void)
 {
-	EPD_W21_RST_0;  // Module reset   
-	delay_xms(10);//At least 10ms delay 
+	EPD_W21_RST_0;
+	delay_xms(10);
 	EPD_W21_RST_1;
-	delay_xms(10); //At least 10ms delay 
+	delay_xms(10);
 	
 	Epaper_READBUSY();   
-	Epaper_Write_Command(0x12);  //SWRESET
+	Epaper_Write_Command(0x12);
 	Epaper_READBUSY();   
 	
 	
 }
 void EPD_HW_Init_Fast(void)
 {
-	EPD_W21_RST_0;  // Module reset   
-	delay_xms(10);//At least 10ms delay 
+	EPD_W21_RST_0;
+	delay_xms(10);
 	EPD_W21_RST_1;
-	delay_xms(10); //At least 10ms delay 
+	delay_xms(10);
   
-	Epaper_Write_Command(0x12);  //SWRESET
+	Epaper_Write_Command(0x12);
 	Epaper_READBUSY();   
  	
-  Epaper_Write_Command(0x18); //Read built-in temperature sensor
+  Epaper_Write_Command(0x18);
 	Epaper_Write_Data(0x80);	
 	  	
-	Epaper_Write_Command(0x22); // Load temperature value
+	Epaper_Write_Command(0x22);
 	Epaper_Write_Data(0xB1);		
   Epaper_Write_Command(0x20);	
   Epaper_READBUSY();   
 
-	Epaper_Write_Command(0x1A); // Write to temperature register
+	Epaper_Write_Command(0x1A);
 	Epaper_Write_Data(0x64);		
   Epaper_Write_Data(0x00);	
 				  	
-	Epaper_Write_Command(0x22); // Load temperature value
+	Epaper_Write_Command(0x22);
 	Epaper_Write_Data(0x91);		
   Epaper_Write_Command(0x20);	
 	Epaper_READBUSY();   
 }
 void EPD_HW_Init_GUI(void)
 {
-	EPD_W21_RST_0;  // Module reset   
-	delay_xms(10);//At least 10ms delay 
+	EPD_W21_RST_0;
+	delay_xms(10);
 	EPD_W21_RST_1;
-	delay_xms(10); //At least 10ms delay 
+	delay_xms(10);
   
-	Epaper_Write_Command(0x12);  //SWRESET
+	Epaper_Write_Command(0x12);
 	Epaper_READBUSY();   
  	
-  Epaper_Write_Command(0x18); //Read built-in temperature sensor
+  Epaper_Write_Command(0x18);
 	Epaper_Write_Data(0x80);	
 	  	
-	Epaper_Write_Command(0x22); // Load temperature value
+	Epaper_Write_Command(0x22);
 	Epaper_Write_Data(0xB1);		
   Epaper_Write_Command(0x20);	
   Epaper_READBUSY();   
 
-	Epaper_Write_Command(0x1A); // Write to temperature register
+	Epaper_Write_Command(0x1A);
 	Epaper_Write_Data(0x64);		
   Epaper_Write_Data(0x00);	
 				  	
-	Epaper_Write_Command(0x22); // Load temperature value
+	Epaper_Write_Command(0x22);
 	Epaper_Write_Data(0x91);		
   Epaper_Write_Command(0x20);	
 	Epaper_READBUSY();   
@@ -456,59 +456,59 @@ void EPD_HW_Init_GUI(void)
 /*When the electronic paper screen is updated, do not unplug the electronic paper to avoid damage to the screen*/
 void EPD_Update_LUT(void)
 {   
-  Epaper_Write_Command(0x22); //Display Update Control
+  Epaper_Write_Command(0x22);
   Epaper_Write_Data(0xC7);   
-  Epaper_Write_Command(0x20); //Activate Display Update Sequence
+  Epaper_Write_Command(0x20);
   Epaper_READBUSY();   
 	
 }
 void EPD_Update(void)
 {   
-  Epaper_Write_Command(0x22); //Display Update Control
+  Epaper_Write_Command(0x22);
   Epaper_Write_Data(0xF7);   
-  Epaper_Write_Command(0x20); //Activate Display Update Sequence
+  Epaper_Write_Command(0x20);
   Epaper_READBUSY();   
 	
 }
 void EPD_Update_Fast(void)
 {   
-  Epaper_Write_Command(0x22); //Display Update Control
+  Epaper_Write_Command(0x22);
   Epaper_Write_Data(0xC7);   
-  Epaper_Write_Command(0x20); //Activate Display Update Sequence
+  Epaper_Write_Command(0x20);
   Epaper_READBUSY();   
 
 }
 /*When the electronic paper screen is updated, do not unplug the electronic paper to avoid damage to the screen*/
 void EPD_Part_Update(void)
 {
-	Epaper_Write_Command(0x22); //Display Update Control
+	Epaper_Write_Command(0x22);
 	Epaper_Write_Data(0xFF);   
-	Epaper_Write_Command(0x20); //Activate Display Update Sequence
+	Epaper_Write_Command(0x20);
 	Epaper_READBUSY(); 			
 }
 void EPD_Part_UpdateLUT(void) 
 {
-	Epaper_Write_Command(0x22); //Display Update Control
+	Epaper_Write_Command(0x22);
 	Epaper_Write_Data(0xCF);   
-	Epaper_Write_Command(0x20); //Activate Display Update Sequence
+	Epaper_Write_Command(0x20);
 	Epaper_READBUSY(); 			
 }
-void Set_ramMP(void) // Set RAM X - address Start / End position  ; Set RAM Y - address Start / End position  -MASTER
+void Set_ramMP(void)
 {
-	Epaper_Write_Command(0x11);	 // Data Entry mode setting
-	Epaper_Write_Data(0x05);     // 1 –Y decrement, X increment
-	Epaper_Write_Command(0x44);	 						 // Set Ram X- address Start / End position
-	Epaper_Write_Data(0x00);     						 // XStart, POR = 00h
+	Epaper_Write_Command(0x11);
+	Epaper_Write_Data(0x05);
+	Epaper_Write_Command(0x44);
+	Epaper_Write_Data(0x00);
 	Epaper_Write_Data(0x31); //400/8-1
-	Epaper_Write_Command(0x45);	 									// Set Ram Y- address  Start / End position 
+	Epaper_Write_Command(0x45);
 	Epaper_Write_Data(0x0f);  
 	Epaper_Write_Data(0x01);  //300-1	
-	Epaper_Write_Data(0x00);     									// YEnd L
-	Epaper_Write_Data(0x00);											// YEnd H 
+	Epaper_Write_Data(0x00);
+	Epaper_Write_Data(0x00);
 			
 }
 
-void Set_ramMA(void)  // Set RAM X address counter ;  Set RAM Y address counter                             -MASTER
+void Set_ramMA(void)
 {
 	Epaper_Write_Command(0x4e);	 						 
 	Epaper_Write_Data(0x00);	
@@ -517,21 +517,21 @@ void Set_ramMA(void)  // Set RAM X address counter ;  Set RAM Y address counter 
 	Epaper_Write_Data(0x01); 	
 }
 
-void Set_ramSP(void)  // Set RAM X - address Start / End position  ; Set RAM Y - address Start / End position  -SLAVE
+void Set_ramSP(void)
 {
 	Epaper_Write_Command(0x91);	 						 
 	Epaper_Write_Data(0x04); 
-	Epaper_Write_Command(0xc4);	 						 // Set Ram X- address Start / End position
-	Epaper_Write_Data(0x30);   //392/8-1   						 // XStart, POR = 00h
+	Epaper_Write_Command(0xc4);
+	Epaper_Write_Data(0x30);
 	Epaper_Write_Data(0x00); 
-	Epaper_Write_Command(0xc5);	 									// Set Ram Y- address  Start / End position 
+	Epaper_Write_Command(0xc5);
 	Epaper_Write_Data(0x0f);  
 	Epaper_Write_Data(0x01);  	
-	Epaper_Write_Data(0x00);     									// YEnd L
-	Epaper_Write_Data(0x00);											// YEnd H 	
+	Epaper_Write_Data(0x00);
+	Epaper_Write_Data(0x00);
 }
 
-void Set_ramSA(void)   // Set RAM X address counter ;  Set RAM Y address counter                             -SLAVE
+void Set_ramSA(void)
 {
 	Epaper_Write_Command(0xce);	 						 
 	Epaper_Write_Data(0x31); 
@@ -553,12 +553,12 @@ void EPD_WhiteScreen_ALL_Fast(const unsigned char *datas)
     Epaper_Write_Command(0x11);     
     Epaper_Write_Data(0x05); 
   
-    Epaper_Write_Command(0x44); //set Ram-X address start/end position   
+    Epaper_Write_Command(0x44);
     Epaper_Write_Data(0x00);
-	  Epaper_Write_Data(0x31);    //0x12-->(18+1)*8=152
+	  Epaper_Write_Data(0x31);
   
-    Epaper_Write_Command(0x45); //set Ram-Y address start/end position          
-    Epaper_Write_Data(0x0F);   //0x97-->(151+1)=152      
+    Epaper_Write_Command(0x45);
+    Epaper_Write_Data(0x0F);
     Epaper_Write_Data(0x01);
     Epaper_Write_Data(0x00);
     Epaper_Write_Data(0x00); 
@@ -570,7 +570,7 @@ void EPD_WhiteScreen_ALL_Fast(const unsigned char *datas)
 	  Epaper_Write_Data(0x01);	
 	
 	Epaper_READBUSY();
-    Epaper_Write_Command(0x24);   //write RAM for black(0)/white (1)	
+    Epaper_Write_Command(0x24);
 	for(i=0;i<Source_BYTES*Gate_BITS;i++)
    {          
      tempOriginal=*(datas+templine*Source_BYTES*2+tempcol);
@@ -583,7 +583,7 @@ void EPD_WhiteScreen_ALL_Fast(const unsigned char *datas)
      Epaper_Write_Data(~tempOriginal);
    } 
 	 
-    Epaper_Write_Command(0x26);   //write RAM for black(0)/white (1)	
+    Epaper_Write_Command(0x26);
 	for(i=0;i<Source_BYTES*Gate_BITS;i++)
    {            
      Epaper_Write_Data(0X00);
@@ -593,12 +593,12 @@ void EPD_WhiteScreen_ALL_Fast(const unsigned char *datas)
     Epaper_Write_Command(0x91);     
     Epaper_Write_Data(0x04); 
   
-    Epaper_Write_Command(0xC4); //set Ram-X address start/end position   
+    Epaper_Write_Command(0xC4);
     Epaper_Write_Data(0x31);
-	  Epaper_Write_Data(0x00);    //0x12-->(18+1)*8=152
+	  Epaper_Write_Data(0x00);
   
-    Epaper_Write_Command(0xC5); //set Ram-Y address start/end position          
-    Epaper_Write_Data(0x0F);   //0x97-->(151+1)=152  修改的    
+    Epaper_Write_Command(0xC5);
+    Epaper_Write_Data(0x0F);
     Epaper_Write_Data(0x01);
     Epaper_Write_Data(0x00);
     Epaper_Write_Data(0x00); 
@@ -611,9 +611,9 @@ void EPD_WhiteScreen_ALL_Fast(const unsigned char *datas)
 	
 	Epaper_READBUSY();
 
-	tempcol=tempcol-1; //Byte dislocation processing
+	tempcol=tempcol-1;
 	templine=0;
-    Epaper_Write_Command(0xa4);   //write RAM for black(0)/white (1)
+    Epaper_Write_Command(0xa4);
 	for(i=0;i<Source_BYTES*Gate_BITS;i++)
    {          
      tempOriginal=*(datas+templine*Source_BYTES*2+tempcol);
@@ -626,7 +626,7 @@ void EPD_WhiteScreen_ALL_Fast(const unsigned char *datas)
      Epaper_Write_Data(~tempOriginal);
    } 
 	 
-    Epaper_Write_Command(0xa6);   //write RAM for black(0)/white (1)	
+    Epaper_Write_Command(0xa6);
 	for(i=0;i<Source_BYTES*Gate_BITS;i++)
    {            
      Epaper_Write_Data(0X00);
@@ -665,7 +665,7 @@ Set_ramMA();
 			Epaper_Write_Data(0x00);
 	}
 
-tempcol=tempcol-1; //Byte dislocation processing
+tempcol=tempcol-1;
 templine=0;
 Set_ramSP();
 Set_ramSA();
@@ -694,10 +694,10 @@ Set_ramSA();
 	
 	
 	//Reset
-	EPD_W21_RST_0;  // Module reset   
-	delay_xms(10);//At least 10ms delay 
+	EPD_W21_RST_0;
+	delay_xms(10);
 	EPD_W21_RST_1;
-	delay_xms(10); //At least 10ms delay 
+	delay_xms(10);
 	 Epaper_READBUSY();
 	
 	 //basemap  
@@ -718,7 +718,7 @@ Set_ramMA();
 		 //Epaper_Write_Data(0xff);
 	}
 Set_ramSA();
-	tempcol=tempcol-1; //Byte dislocation processing
+	tempcol=tempcol-1;
 	templine=0;
 	Epaper_Write_Command(0xa6);   
 	for(i=0;i<Source_BYTES*Gate_BITS;i++)
@@ -764,7 +764,7 @@ Set_ramMA();
 			Epaper_Write_Data(0x00);
 	}
 
-tempcol=tempcol-1; //Byte dislocation processing
+tempcol=tempcol-1;
 templine=0;
 Set_ramSP();
 Set_ramSA();
@@ -793,10 +793,10 @@ Set_ramSA();
 	
 	
 	//Reset
-	EPD_W21_RST_0;  // Module reset   
-	delay_xms(10);//At least 10ms delay 
+	EPD_W21_RST_0;
+	delay_xms(10);
 	EPD_W21_RST_1;
-	delay_xms(10); //At least 10ms delay 
+	delay_xms(10);
 	 Epaper_READBUSY();
 	
 	 //basemap  
@@ -817,7 +817,7 @@ Set_ramMA();
 		 //Epaper_Write_Data(0xff);
 	}
 Set_ramSA();
-	tempcol=tempcol-1; //Byte dislocation processing
+	tempcol=tempcol-1;
 	templine=0;
 	Epaper_Write_Command(0xa6);   
 	for(i=0;i<Source_BYTES*Gate_BITS;i++)
@@ -836,7 +836,7 @@ Set_ramSA();
 
 void EPD_DeepSleep(void)
 {  	
-  Epaper_Write_Command(0x10); //enter deep sleep
+  Epaper_Write_Command(0x10);
   Epaper_Write_Data(0x01); 
   delay_xms(100);
 }
@@ -915,7 +915,7 @@ void EPD_WhiteScreen_ALL(const unsigned char *datas)
 		  Epaper_Write_Data(0x00);
 		}
 
-		tempcol=tempcol-1; //Byte dislocation processing
+		tempcol=tempcol-1;
 		templine=0;
 		Set_ramSP();
 		Set_ramSA();
@@ -993,14 +993,14 @@ void EPD_Dis_Part_M(unsigned int x_start,unsigned int y_start,const unsigned cha
   Epaper_READBUSY(); 	
 	
 //	
-	Epaper_Write_Command(0x44);       // set RAM x address start/end, in page 35
+	Epaper_Write_Command(0x44);
 	Epaper_Write_Data(x_start);    // RAM x address start at 00h;
-	Epaper_Write_Data(x_end);    // RAM x address end at 0fh(15+1)*8->128 
-	Epaper_Write_Command(0x45);       // set RAM y address start/end, in page 35
+	Epaper_Write_Data(x_end);
+	Epaper_Write_Command(0x45);
 	Epaper_Write_Data(y_start2);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_start1);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_end2);    // RAM y address end at 00h;
-	Epaper_Write_Data(y_end1);    // ????=0	
+	Epaper_Write_Data(y_end1);
 
 
 	Epaper_Write_Command(0x4E);   // set RAM x address count to 0;
@@ -1010,13 +1010,13 @@ void EPD_Dis_Part_M(unsigned int x_start,unsigned int y_start,const unsigned cha
 	Epaper_Write_Data(y_start1);
 	
 	
-	 Epaper_Write_Command(0x24);   //Write Black and White image to RAM
+	 Epaper_Write_Command(0x24);
    for(i=0;i<PART_COLUMN;i++)
 	    for(j=0;j<PART_LINE/8;j++)
 			 {   
 				 //Byte image processing
 				 tempData=datas[i*(PART_LINE/8)+(PART_LINE/8)-j-1];	 
-				 data1=(tempData>>7&0x01)+(tempData>>5&0x02)+(tempData>>3&0x04)+(tempData>>1&0x08)+(tempData<<7&0x80)+(tempData<<5&0x40)+(tempData<<3&0x20)+(tempData<<1&0x10); //字节内数据反序
+				 data1=(tempData>>7&0x01)+(tempData>>5&0x02)+(tempData>>3&0x04)+(tempData>>1&0x08)+(tempData<<7&0x80)+(tempData<<5&0x40)+(tempData<<3&0x20)+(tempData<<1&0x10);
 		     Epaper_Write_Data(~data1); 
 				 
 			 }
@@ -1055,14 +1055,14 @@ void EPD_Dis_Part_S(unsigned int x_start,unsigned int y_start,const unsigned cha
 //
 	Epaper_Write_Command(0x91);    						 
 	Epaper_Write_Data(0x03); 
-	Epaper_Write_Command(0xC4);       // set RAM x address start/end, in page 35
+	Epaper_Write_Command(0xC4);
 	Epaper_Write_Data(x_start);    // RAM x address start at 00h;
-	Epaper_Write_Data(x_end);    // RAM x address end at 0fh(15+1)*8->128 
-	Epaper_Write_Command(0xC5);       // set RAM y address start/end, in page 35
+	Epaper_Write_Data(x_end);
+	Epaper_Write_Command(0xC5);
 	Epaper_Write_Data(y_start2);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_start1);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_end2);    // RAM y address end at 00h;
-	Epaper_Write_Data(y_end1);    // ????=0	
+	Epaper_Write_Data(y_end1);
 
 
 	Epaper_Write_Command(0xCE);   // set RAM x address count to 0;
@@ -1072,7 +1072,7 @@ void EPD_Dis_Part_S(unsigned int x_start,unsigned int y_start,const unsigned cha
 	Epaper_Write_Data(y_start1);
 	
 	
-	 Epaper_Write_Command(0xA4);   //Write Black and White image to RAM
+	 Epaper_Write_Command(0xA4);
 	 
    for(i=0;i<PART_COLUMN*PART_LINE/8;i++)
    {   
@@ -1099,7 +1099,7 @@ void EPD_Dis_Part_myself_M(unsigned int x_startA,unsigned int y_startA,const uns
 
 	
 	//Data A//////////////////////////////
-	x_startA=x_startA/8;//Convert to byte
+	x_startA=x_startA/8;
 	x_end=x_startA+PART_LINE/8-1; 
 	
 	y_start1=0;
@@ -1125,10 +1125,10 @@ void EPD_Dis_Part_myself_M(unsigned int x_startA,unsigned int y_startA,const uns
 	
 //	
 	
-	Epaper_Write_Command(0x44);       // set RAM x address start/end, in page 35
+	Epaper_Write_Command(0x44);
 	Epaper_Write_Data(x_startA);    // RAM x address start at 00h;
-	Epaper_Write_Data(x_end);    // RAM x address end at 0fh(15+1)*8->128 
-	Epaper_Write_Command(0x45);       // set RAM y address start/end, in page 35
+	Epaper_Write_Data(x_end);
+	Epaper_Write_Command(0x45);
 	Epaper_Write_Data(y_start2);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_start1);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_end2);    // RAM y address end at 00h;
@@ -1142,20 +1142,20 @@ void EPD_Dis_Part_myself_M(unsigned int x_startA,unsigned int y_startA,const uns
 	Epaper_Write_Data(y_start1);
 	
 	
-	 Epaper_Write_Command(0x24);   //Write Black and White image to RAM
+	 Epaper_Write_Command(0x24);
    for(i=0;i<PART_COLUMN;i++)
 	    for(j=0;j<PART_LINE/8;j++)
 			 {   
 				 //Byte image processing	 
 				 tempData=datasA[i*(PART_LINE/8)+(PART_LINE/8)-j-1];	 
-				 data1=(tempData>>7&0x01)+(tempData>>5&0x02)+(tempData>>3&0x04)+(tempData>>1&0x08)+(tempData<<7&0x80)+(tempData<<5&0x40)+(tempData<<3&0x20)+(tempData<<1&0x10); //字节内数据反序
+				 data1=(tempData>>7&0x01)+(tempData>>5&0x02)+(tempData>>3&0x04)+(tempData>>1&0x08)+(tempData<<7&0x80)+(tempData<<5&0x40)+(tempData<<3&0x20)+(tempData<<1&0x10);
 		     Epaper_Write_Data(~data1); 
 				 
 			 }
 	 
 	//Data B/////////////////////////////////////
 
-	x_startB=x_startB/8;//Convert to byte
+	x_startB=x_startB/8;
 	x_end=x_startB+PART_LINE/8-1; 
 	
 	y_start1=0;
@@ -1173,10 +1173,10 @@ void EPD_Dis_Part_myself_M(unsigned int x_startA,unsigned int y_startA,const uns
 		y_end2=y_end2%256;		
 	}		
 	
-	Epaper_Write_Command(0x44);       // set RAM x address start/end, in page 35
+	Epaper_Write_Command(0x44);
 	Epaper_Write_Data(x_startB);    // RAM x address start at 00h;
-	Epaper_Write_Data(x_end);    // RAM x address end at 0fh(15+1)*8->128 
-	Epaper_Write_Command(0x45);       // set RAM y address start/end, in page 35
+	Epaper_Write_Data(x_end);
+	Epaper_Write_Command(0x45);
 	Epaper_Write_Data(y_start2);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_start1);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_end2);    // RAM y address end at 00h;
@@ -1190,19 +1190,19 @@ void EPD_Dis_Part_myself_M(unsigned int x_startA,unsigned int y_startA,const uns
 	Epaper_Write_Data(y_start1);
 	
 	
-	 Epaper_Write_Command(0x24);   //Write Black and White image to RAM
+	 Epaper_Write_Command(0x24);
    for(i=0;i<PART_COLUMN;i++)
 	    for(j=0;j<PART_LINE/8;j++)
 			 {   
 				 //Byte image processing 
 				 tempData=datasB[i*(PART_LINE/8)+(PART_LINE/8)-j-1];	 
-				 data1=(tempData>>7&0x01)+(tempData>>5&0x02)+(tempData>>3&0x04)+(tempData>>1&0x08)+(tempData<<7&0x80)+(tempData<<5&0x40)+(tempData<<3&0x20)+(tempData<<1&0x10); //字节内数据反序
+				 data1=(tempData>>7&0x01)+(tempData>>5&0x02)+(tempData>>3&0x04)+(tempData>>1&0x08)+(tempData<<7&0x80)+(tempData<<5&0x40)+(tempData<<3&0x20)+(tempData<<1&0x10);
 		     Epaper_Write_Data(~data1); 
 				 
 			 }
 	 
 	//Data C//////////////////////////////////////
-	x_startC=x_startC/8;//Convert to byte
+	x_startC=x_startC/8;
 	x_end=x_startC+PART_LINE/8-1; 
 	
 	y_start1=0;
@@ -1220,10 +1220,10 @@ void EPD_Dis_Part_myself_M(unsigned int x_startA,unsigned int y_startA,const uns
 		y_end2=y_end2%256;		
 	}		
 	
-	Epaper_Write_Command(0x44);       // set RAM x address start/end, in page 35
+	Epaper_Write_Command(0x44);
 	Epaper_Write_Data(x_startC);    // RAM x address start at 00h;
-	Epaper_Write_Data(x_end);    // RAM x address end at 0fh(15+1)*8->128 
-	Epaper_Write_Command(0x45);       // set RAM y address start/end, in page 35
+	Epaper_Write_Data(x_end);
+	Epaper_Write_Command(0x45);
 	Epaper_Write_Data(y_start2);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_start1);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_end2);    // RAM y address end at 00h;
@@ -1237,19 +1237,19 @@ void EPD_Dis_Part_myself_M(unsigned int x_startA,unsigned int y_startA,const uns
 	Epaper_Write_Data(y_start1);
 	
 	
-	 Epaper_Write_Command(0x24);   //Write Black and White image to RAM
+	 Epaper_Write_Command(0x24);
    for(i=0;i<PART_COLUMN;i++)
 	    for(j=0;j<PART_LINE/8;j++)
 			 {   
 				 //Byte image processing 
 				 tempData=datasC[i*(PART_LINE/8)+(PART_LINE/8)-j-1];	 
-				 data1=(tempData>>7&0x01)+(tempData>>5&0x02)+(tempData>>3&0x04)+(tempData>>1&0x08)+(tempData<<7&0x80)+(tempData<<5&0x40)+(tempData<<3&0x20)+(tempData<<1&0x10); //字节内数据反序
+				 data1=(tempData>>7&0x01)+(tempData>>5&0x02)+(tempData>>3&0x04)+(tempData>>1&0x08)+(tempData<<7&0x80)+(tempData<<5&0x40)+(tempData<<3&0x20)+(tempData<<1&0x10);
 		     Epaper_Write_Data(~data1); 
 				 
 			 }	 	 
  	 
 	//Data D//////////////////////////////////////
-	x_startD=x_startD/8;//Convert to byte
+	x_startD=x_startD/8;
 	x_end=x_startD+PART_LINE/8-1; 
 	
 	y_start1=0;
@@ -1267,10 +1267,10 @@ void EPD_Dis_Part_myself_M(unsigned int x_startA,unsigned int y_startA,const uns
 		y_end2=y_end2%256;		
 	}		
 	
-	Epaper_Write_Command(0x44);       // set RAM x address start/end, in page 35
+	Epaper_Write_Command(0x44);
 	Epaper_Write_Data(x_startD);    // RAM x address start at 00h;
-	Epaper_Write_Data(x_end);        // RAM x address end at 0fh(15+1)*8->128 
-	Epaper_Write_Command(0x45);       // set RAM y address start/end, in page 35
+	Epaper_Write_Data(x_end);
+	Epaper_Write_Command(0x45);
 	Epaper_Write_Data(y_start2);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_start1);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_end2);    // RAM y address end at 00h;
@@ -1284,18 +1284,18 @@ void EPD_Dis_Part_myself_M(unsigned int x_startA,unsigned int y_startA,const uns
 	Epaper_Write_Data(y_start1);
 	
 	
-	 Epaper_Write_Command(0x24);   //Write Black and White image to RAM
+	 Epaper_Write_Command(0x24);
    for(i=0;i<PART_COLUMN;i++)
 	    for(j=0;j<PART_LINE/8;j++)
 			 {   
 				 //Byte image processing
 				 tempData=datasD[i*(PART_LINE/8)+(PART_LINE/8)-j-1];	 
-				 data1=(tempData>>7&0x01)+(tempData>>5&0x02)+(tempData>>3&0x04)+(tempData>>1&0x08)+(tempData<<7&0x80)+(tempData<<5&0x40)+(tempData<<3&0x20)+(tempData<<1&0x10); //字节内数据反序
+				 data1=(tempData>>7&0x01)+(tempData>>5&0x02)+(tempData>>3&0x04)+(tempData>>1&0x08)+(tempData<<7&0x80)+(tempData<<5&0x40)+(tempData<<3&0x20)+(tempData<<1&0x10);
 		     Epaper_Write_Data(~data1); 
 				 
 			 }
 	//Data E//////////////////////////////////////
-	x_startE=x_startE/8;//Convert to byte
+	x_startE=x_startE/8;
 	x_end=x_startE+PART_LINE/8-1; 
 	
 	y_start1=0;
@@ -1313,10 +1313,10 @@ void EPD_Dis_Part_myself_M(unsigned int x_startA,unsigned int y_startA,const uns
 		y_end2=y_end2%256;		
 	}		
 	
-	Epaper_Write_Command(0x44);       // set RAM x address start/end, in page 35
+	Epaper_Write_Command(0x44);
 	Epaper_Write_Data(x_startE);    // RAM x address start at 00h;
-	Epaper_Write_Data(x_end);    // RAM x address end at 0fh(15+1)*8->128 
-	Epaper_Write_Command(0x45);       // set RAM y address start/end, in page 35
+	Epaper_Write_Data(x_end);
+	Epaper_Write_Command(0x45);
 	Epaper_Write_Data(y_start2);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_start1);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_end2);    // RAM y address end at 00h;
@@ -1330,13 +1330,13 @@ void EPD_Dis_Part_myself_M(unsigned int x_startA,unsigned int y_startA,const uns
 	Epaper_Write_Data(y_start1);
 	
 	
-	 Epaper_Write_Command(0x24);   //Write Black and White image to RAM
+	 Epaper_Write_Command(0x24);
    for(i=0;i<PART_COLUMN;i++)
 	    for(j=0;j<PART_LINE/8;j++)
 			 {   
 				 //Byte image processing		 
 				 tempData=datasE[i*(PART_LINE/8)+(PART_LINE/8)-j-1];	 
-				 data1=(tempData>>7&0x01)+(tempData>>5&0x02)+(tempData>>3&0x04)+(tempData>>1&0x08)+(tempData<<7&0x80)+(tempData<<5&0x40)+(tempData<<3&0x20)+(tempData<<1&0x10); //字节内数据反序
+				 data1=(tempData>>7&0x01)+(tempData>>5&0x02)+(tempData>>3&0x04)+(tempData>>1&0x08)+(tempData<<7&0x80)+(tempData<<5&0x40)+(tempData<<3&0x20)+(tempData<<1&0x10);
 		     Epaper_Write_Data(~data1); 
 				 
 			 }  
@@ -1357,7 +1357,7 @@ void EPD_Dis_Part_myself_S(unsigned int x_startA,unsigned int y_startA,const uns
 
 
 	//Data A//////////////////////////////
-	x_startA=x_startA/8;//Convert to byte
+	x_startA=x_startA/8;
 	x_end=x_startA+PART_LINE/8-1; 
 	
 	y_start1=0;
@@ -1385,10 +1385,10 @@ void EPD_Dis_Part_myself_S(unsigned int x_startA,unsigned int y_startA,const uns
 	Epaper_Write_Data(0x03); 	
 //	
 	
-	Epaper_Write_Command(0xC4);       // set RAM x address start/end, in page 35
+	Epaper_Write_Command(0xC4);
 	Epaper_Write_Data(x_startA);    // RAM x address start at 00h;
-	Epaper_Write_Data(x_end);    // RAM x address end at 0fh(15+1)*8->128 
-	Epaper_Write_Command(0xC5);       // set RAM y address start/end, in page 35
+	Epaper_Write_Data(x_end);
+	Epaper_Write_Command(0xC5);
 	Epaper_Write_Data(y_start2);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_start1);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_end2);    // RAM y address end at 00h;
@@ -1402,7 +1402,7 @@ void EPD_Dis_Part_myself_S(unsigned int x_startA,unsigned int y_startA,const uns
 	Epaper_Write_Data(y_start1);
 	
 	
-	 Epaper_Write_Command(0xA4);   //Write Black and White image to RAM
+	 Epaper_Write_Command(0xA4);
    for(i=0;i<PART_COLUMN*PART_LINE/8;i++)
    {   
      Epaper_Write_Data(~datasA[i]);
@@ -1411,7 +1411,7 @@ void EPD_Dis_Part_myself_S(unsigned int x_startA,unsigned int y_startA,const uns
 	 
 	//Data B/////////////////////////////////////
 
-	x_startB=x_startB/8;//Convert to byte
+	x_startB=x_startB/8;
 	x_end=x_startB+PART_LINE/8-1; 
 	
 	y_start1=0;
@@ -1429,10 +1429,10 @@ void EPD_Dis_Part_myself_S(unsigned int x_startA,unsigned int y_startA,const uns
 		y_end2=y_end2%256;		
 	}		
 	
-	Epaper_Write_Command(0xC4);       // set RAM x address start/end, in page 35
+	Epaper_Write_Command(0xC4);
 	Epaper_Write_Data(x_startB);    // RAM x address start at 00h;
-	Epaper_Write_Data(x_end);    // RAM x address end at 0fh(15+1)*8->128 
-	Epaper_Write_Command(0xC5);       // set RAM y address start/end, in page 35
+	Epaper_Write_Data(x_end);
+	Epaper_Write_Command(0xC5);
 	Epaper_Write_Data(y_start2);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_start1);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_end2);    // RAM y address end at 00h;
@@ -1446,7 +1446,7 @@ void EPD_Dis_Part_myself_S(unsigned int x_startA,unsigned int y_startA,const uns
 	Epaper_Write_Data(y_start1);
 	
 	
-	 Epaper_Write_Command(0xA4);   //Write Black and White image to RAM
+	 Epaper_Write_Command(0xA4);
    for(i=0;i<PART_COLUMN*PART_LINE/8;i++)
    {   
      Epaper_Write_Data(~datasB[i]);
@@ -1454,7 +1454,7 @@ void EPD_Dis_Part_myself_S(unsigned int x_startA,unsigned int y_startA,const uns
 
 	 
 	//Data C//////////////////////////////////////
-	x_startC=x_startC/8;//Convert to byte
+	x_startC=x_startC/8;
 	x_end=x_startC+PART_LINE/8-1; 
 	
 	y_start1=0;
@@ -1472,10 +1472,10 @@ void EPD_Dis_Part_myself_S(unsigned int x_startA,unsigned int y_startA,const uns
 		y_end2=y_end2%256;		
 	}		
 	
-	Epaper_Write_Command(0xC4);       // set RAM x address start/end, in page 35
+	Epaper_Write_Command(0xC4);
 	Epaper_Write_Data(x_startC);    // RAM x address start at 00h;
-	Epaper_Write_Data(x_end);    // RAM x address end at 0fh(15+1)*8->128 
-	Epaper_Write_Command(0xC5);       // set RAM y address start/end, in page 35
+	Epaper_Write_Data(x_end);
+	Epaper_Write_Command(0xC5);
 	Epaper_Write_Data(y_start2);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_start1);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_end2);    // RAM y address end at 00h;
@@ -1489,7 +1489,7 @@ void EPD_Dis_Part_myself_S(unsigned int x_startA,unsigned int y_startA,const uns
 	Epaper_Write_Data(y_start1);
 	
 	
-	 Epaper_Write_Command(0xA4);   //Write Black and White image to RAM
+	 Epaper_Write_Command(0xA4);
    for(i=0;i<PART_COLUMN*PART_LINE/8;i++)
    {   
      Epaper_Write_Data(~datasC[i]);
@@ -1497,7 +1497,7 @@ void EPD_Dis_Part_myself_S(unsigned int x_startA,unsigned int y_startA,const uns
  	 
  	 
 	//Data D//////////////////////////////////////
-	x_startD=x_startD/8;//Convert to byte
+	x_startD=x_startD/8;
 	x_end=x_startD+PART_LINE/8-1; 
 	
 	y_start1=0;
@@ -1515,10 +1515,10 @@ void EPD_Dis_Part_myself_S(unsigned int x_startA,unsigned int y_startA,const uns
 		y_end2=y_end2%256;		
 	}		
 	
-	Epaper_Write_Command(0xC4);       // set RAM x address start/end, in page 35
+	Epaper_Write_Command(0xC4);
 	Epaper_Write_Data(x_startD);    // RAM x address start at 00h;
-	Epaper_Write_Data(x_end);        // RAM x address end at 0fh(15+1)*8->128 
-	Epaper_Write_Command(0xC5);       // set RAM y address start/end, in page 35
+	Epaper_Write_Data(x_end);
+	Epaper_Write_Command(0xC5);
 	Epaper_Write_Data(y_start2);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_start1);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_end2);    // RAM y address end at 00h;
@@ -1532,14 +1532,14 @@ void EPD_Dis_Part_myself_S(unsigned int x_startA,unsigned int y_startA,const uns
 	Epaper_Write_Data(y_start1);
 	
 	
-	 Epaper_Write_Command(0xA4);   //Write Black and White image to RAM
+	 Epaper_Write_Command(0xA4);
    for(i=0;i<PART_COLUMN*PART_LINE/8;i++)
    {   
      Epaper_Write_Data(~datasD[i]);
    }
 
 	//Data E//////////////////////////////////////
-	x_startE=x_startE/8;//Convert to byte
+	x_startE=x_startE/8;
 	x_end=x_startE+PART_LINE/8-1; 
 	
 	y_start1=0;
@@ -1557,10 +1557,10 @@ void EPD_Dis_Part_myself_S(unsigned int x_startA,unsigned int y_startA,const uns
 		y_end2=y_end2%256;		
 	}		
 	
-	Epaper_Write_Command(0xC4);       // set RAM x address start/end, in page 35
+	Epaper_Write_Command(0xC4);
 	Epaper_Write_Data(x_startE);    // RAM x address start at 00h;
-	Epaper_Write_Data(x_end);    // RAM x address end at 0fh(15+1)*8->128 
-	Epaper_Write_Command(0xC5);       // set RAM y address start/end, in page 35
+	Epaper_Write_Data(x_end);
+	Epaper_Write_Command(0xC5);
 	Epaper_Write_Data(y_start2);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_start1);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_end2);    // RAM y address end at 00h;
@@ -1574,7 +1574,7 @@ void EPD_Dis_Part_myself_S(unsigned int x_startA,unsigned int y_startA,const uns
 	Epaper_Write_Data(y_start1);
 	
 	
-	 Epaper_Write_Command(0xA4);   //Write Black and White image to RAM
+	 Epaper_Write_Command(0xA4);
    for(i=0;i<PART_COLUMN*PART_LINE/8;i++)
    {   
      Epaper_Write_Data(~datasE[i]);
@@ -1597,7 +1597,7 @@ void EPD_Dis_Part_myself_S_LUT(unsigned int x_startA,unsigned int y_startA,const
 
 
 	//Data A//////////////////////////////
-	x_startA=x_startA/8;//Convert to byte
+	x_startA=x_startA/8;
 	x_end=x_startA+PART_LINE/8-1; 
 	
 	y_start1=0;
@@ -1625,10 +1625,10 @@ void EPD_Dis_Part_myself_S_LUT(unsigned int x_startA,unsigned int y_startA,const
 	Epaper_Write_Data(0x03); 	
 //	
 	
-	Epaper_Write_Command(0xC4);       // set RAM x address start/end, in page 35
+	Epaper_Write_Command(0xC4);
 	Epaper_Write_Data(x_startA);    // RAM x address start at 00h;
-	Epaper_Write_Data(x_end);    // RAM x address end at 0fh(15+1)*8->128 
-	Epaper_Write_Command(0xC5);       // set RAM y address start/end, in page 35
+	Epaper_Write_Data(x_end);
+	Epaper_Write_Command(0xC5);
 	Epaper_Write_Data(y_start2);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_start1);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_end2);    // RAM y address end at 00h;
@@ -1642,7 +1642,7 @@ void EPD_Dis_Part_myself_S_LUT(unsigned int x_startA,unsigned int y_startA,const
 	Epaper_Write_Data(y_start1);
 	
 	
-	 Epaper_Write_Command(0xA4);   //Write Black and White image to RAM
+	 Epaper_Write_Command(0xA4);
    for(i=0;i<PART_COLUMN*PART_LINE/8;i++)
    {   
      Epaper_Write_Data(~datasA[i]);
@@ -1651,7 +1651,7 @@ void EPD_Dis_Part_myself_S_LUT(unsigned int x_startA,unsigned int y_startA,const
 	 
 	//Data B/////////////////////////////////////
 
-	x_startB=x_startB/8;//Convert to byte
+	x_startB=x_startB/8;
 	x_end=x_startB+PART_LINE/8-1; 
 	
 	y_start1=0;
@@ -1669,10 +1669,10 @@ void EPD_Dis_Part_myself_S_LUT(unsigned int x_startA,unsigned int y_startA,const
 		y_end2=y_end2%256;		
 	}		
 	
-	Epaper_Write_Command(0xC4);       // set RAM x address start/end, in page 35
+	Epaper_Write_Command(0xC4);
 	Epaper_Write_Data(x_startB);    // RAM x address start at 00h;
-	Epaper_Write_Data(x_end);    // RAM x address end at 0fh(15+1)*8->128 
-	Epaper_Write_Command(0xC5);       // set RAM y address start/end, in page 35
+	Epaper_Write_Data(x_end);
+	Epaper_Write_Command(0xC5);
 	Epaper_Write_Data(y_start2);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_start1);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_end2);    // RAM y address end at 00h;
@@ -1686,7 +1686,7 @@ void EPD_Dis_Part_myself_S_LUT(unsigned int x_startA,unsigned int y_startA,const
 	Epaper_Write_Data(y_start1);
 	
 	
-	 Epaper_Write_Command(0xA4);   //Write Black and White image to RAM
+	 Epaper_Write_Command(0xA4);
    for(i=0;i<PART_COLUMN*PART_LINE/8;i++)
    {   
      Epaper_Write_Data(~datasB[i]);
@@ -1694,7 +1694,7 @@ void EPD_Dis_Part_myself_S_LUT(unsigned int x_startA,unsigned int y_startA,const
 
 	 
 	//Data C//////////////////////////////////////
-	x_startC=x_startC/8;//Convert to byte
+	x_startC=x_startC/8;
 	x_end=x_startC+PART_LINE/8-1; 
 	
 	y_start1=0;
@@ -1712,10 +1712,10 @@ void EPD_Dis_Part_myself_S_LUT(unsigned int x_startA,unsigned int y_startA,const
 		y_end2=y_end2%256;		
 	}		
 	
-	Epaper_Write_Command(0xC4);       // set RAM x address start/end, in page 35
+	Epaper_Write_Command(0xC4);
 	Epaper_Write_Data(x_startC);    // RAM x address start at 00h;
-	Epaper_Write_Data(x_end);    // RAM x address end at 0fh(15+1)*8->128 
-	Epaper_Write_Command(0xC5);       // set RAM y address start/end, in page 35
+	Epaper_Write_Data(x_end);
+	Epaper_Write_Command(0xC5);
 	Epaper_Write_Data(y_start2);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_start1);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_end2);    // RAM y address end at 00h;
@@ -1729,7 +1729,7 @@ void EPD_Dis_Part_myself_S_LUT(unsigned int x_startA,unsigned int y_startA,const
 	Epaper_Write_Data(y_start1);
 	
 	
-	 Epaper_Write_Command(0xA4);   //Write Black and White image to RAM
+	 Epaper_Write_Command(0xA4);
    for(i=0;i<PART_COLUMN*PART_LINE/8;i++)
    {   
      Epaper_Write_Data(~datasC[i]);
@@ -1737,7 +1737,7 @@ void EPD_Dis_Part_myself_S_LUT(unsigned int x_startA,unsigned int y_startA,const
  	 
  	 
 	//Data D//////////////////////////////////////
-	x_startD=x_startD/8;//Convert to byte
+	x_startD=x_startD/8;
 	x_end=x_startD+PART_LINE/8-1; 
 	
 	y_start1=0;
@@ -1755,10 +1755,10 @@ void EPD_Dis_Part_myself_S_LUT(unsigned int x_startA,unsigned int y_startA,const
 		y_end2=y_end2%256;		
 	}		
 	
-	Epaper_Write_Command(0xC4);       // set RAM x address start/end, in page 35
+	Epaper_Write_Command(0xC4);
 	Epaper_Write_Data(x_startD);    // RAM x address start at 00h;
-	Epaper_Write_Data(x_end);        // RAM x address end at 0fh(15+1)*8->128 
-	Epaper_Write_Command(0xC5);       // set RAM y address start/end, in page 35
+	Epaper_Write_Data(x_end);
+	Epaper_Write_Command(0xC5);
 	Epaper_Write_Data(y_start2);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_start1);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_end2);    // RAM y address end at 00h;
@@ -1772,14 +1772,14 @@ void EPD_Dis_Part_myself_S_LUT(unsigned int x_startA,unsigned int y_startA,const
 	Epaper_Write_Data(y_start1);
 	
 	
-	 Epaper_Write_Command(0xA4);   //Write Black and White image to RAM
+	 Epaper_Write_Command(0xA4);
    for(i=0;i<PART_COLUMN*PART_LINE/8;i++)
    {   
      Epaper_Write_Data(~datasD[i]);
    }
 
 	//Data E//////////////////////////////////////
-	x_startE=x_startE/8;//Convert to byte
+	x_startE=x_startE/8;
 	x_end=x_startE+PART_LINE/8-1; 
 	
 	y_start1=0;
@@ -1797,10 +1797,10 @@ void EPD_Dis_Part_myself_S_LUT(unsigned int x_startA,unsigned int y_startA,const
 		y_end2=y_end2%256;		
 	}		
 	
-	Epaper_Write_Command(0xC4);       // set RAM x address start/end, in page 35
+	Epaper_Write_Command(0xC4);
 	Epaper_Write_Data(x_startE);    // RAM x address start at 00h;
-	Epaper_Write_Data(x_end);    // RAM x address end at 0fh(15+1)*8->128 
-	Epaper_Write_Command(0xC5);       // set RAM y address start/end, in page 35
+	Epaper_Write_Data(x_end);
+	Epaper_Write_Command(0xC5);
 	Epaper_Write_Data(y_start2);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_start1);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_end2);    // RAM y address end at 00h;
@@ -1814,7 +1814,7 @@ void EPD_Dis_Part_myself_S_LUT(unsigned int x_startA,unsigned int y_startA,const
 	Epaper_Write_Data(y_start1);
 	
 	
-	 Epaper_Write_Command(0xA4);   //Write Black and White image to RAM
+	 Epaper_Write_Command(0xA4);
    for(i=0;i<PART_COLUMN*PART_LINE/8;i++)
    {   
      Epaper_Write_Data(~datasE[i]);
@@ -1849,7 +1849,7 @@ void EPD_Dis_Part_myself_All(unsigned int x_startA,unsigned int y_startA,const u
 //	
 	
 	//Data A//////////////////////////////
-	x_startA=x_startA/8;//Convert to byte
+	x_startA=x_startA/8;
 	x_end=x_startA+PART_LINE/8-1; 
 	
 	y_start1=0;
@@ -1868,10 +1868,10 @@ void EPD_Dis_Part_myself_All(unsigned int x_startA,unsigned int y_startA,const u
 	}		
 	
 	
-	Epaper_Write_Command(0xC4);       // set RAM x address start/end, in page 35
+	Epaper_Write_Command(0xC4);
 	Epaper_Write_Data(x_startA);    // RAM x address start at 00h;
-	Epaper_Write_Data(x_end);    // RAM x address end at 0fh(15+1)*8->128 
-	Epaper_Write_Command(0xC5);       // set RAM y address start/end, in page 35
+	Epaper_Write_Data(x_end);
+	Epaper_Write_Command(0xC5);
 	Epaper_Write_Data(y_start2);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_start1);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_end2);    // RAM y address end at 00h;
@@ -1885,7 +1885,7 @@ void EPD_Dis_Part_myself_All(unsigned int x_startA,unsigned int y_startA,const u
 	Epaper_Write_Data(y_start1);
 	
 	
-	 Epaper_Write_Command(0xA4);   //Write Black and White image to RAM
+	 Epaper_Write_Command(0xA4);
    for(i=0;i<PART_COLUMN*PART_LINE/8;i++)
    {   
      Epaper_Write_Data(~datasA[i]);
@@ -1894,7 +1894,7 @@ void EPD_Dis_Part_myself_All(unsigned int x_startA,unsigned int y_startA,const u
 	 
 	//Data B/////////////////////////////////////
 
-	x_startB=x_startB/8;//Convert to byte
+	x_startB=x_startB/8;
 	x_end=x_startB+PART_LINE/8-1; 
 	
 	y_start1=0;
@@ -1912,10 +1912,10 @@ void EPD_Dis_Part_myself_All(unsigned int x_startA,unsigned int y_startA,const u
 		y_end2=y_end2%256;		
 	}		
 	
-	Epaper_Write_Command(0xC4);       // set RAM x address start/end, in page 35
+	Epaper_Write_Command(0xC4);
 	Epaper_Write_Data(x_startB);    // RAM x address start at 00h;
-	Epaper_Write_Data(x_end);    // RAM x address end at 0fh(15+1)*8->128 
-	Epaper_Write_Command(0xC5);       // set RAM y address start/end, in page 35
+	Epaper_Write_Data(x_end);
+	Epaper_Write_Command(0xC5);
 	Epaper_Write_Data(y_start2);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_start1);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_end2);    // RAM y address end at 00h;
@@ -1929,7 +1929,7 @@ void EPD_Dis_Part_myself_All(unsigned int x_startA,unsigned int y_startA,const u
 	Epaper_Write_Data(y_start1);
 	
 	
-	 Epaper_Write_Command(0xA4);   //Write Black and White image to RAM
+	 Epaper_Write_Command(0xA4);
    for(i=0;i<PART_COLUMN*PART_LINE/8;i++)
    {   
      Epaper_Write_Data(~datasB[i]);
@@ -1937,7 +1937,7 @@ void EPD_Dis_Part_myself_All(unsigned int x_startA,unsigned int y_startA,const u
 	 
 	//Data C/////////////////////////////////////
 
-	x_startC=x_startC/8;//Convert to byte
+	x_startC=x_startC/8;
 	x_end=x_startC+PART_LINE/8-1; 
 	
 	y_start1=0;
@@ -1955,10 +1955,10 @@ void EPD_Dis_Part_myself_All(unsigned int x_startA,unsigned int y_startA,const u
 		y_end2=y_end2%256;		
 	}		
 	
-	Epaper_Write_Command(0xC4);       // set RAM x address start/end, in page 35
+	Epaper_Write_Command(0xC4);
 	Epaper_Write_Data(x_startC);    // RAM x address start at 00h;
-	Epaper_Write_Data(x_end);    // RAM x address end at 0fh(15+1)*8->128 
-	Epaper_Write_Command(0xC5);       // set RAM y address start/end, in page 35
+	Epaper_Write_Data(x_end);
+	Epaper_Write_Command(0xC5);
 	Epaper_Write_Data(y_start2);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_start1);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_end2);    // RAM y address end at 00h;
@@ -1972,7 +1972,7 @@ void EPD_Dis_Part_myself_All(unsigned int x_startA,unsigned int y_startA,const u
 	Epaper_Write_Data(y_start1);
 	
 	
-	 Epaper_Write_Command(0xA4);   //Write Black and White image to RAM
+	 Epaper_Write_Command(0xA4);
    for(i=0;i<PART_COLUMN*PART_LINE/8;i++)
    {   
      Epaper_Write_Data(~datasC[i]);
@@ -1987,7 +1987,7 @@ void EPD_Dis_Part_myself_All(unsigned int x_startA,unsigned int y_startA,const u
 //
 			 
 //Data D//////////////////////////////////////
-	x_startD=x_startD/8;//Convert to byte
+	x_startD=x_startD/8;
 	x_end=x_startD+PART_LINE/8-1; 
 	
 	y_start1=0;
@@ -2005,10 +2005,10 @@ void EPD_Dis_Part_myself_All(unsigned int x_startA,unsigned int y_startA,const u
 		y_end2=y_end2%256;		
 	}		
 	
-	Epaper_Write_Command(0x44);       // set RAM x address start/end, in page 35
+	Epaper_Write_Command(0x44);
 	Epaper_Write_Data(x_startD);    // RAM x address start at 00h;
-	Epaper_Write_Data(x_end);    // RAM x address end at 0fh(15+1)*8->128 
-	Epaper_Write_Command(0x45);       // set RAM y address start/end, in page 35
+	Epaper_Write_Data(x_end);
+	Epaper_Write_Command(0x45);
 	Epaper_Write_Data(y_start2);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_start1);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_end2);    // RAM y address end at 00h;
@@ -2022,19 +2022,19 @@ void EPD_Dis_Part_myself_All(unsigned int x_startA,unsigned int y_startA,const u
 	Epaper_Write_Data(y_start1);
 	
 	
-	 Epaper_Write_Command(0x24);   //Write Black and White image to RAM
+	 Epaper_Write_Command(0x24);
 	 for(i=0;i<PART_COLUMN;i++)
 	    for(j=0;j<PART_LINE/8;j++)
 			 {   
 				 //Byte image processing	 
 				 tempData=datasD[i*(PART_LINE/8)+(PART_LINE/8)-j-1];	 
-				 data1=(tempData>>7&0x01)+(tempData>>5&0x02)+(tempData>>3&0x04)+(tempData>>1&0x08)+(tempData<<7&0x80)+(tempData<<5&0x40)+(tempData<<3&0x20)+(tempData<<1&0x10); //字节内数据反序
+				 data1=(tempData>>7&0x01)+(tempData>>5&0x02)+(tempData>>3&0x04)+(tempData>>1&0x08)+(tempData<<7&0x80)+(tempData<<5&0x40)+(tempData<<3&0x20)+(tempData<<1&0x10);
 		     Epaper_Write_Data(~data1); 
 				 
 			 }
  	 
 	//Data E//////////////////////////////////////
-	x_startE=x_startE/8;//Convert to byte
+	x_startE=x_startE/8;
 	x_end=x_startE+PART_LINE/8-1; 
 	
 	y_start1=0;
@@ -2052,10 +2052,10 @@ void EPD_Dis_Part_myself_All(unsigned int x_startA,unsigned int y_startA,const u
 		y_end2=y_end2%256;		
 	}		
 	
-	Epaper_Write_Command(0x44);       // set RAM x address start/end, in page 35
+	Epaper_Write_Command(0x44);
 	Epaper_Write_Data(x_startE);    // RAM x address start at 00h;
-	Epaper_Write_Data(x_end);        // RAM x address end at 0fh(15+1)*8->128 
-	Epaper_Write_Command(0x45);       // set RAM y address start/end, in page 35
+	Epaper_Write_Data(x_end);
+	Epaper_Write_Command(0x45);
 	Epaper_Write_Data(y_start2);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_start1);    // RAM y address start at 0127h;
 	Epaper_Write_Data(y_end2);    // RAM y address end at 00h;
@@ -2069,14 +2069,14 @@ void EPD_Dis_Part_myself_All(unsigned int x_startA,unsigned int y_startA,const u
 	Epaper_Write_Data(y_start1);
 	
 	
-	 Epaper_Write_Command(0x24);   //Write Black and White image to RAM
+	 Epaper_Write_Command(0x24);
 
    for(i=0;i<PART_COLUMN;i++)
 	    for(j=0;j<PART_LINE/8;j++)
 			 {   
 				 //Byte image processing 
 				 tempData=datasE[i*(PART_LINE/8)+(PART_LINE/8)-j-1];	 
-				 data1=(tempData>>7&0x01)+(tempData>>5&0x02)+(tempData>>3&0x04)+(tempData>>1&0x08)+(tempData<<7&0x80)+(tempData<<5&0x40)+(tempData<<3&0x20)+(tempData<<1&0x10); //字节内数据反序
+				 data1=(tempData>>7&0x01)+(tempData>>5&0x02)+(tempData>>3&0x04)+(tempData>>1&0x08)+(tempData<<7&0x80)+(tempData<<5&0x40)+(tempData<<3&0x20)+(tempData<<1&0x10);
 		     Epaper_Write_Data(~data1); 
 				 
 			 }
@@ -2100,10 +2100,10 @@ void EPD_Part_init_LUT11(void)
     Epaper_Write_Data(0xA6);    
     Epaper_Write_Data(0x0F);
     
-	Epaper_Write_Command(0x11);	 // Data Entry mode setting
-	Epaper_Write_Data(0x03);     // 1 ¨CY decrement, X increment
+	Epaper_Write_Command(0x11);
+	Epaper_Write_Data(0x03);
 		
-	Epaper_Write_Command(0x3C); //BorderWavefrom
+	Epaper_Write_Command(0x3C);
 	Epaper_Write_Data(0x80);	
 	}
 
@@ -2150,7 +2150,7 @@ u8 LUT_DATA_part[] = //5.79
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
 
 
-0x04, 0x00, 0x00,    //FR, XON
+0x04, 0x00, 0x00,
 0x06, 0x17, 0x41, 0xA8, 0x32, 0x00, 
 //EOPT  VGH   VSH1  VSH2  VSL   VCOM  
 };
@@ -2159,18 +2159,18 @@ void EPD_Part_init_LUT(void)
 {
 		u8 i;
 
-    Epaper_Write_Command(0x01); //Driver output control      
+    Epaper_Write_Command(0x01);
 //     Epaper_Write_Data(0x97);
      Epaper_Write_Data(0x0F);
 //     Epaper_Write_Data(0x00);
      Epaper_Write_Data(0x01);
      Epaper_Write_Data(0x0E);
 	
-	Epaper_Write_Command(0x11);	 // Data Entry mode setting
-	Epaper_Write_Data(0x03);     // 1 –Y decrement, X increment
+	Epaper_Write_Command(0x11);
+	Epaper_Write_Data(0x03);
 		
     
-    Epaper_Write_Command(0x3C); //set border 
+    Epaper_Write_Command(0x3C);
     Epaper_Write_Data(0xc0);
 	
 	    Epaper_Write_Command(0x32);     // 	
@@ -2279,10 +2279,10 @@ void EPD_HW_Init_Part(void)
     Epaper_Write_Data(0xA6);    
     Epaper_Write_Data(0x0F);
     
-	Epaper_Write_Command(0x11);	 // Data Entry mode setting
-	Epaper_Write_Data(0x03);     // 1 ¨CY decrement, X increment
+	Epaper_Write_Command(0x11);
+	Epaper_Write_Data(0x03);
 		
-	Epaper_Write_Command(0x3C); //BorderWavefrom
+	Epaper_Write_Command(0x3C);
 	Epaper_Write_Data(0x80);		
 	
 }
@@ -2290,15 +2290,15 @@ void EPD_HW_Init_Part(void)
 
 void Epaper_Init1(void)
 {
-    Epaper_Write_Command(0x01); //Driver output control      
+    Epaper_Write_Command(0x01);
 //     Epaper_Write_Data(0x97);
      Epaper_Write_Data(0x0F);
 //     Epaper_Write_Data(0x00);
      Epaper_Write_Data(0x01);
      Epaper_Write_Data(0x0E);
 	
-	Epaper_Write_Command(0x11);	 // Data Entry mode setting
-	Epaper_Write_Data(0x03);     // 1 –Y decrement, X increment
+	Epaper_Write_Command(0x11);
+	Epaper_Write_Data(0x03);
 	
 
 //    Epaper_Write_Command(0x44); //set Ram-X address start/end position   
@@ -2312,7 +2312,7 @@ void Epaper_Init1(void)
 //    Epaper_Write_Data(0x00);
 //    Epaper_Write_Data(0x00); 
     
-    Epaper_Write_Command(0x3C); //set border 
+    Epaper_Write_Command(0x3C);
     Epaper_Write_Data(0xc0);
 
 //  Epaper_Write_Command(0x4E);     

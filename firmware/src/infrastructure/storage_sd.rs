@@ -711,7 +711,7 @@ impl Storage {
     /// sync, or simply no `:gs` before shutdown). Returns how many.
     fn load_dirty_journal(&self) -> usize {
         let Ok(text) = fs::read_to_string(DIRTY_JOURNAL) else {
-            return 0; // no journal yet — nothing carried over
+            return 0;
         };
         let mut d = self.dirty.borrow_mut();
         for line in text.lines().map(str::trim).filter(|l| !l.is_empty()) {

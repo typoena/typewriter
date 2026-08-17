@@ -547,7 +547,7 @@ impl Editor {
         Editor {
             text: String::new(),
             caret: 0,
-            mode: Mode::Normal, // power-on = Normal (vim-style); `with_text` boots the same
+            mode: Mode::Normal,
             scroll_top: 0,
             count: 0,
             pending_op: None,
@@ -1183,12 +1183,12 @@ impl Editor {
                     return;
                 }
                 'd' if op == Op::Delete => {
-                    self.checkpoint(); // one snapshot for the whole `ndd`
-                    self.register_lines(n); // yank the lines before removing them
+                    self.checkpoint();
+                    self.register_lines(n);
                     (0..n).for_each(|_| self.delete_current_line());
                 }
                 'c' if op == Op::Change => self.change_current_line(),
-                'y' if op == Op::Yank => self.register_lines(n), // `yy` — caret stays put
+                'y' if op == Op::Yank => self.register_lines(n),
                 'w' => {
                     let t = (0..n).fold(self.caret, |t, _| self.word_forward_pos(t));
                     self.apply_op(op, self.caret, t);
@@ -1575,7 +1575,7 @@ impl Editor {
                     format!("discard {n} file{plural}? CANNOT be undone y/n"),
                 );
             }
-            Key::Char('j') | Key::Down => self.unsynced_scroll += 1, // clamped in draw
+            Key::Char('j') | Key::Down => self.unsynced_scroll += 1,
             Key::Char('k') | Key::Up => {
                 self.unsynced_scroll = self.unsynced_scroll.saturating_sub(1)
             }
@@ -1584,7 +1584,7 @@ impl Editor {
                 self.unsynced.clear();
                 self.set_notice("pull cancelled");
             }
-            _ => {} // swallowed — no editing behind the card
+            _ => {}
         }
     }
 
@@ -1606,7 +1606,7 @@ impl Editor {
     fn view_key(&mut self, key: Key) {
         match key {
             // j/k and Ctrl-n/Ctrl-p both step one row (View is a pure viewport).
-            Key::Char('j') | Key::Down => self.scroll_top += 1, // clamped in draw()
+            Key::Char('j') | Key::Down => self.scroll_top += 1,
             Key::Char('k') | Key::Up => self.scroll_top = self.scroll_top.saturating_sub(1),
             Key::Char(' ') => self.scroll_top += ROWS,
             // Half-page scroll, mirroring Normal mode — here it's a pure
@@ -1702,7 +1702,7 @@ impl Editor {
             Key::FocusContinue => {
                 self.mode = Mode::Normal;
                 self.rest_stats = None;
-                self.requests.push(Effect::FocusStart); // next block
+                self.requests.push(Effect::FocusStart);
             }
             Key::FocusQuit => {
                 self.mode = Mode::Normal;
@@ -1710,7 +1710,7 @@ impl Editor {
                 self.pomodoro_on = false;
                 self.requests.push(Effect::FocusStop);
             }
-            _ => {} // swallowed — no editing behind the curtain
+            _ => {}
         }
     }
 
@@ -1729,7 +1729,7 @@ impl Editor {
         self.mode = Mode::Normal;
         let what = self.pending_confirm.take();
         if matches!(key, Key::Char('y') | Key::Char('Y')) {
-            self.notice = None; // the resulting effect's outcome replaces the prompt
+            self.notice = None;
             match what {
                 Some(Confirm::Delete) => self.delete_current(),
                 Some(Confirm::Reboot) => self.do_reboot(),

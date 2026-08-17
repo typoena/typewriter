@@ -27,9 +27,9 @@ import os
 from PIL import Image, ImageDraw, ImageFont
 
 CW, CH = 10, 20          # cell size, must match editor::{CW,CH}
-COLS = 16                # glyphs per atlas row (160 px / 10) — matches eg
-BASELINE = 15            # matches eg FONT_10X20
-INK_THRESHOLD = 128      # gray < threshold -> ink (pure 1-bit, no AA)
+COLS = 16
+BASELINE = 15
+INK_THRESHOLD = 128
 # Codepoints Pillow would draw as an ugly .notdef box — blank them instead.
 BLANK = {0x7F, 0xA0, 0xAD}
 
@@ -38,15 +38,15 @@ def iso_8859_15_slots():
     """The 192 codepoints in mapping::ISO_8859_15 order (decoded from its range
     string in embedded-graphics 0.8: mono_font/mapping.rs)."""
     s = []
-    s += range(0x20, 0x7F + 1)          # 0..95   ASCII + DEL
+    s += range(0x20, 0x7F + 1)
     s += range(0xA0, 0xA3 + 1)          # 96..99
-    s += [0x20AC, 0xA5, 0x160, 0xA7, 0x161]  # € ¥ Š § š
+    s += [0x20AC, 0xA5, 0x160, 0xA7, 0x161]
     s += range(0xA9, 0xB3 + 1)          # 105..115
-    s += [0x17D]                        # Ž
+    s += [0x17D]
     s += range(0xB5, 0xB7 + 1)          # 117..119
-    s += [0x17E]                        # ž
+    s += [0x17E]
     s += range(0xB9, 0xBB + 1)          # 121..123
-    s += [0x152, 0x153, 0x178]          # Œ œ Ÿ
+    s += [0x152, 0x153, 0x178]
     s += range(0xBF, 0xFF + 1)          # 127..191
     slots = list(s)
     assert len(slots) == 192, len(slots)

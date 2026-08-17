@@ -81,7 +81,7 @@ fn link_spans(line: &str) -> impl Iterator<Item = (usize, usize, usize)> + '_ {
             }
             let Some(title_end) = (i + 1..bytes.len()).find(|&j| bytes.get(j) == Some(&b']'))
             else {
-                return None; // no `]` left — no further link can start either
+                return None;
             };
             if bytes.get(title_end + 1) != Some(&b'(') {
                 i += 1;
@@ -314,7 +314,7 @@ pub(crate) fn format_table(block: &[String]) -> Vec<String> {
     let mut width = vec![3usize; ncols];
     for (ri, row) in rows.iter().enumerate() {
         if ri == 1 {
-            continue; // the separator's own width doesn't constrain the column
+            continue;
         }
         for (ci, cell) in row.iter().enumerate() {
             if let Some(w) = width.get_mut(ci) {
@@ -386,9 +386,9 @@ impl Editor {
     /// caret on roughly the same line (buffer length changes, so exact
     /// restoration isn't possible).
     pub(crate) fn format_buffer(&mut self) {
-        self.checkpoint(); // `:fmt` (and format-on-save) is undoable
+        self.checkpoint();
         let row = substr(&self.text, ..self.caret).bytes().filter(|&b| b == b'\n').count();
-        let col = self.caret - self.line_start(self.caret); // byte offset within the line
+        let col = self.caret - self.line_start(self.caret);
         self.text = format_markdown(&self.text);
         // Land the caret on the same logical line, at the same column when it
         // still fits. Formatting keeps the writer's line breaks (no paragraph

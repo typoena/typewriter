@@ -129,7 +129,7 @@ pub(crate) fn strip_stop_labels(body: &str) -> String {
 pub(crate) fn parse_snippet_body(body: &str) -> (String, Vec<usize>) {
     let b = body.as_bytes();
     let mut literal = String::with_capacity(body.len());
-    let mut stops: Vec<(u32, usize)> = Vec::new(); // (stop number, offset in `literal`)
+    let mut stops: Vec<(u32, usize)> = Vec::new();
     let mut i = 0;
     while i < body.len() {
         if b.get(i) == Some(&b'$') {
@@ -143,7 +143,7 @@ pub(crate) fn parse_snippet_body(body: &str) -> (String, Vec<usize>) {
                 i = j;
                 continue;
             }
-            literal.push('$'); // a lone `$` (e.g. a price) is literal text
+            literal.push('$');
             i += 1;
             continue;
         }

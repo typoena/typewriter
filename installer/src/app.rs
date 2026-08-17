@@ -230,7 +230,7 @@ impl App {
                             self.status =
                                 Some("write the card to finish this step — ^P steps back".into());
                         }
-                        Step::Done => {} // last step — nowhere forward to go
+                        Step::Done => {}
                         _ => self.next(),
                     }
                     return;
@@ -335,7 +335,7 @@ impl App {
     /// provision.
     fn on_key_sdcard(&mut self, key: KeyEvent) {
         match self.sd {
-            SdState::Running => return, // input locked while the worker runs
+            SdState::Running => return,
             SdState::ConfirmWipe(_) => {
                 match key.code {
                     KeyCode::Char('y') | KeyCode::Char('Y') => self.start_provision(true),
@@ -384,7 +384,7 @@ impl App {
     /// advance. Drives the sidebar's "ready / finish this step" affordance.
     pub fn forward_open(&self) -> bool {
         match self.step {
-            Step::Preflight => true, // advisory — never blocks
+            Step::Preflight => true,
             Step::Configure => self.config.missing_required().is_empty(),
             Step::SdCard => matches!(self.sd, SdState::Done),
             Step::Done => false,
@@ -449,7 +449,7 @@ impl App {
             return;
         }
         let (tx, rx) = std::sync::mpsc::channel();
-        self.check_rx = Some(rx); // replaces (and thereby retires) any prior probe
+        self.check_rx = Some(rx);
         self.repo_check = RepoCheck::Checking {
             remote: remote.clone(),
         };
@@ -462,7 +462,7 @@ impl App {
                 let access = auth::check_repo_access(&token, &remote);
                 let granted = access == auth::RepoAccess::Granted;
                 if tx.send((remote.clone(), access)).is_err() || granted {
-                    break; // probe retired by a newer one, or job done
+                    break;
                 }
             }
         });
@@ -503,7 +503,7 @@ impl App {
         if let Some(c) = self.auth_cancel.take() {
             c.store(true, Ordering::Relaxed);
         }
-        self.auth_rx = None; // the worker's late sends land nowhere
+        self.auth_rx = None;
         self.auth = AuthState::Idle;
         self.status = Some("sign-in cancelled — ^G restarts it, or paste a PAT".into());
     }
@@ -667,7 +667,7 @@ impl App {
                         }
                         Err(e) => format!("sign-in failed: {e}"),
                     });
-                    return; // auth rx drops: the flow is over
+                    return;
                 }
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => {
@@ -772,7 +772,7 @@ mod tests {
     fn ctrl_p_steps_back_ignoring_field_focus() {
         let mut app = idle_app();
         app.step = Step::Configure;
-        app.focus = 2; // mid-form: a whole-step jump must not walk fields first
+        app.focus = 2;
         app.on_key(ctrl('p'));
         assert!(app.step == Step::Preflight);
     }
@@ -780,7 +780,7 @@ mod tests {
     #[test]
     fn ctrl_n_on_sd_warns_and_holds() {
         let mut app = idle_app();
-        app.step = Step::SdCard; // set directly: no on_enter, so no card scan spawns
+        app.step = Step::SdCard;
         app.sd = SdState::Idle;
         app.on_key(ctrl('n'));
         assert!(

@@ -120,7 +120,7 @@ impl Editor {
         else {
             return false;
         };
-        self.checkpoint(); // baseline includes the trigger word — undo restores it
+        self.checkpoint();
         self.text.replace_range(start..self.caret, "");
         self.caret = start;
         self.insert_snippet(&body);
@@ -156,7 +156,7 @@ impl Editor {
     pub(crate) fn backspace(&mut self) {
         if self.caret > 0 {
             self.caret = self.prev_char(self.caret);
-            self.text.remove(self.caret); // removes the whole char at the caret
+            self.text.remove(self.caret);
         }
     }
 
@@ -177,11 +177,11 @@ impl Editor {
         let ls = self.line_start(self.caret);
         let le = self.line_end(self.caret);
         let (start, end) = if le < self.text.len() {
-            (ls, le + 1) // eat the trailing newline
+            (ls, le + 1)
         } else if ls > 0 {
-            (ls - 1, le) // last line: eat the preceding newline instead
+            (ls - 1, le)
         } else {
-            (ls, le) // whole buffer
+            (ls, le)
         };
         self.text.replace_range(start..end, "");
         self.caret = self.line_start(start.min(self.text.len()));
@@ -192,7 +192,7 @@ impl Editor {
         self.checkpoint();
         let ls = self.line_start(self.caret);
         let le = self.line_end(self.caret);
-        self.register = format!("{}\n", substr(&self.text, ls..le)); // linewise, like dd
+        self.register = format!("{}\n", substr(&self.text, ls..le));
         self.register_linewise = true;
         self.text.replace_range(ls..le, "");
         self.caret = ls;
@@ -212,7 +212,7 @@ impl Editor {
         }
         let mut block = substr(&self.text, ls..e).to_string();
         if !block.ends_with('\n') {
-            block.push('\n'); // the last line has no trailing newline; add one
+            block.push('\n');
         }
         self.register = block;
         self.register_linewise = true;
@@ -233,7 +233,7 @@ impl Editor {
         let end = if self.register_linewise {
             let le = self.line_end(self.caret);
             if le < self.text.len() {
-                let at = le + 1; // start of the following line
+                let at = le + 1;
                 self.text.insert_str(at, &content);
                 self.caret = at;
                 at + content.len() - 1
@@ -250,7 +250,7 @@ impl Editor {
         } else {
             let at = if self.text.is_empty() { 0 } else { self.next_char(self.caret) };
             self.text.insert_str(at, &content);
-            self.caret = self.prev_char(at + content.len()); // onto the last char
+            self.caret = self.prev_char(at + content.len());
             self.caret
         };
         self.reveal(end);
@@ -273,7 +273,7 @@ impl Editor {
         } else {
             let at = self.caret;
             self.text.insert_str(at, &content);
-            self.caret = self.prev_char(at + content.len()); // onto the last char
+            self.caret = self.prev_char(at + content.len());
             self.caret
         };
         self.reveal(end);
@@ -293,7 +293,7 @@ impl Editor {
             self.caret = s;
             return;
         }
-        self.checkpoint(); // Delete/Change mutate — snapshot for undo
+        self.checkpoint();
         self.text.replace_range(s..e, "");
         self.caret = s.min(self.text.len());
         if op == Op::Change {

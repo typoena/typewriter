@@ -126,17 +126,17 @@ impl Decoder {
     pub fn feed(&mut self, report: &[u8], mut emit: impl FnMut(Key)) {
         let (mods, current) = match (report.first(), report.get(2..)) {
             (Some(&m), Some(c)) if !c.is_empty() => (m, c),
-            _ => return, // short report (< 3 bytes)
+            _ => return,
         };
-        let shift = mods & 0x22 != 0; // LShift 0x02 | RShift 0x20
-        let cmd = mods & 0x88 != 0; // LGUI 0x08 | RGUI 0x80
+        let shift = mods & 0x22 != 0;
+        let cmd = mods & 0x88 != 0;
 
         // Caps Lock is a normal key in the boot report (not a modifier bit), so
         // we track its down/up edges here. Held, it acts as Ctrl; tapped alone,
         // it emits Escape.
         let caps_now = current.contains(&CAPS);
         let caps_before = self.prev.contains(&CAPS);
-        let ctrl = mods & 0x11 != 0 || caps_now; // LCtrl 0x01 | RCtrl 0x10, or Caps
+        let ctrl = mods & 0x11 != 0 || caps_now;
         // Reset the used-flag on the Caps press edge *before* checking for
         // companion keys, so Caps and another key arriving in the same report
         // (a fast tap — reports coalesce) still counts as used-as-Ctrl.
@@ -151,7 +151,7 @@ impl Decoder {
 
         for &k in current {
             if k == 0 || k == CAPS || self.prev.contains(&k) {
-                continue; // empty slot, the Caps key itself, or already held
+                continue;
             }
             if let Some(key) = translate(k, shift, ctrl, cmd) {
                 self.cycling |= key == Key::CycleRecent;
@@ -194,18 +194,18 @@ fn translate(usage: u8, shift: bool, ctrl: bool, cmd: bool) -> Option<Key> {
                 Key::Backspace
             });
         }
-        0x1a if ctrl => return Some(Key::DeleteWord), // Ctrl+W, readline-style
-        0x07 if ctrl => return Some(Key::HalfPageDown), // Ctrl+D, half-page down
-        0x18 if ctrl => return Some(Key::HalfPageUp), // Ctrl+U, half-page up
-        0x15 if ctrl => return Some(Key::Redo),       // Ctrl+R, redo
-        0x13 if ctrl => return Some(Key::Up),   // Ctrl+P, move up (vim CTRL-P)
-        0x13 if cmd && shift => return Some(Key::CommandPalette), // Cmd+Shift+P, command palette
-        0x13 if cmd => return Some(Key::Palette), // Cmd+P, file palette
-        0x16 if cmd => return Some(Key::Save),   // Cmd+S, save (like :w)
-        0x2b if ctrl => return Some(Key::CycleRecent), // Ctrl+Tab, MRU note switch
-        0x11 if ctrl => return Some(Key::Down), // Ctrl+N, move down (vim CTRL-N)
-        0x06 if ctrl => return Some(Key::FocusContinue), // Ctrl+C, continue the focus break
-        0x14 if ctrl => return Some(Key::FocusQuit),     // Ctrl+Q, quit the focus session
+        0x1a if ctrl => return Some(Key::DeleteWord),
+        0x07 if ctrl => return Some(Key::HalfPageDown),
+        0x18 if ctrl => return Some(Key::HalfPageUp),
+        0x15 if ctrl => return Some(Key::Redo),
+        0x13 if ctrl => return Some(Key::Up),
+        0x13 if cmd && shift => return Some(Key::CommandPalette),
+        0x13 if cmd => return Some(Key::Palette),
+        0x16 if cmd => return Some(Key::Save),
+        0x2b if ctrl => return Some(Key::CycleRecent),
+        0x11 if ctrl => return Some(Key::Down),
+        0x06 if ctrl => return Some(Key::FocusContinue),
+        0x14 if ctrl => return Some(Key::FocusQuit),
         _ => {}
     }
 
@@ -432,9 +432,9 @@ mod tests {
     #[test]
     fn translate_backspace_variants() {
         assert_eq!(translate(0x2a, false, false, false), Some(Key::Backspace));
-        assert_eq!(translate(0x2a, false, true, false), Some(Key::DeleteWord)); // Ctrl
-        assert_eq!(translate(0x2a, false, false, true), Some(Key::DeleteLine)); // Cmd
-        assert_eq!(translate(0x1a, false, true, false), Some(Key::DeleteWord)); // Ctrl+W
+        assert_eq!(translate(0x2a, false, true, false), Some(Key::DeleteWord));
+        assert_eq!(translate(0x2a, false, false, true), Some(Key::DeleteLine));
+        assert_eq!(translate(0x1a, false, true, false), Some(Key::DeleteWord));
     }
 
     #[test]
@@ -446,16 +446,16 @@ mod tests {
 
     #[test]
     fn translate_ctrl_navigation_and_redo_chords() {
-        assert_eq!(translate(0x07, false, true, false), Some(Key::HalfPageDown)); // Ctrl+D
-        assert_eq!(translate(0x18, false, true, false), Some(Key::HalfPageUp)); // Ctrl+U
-        assert_eq!(translate(0x15, false, true, false), Some(Key::Redo)); // Ctrl+R
-        assert_eq!(translate(0x13, false, true, false), Some(Key::Up)); // Ctrl+P, up
-        assert_eq!(translate(0x13, false, false, true), Some(Key::Palette)); // Cmd+P, palette
+        assert_eq!(translate(0x07, false, true, false), Some(Key::HalfPageDown));
+        assert_eq!(translate(0x18, false, true, false), Some(Key::HalfPageUp));
+        assert_eq!(translate(0x15, false, true, false), Some(Key::Redo));
+        assert_eq!(translate(0x13, false, true, false), Some(Key::Up));
+        assert_eq!(translate(0x13, false, false, true), Some(Key::Palette));
         // Cmd+Shift+P is the command palette; adding Shift must not fall back to
         // plain Cmd+P (the shift arm is listed first, so it wins).
-        assert_eq!(translate(0x13, true, false, true), Some(Key::CommandPalette)); // Cmd+Shift+P
-        assert_eq!(translate(0x11, false, true, false), Some(Key::Down)); // Ctrl+N, down
-        assert_eq!(translate(0x11, false, false, true), None); // Cmd+N reserved (:enew, v0.5)
+        assert_eq!(translate(0x13, true, false, true), Some(Key::CommandPalette));
+        assert_eq!(translate(0x11, false, true, false), Some(Key::Down));
+        assert_eq!(translate(0x11, false, false, true), None);
         // Without a modifier these are ordinary letters, not intents.
         assert_eq!(translate(0x15, false, false, false), Some(Key::Char('r')));
         assert_eq!(translate(0x13, false, false, false), Some(Key::Char('p')));
@@ -464,7 +464,7 @@ mod tests {
 
     #[test]
     fn translate_ctrl_tab_cycles_recent_notes() {
-        assert_eq!(translate(0x2b, false, true, false), Some(Key::CycleRecent)); // Ctrl+Tab
+        assert_eq!(translate(0x2b, false, true, false), Some(Key::CycleRecent));
         // Plain Tab still types a tab; Cmd+Tab stays swallowed (it belongs to
         // no chord, and the OS-style app switcher means nothing here).
         assert_eq!(translate(0x2b, false, false, false), Some(Key::Char('\t')));
@@ -473,7 +473,7 @@ mod tests {
 
     #[test]
     fn translate_cmd_s_saves() {
-        assert_eq!(translate(0x16, false, false, true), Some(Key::Save)); // Cmd+S
+        assert_eq!(translate(0x16, false, false, true), Some(Key::Save));
         // Ctrl+S is swallowed (Ctrl carries the vim chords, not save), and a
         // bare 's' is still an ordinary character.
         assert_eq!(translate(0x16, false, true, false), None);
@@ -483,8 +483,8 @@ mod tests {
 
     #[test]
     fn translate_ctrl_or_cmd_swallows_plain_chars() {
-        assert_eq!(translate(0x04, false, true, false), None); // Ctrl+a
-        assert_eq!(translate(0x04, false, false, true), None); // Cmd+a
+        assert_eq!(translate(0x04, false, true, false), None);
+        assert_eq!(translate(0x04, false, false, true), None);
     }
 
     #[test]
@@ -499,8 +499,8 @@ mod tests {
     fn release_then_press_again_re_emits() {
         let mut d = Decoder::new();
         feed(&mut d, &report(0, &[0x04]));
-        assert_eq!(feed(&mut d, &report(0, &[])), vec![]); // release
-        assert_eq!(feed(&mut d, &report(0, &[0x04])), vec![Key::Char('a')]); // re-press
+        assert_eq!(feed(&mut d, &report(0, &[])), vec![]);
+        assert_eq!(feed(&mut d, &report(0, &[0x04])), vec![Key::Char('a')]);
     }
 
     #[test]
@@ -524,8 +524,8 @@ mod tests {
     fn ctrl_release_after_ctrl_tab_emits_cycle_commit_once() {
         let mut d = Decoder::new();
         assert_eq!(feed(&mut d, &report(0x01, &[0x2b])), vec![Key::CycleRecent]);
-        assert_eq!(feed(&mut d, &report(0x01, &[])), vec![]); // Tab up, Ctrl still held
-        assert_eq!(feed(&mut d, &report(0x00, &[])), vec![Key::CycleCommit]); // Ctrl up
+        assert_eq!(feed(&mut d, &report(0x01, &[])), vec![]);
+        assert_eq!(feed(&mut d, &report(0x00, &[])), vec![Key::CycleCommit]);
         // A later Ctrl press/release without a Tab stays silent.
         assert_eq!(feed(&mut d, &report(0x01, &[])), vec![]);
         assert_eq!(feed(&mut d, &report(0x00, &[])), vec![]);
@@ -535,8 +535,8 @@ mod tests {
     fn held_ctrl_walks_deeper_then_commits_on_release() {
         let mut d = Decoder::new();
         assert_eq!(feed(&mut d, &report(0x01, &[0x2b])), vec![Key::CycleRecent]);
-        assert_eq!(feed(&mut d, &report(0x01, &[])), vec![]); // Tab up
-        assert_eq!(feed(&mut d, &report(0x01, &[0x2b])), vec![Key::CycleRecent]); // Tab again
+        assert_eq!(feed(&mut d, &report(0x01, &[])), vec![]);
+        assert_eq!(feed(&mut d, &report(0x01, &[0x2b])), vec![Key::CycleRecent]);
         // Tab and Ctrl released together → one commit.
         assert_eq!(feed(&mut d, &report(0x00, &[])), vec![Key::CycleCommit]);
     }
@@ -552,14 +552,14 @@ mod tests {
     #[test]
     fn caps_tap_emits_escape() {
         let mut d = Decoder::new();
-        assert_eq!(feed(&mut d, &report(0, &[CAPS])), vec![]); // Caps down, nothing
-        assert_eq!(feed(&mut d, &report(0, &[])), vec![Key::Escape]); // clean release
+        assert_eq!(feed(&mut d, &report(0, &[CAPS])), vec![]);
+        assert_eq!(feed(&mut d, &report(0, &[])), vec![Key::Escape]);
     }
 
     #[test]
     fn caps_held_as_ctrl_suppresses_escape() {
         let mut d = Decoder::new();
-        feed(&mut d, &report(0, &[CAPS])); // Caps down
+        feed(&mut d, &report(0, &[CAPS]));
         // Caps + Backspace → Ctrl+Backspace = DeleteWord.
         assert_eq!(feed(&mut d, &report(0, &[CAPS, 0x2a])), vec![Key::DeleteWord]);
         // Releasing Caps must NOT emit Escape (it was used as Ctrl).
@@ -569,9 +569,9 @@ mod tests {
     #[test]
     fn modifier_ctrl_and_cmd_backspace() {
         let mut d = Decoder::new();
-        assert_eq!(feed(&mut d, &report(0x01, &[0x2a])), vec![Key::DeleteWord]); // LCtrl
-        feed(&mut d, &report(0, &[])); // release
-        assert_eq!(feed(&mut d, &report(0x08, &[0x2a])), vec![Key::DeleteLine]); // LGUI
+        assert_eq!(feed(&mut d, &report(0x01, &[0x2a])), vec![Key::DeleteWord]);
+        feed(&mut d, &report(0, &[]));
+        assert_eq!(feed(&mut d, &report(0x08, &[0x2a])), vec![Key::DeleteLine]);
     }
 
     #[test]
@@ -617,7 +617,7 @@ mod tests {
     #[test]
     fn reset_clears_held_state() {
         let mut d = Decoder::new();
-        feed(&mut d, &report(0, &[0x04])); // 'a' held
+        feed(&mut d, &report(0, &[0x04]));
         d.reset();
         // After reset the same key reads as a fresh down, not a held slot.
         assert_eq!(feed(&mut d, &report(0, &[0x04])), vec![Key::Char('a')]);
@@ -692,13 +692,13 @@ mod tests {
     fn dead_key_twice_emits_one_then_rearms() {
         let mut c = Composer::new();
         let mut out = Vec::new();
-        c.feed(ch('\''), |k| out.push(k)); // arm
+        c.feed(ch('\''), |k| out.push(k));
         assert_eq!(out, vec![]);
         assert_eq!(c.pending(), Some('\''));
-        c.feed(ch('\''), |k| out.push(k)); // second acute: flush one, re-arm
+        c.feed(ch('\''), |k| out.push(k));
         assert_eq!(out, vec![ch('\'')]);
         assert_eq!(c.pending(), Some('\''));
-        c.feed(ch('e'), |k| out.push(k)); // now composes with the re-armed acute
+        c.feed(ch('e'), |k| out.push(k));
         assert_eq!(out, vec![ch('\''), ch('é')]);
         assert_eq!(c.pending(), None);
     }
@@ -708,8 +708,8 @@ mod tests {
         let mut c = Composer::new();
         assert_eq!(c.pending(), None);
         c.feed(ch('~'), |_| {});
-        assert_eq!(c.pending(), Some('~')); // side-panel indicator would show '~'
-        c.feed(ch('o'), |_| {}); // resolves
+        assert_eq!(c.pending(), Some('~'));
+        c.feed(ch('o'), |_| {});
         assert_eq!(c.pending(), None);
     }
 

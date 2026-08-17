@@ -22,7 +22,7 @@ fn capital_v_enters_linewise_visual() {
 fn charwise_yank_is_inclusive_and_lands_the_caret_at_the_start() {
     let mut e = Editor::with_text("hello world".into());
     e.caret = 0;
-    send(&mut e, "vey"); // select "hello" (e -> last char of the word), yank
+    send(&mut e, "vey");
     assert_eq!(e.mode(), Mode::Normal);
     assert_eq!(e.caret, 0);
     assert_eq!(e.register, "hello");
@@ -41,7 +41,7 @@ fn vy_yanks_the_single_char_under_the_caret() {
 fn charwise_delete_removes_the_span_and_fills_the_register() {
     let mut e = Editor::with_text("hello world".into());
     e.caret = 0;
-    send(&mut e, "ved"); // select "hello", delete
+    send(&mut e, "ved");
     assert_eq!(e.text(), " world");
     assert_eq!(e.caret, 0);
     assert_eq!(e.register, "hello");
@@ -52,7 +52,7 @@ fn charwise_delete_removes_the_span_and_fills_the_register() {
 fn charwise_change_deletes_the_span_and_enters_insert() {
     let mut e = Editor::with_text("hello".into());
     e.caret = 0;
-    send(&mut e, "v$c"); // select the whole line, change
+    send(&mut e, "v$c");
     assert_eq!(e.mode(), Mode::Insert);
     assert_eq!(e.text(), "");
     send(&mut e, "bye");
@@ -63,7 +63,7 @@ fn charwise_change_deletes_the_span_and_enters_insert() {
 fn count_in_visual_extends_the_selection() {
     let mut e = Editor::with_text("abcdef".into());
     e.caret = 0;
-    send(&mut e, "v2ld"); // select a,b,c (2l from a), delete
+    send(&mut e, "v2ld");
     assert_eq!(e.text(), "def");
 }
 
@@ -81,7 +81,7 @@ fn linewise_delete_removes_the_whole_line_like_dd() {
 fn linewise_selection_spans_multiple_lines_with_j() {
     let mut e = Editor::with_text("a\nb\nc\nd".into());
     e.caret = 0;
-    send(&mut e, "Vjd"); // select lines a and b, delete both
+    send(&mut e, "Vjd");
     assert_eq!(e.text(), "c\nd");
 }
 
@@ -89,7 +89,7 @@ fn linewise_selection_spans_multiple_lines_with_j() {
 fn linewise_yank_then_paste_copies_the_line_below() {
     let mut e = Editor::with_text("one\ntwo".into());
     e.caret = 0;
-    send(&mut e, "Vy"); // yank line "one" linewise
+    send(&mut e, "Vy");
     assert_eq!(e.register, "one\n");
     send(&mut e, "p");
     assert_eq!(e.text(), "one\none\ntwo");
@@ -101,7 +101,7 @@ fn linewise_change_clears_the_line_but_keeps_one_to_type_on() {
     e.caret = e.text().find("two").unwrap();
     send(&mut e, "Vc");
     assert_eq!(e.mode(), Mode::Insert);
-    assert_eq!(e.text(), "one\n\nthree"); // the line's text is gone, the row remains
+    assert_eq!(e.text(), "one\n\nthree");
     send(&mut e, "X");
     assert_eq!(e.text(), "one\nX\nthree");
 }
@@ -138,7 +138,7 @@ fn gr_enters_view_and_v_no_longer_does() {
     assert_eq!(e.mode(), Mode::View);
     e.handle(Key::Escape);
     e.handle(Key::Char('v'));
-    assert_eq!(e.mode(), Mode::Visual); // v is Visual now, not View
+    assert_eq!(e.mode(), Mode::Visual);
 }
 
 #[test]
@@ -146,8 +146,8 @@ fn visual_ops_do_not_clobber_the_dot_register() {
     let mut e = Editor::with_text("abcdef".into());
     e.caret = 0;
     e.handle(Key::Char('x')); // dot = x ; "bcdef"
-    send(&mut e, "vld"); // a visual delete must not become the new dot
-    e.handle(Key::Char('.')); // repeats the x
+    send(&mut e, "vld");
+    e.handle(Key::Char('.'));
     // buffer after x -> "bcdef"; vld deletes "bc" -> "def"; . deletes 'd' -> "ef"
     assert_eq!(e.text(), "ef");
 }
@@ -157,16 +157,16 @@ fn draw_inverts_the_selected_cells() {
     let mut e = Editor::with_text("hello world".into());
     e.caret = 0;
     let normal = e.draw(true).bytes().to_vec();
-    send(&mut e, "ve"); // select "hello"
+    send(&mut e, "ve");
     let visual = e.draw(true).bytes().to_vec();
-    assert_ne!(normal, visual); // the selection changed pixels
+    assert_ne!(normal, visual);
 }
 
 #[test]
 fn draw_runs_for_a_linewise_selection_over_a_blank_line() {
     let mut e = Editor::with_text("a\n\nb".into());
     e.caret = 0;
-    send(&mut e, "Vjj"); // select all three rows, including the blank one
-    let _ = e.draw(true); // must not panic on the empty-row highlight path
+    send(&mut e, "Vjj");
+    let _ = e.draw(true);
     assert_eq!(e.mode(), Mode::VisualLine);
 }

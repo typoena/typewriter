@@ -246,7 +246,7 @@ fn close_device(
     unsafe { usb_host_device_close(client, *open_dev) };
     *open_dev = ptr::null_mut();
     lock_unpoisoned(&DECODER).reset();
-    lock_unpoisoned(&COMPOSER).reset(); // drop any half-typed accent
+    lock_unpoisoned(&COMPOSER).reset();
     KBD_PRESENT.store(false, Ordering::SeqCst);
 }
 
@@ -385,9 +385,9 @@ fn control_request(
         let t = &mut *xfer;
         // First 8 bytes of a control transfer's buffer are the setup packet.
         core::ptr::copy_nonoverlapping(setup.as_ptr(), t.data_buffer, 8);
-        t.num_bytes = 8; // setup packet only, no data stage
+        t.num_bytes = 8;
         t.device_handle = dev;
-        t.bEndpointAddress = 0; // control endpoint EP0
+        t.bEndpointAddress = 0;
         t.callback = Some(ctrl_cb);
         t.context = ptr::null_mut();
     }
@@ -420,7 +420,7 @@ fn start_report_polling(dev: usb_device_handle_t) -> Result<*mut usb_transfer_t,
     esp!(unsafe { usb_host_transfer_alloc(BOOT_REPORT_LEN, 0, &mut xfer) })?;
     unsafe {
         let t = &mut *xfer;
-        t.num_bytes = BOOT_REPORT_LEN as i32; // must be a multiple of wMaxPacketSize (8)
+        t.num_bytes = BOOT_REPORT_LEN as i32;
         t.device_handle = dev;
         t.bEndpointAddress = KBD_EP_IN;
         t.callback = Some(report_cb);

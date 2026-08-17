@@ -71,27 +71,27 @@ const FAST_PARTIAL_LUT: [u8; 233] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x01, 0x18, 0x01, 0x00, 0x00, 0x01, 0x00, // g1 main drive
-    0x01, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, // g1 follow-up
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // g1 tail — TRIMMED (was 0x01,0x01,0x00…)
+    0x01, 0x18, 0x01, 0x00, 0x00, 0x01, 0x00,
+    0x01, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x01, 0x58, 0x41, 0x00, 0x00, 0x01, 0x00, // g2 main drive
-    0x01, 0x41, 0x00, 0x00, 0x00, 0x01, 0x00, // g2 follow-up drive
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // g2 tail — TRIMMED (was 0x01,0x01,0x00…)
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x01, 0x58, 0x41, 0x00, 0x00, 0x01, 0x00,
+    0x01, 0x41, 0x00, 0x00, 0x00, 0x01, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x01, 0x98, 0x81, 0x00, 0x00, 0x01, 0x00, // g3 main drive
-    0x01, 0x81, 0x00, 0x00, 0x00, 0x01, 0x00, // g3 follow-up drive
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // g3 tail — TRIMMED (was 0x01,0x01,0x00…)
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x01, 0x98, 0x81, 0x00, 0x00, 0x01, 0x00,
+    0x01, 0x81, 0x00, 0x00, 0x00, 0x01, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x01, 0x18, 0x41, 0x00, 0x00, 0x01, 0x00, // g4 main drive
-    0x01, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, // g4 follow-up
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // g4 tail — TRIMMED (was 0x01,0x01,0x00…)
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x01, 0x18, 0x41, 0x00, 0x00, 0x01, 0x00,
+    0x01, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -167,7 +167,7 @@ impl<'d> Epd<'d> {
     /// running. Safe to call anytime; a no-op when nothing is pending.
     pub fn wait_ready(&mut self) -> Result<(), EspError> {
         if self.refresh_pending {
-            self.wait_while_busy(2500)?; // full_refresh_time ≈ 2200 ms
+            self.wait_while_busy(2500)?;
             self.refresh_pending = false;
         }
         Ok(())
@@ -221,24 +221,24 @@ impl<'d> Epd<'d> {
     /// Port of GxEPD2 `_InitDisplay` (B/W mode). The `0x20` master
     /// activations load the temperature value and LUT.
     pub fn init(&mut self) -> Result<(), EspError> {
-        self.cmd(0x12)?; // SWRESET
+        self.cmd(0x12)?;
         FreeRtos::delay_ms(10);
         self.wait_while_busy(100)?;
-        self.cmd(0x18)?; // temperature sensor control
-        self.data(&[0x80])?; // internal sensor
-        self.cmd(0x22)?; // display update control 2
-        self.data(&[0xB1])?; // enable clock, load temp, load LUT (B/W), disable clock
-        self.cmd(0x20)?; // master activation
-        FreeRtos::delay_ms(10);
-        self.wait_while_busy(100)?;
-        self.cmd(0x1A)?; // write to temperature register
-        self.data(&[0x64, 0x00])?;
+        self.cmd(0x18)?;
+        self.data(&[0x80])?;
         self.cmd(0x22)?;
-        self.data(&[0x91])?; // load temp, load LUT (B/W), disable clock
+        self.data(&[0xB1])?;
         self.cmd(0x20)?;
         FreeRtos::delay_ms(10);
         self.wait_while_busy(100)?;
-        self.fast_lut_loaded = false; // reset + OTP reload evicted any custom recipe
+        self.cmd(0x1A)?;
+        self.data(&[0x64, 0x00])?;
+        self.cmd(0x22)?;
+        self.data(&[0x91])?;
+        self.cmd(0x20)?;
+        FreeRtos::delay_ms(10);
+        self.wait_while_busy(100)?;
+        self.fast_lut_loaded = false;
         Ok(())
     }
 
@@ -253,7 +253,7 @@ impl<'d> Epd<'d> {
         mode: u8,
         target: u8,
     ) -> Result<(), EspError> {
-        self.cmd(0x11 | target)?; // data entry mode
+        self.cmd(0x11 | target)?;
         self.data(&[mode])?;
         let xl = (x / 8) as u8;
         let xh = ((x + w - 1) / 8) as u8;
@@ -332,7 +332,7 @@ impl<'d> Epd<'d> {
     /// Port of GxEPD2 `refresh(false)` → `_Update_Full` (fast full update).
     fn update_full(&mut self) -> Result<(), EspError> {
         self.kick_update_full()?;
-        self.wait_while_busy(2500)?; // full_refresh_time ≈ 2200 ms
+        self.wait_while_busy(2500)?;
         Ok(())
     }
 
@@ -345,15 +345,15 @@ impl<'d> Epd<'d> {
     /// orderings came out photo-negative and corrupted subsequent partials
     /// (2026-07-25, v4/v5 in docs/tradeoff-curves/epd-refresh-latency.md).
     fn kick_update_full(&mut self) -> Result<(), EspError> {
-        self.set_ram_area(0, 0, WIDTH / 2, HEIGHT, 0x03, 0x80)?; // slave
-        self.set_ram_area(0, 0, WIDTH / 2, HEIGHT, 0x03, 0x00)?; // master
-        self.cmd(0x21)?; // display update control 1
-        self.data(&[0x40, 0x10])?; // bypass RED as 0, cascade
-        self.cmd(0x1A)?; // temperature register (fast full update)
+        self.set_ram_area(0, 0, WIDTH / 2, HEIGHT, 0x03, 0x80)?;
+        self.set_ram_area(0, 0, WIDTH / 2, HEIGHT, 0x03, 0x00)?;
+        self.cmd(0x21)?;
+        self.data(&[0x40, 0x10])?;
+        self.cmd(0x1A)?;
         self.data(&[0x64, 0x00])?;
         self.cmd(0x22)?;
-        self.data(&[0xD7])?; // fast full update
-        self.cmd(0x20)?; // master activation
+        self.data(&[0xD7])?;
+        self.cmd(0x20)?;
         Ok(())
     }
 
@@ -368,22 +368,22 @@ impl<'d> Epd<'d> {
     /// clobbering the write-only OTP gate config — refuted on hardware, see
     /// docs/postmortems/2026-07-16-gate-scan-spike-refuted.md.
     fn update_part(&mut self, y0: u16, h: u16) -> Result<(), EspError> {
-        self.set_ram_area(0, y0, WIDTH / 2, h, 0x03, 0x80)?; // slave
-        self.set_ram_area(0, y0, WIDTH / 2, h, 0x03, 0x00)?; // master
-        self.cmd(0x3C)?; // border waveform control
-        self.data(&[0x80])?; // VCOM
-        self.cmd(0x21)?; // display update control 1
-        self.data(&[0x00, 0x10])?; // RED normal, cascade
+        self.set_ram_area(0, y0, WIDTH / 2, h, 0x03, 0x80)?;
+        self.set_ram_area(0, y0, WIDTH / 2, h, 0x03, 0x00)?;
+        self.cmd(0x3C)?;
+        self.data(&[0x80])?;
+        self.cmd(0x21)?;
+        self.data(&[0x00, 0x10])?;
         if let Some(temp) = PARTIAL_TEMP {
             // Closed experiment — see PARTIAL_TEMP. The 0xFF kick below reloads
             // temp+LUT, so this takes effect on this activation.
-            self.cmd(0x1A)?; // write to temperature register
+            self.cmd(0x1A)?;
             self.data(&temp)?;
         }
-        self.cmd(0x22)?; // display update control 2
-        self.data(&[0xFF])?; // partial update (incl. load-temp + load-LUT)
-        self.cmd(0x20)?; // master activation
-        self.wait_while_busy(2000)?; // partial is well under the full ~2.2 s
+        self.cmd(0x22)?;
+        self.data(&[0xFF])?;
+        self.cmd(0x20)?;
+        self.wait_while_busy(2000)?;
         Ok(())
     }
 
@@ -392,38 +392,38 @@ impl<'d> Epd<'d> {
     /// with *that* LUT instead of reloading the ~540 ms OTP one. Reached only
     /// from the `fast_partial`-gated windowed-additive path.
     fn update_part_fast(&mut self, y0: u16, h: u16) -> Result<(), EspError> {
-        self.set_ram_area(0, y0, WIDTH / 2, h, 0x03, 0x80)?; // slave
-        self.set_ram_area(0, y0, WIDTH / 2, h, 0x03, 0x00)?; // master
+        self.set_ram_area(0, y0, WIDTH / 2, h, 0x03, 0x80)?;
+        self.set_ram_area(0, y0, WIDTH / 2, h, 0x03, 0x00)?;
         // The whole recipe goes to BOTH controllers — each half has its own
         // waveform SRAM and charge pump; a master-only write would leave the left
         // half on the OTP waveform and the two halves would ghost differently.
         // Mirrors Good Display's `Epaper_Partial` (0x32, 0x3F, 0x03, 0x04, 0x2C, 0x37).
         const LUT: usize = 227;
         for target in [0x80u8, 0x00u8] {
-            self.cmd(0x32 | target)?; // LUT register (waveform phases + FR/XON)
+            self.cmd(0x32 | target)?;
             self.data(&FAST_PARTIAL_LUT[..LUT])?;
-            self.cmd(0x3F | target)?; // EOPT — LUT end option
+            self.cmd(0x3F | target)?;
             self.data(&[FAST_PARTIAL_LUT[LUT]])?;
-            self.cmd(0x03 | target)?; // VGH — gate driving voltage
+            self.cmd(0x03 | target)?;
             self.data(&[FAST_PARTIAL_LUT[LUT + 1]])?;
-            self.cmd(0x04 | target)?; // VSH1, VSH2, VSL — source driving voltage
+            self.cmd(0x04 | target)?;
             self.data(&FAST_PARTIAL_LUT[LUT + 2..LUT + 5])?;
-            self.cmd(0x2C | target)?; // VCOM
+            self.cmd(0x2C | target)?;
             self.data(&[FAST_PARTIAL_LUT[LUT + 5]])?;
-            self.cmd(0x37 | target)?; // display option — required (its omission broke the 2026-07-19 attempt)
+            self.cmd(0x37 | target)?;
             self.data(&[0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00])?;
         }
         // Border kept at the known-good 0x80 (the vendor recipe uses 0xC0).
-        self.cmd(0x3C)?; // border waveform control
+        self.cmd(0x3C)?;
         self.data(&[0x80])?;
-        self.cmd(0x21)?; // display update control 1
-        self.data(&[0x00, 0x10])?; // RED normal, cascade
-        self.cmd(0x22)?; // display update control 2
+        self.cmd(0x21)?;
+        self.data(&[0x00, 0x10])?;
+        self.cmd(0x22)?;
         let trigger = if FAST_PART_KEEP_HOT { FAST_PART_UPDATE_HOT } else { FAST_PART_UPDATE };
         self.data(&[trigger])?;
-        self.cmd(0x20)?; // master activation
+        self.cmd(0x20)?;
         self.wait_while_busy(2000)?;
-        self.fast_lut_loaded = true; // resident until update_part evicts it (or a re-init)
+        self.fast_lut_loaded = true;
         Ok(())
     }
 
@@ -449,9 +449,9 @@ impl<'d> Epd<'d> {
     /// ever persists past this, the remaining suspect is the custom drive
     /// voltages (`0x3F`/`0x03`/`0x04`/`0x2C`), which this may not restore.
     fn reload_otp_lut(&mut self) -> Result<(), EspError> {
-        self.cmd(0x22)?; // display update control 2
-        self.data(&[0x91])?; // load temp, load LUT (B/W), disable clock
-        self.cmd(0x20)?; // master activation
+        self.cmd(0x22)?;
+        self.data(&[0x91])?;
+        self.cmd(0x20)?;
         FreeRtos::delay_ms(10);
         self.wait_while_busy(100)?;
         Ok(())
@@ -461,8 +461,8 @@ impl<'d> Epd<'d> {
     /// `0xFF` = white, `0x00` = black. Port of GxEPD2 `clearScreen`.
     pub fn clear_screen(&mut self, value: u8) -> Result<(), EspError> {
         self.wait_ready()?;
-        self.write_buffer(0x26, value)?; // previous
-        self.write_buffer(0x24, value)?; // current
+        self.write_buffer(0x26, value)?;
+        self.write_buffer(0x24, value)?;
         self.update_full()?;
         Ok(())
     }
@@ -481,7 +481,7 @@ impl<'d> Epd<'d> {
         for row in rows() {
             buf.extend_from_slice(row.get(..CTRL_BYTES_W).unwrap_or_default());
         }
-        self.set_ram_area(0, y0, WIDTH / 2, h, 0x03, 0x80)?; // slave
+        self.set_ram_area(0, y0, WIDTH / 2, h, 0x03, 0x80)?;
         self.cmd(command | 0x80)?;
         self.data(&buf)?;
 
@@ -489,7 +489,7 @@ impl<'d> Epd<'d> {
         for row in rows() {
             buf.extend_from_slice(row.get(FB_BYTES_W - CTRL_BYTES_W..).unwrap_or_default());
         }
-        self.set_ram_area(0, y0, WIDTH / 2, h, 0x02, 0x00)?; // master
+        self.set_ram_area(0, y0, WIDTH / 2, h, 0x02, 0x00)?;
         self.cmd(command)?;
         self.data(&buf)?;
         Ok(())
@@ -505,8 +505,8 @@ impl<'d> Epd<'d> {
         // factory-partial eviction), so a full while it is loaded would run the
         // flash on the typing waveform.
         self.evict_fast_recipe()?;
-        self.write_frame_bank(0x26, fb, 0, HEIGHT)?; // previous
-        self.write_frame_bank(0x24, fb, 0, HEIGHT)?; // current
+        self.write_frame_bank(0x26, fb, 0, HEIGHT)?;
+        self.write_frame_bank(0x24, fb, 0, HEIGHT)?;
         self.update_full()?;
         Ok(())
     }
@@ -522,8 +522,8 @@ impl<'d> Epd<'d> {
         self.wait_ready()?;
         self.reset()?;
         self.init()?;
-        self.write_frame_bank(0x26, fb, 0, HEIGHT)?; // previous
-        self.write_frame_bank(0x24, fb, 0, HEIGHT)?; // current
+        self.write_frame_bank(0x26, fb, 0, HEIGHT)?;
+        self.write_frame_bank(0x24, fb, 0, HEIGHT)?;
         self.update_full()?;
         Ok(())
     }
@@ -536,9 +536,9 @@ impl<'d> Epd<'d> {
     pub fn display_frame_async(&mut self, fb: &[u8]) -> Result<(), EspError> {
         contract(fb.len() == FB_BYTES)?;
         self.wait_ready()?;
-        self.evict_fast_recipe()?; // same hazard as display_frame
-        self.write_frame_bank(0x26, fb, 0, HEIGHT)?; // previous
-        self.write_frame_bank(0x24, fb, 0, HEIGHT)?; // current
+        self.evict_fast_recipe()?;
+        self.write_frame_bank(0x26, fb, 0, HEIGHT)?;
+        self.write_frame_bank(0x24, fb, 0, HEIGHT)?;
         self.kick_update_full()?;
         self.refresh_pending = true;
         Ok(())
@@ -588,16 +588,16 @@ impl<'d> Epd<'d> {
         contract(h > 0 && u32::from(y0) + u32::from(h) <= u32::from(HEIGHT))?;
         self.wait_ready()?;
         if !fast {
-            self.evict_fast_recipe()?; // before the bank write — see its doc
+            self.evict_fast_recipe()?;
         }
         self.write_frame_bank(0x24, fb, y0, h)?; // current = new
         if fast {
-            self.update_part_fast(y0, h)?; // transition previous -> current
+            self.update_part_fast(y0, h)?;
         } else {
             self.update_part(y0, h)?;
         }
-        self.write_frame_bank(0x26, fb, y0, h)?; // resync both banks…
-        self.write_frame_bank(0x24, fb, y0, h)?; // …post ping-pong
+        self.write_frame_bank(0x26, fb, y0, h)?;
+        self.write_frame_bank(0x24, fb, y0, h)?;
         Ok(())
     }
 }

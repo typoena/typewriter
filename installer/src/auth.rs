@@ -169,7 +169,7 @@ fn json_string_field(body: &str, key: &str) -> Option<String> {
             '\\' => match chars.next()? {
                 'n' => out.push('\n'),
                 't' => out.push('\t'),
-                other => out.push(other), // \" \\ \/ and the rest: take literally
+                other => out.push(other),
             },
             other => out.push(other),
         }

@@ -16,10 +16,10 @@ import uuid as _uuid
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                    "typoena-mainboard.kicad_pcb")
 
-W, H = 130.0, 45.0       # cotes de la carte, décidées 2026-08-16
-R = 3.0                  # rayon des coins
-X0, Y0 = 40.0, 40.0      # origine sur la feuille
-HOLE_INSET = 4.0         # centre des trous depuis les bords
+W, H = 130.0, 45.0
+R = 3.0
+X0, Y0 = 40.0, 40.0
+HOLE_INSET = 4.0
 
 
 def uid():
@@ -164,7 +164,7 @@ def main():
         edge(x2 - R, y2, x1 + R, y2),
         edge(x1, y2 - R, x1, y1 + R),
     ]
-    k = R * (1 - 0.70710678)   # point median de l'arc a 45 deg
+    k = R * (1 - 0.70710678)
     body += [
         arc(x1 + R, y1, x1 + k, y1 + k, x1, y1 + R),
         arc(x2 - R, y1, x2 - k, y1 + k, x2, y1 + R),

@@ -19,46 +19,46 @@
 int	main(void)
 {
 	  unsigned char i,j;
-		delay_init();	    	     //Delay function initialization
-		NVIC_Configuration(); 	//Set NVIC interrupt grouping 2
-    EPD_GPIO_Init();       //EPD GPIO  initialization
+		delay_init();
+		NVIC_Configuration();
+    EPD_GPIO_Init();
 	while(1)
 	{    
 
-#if 0 //Full screen refresh, fast refresh, and partial refresh demostration.
-			EPD_HW_Init_LUT(); //Full screen refresh initialization.
-			EPD_WhiteScreen_White(); //Clear screen function.
-			EPD_DeepSleep(); //Enter the sleep mode and please do not delete it, otherwise it will reduce the lifespan of the screen.
-			delay_s(3); //Delay for 2s.
+#if 0
+			EPD_HW_Init_LUT();
+			EPD_WhiteScreen_White();
+			EPD_DeepSleep();
+			delay_s(3);
 		 /************Full display(2s)*******************/
-			EPD_HW_Init_LUT(); //Full screen refresh initialization.
-			EPD_WhiteScreen_ALL(gImage_1); //To Display one image using full screen refresh.
-			EPD_DeepSleep(); //Enter the sleep mode and please do not delete it, otherwise it will reduce the lifespan of the screen.
-			delay_s(2); //Delay for 2s.	
-			EPD_HW_Init_LUT(); //Full screen refresh initialization.
-			EPD_WhiteScreen_ALL(gImage_2); //To Display one image using full screen refresh.
-			EPD_DeepSleep(); //Enter the sleep mode and please do not delete it, otherwise it will reduce the lifespan of the screen.
-			delay_s(2); //Delay for 2s.	
+			EPD_HW_Init_LUT();
+			EPD_WhiteScreen_ALL(gImage_1);
+			EPD_DeepSleep();
+			delay_s(2);
+			EPD_HW_Init_LUT();
+			EPD_WhiteScreen_ALL(gImage_2);
+			EPD_DeepSleep();
+			delay_s(2);
 		
-			EPD_HW_Init_LUT(); //Full screen refresh initialization.
-			EPD_WhiteScreen_White(); //Clear screen function.
-			EPD_DeepSleep(); //Enter the sleep mode and please do not delete it, otherwise it will reduce the lifespan of the screen.
-			delay_s(5); //Delay for 2s.
+			EPD_HW_Init_LUT();
+			EPD_WhiteScreen_White();
+			EPD_DeepSleep();
+			delay_s(5);
 		
 			/************Fast refresh mode(1.5s)*******************/
-			EPD_HW_Init_LUT_Fast(); //Full screen refresh initialization.
-			EPD_WhiteScreen_ALL(gImage_1); //To Display one image using full screen refresh.
-			EPD_DeepSleep(); //Enter the sleep mode and please do not delete it, otherwise it will reduce the lifespan of the screen.
-			delay_s(2); //Delay for 2s.	
-			EPD_HW_Init_LUT_Fast(); //Full screen refresh initialization.
-			EPD_WhiteScreen_ALL(gImage_2); //To Display one image using full screen refresh.
-			EPD_DeepSleep(); //Enter the sleep mode and please do not delete it, otherwise it will reduce the lifespan of the screen.
-			delay_s(2); //Delay for 2s.		
+			EPD_HW_Init_LUT_Fast();
+			EPD_WhiteScreen_ALL(gImage_1);
+			EPD_DeepSleep();
+			delay_s(2);
+			EPD_HW_Init_LUT_Fast();
+			EPD_WhiteScreen_ALL(gImage_2);
+			EPD_DeepSleep();
+			delay_s(2);
 			
-			EPD_HW_Init_LUT_Fast(); //Full screen refresh initialization.
-			EPD_WhiteScreen_White(); //Clear screen function.
-			EPD_DeepSleep(); //Enter the sleep mode and please do not delete it, otherwise it will reduce the lifespan of the screen.
-			delay_s(5); //Delay for 2s.		
+			EPD_HW_Init_LUT_Fast();
+			EPD_WhiteScreen_White();
+			EPD_DeepSleep();
+			delay_s(5);
 		
 		/*	EPD_HW_Init_Fast(); //Fast refresh initialization.
 			EPD_WhiteScreen_ALL_Fast(gImage_1); //To display one image using fast refresh.
@@ -70,15 +70,15 @@ int	main(void)
 			delay_s(2); //Delay for 2s.
 */
 #endif	
-	#if 1 //Partial refresh demostration.
+	#if 1
 	//Partial refresh demo support displaying a clock at 5 locations with 00:00.  If you need to perform partial refresh more than 5 locations, please use the feature of using partial refresh at the full screen demo.
 	//After 5 partial refreshes, implement a full screen refresh to clear the ghosting caused by partial refreshes.
 	//////////////////////Partial refresh time demo/////////////////////////////////////
 			//EPD_HW_Init_LUT(); //Electronic paper initialization.	
 			//EPD_SetRAMValue_BaseMap_LUT(gImage_basemap); //Please do not delete the background color function, otherwise it will cause unstable display during partial refresh.
 			
-			EPD_HW_Init(); //Electronic paper initialization.	
-			EPD_SetRAMValue_BaseMap(gImage_basemap); //Please do not delete the background color function, otherwise it will cause unstable display during partial refresh.
+			EPD_HW_Init();
+			EPD_SetRAMValue_BaseMap(gImage_basemap);
 			
 	    EPD_HW_Init_Part();
 //		Display_All_White1();
@@ -87,11 +87,11 @@ int	main(void)
   {
 	      Epaper_Init1();
         Epaper_Partial();
-			EPD_Dis_Part_myself_S_LUT(64,80,Num[1],         //x-A,y-A,DATA-A
-													64+48,80,Num[0],         //x-B,y-B,DATA-B
-													64+48*2,80,gImage_numdot,       //x-C,y-C,DATA-C
-													64+48*3,80,Num[i],       //x-D,y-D,DATA-D
-													64+48*4,80,Num[i],104,48);	 //x-D,y-D,DATA-D,Resolution 104*48				
+			EPD_Dis_Part_myself_S_LUT(64,80,Num[1],
+													64+48,80,Num[0],
+													64+48*2,80,gImage_numdot,
+													64+48*3,80,Num[i],
+													64+48*4,80,Num[i],104,48);
    //delay_s(1);	//Delay for 2s. 
 	}
 		// OTP
@@ -108,18 +108,18 @@ int	main(void)
       }
 	*/
 		
-			EPD_DeepSleep();  //Enter the sleep mode and please do not delete it, otherwise it will reduce the lifespan of the screen.
-			delay_s(30);	//Delay for 2s.
+			EPD_DeepSleep();
+			delay_s(30);
 
-	    EPD_HW_Init_LUT(); //Full screen refresh initialization.
-			EPD_WhiteScreen_White(); //Clear screen function.
-			EPD_DeepSleep(); //Enter the sleep mode and please do not delete it, otherwise it will reduce the lifespan of the screen.
-			delay_s(2); //Delay for 2s.
+	    EPD_HW_Init_LUT();
+			EPD_WhiteScreen_White();
+			EPD_DeepSleep();
+			delay_s(2);
 	#endif	
 	
 
 
-  while(1);	// The program stops here
+  while(1);
 	}
 }	
 
