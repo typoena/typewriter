@@ -14,6 +14,7 @@
 | Doc | What's in it |
 | --- | --- |
 | [`adr.md`](adr.md) | Architecture Decision Records — the load-bearing technical choices, rejected alternatives included. |
+| [`INDEX.toml`](INDEX.toml) | Retrieval index: what each doc concludes, and which subsystem it concludes it about. One read, no folder browsing — for agents and for finding the file that holds a number. |
 
 ## Reference — true now, no dates
 

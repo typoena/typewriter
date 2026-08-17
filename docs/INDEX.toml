@@ -1,0 +1,346 @@
+# Knowledge index for docs/ — machine-first, one read, no folder browsing.
+#
+# Purpose: answer "which single file holds the answer to X" without opening
+# anything else. `docs/README.md` is the human map (what each tree is for);
+# this is the retrieval map (what each file concludes, and about what).
+#
+# Every entry carries `path` — the provenance. A claim here that cannot be
+# traced back to its file does not belong here.
+#
+# Maintenance: an entry earns its place only if it states a *conclusion* a
+# grep over the repo would not produce. Add a `holds` line when a doc lands a
+# number, a decision or a refutation; drop the entry when the file goes.
+
+schema = 1
+
+# ---------------------------------------------------------------------------
+# Nodes — the subsystem vocabulary docs are indexed against.
+# ---------------------------------------------------------------------------
+
+[[node]]
+id = "epd"
+what = "GDEY0579T93 5.79\" 792x272 e-paper, SSD1683-class, DESPI-c579 breakout, SPI2."
+
+[[node]]
+id = "render"
+what = "app::render engine — custom widgets on embedded-graphics, dirty-rect windows sized to panel refresh regions."
+
+[[node]]
+id = "sd"
+what = "FAT-on-SD working copy at /sd/repo + /sd/local, own SPI3 host, atomic-rename saves."
+
+[[node]]
+id = "git-sync"
+what = "libgit2 (git2 crate) add/commit/push/pull on a dedicated thread; O(depth) TreeBuilder splice."
+
+[[node]]
+id = "wifi"
+what = "Wi-Fi radio, fused with git sync; auto_sync energy policy."
+
+[[node]]
+id = "boot"
+what = "Cold boot path to cursor-ready: bootloader, PSRAM, SD mount, splash refresh."
+
+[[node]]
+id = "power"
+what = "Wall power today; battery, power switch, power path and sleep states designed but unbuilt."
+
+[[node]]
+id = "keyboard"
+what = "USB host (TinyUSB) HID input."
+
+[[node]]
+id = "config"
+what = "/sd/typoena.conf device config, .typoena.toml editor prefs, .typoena.snippets.json."
+
+[[node]]
+id = "onboarding"
+what = "First-boot wizard, :setup, macOS installer, GitHub App device flow, PAT at rest."
+
+[[node]]
+id = "architecture"
+what = "Hexagonal ports (hal/ app/ firmware/), Cargo workspace, std::thread + channels."
+
+# ---------------------------------------------------------------------------
+# ADRs — all in docs/adr.md; anchor is the section slug.
+# ---------------------------------------------------------------------------
+
+[[adr]]
+id = "ADR-001"
+title = "Language and runtime — Rust on esp-idf-rs (std)"
+status = "Accepted"
+nodes = ["architecture"]
+
+[[adr]]
+id = "ADR-002"
+title = "UI strategy — custom widgets on embedded-graphics, not Ratatui"
+status = "Accepted"
+nodes = ["render", "epd"]
+
+[[adr]]
+id = "ADR-003"
+title = "Display medium — e-ink (GDEY0579T93)"
+status = "Accepted"
+nodes = ["epd", "render", "power"]
+holds = "~13-line writing column; ~27 KB framebuffer; per-keystroke latency floor ~100-300 ms; scroll is the worst-case refresh op; renderer kept resolution-agnostic for a 10.3\" upgrade."
+
+[[adr]]
+id = "ADR-004"
+title = "Git implementation — gitoxide (gix)"
+status = "Accepted, kill-switch fired"
+nodes = ["git-sync"]
+holds = "gix pushes only over file:// and ssh://, not HTTP(S) — fallback to libgit2 taken for v0.1."
+
+[[adr]]
+id = "ADR-005"
+title = "Auth — HTTPS + GitHub Personal Access Token"
+status = "Accepted"
+nodes = ["git-sync", "onboarding"]
+
+[[adr]]
+id = "ADR-006"
+title = "Concurrency — std::thread + channels, no async runtime"
+status = "Accepted"
+nodes = ["architecture"]
+holds = "Five tasks (usb, wifi, ui, render, git); editor state behind one Mutex; revisit past ~10 tasks."
+
+[[adr]]
+id = "ADR-007"
+title = "Storage split — FAT-on-SD for working copy, LittleFS-on-flash for config"
+status = "Accepted; config half never built"
+nodes = ["sd", "config"]
+holds = "FatFS f_rename does not overwrite — unlink target first, plus boot recovery with a two-case decision table. Config lives in plaintext /sd/typoena.conf, not LittleFS. Use a genuine SD card, ideally <=32 GB SDHC."
+
+[[adr]]
+id = "ADR-008"
+title = "MVP power — wall-powered, battery deferred"
+status = "Accepted"
+nodes = ["power"]
+
+[[adr]]
+id = "ADR-009"
+title = "Keyboard transport — USB host (TinyUSB)"
+status = "Accepted"
+nodes = ["keyboard"]
+holds = "BLE-HID rejected: shares the 2.4 GHz radio with Wi-Fi, so a push would contend with input."
+
+[[adr]]
+id = "ADR-010"
+title = "Push UX — one gesture, auto-timestamp message, no prompt"
+status = "Accepted; mechanics drifted"
+nodes = ["git-sync"]
+holds = "Trigger is :gs (not Ctrl-G); message is 'Typoena push — unix <epoch>'; rejected pushes replay onto the remote tip — no merge commits."
+
+[[adr]]
+id = "ADR-011"
+title = "Credential provisioning — how the PAT reaches the device and is protected at rest"
+status = "Open"
+nodes = ["onboarding", "config"]
+holds = "Delivery solved (GitHub App device flow writes /sd/typoena.conf, nothing baked into the image). At-rest encryption unbuilt — plaintext on a removable FAT card."
+
+[[adr]]
+id = "ADR-012"
+title = "SD on its own SPI3 host (not shared with the EPD on SPI2)"
+status = "Accepted"
+nodes = ["sd", "epd"]
+holds = "SpiBusDriver holds an exclusive bus lock for its whole lifetime, locking out any other device on SPI2. Pins — SD/SPI3: SCK 14, MOSI 15, MISO 13, CS 10. EPD/SPI2: SCK 12, MOSI 11, CS 7, DC 6, RST 5, BUSY 4."
+
+[[adr]]
+id = "ADR-013"
+title = "Firmware architecture — adopt the hexagonal ports refactor"
+status = "Accepted"
+nodes = ["architecture"]
+holds = "main.rs 924 -> 368 lines; 358 green host tests; Wi-Fi deliberately left unported (fused with git sync); the two esp-idf binaries stay outside the workspace by design."
+
+# ---------------------------------------------------------------------------
+# Reference — true now, undated.
+# ---------------------------------------------------------------------------
+
+[[doc]]
+path = "docs/reference/commands.md"
+nodes = ["config", "git-sync"]
+holds = "Every ':' command and '>' palette action, and what each refuses to do."
+
+[[doc]]
+path = "docs/reference/stack.md"
+nodes = ["architecture"]
+holds = "Software stack layer by layer with measured costs; annotated repo layout."
+
+[[doc]]
+path = "docs/reference/typoena-toml.md"
+nodes = ["config"]
+holds = "Per-key reference for .typoena.toml: save_on_idle, format_on_save, line_numbers, open_last_on_boot, theme, font, auto_sync."
+
+[[doc]]
+path = "docs/reference/typoena-snippets.md"
+nodes = ["config"]
+holds = "Zed-compatible snippet format, tab stops, the two insertion surfaces (Insert-mode Tab, '$' palette)."
+
+[[doc]]
+path = "docs/reference/testing.md"
+nodes = ["architecture"]
+holds = "Where Rust tests live, the two test shapes, what is deliberately not used, how to run them."
+
+# ---------------------------------------------------------------------------
+# Plan — not yet true.
+# ---------------------------------------------------------------------------
+
+[[doc]]
+path = "docs/plan/macroplan.md"
+nodes = ["power", "onboarding"]
+holds = "Delivery plan and open checklists for v0.9, v0.10, v1.0, v1.x."
+
+[[doc]]
+path = "docs/plan/v0.9-onboarding-wizard.md"
+nodes = ["onboarding", "config"]
+holds = "Zero-computer provisioning flow, ':setup' as the same wizard prefilled, the token-expiry decision, non-goals."
+
+[[doc]]
+path = "docs/plan/v0.10-battery-and-sleep.md"
+nodes = ["power"]
+holds = "Power switch and power path decided 2026-07-26; battery and sleep designed, not built."
+
+# ---------------------------------------------------------------------------
+# Quality — how requirements are weighed.
+# ---------------------------------------------------------------------------
+
+[[doc]]
+path = "docs/quality/qfd.md"
+nodes = ["render", "git-sync", "boot"]
+holds = "Hub. Section 6 is the critical performance budget; section 7 the tradeoffs and the conflicts left explicitly unresolved by v0.1."
+
+[[doc]]
+path = "docs/quality/glossary.md"
+holds = "Methodology vocabulary only: WHAT / Function / Characteristic / Metric / Target. Device vocabulary is in CONTEXT.md."
+
+[[doc]]
+path = "docs/quality/qfd-house-1.md"
+holds = "House 1 (WHATs x HOWs): requirements, characteristics, the reading, the roof."
+
+[[doc]]
+path = "docs/quality/qfd-house-2.md"
+holds = "House 2 (HOWs x components): cascade tree, component ranking, shared-pool budget."
+
+[[doc]]
+path = "docs/quality/qfd-houses-3-4.md"
+holds = "Houses 3 and 4 as a pipeline: processes P1-P9 x controls Q1-Q8."
+
+[[doc]]
+path = "docs/quality/qfd-perception.md"
+holds = "Five competing products scored 0-5 per WHAT."
+
+[[doc]]
+path = "docs/quality/house-vs-product.md"
+holds = "Four standing challenges where the scored houses disagree with the real product: D1 flow invisible to the house, D2 refresh area is not a latency lever, D3 focus mode acts on its own, D4 font picker over-serves W13."
+
+# ---------------------------------------------------------------------------
+# Record — dated, append-only. This is where measured constants live.
+# ---------------------------------------------------------------------------
+
+[[doc]]
+path = "docs/record/postmortems/2026-07-05-spike3-sd-cmd59.md"
+nodes = ["sd"]
+holds = "Counterfeit/large SDXC cards reject CMD59 (SPI-mode CRC) and fail to mount. Decision: keep CRC required, report a swap-the-card message. Also the FatFS f_rename / atomic-save recovery table."
+
+[[doc]]
+path = "docs/record/postmortems/2026-07-05-spike7-gix-https-push.md"
+nodes = ["git-sync"]
+holds = "The ADR-004 kill-switch. libgit2 compiles and links on xtensa (Gate A + B), on-device push completed 2026-07-06, and the three bugs between 'links and runs' and 'pushes'."
+
+[[doc]]
+path = "docs/record/postmortems/2026-07-11-editor-freeze-spi-dma-oom-during-sync.md"
+nodes = ["epd", "git-sync", "render"]
+holds = "SPI-DMA out-of-memory during a background :sync froze the editor. Shipped remediation: paints are non-fatal. Root-cause eradication specced, not built."
+
+[[doc]]
+path = "docs/record/postmortems/2026-07-16-gate-scan-spike-refuted.md"
+nodes = ["epd"]
+holds = "REFUTED: partial waveform time is MUX-independent — restricting the gate scan buys nothing. Do not retry. The remaining lever is a custom LUT."
+
+[[doc]]
+path = "docs/record/postmortems/2026-07-16-partial-refresh-bank-toggle.md"
+nodes = ["epd"]
+holds = "Mode-2 ping-pong vs a one-bank resync left one RAM bank two frames stale. Refresh cadence was the wrong turn; the trace pinned the bank toggle."
+
+[[doc]]
+path = "docs/record/postmortems/2026-07-20-wizard-wifi-loadprohibited.md"
+nodes = ["onboarding", "wifi"]
+holds = "Wi-Fi bring-up boot loop (LoadProhibited) in the onboarding wizard. Fixed and verified on device; the fix is a firmware/Cargo.toml change. Six device flashes to find it."
+
+[[doc]]
+path = "docs/record/kaizen/cold-boot-time.md"
+nodes = ["boot"]
+holds = "Chosen levers: disable PSRAM memtest + CPU at 240 MHz, in the sdkconfig.defaults boot-time block; the file walk moved off the boot hot path. QIO rejected — brick risk outweighs ~0.1 s."
+
+[[doc]]
+path = "docs/record/kaizen/real-repo-sync.md"
+nodes = ["git-sync", "sd"]
+holds = "Closed 2026-07-13: first end-to-end :sync on the real repo. Chosen idea was the O(depth) TreeBuilder splice with fast-seek as its config."
+
+[[doc]]
+path = "docs/record/tradeoff-curves/epd-refresh-latency.md"
+nodes = ["epd", "render"]
+holds = "Refresh latency vs rows driven, and the closed experiment log on the ~540 ms floor: temperature is not a lever (CLOSED); SPI clock sweep; set_ram_area settle delay 0 ms shipped (windowed ~495 ms, full-area ~527 ms); custom 0x32 LUT with FR sweep, 0x08 kept; charge-pump keep-hot reverted, no win; fast_partial ghost accumulation v6 confirmed on device 2026-07-25; eviction must precede the RAM writes. Async partial CLOSED 2026-07-17, not worth building."
+
+[[doc]]
+path = "docs/record/tradeoff-curves/sync-commit-staging.md"
+nodes = ["git-sync", "sd"]
+holds = "Why the git index is the wrong primitive at real-repo scale, and the root cause behind it: FatFS lseek walks the cluster chain. Verdict: the sub-second bar FAILED, wire the O(depth) splice in anyway. Includes how to bench and flash git_bench."
+
+[[doc]]
+path = "docs/record/tradeoff-curves/wifi-auto-sync.md"
+nodes = ["wifi", "power"]
+holds = "auto_sync read as a max-staleness cap, not a timer. Default 10 min (3.6 vs 7.2 mAh/hr at 5 min), minimum clamped to ~2 min. Push when awake + dirty and once on the way into sleep; never wake from deep sleep purely to sync."
+
+[[doc]]
+path = "docs/record/notes/boot-time-budget.md"
+nodes = ["boot", "epd"]
+holds = "~4.26 s to cursor. The ~1.9 s full-refresh floor is the wall; PSRAM memtest off buys -0.73 s. <= 3 s (the v1.0 target) is marginal-to-unreachable on this panel — <= 3.5 s is the achievable target."
+
+[[doc]]
+path = "docs/record/notes/ctrl-g-perceived-latency.md"
+nodes = ["git-sync", "render"]
+holds = "Durability before delivery: the moment that matters is the local commit (~0.2 s), not push completion (5-10 s). Surfacing it collapses perceived latency."
+
+[[doc]]
+path = "docs/record/notes/sync-latency.md"
+nodes = ["git-sync", "wifi"]
+holds = "~16 s cold / ~10 s warm :gs, close to the floor. The win was one TLS handshake instead of two. Foreign pushes reconcile-and-replay, last-writer-wins."
+
+[[doc]]
+path = "docs/record/notes/epd-waveforms.md"
+nodes = ["epd"]
+holds = "Conceptual primer: what happens in a pixel, why a waveform is a timed voltage recipe, why it is a LUT table, full vs partial vs fast, why temperature is in the mix."
+
+[[doc]]
+path = "docs/record/notes/epd-waveform-lut-deep-dive.md"
+nodes = ["epd"]
+holds = "SSD1683 LUT bit-packing byte by byte — the VS region is 60 bytes = 5 LUTs x 12 phases — our actual bytes decoded, and what a proper white-to-black partial should look like."
+
+[[doc]]
+path = "docs/record/notes/git-sync-images-and-repo-size.md"
+nodes = ["git-sync", "sd"]
+holds = "Decision: do not shrink the notes repo. Why shrinking is off the table, what an ongoing pull actually costs, and the increment-C fix landed 2026-07-14."
+
+# ---------------------------------------------------------------------------
+# Outside docs/ but referenced by it — listed so the index is a complete map.
+# ---------------------------------------------------------------------------
+
+[[doc]]
+path = "hardware/bom.md"
+nodes = ["power", "epd", "sd"]
+holds = "Bill of materials, every physical part by subsystem."
+
+[[doc]]
+path = "hardware/wiring.md"
+nodes = ["epd", "sd", "keyboard", "power"]
+holds = "Every electrical connection, one table per subsystem."
+
+[[doc]]
+path = "firmware/docs/bring-up-spikes.md"
+nodes = ["epd", "sd", "git-sync", "keyboard"]
+holds = "Chronological bench log of Spikes 1-7 that brought the firmware up on silicon."
+
+[[doc]]
+path = "CONTEXT.md"
+holds = "Device vocabulary (Save, Push, Tracked, Local), screen regions, refresh cycle, user-facing actions. Not in docs/."

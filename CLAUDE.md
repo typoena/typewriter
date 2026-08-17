@@ -83,3 +83,8 @@ historical spec / QFD / postmortem material already summarized in memory.
 Only open `docs/` when the current task is explicitly to **create, read, update, or
 delete** a file in there (or when a task plainly requires one specific spec — open
 that named file directly, don't browse the folder).
+
+To find which file holds a given decision, constant or refutation, read
+`docs/INDEX.toml` — one file, states what each doc concludes and about which
+subsystem. Read it instead of listing or grepping `docs/`, then open the one
+file it points at. Keep it current when a doc lands a new conclusion or goes away.
