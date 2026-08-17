@@ -66,8 +66,8 @@ the remote) is offered.
 **ESP32-S3-N16R8** (16 MB flash, 8 MB PSRAM) · **GDEY0579T93** 5.79″ e-ink
 strip (792×272, ~2.9:1 — biases the UX toward "current line + recent context",
 the writing posture we want) · **Nuphy wired USB keyboard** with the S3 as USB
-host · **microSD over SPI** · **USB-C wall power** for the MVP, battery in
-v0.10.
+host · **microSD over SPI** · **USB-C wall power or a 3700 mAh LiPo**, switched
+by a latching panel button through a load-sharing power path.
 
 ---
 

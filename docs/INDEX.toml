@@ -41,7 +41,7 @@ what = "Cold boot path to cursor-ready: bootloader, PSRAM, SD mount, splash refr
 
 [[node]]
 id = "power"
-what = "Wall power today; battery, power switch, power path and sleep states designed but unbuilt."
+what = "Battery chain built and running (LiPo + TP4056 + boost + latching switch + soft-power latch); soft-power firmware, battery sense and sleep states unbuilt."
 
 [[node]]
 id = "keyboard"
@@ -210,7 +210,7 @@ holds = "Zero-computer provisioning flow, ':setup' as the same wizard prefilled,
 [[doc]]
 path = "docs/plan/v0.10-battery-and-sleep.md"
 nodes = ["power"]
-holds = "Power switch and power path decided 2026-07-26; battery and sleep designed, not built."
+holds = "Power switch and power path decided 2026-07-26, and the chain is built: bench-verified that the latch gates the merged rail (off = dead on mains, on = boots from either source). Soft-power firmware, battery sense and sleep states still to build."
 
 # Quality — how requirements are weighed.
 

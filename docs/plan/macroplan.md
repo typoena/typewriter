@@ -175,11 +175,11 @@ card on consent. The rest is **not started.**
 ## v0.10 — Power: battery + sleep — [ ]
 
 Bench current-draw measurement, the LiPo power chain (HW-373 + MT3608 per the
-PCB migration) with a momentary-button soft-power latch + load-sharing power
-path (design + BOM decided 2026-07-26; shutdown paints a sleeping-Typo off
-card so the persistent e-ink shows the power state), per-sync Wi-Fi teardown,
-light/deep sleep, the `auto_sync` runtime, and a battery
-indicator. **Not started** beyond that power-path decision.
+PCB migration) with a latching-button soft-power latch + load-sharing power
+path (shutdown paints a sleeping-Typo off card so the persistent e-ink shows
+the power state), per-sync Wi-Fi teardown, light/deep sleep, the `auto_sync`
+runtime, and a battery indicator. **The power chain runs on the bench**; the
+soft-power firmware and everything downstream of it is not started.
 Detail: [v0.10-battery-and-sleep.md](v0.10-battery-and-sleep.md).
 
 ## v1.0 — Polish — [ ]
