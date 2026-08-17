@@ -80,7 +80,7 @@ fn date_prefix_len(s: &str) -> usize {
 ///   applies live and keeps the list open, so several settings flip in a row. Each
 ///   toggle's *label* carries the pref's current state ([`Editor::command_label`]),
 ///   so the list still doubles as a settings readout. `auto_sync` has no behaviour
-///   yet (v0.7); cycling it only changes the stored/displayed value.
+///   yet (v0.10); cycling it only changes the stored/displayed value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum PaletteCmd {
     NewFile,

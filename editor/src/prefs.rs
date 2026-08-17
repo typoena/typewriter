@@ -54,8 +54,8 @@ pub struct Prefs {
     pub font: String,
     /// Max-staleness cap for opportunistic auto-push, as a duration string.
     /// The palette rotates it through [`AUTO_SYNC_OPTIONS`] (`"2m"`..`"30m"`);
-    /// hand-editing can still set any string. **Persisted-but-inert in v0.5** —
-    /// the periodic push that reads it rides v0.7/v0.8, so cycling it changes the
+    /// hand-editing can still set any string. **Persisted-but-inert** — the
+    /// periodic push that reads it rides v0.10, so cycling it changes the
     /// stored/displayed value but triggers nothing yet.
     pub auto_sync: String,
     /// Rows of context [`adjust_scroll`](Editor::adjust_scroll) keeps above and
