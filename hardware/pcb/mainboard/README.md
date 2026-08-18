@@ -4,16 +4,16 @@ Projet KiCad 10. Une seule carte porte toute l'électronique de la machine.
 
 | | |
 | --- | --- |
-| Schéma | hiérarchique, 4 feuilles — **97 composants, ERC 0 violation** |
+| Schéma | hiérarchique, 4 feuilles — **96 composants, ERC 0 violation** |
 | Nets | 79, 342 connexions |
 | BOM | 45 lignes, **42 référencées LCSC** (les 3 autres sont des connecteurs non montés) |
-| PCB | **squelette prêt** — 130 × 45 mm, 4 couches, DRC 0 violation. Empreintes à importer |
+| PCB | **en cours de routage** — 94 × 45 mm, 4 couches, 95 empreintes posées, 4 plans remplis |
 | Valeurs et leur source | [`DESIGN-NOTES.md`](DESIGN-NOTES.md) |
 
 ```
 typoena-mainboard.kicad_sch   racine : les quatre feuilles
 ├── 01-power.kicad_sch     47 composants   chargeur, rails 3V3 et 5V, rail uSD, bouton
-├── 02-mcu.kicad_sch       10              ESP32-S3, strapping, découplage
+├── 02-mcu.kicad_sch        9              ESP32-S3, strapping, découplage
 ├── 03-display.kicad_sch   21              étage de puissance du panneau, FPC, secours
 └── 04-io.kicad_sch       19              USB-C ×2, microSD, pont USB-série, extension J10
 ```
@@ -67,13 +67,13 @@ Deux réserves, sans conséquence sur la conception mais bonnes à connaître :
 
 ## Forme de la carte — décidé
 
-**130 × 45 mm, 4 couches.** Le boîtier sera adapté à la carte, et non l'inverse : c'est
+**94 × 45 mm, 4 couches.** Le boîtier sera adapté à la carte, et non l'inverse : c'est
 ce qui a débloqué le layout et permis d'optimiser pour la carte plutôt que pour une
 cavité existante.
 
 | Décision | Raison |
 | --- | --- |
-| Format allongé 130 × 45 | épouse une machine de 176 mm de large et laisse un rectangle propre pour la batterie de 94 × 32 mm. À surface égale (~5 800 mm²) le PCB coûte le même prix qu'un 90 × 60 — JLCPCB facture la surface, pas la forme |
+| Format allongé 94 × 45 | épouse une machine de 176 mm de large et laisse un rectangle propre pour la batterie de 94 × 32 mm. JLCPCB facturant la surface et non la forme, les ~4 200 mm² se paient au même prix sous n'importe quel format de surface égale |
 | Module **en débord de bord** | son keepout fait 48 × 41 mm contre 18 × 25,5 mm pour le corps : le faire déborder sort l'essentiel de cette zone stérile de la carte, et c'est la configuration que préfère la datasheet |
 | Les 3 ports utilisateur groupés sur **un bord long** | une seule paroi à percer, et c'est la disposition qui éloigne le plus les convertisseurs à découpage de l'antenne |
 | L'écran **n'impose rien** | on conserve le coupleur FFC et la rallonge 100 mm, donc `J4` se place où le routage l'arrange |
@@ -84,8 +84,7 @@ les connecteurs.
 
 À nos vitesses (SPI 20 MHz, USB full-speed, I²C 400 kHz), l'allongement ne coûte rien
 électriquement. Les vrais coûts sont un plan de masse plus étroit — compensé par la
-couche dédiée — et une carte de 130 mm qui fléchit, d'où **5 à 6 points de fixation**
-au lieu de 4.
+couche dédiée — et une carte qui fléchit, d'où des points de fixation aux **quatre coins**.
 
 > :warning: **Commander un deuxième coupleur FFC.** Puisqu'on garde la rallonge, le
 > coupleur 24↔24 reste dans le montage — et `hardware/bom.md:50` le note acheté à **un seul
@@ -93,9 +92,10 @@ au lieu de 4.
 
 ## PCB — squelette
 
-`typoena-mainboard.kicad_pcb` contient le contour (130 × 45, coins R3), l'**empilage
-JLCPCB 4 couches** (1,6 mm, finition ENIG), **6 trous de fixation** M2 — les quatre coins
-plus deux à mi-portée, parce qu'une carte de 130 mm fléchit — et les **classes de nets**.
+`typoena-mainboard.kicad_pcb` contient le contour (94 × 45, coins R3), l'**empilage
+JLCPCB 4 couches** (1,6 mm, finition ENIG), **4 trous de fixation Ø3,7 mm** aux quatre
+coins — dégagement d'une vis **#6-32**, la même famille que les assemblages du boîtier —
+et les **classes de nets**.
 DRC à 0 violation.
 
 Il ne contient **délibérément aucune empreinte**. KiCad les importe lui-même par
@@ -152,7 +152,6 @@ diode discrète sur le chemin de puissance principal.
 | USB D− / D+ (clavier) | 19 / 20 | | `SD_PWR_EN` | **40** |
 | UART0 RX / TX | 44 / 43 | | `KBD_5V_EN` | **41** |
 | BOOT | 0 | | `BTN_LED` | **38** |
-| | | | WS2812 | **48** |
 
 **`PWR_SENSE` doit rester dans GPIO 0–21.** Sur ESP32-S3, seuls les RTC GPIO réveillent
 d'un deep sleep (`ext0` / `ext1`) — et le « off » de cette machine *est* un deep sleep.
@@ -161,13 +160,13 @@ non connecté ici, aucun connecteur n'est prévu à ce stade).
 
 ### Connecteur d'extension `J10`
 
-Les 7 GPIO restants sortent sur un header 1×12 au pas de 2,54 mm, **non monté** : ce
+Les 8 GPIO restants sortent sur un header 1×12 au pas de 2,54 mm, **non monté** : ce
 sont des trous métallisés, donc ni ligne de BOM, ni frais de chargeur, ni pose. On y
 soude un header ou directement un fil, plus tard, sans rien redessiner.
 
 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| GND | 3V3 | SDA | SCL | IO1 | IO2 | IO8 | IO9 | IO39 | IO42 | IO47 | GND |
+| GND | 3V3 | SDA | SCL | IO1 | IO2 | IO8 | IO9 | IO39 | IO42 | IO47 | IO48 |
 
 Les quatre premières broches suivent l'ordre **Qwiic / STEMMA QT** (GND, 3V3, SDA, SCL) :
 un périphérique I²C se câble dessus sans rien décoder. Et l'I²C est le chemin
@@ -225,6 +224,44 @@ kicad-cli sch erc --severity-all -o /tmp/erc.rpt typoena-mainboard.kicad_sch
 `kicad-cli` 10.0.5 est dans le `PATH` sur le poste de bureau ; sur le conteneur il faut
 sourcer son environnement, voir [`../README.md`](../README.md).
 
+> :warning: **`gen_sch.py` écrit en chemins absolus.** Le lancer depuis n'importe où
+> réécrit le vrai schéma, y compris depuis un bac à sable. Et comme il renouvelle les
+> UUID des symboles — que les empreintes du PCB référencent — une régénération non
+> compensée casse le lien schéma↔PCB : la mise à jour suivante repose les empreintes et
+> perd le placement. Le contrôle `H1` ci-dessous surveille ce lien.
+
+## Contrôler
+
+```sh
+cd hardware/pcb/mainboard
+python3 tools/check_pcb.py                        # pendant le routage
+python3 tools/check_pcb.py --profil fabrication   # avant de commander
+python3 tools/check_pcb.py -v                     # tous les détails
+```
+
+**Lecture seule**, et le chemin du projet se déduit de `__file__` — l'outil ne peut pas
+écrire dans le dépôt. Il rend `PASS` / `WARN` / `FAIL` par contrôle et sort en erreur
+s'il reste un `FAIL`.
+
+Il commence par **s'autotester** : la transformation empreinte → pastille est validée
+contre la carte (coïncidences piste/pastille, orientation des boîtiers deux bornes). Si
+elle ne tient pas, le script s'arrête au lieu de produire des distances fausses.
+
+Ce qu'il couvre, au-delà de l'ERC et du DRC :
+
+| | |
+| --- | --- |
+| **A7** | remplissage périmé — un recouvrement zone/piste à 0,000 mm signifie qu'il faut remplir avant de lire quoi que ce soit |
+| **B, C** | aucune piste sur In1.Cu, plans d'un seul tenant, **aucune via sur un nœud de commutation** |
+| **D** | boucles chaudes et découplage : condensateur → broche, pastille GND → via, et la topologie en té |
+| **E, F** | trou de via hors des pastilles CMS ; plafonds d'échappée par boîtier à pas fin, et couverture de la règle `.kicad_dru` |
+| **G** | cols trop longs, capacité en courant des rails |
+| **H** | lien schéma↔PCB, pastilles sans net — deux défauts qu'aucun outil KiCad ne signale |
+| **I, J** | perçages sous le procédé, bandeau de vernis, signaux haute impédance |
+
+Les seuils et leur justification vivent dans le script, au-dessus du contrôle concerné.
+Les **budgets de courant sont des hypothèses** à corriger après mesure au banc.
+
 ## Ce qui reste à faire
 
 - [ ] **Relire le schéma.** 97 composants, relus par une seule paire d'yeux. L'ERC est à
@@ -234,17 +271,14 @@ sourcer son environnement, voir [`../README.md`](../README.md).
       des fils : électriquement équivalent, ERC-propre, et le netlist est identique à ce
       qu'il serait avec des fils. Mais c'est aride à lire. Les tracer est un travail de
       souris qui ne change pas le netlist — la découpe en feuilles, elle, est faite.
-- [ ] **Layout 4 couches** `SIG/GND/PWR/SIG` sur 130 × 45 mm. **Plus bloqué** — le
+- [ ] **Layout 4 couches** `SIG/GND/PWR/SIG` sur 94 × 45 mm. **Plus bloqué** — le
       boîtier suivra la carte. Ordre : connecteurs sur le bord long d'abord, module en
       débord au bord opposé, puis les trois blocs de puissance, puis le routage en
       commençant par les boucles de commutation (elles ne se rattrapent pas après).
-- [ ] **Connecter la pastille mécanique `MP`** du connecteur FPC à la masse au layout :
-      le symbole générique `Conn_01x24` n'a pas de broche pour elle.
 - [ ] **Frais de chargeur à arbitrer.** Tous les passifs sont Basic ou Preferred, donc
       exemptés. Restent ~12 lignes Extended à 3 $ : les 5 ICs (incompressible), les
-      4 inductances (JLCPCB n'a **aucune** inductance de puissance en Basic), les
-      connecteurs, et le WS2812B — ce dernier ne sert qu'à une étape de QC et peut être
-      supprimé si l'on veut économiser une ligne.
+      4 inductances (JLCPCB n'a **aucune** inductance de puissance en Basic) et les
+      connecteurs.
 - [ ] **Revérifier les stocks à la commande**, en particulier les références Extended :
       la bibliothèque JLCPCB installée date de juillet 2025.
 - [ ] Reprendre `hardware/bom.md`, `hardware/wiring.md` et `hardware/case/` : ils

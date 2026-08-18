@@ -157,7 +157,7 @@ esp = {"1": "GND", "2": "+3V3", "3": "EN", "4": "EPD_BUSY", "5": "EPD_RST",
        "6": "EPD_DC", "7": "EPD_CS", "8": "SD_MOSI", "9": "PMIC_INT",
        "10": "I2C_SDA", "11": "I2C_SCL", "13": "USB_DM", "14": "USB_DP",
        "18": "SD_CS", "19": "EPD_MOSI", "20": "EPD_SCK", "21": "SD_MISO",
-       "22": "SD_SCK", "23": "PWR_SENSE", "25": "WS2812_DIN", "27": "IO0",
+       "22": "SD_SCK", "23": "PWR_SENSE", "25": "IO48", "27": "IO0",
        "31": "BTN_LED", "33": "SD_PWR_EN", "34": "KBD_5V_EN", "36": "UART_RX",
        "37": "UART_TX", "40": "GND", "41": "GND",
        # sorties sur J10 (extension) : pads 39/38/12/17/32/35/24
@@ -182,18 +182,19 @@ C("R19", "Device:R", "10k", R04, {"1": "+3V3", "2": "IO0"})
 C("C15", "Device:C", "100nF", C04, {"1": "+3V3", "2": "GND"})
 C("C16", "Device:C", "10uF", C08, {"1": "+3V3", "2": "GND"})
 C("C17", "Device:C", "22uF", C08, {"1": "+3V3", "2": "GND"})
-C("D2", "LED:WS2812B", "WS2812B", "LED_SMD:LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm",
-  {"1": "+3V3", "3": "GND", "4": "WS2812_DIN"})
-
 # =====================================================================  ECRAN
 
-C("J4", "Connector_Generic:Conn_01x24", "FPC 24p 0.5mm - PANNEAU",
+# Variante `_MountingPin` du symbole : elle seule expose la pastille mécanique MP
+# que porte l'empreinte. Sans elle, MP n'a aucun net — donc ni chevelu, ni
+# violation DRC, et le connecteur ne tient que par ses 24 pastilles de 0,3 mm.
+# Les 24 broches numérotées ont la même géométrie que Conn_01x24.
+C("J4", "Connector_Generic_MountingPin:Conn_01x24_MountingPin", "FPC 24p 0.5mm - PANNEAU",
   "Connector_FFC-FPC:Jushuo_AFC07-S24FCA-00_1x24-1MP_P0.50_Horizontal",
   {"2": "EPD_GDR", "3": "EPD_RESE", "5": "EPD_VDHR", "6": "EPD_TSCL",
    "7": "EPD_TSDA", "8": "GND", "9": "EPD_BUSY", "10": "EPD_RST", "11": "EPD_DC",
    "12": "EPD_CS", "13": "EPD_SCK", "14": "EPD_MOSI", "15": "+3V3", "16": "+3V3",
    "17": "GND", "18": "EPD_VDD", "20": "EPD_VSH", "21": "EPD_PREVGH",
-   "22": "EPD_VSL", "23": "EPD_PREVGL", "24": "EPD_VCOM"})
+   "22": "EPD_VSL", "23": "EPD_PREVGL", "24": "EPD_VCOM", "MP": "GND"})
 EPD_NC = ["1", "4", "19"]
 
 C("L4", "Device:L", "47uH 1.2A", "Inductor_SMD:L_APV_ANR6045",
@@ -280,7 +281,7 @@ C("J10", "Connector_Generic:Conn_01x12", "EXTENSION (non monte)",
   "Connector_PinHeader_2.54mm:PinHeader_1x12_P2.54mm_Vertical",
   {"1": "GND", "2": "+3V3", "3": "I2C_SDA", "4": "I2C_SCL",
    "5": "IO1", "6": "IO2", "7": "IO8", "8": "IO9", "9": "IO39", "10": "IO42",
-   "11": "IO47", "12": "GND"})
+   "11": "IO47", "12": "IO48"})
 C("J9", "Connector_Generic:Conn_01x06", "UART PROG",
   "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical",
   {"1": "+3V3", "2": "GND", "3": "UART_TX", "4": "UART_RX", "5": "EN", "6": "IO0"})
@@ -328,7 +329,6 @@ AUTRES = {
     "U1": ("C2913202", "ESP32-S3-WROOM-1-N16R8"),
     "U5": ("C2846043", "CH343P"),
     "D1": ("C284108",  "SMF5.0A"),
-    "D2": ("C2761795", "WS2812B-B/T"),
     "D3": ("C8598", "B5819W"), "D4": ("C8598", "B5819W"), "D5": ("C8598", "B5819W"),
     "Q1": ("C15127", "AO3401A"),
     "Q2": ("C8545", "2N7002"), "Q3": ("C8545", "2N7002"),
@@ -351,7 +351,7 @@ for _c in comps:
 _sans = [c[0] for c in comps if not c[5].get("LCSC") and not c[0].startswith("#FLG")]
 print("  sans reference LCSC :", ", ".join(_sans) if _sans else "aucun")
 
-NC = {"U1": ESP_NC, "J4": EPD_NC, "J6": J6_NC, "J7": ["A8", "B8"], "D2": ["2"], "J8": ["10"], "U5": CH_NC}
+NC = {"U1": ESP_NC, "J4": EPD_NC, "J6": J6_NC, "J7": ["A8", "B8"], "J8": ["10"], "U5": CH_NC}
 
 # =====================================================================  emission
 zone_of = {}
@@ -362,7 +362,7 @@ order = []
 for ref, *_ in comps:
     if ref.startswith("#FLG"):
         order.append("flags")
-    elif ref in ("U1", "SW2", "SW3", "D2") or ref in ("R18", "R19", "C14", "C15", "C16", "C17"):
+    elif ref in ("U1", "SW2", "SW3") or ref in ("R18", "R19", "C14", "C15", "C16", "C17"):
         order.append("mcu")
     elif ref in ("J4", "J5", "L4", "Q4", "R20", "R21", "R22", "R23", "D3", "D4", "D5") \
             or (ref.startswith("C") and ref[1:].isdigit() and 18 <= int(ref[1:]) <= 27

@@ -16,10 +16,11 @@ import uuid as _uuid
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                    "typoena-mainboard.kicad_pcb")
 
-W, H = 130.0, 45.0       # cotes de la carte, décidées 2026-08-16
+W, H = 94.0, 45.0        # cotes de la carte
 R = 3.0                  # rayon des coins
 X0, Y0 = 40.0, 40.0      # origine sur la feuille
-HOLE_INSET = 4.0         # centre des trous depuis les bords
+HOLE_INSET = 5.0         # centre des trous depuis les bords : le courtyard
+                         # d'un degagement #6-32 fait 7,9 mm, il doit tenir dedans
 
 
 def uid():
@@ -55,21 +56,25 @@ def arc(sx, sy, mx, my, ex, ey):
 """
 
 
-MH_LIB = "MountingHole:MountingHole_2.2mm_M2"
-MH_PATH = "/usr/share/kicad/footprints/MountingHole.pretty/MountingHole_2.2mm_M2.kicad_mod"
+MH_LIB = "MountingHole:MountingHole_3.7mm"
+MH_PATH = "/usr/share/kicad/footprints/MountingHole.pretty/MountingHole_3.7mm.kicad_mod"
 
 
 def mounting_hole(x, y, n):
-    """Trou Ø2,2 mm : vis M2 auto-taraudeuses dans des entretoises, pas de taraudage.
+    """Trou Ø3,7 mm : degagement d'une vis #6-32, la famille du reste du boitier.
+
+    Une seule famille de vis pour toute la machine : un tournevis, un sachet. La
+    contrepartie est cote boitier — les entretoises doivent accepter une #6-32,
+    donc un bossage plus haut qu'aujourd'hui (un insert a chaud demanderait 4,8 mm).
 
     On recopie l'empreinte de la bibliotheque telle quelle plutot que de la
     redessiner : une copie a la main ne correspond jamais exactement et le DRC
     signale un ecart avec la librairie a chaque fois.
     """
     src = open(MH_PATH).read().rstrip()
-    assert src.startswith('(footprint "MountingHole_2.2mm_M2"')
+    assert src.startswith('(footprint "MountingHole_3.7mm"')
     # nom qualifie + placement, injectes juste apres l'ouverture
-    src = src.replace('(footprint "MountingHole_2.2mm_M2"',
+    src = src.replace('(footprint "MountingHole_3.7mm"',
                       f'(footprint "{MH_LIB}"\n\t\t(at {x:.3f} {y:.3f})\n\t\t(uuid "{uid()}")', 1)
     # les UUID internes doivent etre uniques d'une instance a l'autre
     src = re.sub(r'\(uuid "[0-9a-f-]{36}"\)',
@@ -173,7 +178,7 @@ def main():
     ]
 
     # 6 fixations : les 4 coins plus 2 a mi-portee, une carte de 130 mm flechit
-    xs = [x1 + HOLE_INSET, x1 + W / 2, x2 - HOLE_INSET]
+    xs = [x1 + HOLE_INSET, x2 - HOLE_INSET]
     ys = [y1 + HOLE_INSET, y2 - HOLE_INSET]
     n = 1
     for yy in ys:
