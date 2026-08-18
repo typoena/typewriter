@@ -25,6 +25,10 @@
 | [`reference/typoena-toml.md`](reference/typoena-toml.md) | `.typoena.toml` — the git-tracked editor preferences. |
 | [`reference/typoena-snippets.md`](reference/typoena-snippets.md) | `.typoena.snippets.json` — the git-tracked, Zed-compatible snippet library. |
 | [`reference/testing.md`](reference/testing.md) | Where Rust tests live and how to run them. |
+| [`reference/ssd1683-commands.md`](reference/ssd1683-commands.md) | What every command and data byte the e-paper driver writes means. |
+| [`reference/hid-keycodes.md`](reference/hid-keycodes.md) | Boot-report layout, modifier bits, and the usage IDs behind the chord table. |
+| [`reference/font-atlas.md`](reference/font-atlas.md) | Atlas geometry, glyph slot order, and the framebuffer's ink polarity. |
+| [`reference/libgit2-esp-port.md`](reference/libgit2-esp-port.md) | The POSIX shims libgit2 links against on esp-idf. |
 | [`../hardware/bom.md`](../hardware/bom.md) | Bill of materials — every physical part by subsystem. |
 | [`../hardware/wiring.md`](../hardware/wiring.md) | Every electrical connection, one table per subsystem. |
 

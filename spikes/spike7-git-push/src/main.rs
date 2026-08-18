@@ -181,7 +181,7 @@ fn commit_if_changes(repo: &Repository, cfg: &Config) -> Result<Option<String>> 
 
     let tree = repo.find_tree(tree_oid)?;
     let sig = cfg.signature()?;
-    let message = Utc::now().to_rfc3339(); // the ISO-8601 timestamp *is* the message
+    let message = Utc::now().to_rfc3339();
     let parents: Vec<&Commit> = parent.iter().collect();
     repo.commit(
         Some("HEAD"),

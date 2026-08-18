@@ -6,9 +6,9 @@ use super::*;
 fn dot_repeats_x() {
     let mut e = Editor::with_text("abcde".to_string());
     e.handle(Key::Char('0'));
-    e.handle(Key::Char('x')); // "bcde"
-    e.handle(Key::Char('.')); // "cde"
-    e.handle(Key::Char('.')); // "de"
+    e.handle(Key::Char('x'));
+    e.handle(Key::Char('.'));
+    e.handle(Key::Char('.'));
     assert_eq!(e.text(), "de");
 }
 
@@ -18,8 +18,8 @@ fn dot_repeats_dd() {
     e.handle(Key::Char('g'));
     e.handle(Key::Char('g'));
     e.handle(Key::Char('d'));
-    e.handle(Key::Char('d')); // delete "a"
-    e.handle(Key::Char('.')); // delete "b"
+    e.handle(Key::Char('d'));
+    e.handle(Key::Char('.'));
     assert_eq!(e.text(), "c\nd");
 }
 
@@ -28,8 +28,8 @@ fn dot_repeats_dw() {
     let mut e = Editor::with_text("foo bar baz".to_string());
     e.handle(Key::Char('0'));
     e.handle(Key::Char('d'));
-    e.handle(Key::Char('w')); // "bar baz"
-    e.handle(Key::Char('.')); // "baz"
+    e.handle(Key::Char('w'));
+    e.handle(Key::Char('.'));
     assert_eq!(e.text(), "baz");
 }
 
@@ -43,9 +43,9 @@ fn dot_repeats_a_change_operator_with_its_inserted_text() {
     e.handle(Key::Char('i'));
     e.handle(Key::Char('w'));
     e.handle(Key::Char('X'));
-    e.handle(Key::Escape); // "X bar"
+    e.handle(Key::Escape);
     assert_eq!(e.text(), "X bar");
-    e.handle(Key::Char('w')); // caret onto "bar"
+    e.handle(Key::Char('w'));
     e.handle(Key::Char('.')); // repeat: change that word to "X" too
     assert_eq!(e.text(), "X X");
 }
@@ -56,9 +56,9 @@ fn dot_repeats_a_paste() {
     e.handle(Key::Char('g'));
     e.handle(Key::Char('g'));
     e.handle(Key::Char('y'));
-    e.handle(Key::Char('y')); // yank line "x"
-    e.handle(Key::Char('p')); // "x\nx\na\nb"
-    e.handle(Key::Char('.')); // paste again below
+    e.handle(Key::Char('y'));
+    e.handle(Key::Char('p'));
+    e.handle(Key::Char('.'));
     assert_eq!(e.text(), "x\nx\nx\na\nb");
 }
 
@@ -66,7 +66,7 @@ fn dot_repeats_a_paste() {
 fn dot_ignores_pure_motions() {
     let mut e = Editor::with_text("abc".to_string());
     e.handle(Key::Char('0'));
-    e.handle(Key::Char('l')); // motions only — nothing to repeat
+    e.handle(Key::Char('l'));
     e.handle(Key::Char('.'));
     assert_eq!(e.text(), "abc");
 }
@@ -78,8 +78,8 @@ fn a_yank_does_not_become_the_dot_change() {
     e.handle(Key::Char('0'));
     e.handle(Key::Char('x')); // dot = x; "bcdef"
     e.handle(Key::Char('y'));
-    e.handle(Key::Char('w')); // yank — must not overwrite the dot
-    e.handle(Key::Char('.')); // repeat the x, not the yank
+    e.handle(Key::Char('w'));
+    e.handle(Key::Char('.'));
     assert_eq!(e.text(), "cdef");
 }
 
@@ -88,7 +88,7 @@ fn dot_in_insert_mode_is_a_literal_character() {
     let mut e = Editor::new();
     e.handle(Key::Char('i'));
     e.handle(Key::Char('.'));
-    assert_eq!(e.text(), "."); // '.' only repeats from Normal
+    assert_eq!(e.text(), ".");
 }
 
 #[test]
@@ -102,6 +102,6 @@ fn a_notice_shows_until_the_next_key_dismisses_it() {
     let mut e = Editor::new();
     e.set_notice("saved");
     assert_eq!(e.notice.as_deref(), Some("saved"));
-    e.handle(Key::Char('j')); // any key dismisses the snackbar
+    e.handle(Key::Char('j'));
     assert_eq!(e.notice, None);
 }

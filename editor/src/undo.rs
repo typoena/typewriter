@@ -22,11 +22,11 @@ impl Editor {
         // this is deliberately slightly over-eager.
         self.dirty = true;
         if self.undo.last().is_some_and(|(t, _)| t == &self.text) {
-            return; // nothing changed since the last baseline
+            return;
         }
         self.undo.push((self.text.clone(), self.caret));
         if self.undo.len() > UNDO_DEPTH {
-            self.undo.remove(0); // drop the oldest group
+            self.undo.remove(0);
         }
         self.redo.clear();
     }

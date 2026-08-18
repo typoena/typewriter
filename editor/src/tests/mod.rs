@@ -35,7 +35,7 @@ const TWO_SNIPPETS: &str = r##"{
 /// power-on Normal mode.
 fn typed(s: &str) -> Editor {
     let mut e = Editor::new();
-    e.handle(Key::Char('i')); // Normal -> Insert
+    e.handle(Key::Char('i'));
     for c in s.chars() {
         e.handle(Key::Char(c));
     }
@@ -46,7 +46,7 @@ fn typed(s: &str) -> Editor {
 /// returning the editor and the drained [`Effect`]s the command queued.
 fn command(cmd: &str) -> (Editor, Vec<Effect>) {
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
-    e.handle(Key::Char(':')); // Normal -> Command
+    e.handle(Key::Char(':'));
     for c in cmd.chars() {
         e.handle(Key::Char(c));
     }

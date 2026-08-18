@@ -41,7 +41,7 @@ fn main() {
         "TW_REMOTE_URL",
         "TW_GH_USER",
         "TW_TOKEN",
-        "TW_PAT", // legacy spelling — kept so the spike bins still compile
+        "TW_PAT",
         "TW_AUTHOR_NAME",
         "TW_AUTHOR_EMAIL",
     ] {

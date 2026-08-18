@@ -178,11 +178,11 @@ impl Editor {
             return (s, e);
         }
         if e < self.text.len() {
-            (s, self.next_char(e)) // eat the trailing '\n' at `e`
+            (s, self.next_char(e))
         } else if s > 0 {
-            (self.prev_char(s), e) // last line: eat the preceding '\n' instead
+            (self.prev_char(s), e)
         } else {
-            (s, e) // whole buffer
+            (s, e)
         }
     }
 

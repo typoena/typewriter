@@ -15,7 +15,7 @@ fn inbox_creates_todays_note_prefilled_dirty_and_in_normal() {
     ex(&mut e, "inbox");
     assert_eq!(e.path(), INBOX_TODAY);
     assert_eq!(e.scope(), Scope::Tracked);
-    assert_eq!(e.text(), "# 18/07/2026\n\n"); // dated heading + a blank line to write on
+    assert_eq!(e.text(), "# 18/07/2026\n\n");
     assert!(e.dirty(), "a fresh note must be dirty so eviction/:w persists it");
     assert_eq!(e.mode(), Mode::Normal);
     assert!(e.file_list_contains(INBOX_TODAY), "must be findable in the palette at once");
@@ -50,14 +50,14 @@ fn inbox_opens_an_existing_note_from_disk_without_clobbering() {
 fn inbox_reopening_the_active_note_keeps_its_edits() {
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
     e.set_today(Some(TODAY));
-    ex(&mut e, "inbox"); // create today's note, now active
+    ex(&mut e, "inbox");
     e.handle(Key::Char('i'));
     for c in "hello".chars() {
         e.handle(Key::Char(c));
     }
     e.handle(Key::Escape);
     assert!(e.text().contains("hello"));
-    ex(&mut e, "inbox"); // again -> switch to it, never reset it
+    ex(&mut e, "inbox");
     assert_eq!(e.path(), INBOX_TODAY);
     assert!(e.text().contains("hello"), "reopening today's note must keep its content");
     assert!(e.take_effects().is_empty(), "re-opening the active buffer is a no-op");
@@ -110,9 +110,9 @@ fn oldest_on_an_empty_inbox_notices_and_does_nothing() {
 #[test]
 fn oldest_ignores_non_md_files_and_lookalike_dirs() {
     let mut e = palette_editor(&[
-        "/sd/repo/_inboxes/2020-01-01.md", // lookalike dir, not `_inbox/`
-        "/sd/repo/_inbox/2026-06-15.txt",  // in the inbox but not markdown
-        "/sd/repo/_inbox/2026-06-20.md",   // the real oldest .md
+        "/sd/repo/_inboxes/2020-01-01.md",
+        "/sd/repo/_inbox/2026-06-15.txt",
+        "/sd/repo/_inbox/2026-06-20.md",
     ]);
     ex(&mut e, "oldest");
     assert_eq!(

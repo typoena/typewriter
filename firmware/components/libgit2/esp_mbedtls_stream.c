@@ -260,7 +260,7 @@ static int verify_server_cert(mbedtls_ssl_context *ssl)
 	if ((ret = mbedtls_ssl_get_verify_result(ssl)) != 0) {
 		char vrfy_buf[512];
 		int len = mbedtls_x509_crt_verify_info(vrfy_buf, sizeof(vrfy_buf), "", ret);
-		if (len >= 1) vrfy_buf[len - 1] = '\0'; /* Remove trailing \n */
+		if (len >= 1) vrfy_buf[len - 1] = '\0';
 		git_error_set(GIT_ERROR_SSL, "the SSL certificate is invalid: %#04x - %s", ret, vrfy_buf);
 		return GIT_ECERTIFICATE;
 	}
@@ -322,7 +322,7 @@ static void save_session(mbedtls_stream *st)
 
 	if (session_valid)
 		mbedtls_ssl_session_free(&saved_session);
-	saved_session = fresh; /* shallow move — ownership transfers */
+	saved_session = fresh;
 	session_valid = true;
 	strcpy(session_host, st->host);
 }

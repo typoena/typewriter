@@ -1207,10 +1207,10 @@ fn draw_qr(f: &mut Frame, text: &str, x0: i32, y0: i32, box_px: i32) {
     let Ok(qr) = qrcodegen::QrCode::encode_text(text, qrcodegen::QrCodeEcc::Medium) else {
         return;
     };
-    let size = qr.size(); // modules per side
-    let scale = box_px / (size + 8); // 4-module quiet zone each side
+    let size = qr.size();
+    let scale = box_px / (size + 8);
     if scale < 2 {
-        return; // too dense to scan at this box size — text fallback remains
+        return;
     }
     let total = size * scale;
     let ox = x0 + (box_px - total) / 2;

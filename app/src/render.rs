@@ -165,12 +165,12 @@ impl<S: Screen> Panel<S> {
             shown,
             back: Frame::new_white(),
             partials_since_full: 0,
-            cursor_shown: true, // the initial render includes the caret
+            cursor_shown: true,
             force_full: false,
             updates: 0,
             rng: Self::HUMOR_SEED,
             bag: typo::POOL,
-            bag_pos: typo::POOL.len(), // exhausted → the first pool humor shuffles
+            bag_pos: typo::POOL.len(),
             last_humor: typo::Mood::Neutral,
         })
     }
@@ -207,7 +207,7 @@ impl<S: Screen> Panel<S> {
         }
         let humor = self.next_humor();
         ed.set_companion_mood(humor);
-        log::info!("humor face: {humor:?}"); // rides the FULL refresh logged next
+        log::info!("humor face: {humor:?}");
     }
 
     /// Default seed for the humor [`bag`](Self::bag)'s xorshift — the fixed
@@ -283,7 +283,7 @@ impl<S: Screen> Panel<S> {
         // render (the keys are already applied, so both modes are known) so that
         // a frame headed for a FULL refresh can carry Typo's next pool humor.
         let was_card = prev_mode == Mode::Rest || prev_mode == Mode::About;
-        let is_card = ed.mode() == Mode::About; // Rest never enters via a key batch
+        let is_card = ed.mode() == Mode::About;
         if was_card != is_card {
             self.force_full = true;
         }
@@ -298,7 +298,7 @@ impl<S: Screen> Panel<S> {
         // Only the rows that changed since the last shown frame need updating.
         let Some((y0, y1)) = changed_rows(self.shown.bytes(), self.back.bytes()) else {
             self.cursor_shown = ed.mode() != Mode::Insert;
-            return; // no visible change (frames identical — no swap needed)
+            return;
         };
         // Snap the band to whole text lines so a partial-window boundary never
         // lands mid-glyph — otherwise the boundary gate crops tall characters.
@@ -498,7 +498,7 @@ impl<S: Screen> Panel<S> {
         }
         let reason = if self.partials_since_full >= every { "longevity" } else { "deep-idle" };
         ed.refresh_stats();
-        self.companion_pool_mood(ed); // the humor rides the flash, for free
+        self.companion_pool_mood(ed);
         ed.draw_into(&mut self.back, true);
         self.updates += 1;
         let t0 = Instant::now();
@@ -612,7 +612,7 @@ pub fn erase_bbox(a: &[u8], b: &[u8], y0: u16, y1: u16) -> Option<(u16, u16, u16
             let bb = bbox.get_or_insert((x_lo, x_hi, y as u16, y as u16));
             bb.0 = bb.0.min(x_lo);
             bb.1 = bb.1.max(x_hi);
-            bb.3 = y as u16; // rows scan top-down, so y is always the new max
+            bb.3 = y as u16;
         }
     }
     bbox
@@ -657,8 +657,8 @@ mod tests {
         let mut ed = Editor::with_text(String::new());
         ed.set_prefs(Prefs { fast_partial: fast, ..Prefs::default() });
         let mut panel = Panel::new(RecordScreen(log.clone()), &mut ed).expect("boot paint");
-        ed.handle(Key::Char('i')); // Normal -> Insert
-        panel.render_batch(&mut ed, Mode::Normal, 1); // caret-suppression transition
+        ed.handle(Key::Char('i'));
+        panel.render_batch(&mut ed, Mode::Normal, 1);
         (panel, ed, log)
     }
 
@@ -673,7 +673,7 @@ mod tests {
     #[test]
     fn fast_partial_pref_routes_the_additive_keystroke_to_the_fast_waveform() {
         let (mut panel, mut ed, log) = insert_panel(true);
-        type_char(&mut panel, &mut ed, &log, 'a'); // prime past the entry transition
+        type_char(&mut panel, &mut ed, &log, 'a');
         type_char(&mut panel, &mut ed, &log, 'b');
         // A clean append at end of line — purely additive — takes the fast waveform.
         assert_eq!(type_char(&mut panel, &mut ed, &log, 'c'), ["partial-fast"]);
@@ -696,7 +696,7 @@ mod tests {
         type_char(&mut panel, &mut ed, &log, 'b');
         type_char(&mut panel, &mut ed, &log, 'c');
         log.borrow_mut().clear();
-        ed.handle(Key::Backspace); // erase 'c' -> wide erase -> not additive
+        ed.handle(Key::Backspace);
         panel.render_batch(&mut ed, Mode::Insert, 1);
         let paints = log.borrow().clone();
         assert!(!paints.is_empty(), "the delete should have repainted");
@@ -741,7 +741,7 @@ mod tests {
     #[test]
     fn deep_idle_launders_light_ghosting_only_after_a_long_break() {
         let (mut panel, mut ed, log) = insert_panel(false);
-        panel.partials_since_full = 3; // light ghosting, well below the budget
+        panel.partials_since_full = 3;
         log.borrow_mut().clear();
 
         // A short (caret-debounce) pause is NOT enough for light ghosting — only
@@ -826,7 +826,7 @@ mod tests {
         // the bag like any earned flash — it isn't frozen. The first draw is
         // seam-guarded off the boot Neutral, so stepping away and back advances the
         // rotation rather than re-showing the neutral boot face.
-        panel.partials_since_full = 1; // below the budget → the "deep-idle" reason
+        panel.partials_since_full = 1;
         assert!(panel.longevity_full(&mut ed, deep), "deep pause launders + rotates");
         assert_ne!(ed.companion_mood(), typo::Mood::Neutral, "deep-idle advanced off boot Neutral");
     }

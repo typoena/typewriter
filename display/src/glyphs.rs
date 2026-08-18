@@ -305,13 +305,13 @@ const RIGHT_DOUBLE_QUOTE: Glyph = [
 /// if the base font already covers it (all ASCII and Latin-9, including `œ €`).
 pub fn extra_glyph(c: char) -> Option<&'static Glyph> {
     Some(match c {
-        '\u{2192}' => &ARROW_RIGHT,        // →
-        '\u{2260}' => &NOT_EQUAL,          // ≠
-        '\u{03A3}' => &SIGMA,              // Σ
-        '\u{2022}' => &BULLET,             // •
-        '\u{2026}' => &ELLIPSIS,           // …
-        '\u{2013}' => &EN_DASH,            // –
-        '\u{2014}' => &EM_DASH,            // —
+        '\u{2192}' => &ARROW_RIGHT,
+        '\u{2260}' => &NOT_EQUAL,
+        '\u{03A3}' => &SIGMA,
+        '\u{2022}' => &BULLET,
+        '\u{2026}' => &ELLIPSIS,
+        '\u{2013}' => &EN_DASH,
+        '\u{2014}' => &EM_DASH,
         '\u{2018}' => &LEFT_SINGLE_QUOTE,  // '
         '\u{2019}' => &RIGHT_SINGLE_QUOTE, // '
         '\u{201C}' => &LEFT_DOUBLE_QUOTE,  // "

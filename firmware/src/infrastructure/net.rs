@@ -959,7 +959,7 @@ fn stage_and_commit(repo: &Repository, paths: &BTreeSet<String>) -> Result<Optio
                 repo.blob(&bytes)
                     .with_context(|| format!("writing blob for {path}"))?,
             ),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None, // deleted → splice out
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
             Err(e) => return Err(e).with_context(|| format!("reading {path}")),
         };
         let spliced = splice(repo, tree.as_ref(), &parts, blob)
@@ -967,7 +967,7 @@ fn stage_and_commit(repo: &Repository, paths: &BTreeSet<String>) -> Result<Optio
         tree = Some(repo.find_tree(spliced).context("loading spliced tree")?);
     }
     let Some(tree) = tree else {
-        return Ok(None); // unborn branch and nothing dirty — nothing to commit
+        return Ok(None);
     };
     let splice_ms = t_splice.elapsed().as_millis();
 
@@ -1031,7 +1031,7 @@ fn splice(repo: &Repository, base: Option<&Tree>, path: &[&str], blob: Option<Oi
         };
         let new_sub = splice(repo, sub.as_ref(), rest, blob)?;
         if repo.find_tree(new_sub)?.is_empty() {
-            let _ = tb.remove(*head); // the remove emptied this directory — prune it
+            let _ = tb.remove(*head);
         } else {
             tb.insert(*head, new_sub, 0o040000)
                 .context("inserting subtree entry")?;
@@ -1564,7 +1564,7 @@ fn apply_tree_diff(repo: &Repository, head: Oid, theirs: Oid) -> Result<usize> {
                     .with_context(|| format!("reading blob for {rel}"))?;
                 let tmp = format!("{abs}.gltmp");
                 fs::write(&tmp, blob.content()).with_context(|| format!("writing {rel}"))?;
-                let _ = fs::remove_file(&abs); // FAT rename won't overwrite
+                let _ = fs::remove_file(&abs);
                 fs::rename(&tmp, &abs).with_context(|| format!("landing {rel}"))?;
                 changed += 1;
             }
@@ -1657,7 +1657,7 @@ fn rebase_local_onto(repo: &Repository, head: Oid, theirs: Oid) -> Result<Oid> {
         }
         let blob = match fs::read(format!("{REPO_DIR}/{path}")) {
             Ok(bytes) => Some(repo.blob(&bytes).with_context(|| format!("blob for {path}"))?),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None, // local delete
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
             Err(e) => return Err(e).with_context(|| format!("reading {path}")),
         };
         let spliced = splice(repo, Some(&tree), &parts, blob)

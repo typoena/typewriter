@@ -83,7 +83,7 @@ fn spawn_file_walk(tx: Sender<String>) {
     // at their defaults. Explicit 16 KB stack: the default pthread stack (4 KB) is
     // tight for 8 levels of readdir recursion plus FatFS underneath.
     let cfg = ThreadSpawnConfiguration {
-        name: None, // the std Builder below carries the "walk" name
+        name: None,
         stack_size: 16 * 1024,
         priority: 1,
         inherit: false,
@@ -106,7 +106,7 @@ fn spawn_file_walk(tx: Sender<String>) {
                 dram_before.saturating_sub(dram_after) / 1024,
                 files.len() / 1024
             );
-            let _ = tx.send(files); // receiver gone = shutting down; nothing to do
+            let _ = tx.send(files);
         });
     if let Err(e) = spawned {
         log::warn!("file-walk thread spawn FAILED ({e}); palette list not refreshed");

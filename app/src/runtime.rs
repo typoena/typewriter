@@ -131,7 +131,7 @@ impl<S: Screen> Runtime<S> {
         // day. `None` until the clock is trustworthy.
         self.ed.set_today(self.clock.today());
 
-        let prev_mode = self.ed.mode(); // to detect leaving the Rest curtain
+        let prev_mode = self.ed.mode();
         let keys = self.drain_keys();
 
         // Service the effects the batch queued, draining to empty: servicing a
@@ -157,7 +157,7 @@ impl<S: Screen> Runtime<S> {
         }
 
         self.last_activity = Instant::now();
-        self.idle_saved = false; // fresh activity reopens the save_on_idle window
+        self.idle_saved = false;
         self.panel.render_batch(&mut self.ed, prev_mode, keys);
     }
 
@@ -232,7 +232,7 @@ impl<S: Screen> Runtime<S> {
                     // re-queues Pull with Commit or Discard.
                     PullDispatch::NeedsConfirm(files) => self.ed.show_unsynced(files),
                     PullDispatch::ThreadDown => {
-                        self.pending_discard.clear(); // nothing will report back
+                        self.pending_discard.clear();
                         self.ed.set_notice("pull: git thread down")
                     }
                 }

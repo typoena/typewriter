@@ -126,13 +126,13 @@ fn run() -> Result<()> {
         time_each(|i| {
             let tmp = format!("{BENCH_DIR}/tmp_obj{i}");
             let fin = format!("{BENCH_DIR}/{i:038x}");
-            let _ = fs::metadata(&fin); // freshen probe, misses
+            let _ = fs::metadata(&fin);
             {
-                let mut f = File::create(&tmp)?; // temp create + write + close
+                let mut f = File::create(&tmp)?;
                 f.write_all(&PAYLOAD)?;
             }
-            let _ = fs::remove_file(&fin); // p_rename's remove(to) — ENOENT
-            fs::rename(&tmp, &fin)?; // temp -> final
+            let _ = fs::remove_file(&fin);
+            fs::rename(&tmp, &fin)?;
             Ok(())
         })?,
     );
@@ -150,7 +150,7 @@ fn run() -> Result<()> {
         let dir = format!("{BENCH_DIR}/fan{n}");
         fs::create_dir_all(&dir)?;
         for j in 0..n {
-            File::create(format!("{dir}/e{j:04}"))?; // sibling entries (untimed setup)
+            File::create(format!("{dir}/e{j:04}"))?;
         }
         summarize(
             &format!("stat hit, {n:>3} siblings"),
@@ -172,12 +172,12 @@ fn run() -> Result<()> {
             time_each(|i| {
                 let tmp = format!("{dir}/tmp_obj{i}");
                 let fin = format!("{dir}/{i:038x}");
-                let _ = fs::metadata(&fin); // freshen probe, misses
+                let _ = fs::metadata(&fin);
                 {
                     let mut f = File::create(&tmp)?;
                     f.write_all(&PAYLOAD)?;
                 }
-                let _ = fs::remove_file(&fin); // p_rename's remove(to) — ENOENT
+                let _ = fs::remove_file(&fin);
                 fs::rename(&tmp, &fin)?;
                 Ok(())
             })?,

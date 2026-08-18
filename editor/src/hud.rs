@@ -315,7 +315,7 @@ impl Editor {
         if self.mode != Mode::Command {
             return;
         }
-        let band_top = (ROWS as i32 - 1) * CH; // start of the last writing row
+        let band_top = (ROWS as i32 - 1) * CH;
         Rectangle::new(
             Point::new(0, band_top),
             Size::new(DIVIDER_X as u32, (HEIGHT as i32 - band_top) as u32),
@@ -348,7 +348,7 @@ impl Editor {
             .draw(f)
             .infallible();
         let style = MonoTextStyle::new(&FONT_10X20, BinaryColor::On);
-        let max_chars = WRITE_COLS - 1; // leave a right margin
+        let max_chars = WRITE_COLS - 1;
         let n = self.unsynced.len();
 
         let title = format!("Unsynced saves ({n})");
@@ -538,9 +538,9 @@ impl Editor {
         } else {
             self.palette_matches()
         };
-        let max_chars = WRITE_COLS - 1; // leave a right margin
+        let max_chars = WRITE_COLS - 1;
         let list_top = CH + 3;
-        let hint_y = HEIGHT as i32 - CH; // bottom row holds the key hint
+        let hint_y = HEIGHT as i32 - CH;
         // Live font preview: when the highlighted `>` command is Font, reserve the
         // row above the hint for a sample line drawn in the selected font. The
         // palette covers the writing column, so this is the only way to see a font

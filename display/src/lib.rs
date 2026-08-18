@@ -141,7 +141,7 @@ impl Frame {
 
         // Stack the sprite over the wordmark and centre the lockup vertically.
         let sprite_px = typo::BODY.h as i32 * SPLASH_SCALE;
-        let gap = 14; // sprite baseline → wordmark centre
+        let gap = 14;
         let top = (HEIGHT as i32 - (sprite_px + gap + 20)) / 2;
         typo::blit_sprite(
             self,
@@ -201,8 +201,8 @@ impl DrawTarget for Frame {
                 let bit = 0x80u8 >> (p.x % 8);
                 if let Some(byte) = self.buf.get_mut(idx) {
                     match color {
-                        BinaryColor::On => *byte &= !bit,  // black ink
-                        BinaryColor::Off => *byte |= bit, // white paper
+                        BinaryColor::On => *byte &= !bit,
+                        BinaryColor::Off => *byte |= bit,
                     }
                 }
             }

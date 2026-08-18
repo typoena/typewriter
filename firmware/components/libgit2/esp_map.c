@@ -74,7 +74,7 @@ static int read_range(int fd, off64_t offset, size_t len, unsigned char *data)
 			return -1;
 		}
 		if (n == 0)
-			break; /* short file: zero-fill the tail, like a real mapping */
+			break;
 		got += (size_t)n;
 	}
 	if (got < len)

@@ -145,11 +145,11 @@ def build(tmpdir):
     # Overlays below were originally tuned on a 48-grid; kx/ky rescale them onto
     # whatever the reference now trims to, so a single knob (the resample width)
     # moves the whole family.
-    base = resample(112, tmpdir)      # ~97x96 — the mirrored mood family
-    splash = resample(143, tmpdir)    # ~124x121 — the bigger unflipped boot mark
-    compact = resample(78, tmpdir)    # tighter cut, no additions at all
+    base = resample(112, tmpdir)
+    splash = resample(143, tmpdir)
+    compact = resample(78, tmpdir)
 
-    w, h = len(base[0]), len(base)    # flipped x = w-1-x
+    w, h = len(base[0]), len(base)
     kx, ky = w / 48.0, h / 48.0
 
     def sx(v):
@@ -170,7 +170,7 @@ def build(tmpdir):
                 xs.append(x)
                 ys.append(y)
     ecx, ecy = (min(xs) + max(xs)) // 2, (min(ys) + max(ys)) // 2
-    er = max(max(xs) - min(xs), max(ys) - min(ys)) // 2   # eye radius (~4)
+    er = max(max(xs) - min(xs), max(ys) - min(ys)) // 2
 
     def brow(g, x0, y0, x1, y1, t=2):
         """A brow / lash line `t` px thick — bold enough to read on the panel."""
@@ -198,40 +198,40 @@ def build(tmpdir):
         g = flip(copy(base))
         if mood == 'neutral':
             return g
-        if mood == 'frustrated':                        # pre-refresh: ghosting builds
-            for y in range(ecy - er, ecy):              # heavy lid drops over the top half
+        if mood == 'frustrated':
+            for y in range(ecy - er, ecy):
                 for x in range(ecx - er - 1, ecx + er + 2):
                     px(g, x, y, 0)
-            brow(g, ecx - er - 2, ecy - er, ecx + er + 2, ecy - er - 3, t=3)  # furrowed, inner-low
+            brow(g, ecx - er - 2, ecy - er, ecx + er + 2, ecy - er - 3, t=3)
             for x, y in ((8, 1), (3, 12), (27, 17), (44, 4), (46, 13), (18, 20)):
-                sparkle(g, sx(x), sy(y), 1)             # ghost dust on his feathers
+                sparkle(g, sx(x), sy(y), 1)
             return g
         # ---- the post-flash pool: one of these after every full refresh -----
-        if mood == 'anticipation':                      # eyes wide, buzzing
-            disc(g, ecx, ecy, er + 2)                   # a visibly bigger eye
-            catchlight(g, max(2, er // 2))              # big bright spark
-            brow(g, ecx - er - 1, ecy - er - 5, ecx + er + 1, ecy - er - 5, t=2)  # brow shot up
+        if mood == 'anticipation':
+            disc(g, ecx, ecy, er + 2)
+            catchlight(g, max(2, er // 2))
+            brow(g, ecx - er - 1, ecy - er - 5, ecx + er + 1, ecy - er - 5, t=2)
             sparkle(g, sx(2), sy(18), 3)
             sparkle(g, sx(45), sy(4), 3)
             return g
-        if mood == 'curious':                           # engaged interest, not a frown
-            disc(g, ecx, ecy, er + 1)                   # bright, alive eye
+        if mood == 'curious':
+            disc(g, ecx, ecy, er + 1)
             catchlight(g, max(1, er // 3))
-            by = ecy - er - 5                           # a bold, high, arched brow: the "oh?"
+            by = ecy - er - 5
             brow(g, ecx - er - 1, by + 3, ecx - er // 3, by, t=3)
             hbar(g, ecx - er // 3, ecx + er // 3, by, t=3)
             brow(g, ecx + er // 3, by, ecx + er + 1, by + 3, t=3)
-            stamp(g, w - len(QUESTION[0]) - sx(1), sy(1), QUESTION)   # ? behind his head
+            stamp(g, w - len(QUESTION[0]) - sx(1), sy(1), QUESTION)
             return g
-        if mood == 'determined':                        # locked in: bold level brow over an open eye
-            hbar(g, ecx - er - 1, ecx + er + 1, ecy - er - 3, t=3)  # in the white gap: clear of both crown and eye
+        if mood == 'determined':
+            hbar(g, ecx - er - 1, ecx + er + 1, ecy - er - 3, t=3)
             return g
-        if mood == 'zen':                               # eyes softly, evenly shut
-            disc(g, ecx, ecy, er + 2, 0)                # clear the eye out
-            hbar(g, ecx - er - 2, ecx + er + 2, ecy - 1, t=5)  # a calm, thick closed line — 5 px to hold up as it fades
+        if mood == 'zen':
+            disc(g, ecx, ecy, er + 2, 0)
+            hbar(g, ecx - er - 2, ecx + er + 2, ecy - 1, t=5)
             return g
-        if mood == 'note':                              # whistling at the fresh page
-            stamp(g, sx(1), sy(17), NOTE)               # ♪ dropped clear of the beak, a gap under the tip
+        if mood == 'note':
+            stamp(g, sx(1), sy(17), NOTE)
             return g
         raise ValueError(mood)
 
@@ -283,7 +283,7 @@ def emit_preview(sprites, path):
                 if c:
                     parts.append(f'<rect x="{x+xx*z}" y="{pad+yy*z}" width="{z}" height="{z}"/>')
         oy = pad + len(sprites[k]) * z + 10
-        for yy, row in enumerate(sprites[k]):        # 1x preview
+        for yy, row in enumerate(sprites[k]):
             for xx, c in enumerate(row):
                 if c:
                     parts.append(f'<rect x="{x+xx}" y="{oy+yy}" width="1" height="1"/>')

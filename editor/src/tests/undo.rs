@@ -12,8 +12,8 @@ fn undo_reverts_a_whole_insert_session_at_once() {
     e.handle(Key::Escape);
     assert_eq!(e.text(), "hello");
     e.handle(Key::Char('u'));
-    assert_eq!(e.text(), ""); // the entire typed run, not one char
-    assert_eq!(e.mode(), Mode::Normal); // undo always lands in Normal
+    assert_eq!(e.text(), "");
+    assert_eq!(e.mode(), Mode::Normal);
 }
 
 #[test]
@@ -21,10 +21,10 @@ fn redo_reapplies_an_undone_change() {
     let mut e = Editor::new();
     e.handle(Key::Char('i'));
     e.handle(Key::Char('x'));
-    e.handle(Key::Escape); // "x"
+    e.handle(Key::Escape);
     e.handle(Key::Char('u'));
     assert_eq!(e.text(), "");
-    e.handle(Key::Redo); // Ctrl-r
+    e.handle(Key::Redo);
     assert_eq!(e.text(), "x");
 }
 
@@ -42,12 +42,12 @@ fn undo_reverts_dd() {
 
 #[test]
 fn undo_reverts_x_and_restores_the_caret() {
-    let mut e = Editor::with_text("abc".to_string()); // caret on 'c'
+    let mut e = Editor::with_text("abc".to_string());
     e.handle(Key::Char('x'));
     assert_eq!(e.text(), "ab");
     e.handle(Key::Char('u'));
     assert_eq!(e.text(), "abc");
-    assert_eq!(e.caret, 2); // caret came back to where the change began
+    assert_eq!(e.caret, 2);
 }
 
 #[test]
@@ -68,12 +68,12 @@ fn a_fresh_edit_after_undo_clears_the_redo_history() {
     let mut e = Editor::new();
     e.handle(Key::Char('i'));
     e.handle(Key::Char('a'));
-    e.handle(Key::Escape); // "a"
+    e.handle(Key::Escape);
     e.handle(Key::Char('u')); // -> ""
     e.handle(Key::Char('i'));
     e.handle(Key::Char('b'));
-    e.handle(Key::Escape); // new branch: "b"
-    e.handle(Key::Redo); // nothing to redo — the "a" branch is gone
+    e.handle(Key::Escape);
+    e.handle(Key::Redo);
     assert_eq!(e.text(), "b");
 }
 
@@ -82,10 +82,10 @@ fn successive_undos_walk_the_history_back() {
     let mut e = Editor::new();
     e.handle(Key::Char('i'));
     e.handle(Key::Char('a'));
-    e.handle(Key::Escape); // "a"
+    e.handle(Key::Escape);
     e.handle(Key::Char('A'));
     e.handle(Key::Char('b'));
-    e.handle(Key::Escape); // "ab"
+    e.handle(Key::Escape);
     e.handle(Key::Char('u'));
     assert_eq!(e.text(), "a");
     e.handle(Key::Char('u'));

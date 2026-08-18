@@ -22,10 +22,10 @@ void Epaper_Write_Data(unsigned char data);
 
 
 void Epaper_HW_SW_RESET(void);
-void EPD_HW_Init(void); //Electronic paper initialization
+void EPD_HW_Init(void);
 void EPD_Update(void);
 
-void EPD_Part_Init(void);//Local refresh initialization
+void EPD_Part_Init(void);
 void EPD_Part_Update(void); 
 
 void EPD_WhiteScreen_ALL(const unsigned char *datas);
@@ -57,7 +57,7 @@ void EPD_Dis_Part_myself_All(unsigned int x_startA,unsigned int y_startA,const u
 												 unsigned int PART_COLUMN,unsigned int PART_LINE
 	                      );
 //Display canvas function
-void EPD_HW_Init_GUI(void); //EPD init GUI
+void EPD_HW_Init_GUI(void);
 void EPD_Display(unsigned char *Image); 
 void EPD_Standby(void);
 
@@ -69,7 +69,7 @@ void EPD_Dis_Part_M(unsigned int x_start,unsigned int y_start,const unsigned cha
 void EPD_Dis_Part_S(unsigned int x_start,unsigned int y_start,const unsigned char * datas,unsigned int PART_COLUMN,unsigned int PART_LINE);												 
 void EPD_Part_init_LUT(void);
 void EPD_Part_init_LUT11(void);					
-void EPD_HW_Init_LUT(void); //Electronic paper initialization		
+void EPD_HW_Init_LUT(void);
 void EPD_SetRAMValue_BaseMap_LUT(const unsigned char * datas);
 void EPD_Dis_Part_myself_S_LUT(unsigned int x_startA,unsigned int y_startA,const unsigned char * datasA,
 	                       unsigned int x_startB,unsigned int y_startB,const unsigned char * datasB,

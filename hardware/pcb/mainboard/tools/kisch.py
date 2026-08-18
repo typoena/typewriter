@@ -30,7 +30,7 @@ def _balanced(text, i):
 
 class SymbolLib:
     def __init__(self):
-        self._cache = {}   # lib_id -> (bloc texte, {num: (x, y, angle)})
+        self._cache = {}
         self._files = {}
 
     def _load(self, lib):
@@ -237,7 +237,7 @@ def pin_abs(lib_id, x, y, num):
     # direction vers le corps du symbole en coordonnées schéma (Y inversé)
     import math
     bx, by = math.cos(math.radians(ang)), -math.sin(math.radians(ang))
-    return ax, ay, (-bx, -by)   # le moignon part à l'opposé du corps
+    return ax, ay, (-bx, -by)
 
 
 HEADER = """(kicad_sch

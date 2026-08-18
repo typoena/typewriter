@@ -14,16 +14,16 @@
 #include <pwd.h>
 #include <errno.h>
 #include <sys/time.h>
-#include <sys/stat.h> /* stat() + S_IWUSR for utimes()/p_open() below */
-#include <stdio.h>    /* remove(), rename() for the p_rename replacement */
-#include <fcntl.h>    /* open(), O_* flags for the p_open()/p_creat() shims */
-#include <stdarg.h>   /* va_list for the variadic p_open() */
+#include <sys/stat.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <stdarg.h>
 
 #ifndef O_BINARY
-#define O_BINARY 0 /* no text/binary distinction on esp-idf */
+#define O_BINARY 0
 #endif
 #ifndef O_CLOEXEC
-#define O_CLOEXEC 0 /* no exec() on esp-idf, so close-on-exec is a no-op */
+#define O_CLOEXEC 0
 #endif
 
 /* One implicit root user/group. */
@@ -87,7 +87,7 @@ int utimes(const char *path, const struct timeval times[2])
 	struct stat st;
 	(void)times;
 	if (stat(path, &st) != 0)
-		return -1; /* stat set errno (ENOENT for a missing object) */
+		return -1;
 	return 0;
 }
 
@@ -112,7 +112,7 @@ const char *gai_strerror(int ecode)
  * the p_rename every caller links against. */
 int p_rename(const char *from, const char *to)
 {
-	(void)remove(to); /* ignore ENOENT when `to` doesn't exist yet */
+	(void)remove(to);
 	return rename(from, to) == 0 ? 0 : -1;
 }
 
@@ -134,7 +134,7 @@ int p_open(const char *path, int flags, ...)
 		va_start(arg_list, flags);
 		mode = (mode_t)va_arg(arg_list, int);
 		va_end(arg_list);
-		mode |= S_IWUSR; /* never create read-only → FATFS won't set AM_RDO */
+		mode |= S_IWUSR;
 	}
 	return open(path, flags | O_BINARY | O_CLOEXEC, mode);
 }

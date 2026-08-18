@@ -33,7 +33,7 @@ path = "src/lib.rs"
 [[bin]]
 name = "firmware"
 path = "src/main.rs"
-harness = false # do not use the built-in cargo test harness -> resolve rust-analyzer errors
+harness = false
 # The product firmware is always the full build (git `:gs`/`:gl` + `:update` OTA
 # + onboarding wizard). `full` is off by default so a bare `cargo build` and the
 # libgit2-free bench bins skip it; `just build`/`flash` pass `--features full`.
@@ -82,7 +82,7 @@ overflow-checks = true
 opt-level = 2
 
 [profile.dev]
-debug = true # Symbols are nice, and they don't increase the size on Flash
+debug = true
 opt-level = "z"
 [patch.crates-io]
 esp-idf-sys = { git = "https://github.com/esp-rs/esp-idf-sys.git" }

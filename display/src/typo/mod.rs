@@ -104,7 +104,7 @@ impl Mood {
             "zen" => Mood::Zen,
             "note" => Mood::Note,
             "frustrated" => Mood::Frustrated,
-            _ => return None, // "random" or unknown → the shuffle-bag rotation
+            _ => return None,
         })
     }
 

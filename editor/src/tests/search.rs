@@ -6,11 +6,11 @@ use super::*;
 fn slash_opens_the_search_prompt_and_esc_cancels() {
     let mut e = over("alpha beta");
     e.handle(Key::Char('/'));
-    assert_eq!(e.mode(), Mode::Command); // command-line mode, `/` prompt
+    assert_eq!(e.mode(), Mode::Command);
     e.handle(Key::Char('b'));
     e.handle(Key::Escape);
     assert_eq!(e.mode(), Mode::Normal);
-    assert_eq!(e.caret, 0); // cancelled search never moves the caret
+    assert_eq!(e.caret, 0);
 }
 
 #[test]
@@ -25,8 +25,8 @@ fn search_jumps_past_the_caret_to_the_next_match() {
 #[test]
 fn search_wraps_to_the_top_with_a_notice() {
     let mut e = over("alpha beta");
-    search(&mut e, "beta"); // caret → 6
-    search(&mut e, "alpha"); // no match after 6 → wraps to 0
+    search(&mut e, "beta");
+    search(&mut e, "alpha");
     assert_eq!(e.caret, 0);
     assert_eq!(e.notice.as_deref(), Some("wrapped"));
 }
@@ -42,11 +42,11 @@ fn search_not_found_keeps_the_caret_and_says_so() {
 #[test]
 fn n_repeats_forward_and_wraps() {
     let mut e = over("ab x ab x ab");
-    search(&mut e, "ab"); // → 5
+    search(&mut e, "ab");
     assert_eq!(e.caret, 5);
-    e.handle(Key::Char('n')); // → 10
+    e.handle(Key::Char('n'));
     assert_eq!(e.caret, 10);
-    e.handle(Key::Char('n')); // wraps → 0
+    e.handle(Key::Char('n'));
     assert_eq!(e.caret, 0);
     assert_eq!(e.notice.as_deref(), Some("wrapped"));
 }
@@ -54,10 +54,10 @@ fn n_repeats_forward_and_wraps() {
 #[test]
 fn capital_n_repeats_backward_and_wraps() {
     let mut e = over("ab x ab x ab");
-    search(&mut e, "ab"); // → 5
-    e.handle(Key::Char('N')); // back → 0
+    search(&mut e, "ab");
+    e.handle(Key::Char('N'));
     assert_eq!(e.caret, 0);
-    e.handle(Key::Char('N')); // wraps to the last match → 10
+    e.handle(Key::Char('N'));
     assert_eq!(e.caret, 10);
     assert_eq!(e.notice.as_deref(), Some("wrapped"));
 }
@@ -65,9 +65,9 @@ fn capital_n_repeats_backward_and_wraps() {
 #[test]
 fn count_applies_to_n() {
     let mut e = over("ab ab ab ab");
-    search(&mut e, "ab"); // → 3
+    search(&mut e, "ab");
     e.handle(Key::Char('2'));
-    e.handle(Key::Char('n')); // 2 matches forward → 9
+    e.handle(Key::Char('n'));
     assert_eq!(e.caret, 9);
 }
 
@@ -82,8 +82,8 @@ fn n_without_a_previous_search_says_so() {
 #[test]
 fn empty_slash_repeats_the_last_search() {
     let mut e = over("ab x ab x ab");
-    search(&mut e, "ab"); // → 5
-    search(&mut e, ""); // bare `/` Enter reuses "ab" → 10
+    search(&mut e, "ab");
+    search(&mut e, "");
     assert_eq!(e.caret, 10);
 }
 
@@ -91,73 +91,73 @@ fn empty_slash_repeats_the_last_search() {
 fn lowercase_search_is_case_insensitive() {
     let mut e = over("x Alpha alpha");
     search(&mut e, "alpha");
-    assert_eq!(e.caret, 2); // "Alpha" matches "alpha"
+    assert_eq!(e.caret, 2);
 }
 
 #[test]
 fn smartcase_a_capital_makes_the_search_exact() {
     let mut e = over("x paris Paris");
-    search(&mut e, "Paris"); // capital → case-sensitive
-    assert_eq!(e.caret, 8); // skips the lowercase "paris"
+    search(&mut e, "Paris");
+    assert_eq!(e.caret, 8);
     e.handle(Key::Char('g'));
     e.handle(Key::Char('g'));
-    search(&mut e, "paris"); // all-lowercase → insensitive again
+    search(&mut e, "paris");
     assert_eq!(e.caret, 2);
 }
 
 #[test]
 fn search_folds_accents_both_ways() {
-    let mut e = over("x Été bien"); // 'É' (2 bytes) folds to 'e'
+    let mut e = over("x Été bien");
     search(&mut e, "été");
     assert_eq!(e.caret, 2);
     assert_eq!(e.text.get(e.caret..e.caret + 5), Some("Été"));
     e.handle(Key::Char('g'));
     e.handle(Key::Char('g'));
-    search(&mut e, "ete"); // bare ascii finds the accented word too
+    search(&mut e, "ete");
     assert_eq!(e.caret, 2);
 }
 
 #[test]
 fn smartcase_still_folds_accents() {
     let mut e = over("x ete Ete");
-    search(&mut e, "Été"); // capital É → case-sensitive, but é still = e
-    assert_eq!(e.caret, 6); // matches "Ete", not "ete"
+    search(&mut e, "Été");
+    assert_eq!(e.caret, 6);
 }
 
 #[test]
 fn backward_search_is_case_insensitive() {
     let mut e = over("Alpha x alpha");
-    search(&mut e, "alpha"); // → 8 (past the caret on 'A')
+    search(&mut e, "alpha");
     assert_eq!(e.caret, 8);
-    e.handle(Key::Char('N')); // back → the capitalized one at 0
+    e.handle(Key::Char('N'));
     assert_eq!(e.caret, 0);
 }
 
 #[test]
 fn search_lands_on_char_boundaries_in_multibyte_text() {
-    let mut e = over("héé ém"); // 'é' is 2 bytes
+    let mut e = over("héé ém");
     search(&mut e, "ém");
-    assert_eq!(e.caret, 6); // byte offset of the standalone "ém"
+    assert_eq!(e.caret, 6);
     assert_eq!(e.text.get(e.caret..e.caret + 3), Some("ém"));
 }
 
 #[test]
 fn n_extends_a_visual_selection() {
     let mut e = over("ab x ab");
-    search(&mut e, "ab"); // → 5
-    e.handle(Key::Char('N')); // back → 0
-    e.handle(Key::Char('v')); // Visual, anchor at 0
-    e.handle(Key::Char('n')); // extend to the next match
+    search(&mut e, "ab");
+    e.handle(Key::Char('N'));
+    e.handle(Key::Char('v'));
+    e.handle(Key::Char('n'));
     assert_eq!(e.mode(), Mode::Visual);
     assert_eq!(e.caret, 5);
-    e.handle(Key::Char('y')); // yank the span (inclusive of the caret char)
+    e.handle(Key::Char('y'));
     assert_eq!(e.register, "ab x a");
 }
 
 #[test]
 fn last_search_survives_a_buffer_switch() {
     let mut e = over("ab x ab");
-    search(&mut e, "ab"); // → 5
+    search(&mut e, "ab");
     e.handle(Key::Char(':'));
     for c in "enew /sd/repo/other.md".chars() {
         e.handle(Key::Char(c));
@@ -169,7 +169,7 @@ fn last_search_survives_a_buffer_switch() {
     }
     e.handle(Key::Escape);
     e.handle(Key::Char('0'));
-    e.handle(Key::Char('n')); // the pattern is editor-global, like vim
+    e.handle(Key::Char('n'));
     assert_eq!(e.caret, 6);
 }
 

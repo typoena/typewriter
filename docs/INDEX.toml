@@ -13,9 +13,7 @@
 
 schema = 1
 
-# ---------------------------------------------------------------------------
 # Nodes — the subsystem vocabulary docs are indexed against.
-# ---------------------------------------------------------------------------
 
 [[node]]
 id = "epd"
@@ -43,7 +41,7 @@ what = "Cold boot path to cursor-ready: bootloader, PSRAM, SD mount, splash refr
 
 [[node]]
 id = "power"
-what = "Wall power today; battery, power switch, power path and sleep states designed but unbuilt."
+what = "Battery chain built and running (LiPo + TP4056 + boost + latching switch + soft-power latch); soft-power firmware, battery sense and sleep states unbuilt."
 
 [[node]]
 id = "keyboard"
@@ -61,9 +59,7 @@ what = "First-boot wizard, :setup, macOS installer, GitHub App device flow, PAT 
 id = "architecture"
 what = "Hexagonal ports (hal/ app/ firmware/), Cargo workspace, std::thread + channels."
 
-# ---------------------------------------------------------------------------
 # ADRs — all in docs/adr.md; anchor is the section slug.
-# ---------------------------------------------------------------------------
 
 [[adr]]
 id = "ADR-001"
@@ -152,9 +148,7 @@ status = "Accepted"
 nodes = ["architecture"]
 holds = "main.rs 924 -> 368 lines; 358 green host tests; Wi-Fi deliberately left unported (fused with git sync); the two esp-idf binaries stay outside the workspace by design."
 
-# ---------------------------------------------------------------------------
 # Reference — true now, undated.
-# ---------------------------------------------------------------------------
 
 [[doc]]
 path = "docs/reference/commands.md"
@@ -181,9 +175,27 @@ path = "docs/reference/testing.md"
 nodes = ["architecture"]
 holds = "Where Rust tests live, the two test shapes, what is deliberately not used, how to run them."
 
-# ---------------------------------------------------------------------------
+[[doc]]
+path = "docs/reference/ssd1683-commands.md"
+nodes = ["epd"]
+holds = "What every command and data byte screen_epd.rs writes means, the master/slave 0x00/0x80 offset, the four refresh sequences, and the fast-partial LUT's four drive groups with zeroed tails. 0x37 is required; 0x22 <- 0xFF reloads the OTP LUT and evicts a custom recipe."
+
+[[doc]]
+path = "docs/reference/hid-keycodes.md"
+nodes = ["keyboard"]
+holds = "Boot-report layout, modifier bitmask (Shift 0x22, Cmd 0x88, Ctrl 0x11 test both sides), every usage ID the chord table matches, Caps 0x39 as a key slot not a modifier bit, and the EP0 control-transfer field values."
+
+[[doc]]
+path = "docs/reference/font-atlas.md"
+nodes = ["render"]
+holds = "Atlas geometry (10x20 cells, 16 cols, baseline 15, ink threshold 128, 4800-byte raw), the 192 ISO-8859-15 slot order with the three blanked codepoints, and the inverted ink polarity: bit 1 is white paper, bit 0 is black ink."
+
+[[doc]]
+path = "docs/reference/libgit2-esp-port.md"
+nodes = ["git-sync", "sd"]
+holds = "The standing POSIX shim surface: O_BINARY and O_CLOEXEC defined to 0, p_open/p_creat/p_rename replacing posix.c's libgit2_unused_* originals, mmap emulation zero-filling a short file's tail, and the mbedTLS shallow session move."
+
 # Plan — not yet true.
-# ---------------------------------------------------------------------------
 
 [[doc]]
 path = "docs/plan/macroplan.md"
@@ -198,11 +210,9 @@ holds = "Zero-computer provisioning flow, ':setup' as the same wizard prefilled,
 [[doc]]
 path = "docs/plan/v0.10-battery-and-sleep.md"
 nodes = ["power"]
-holds = "Power switch and power path decided 2026-07-26; battery and sleep designed, not built."
+holds = "Power switch and power path decided 2026-07-26, and the chain is built: bench-verified that the latch gates the merged rail (off = dead on mains, on = boots from either source). Soft-power firmware, battery sense and sleep states still to build."
 
-# ---------------------------------------------------------------------------
 # Quality — how requirements are weighed.
-# ---------------------------------------------------------------------------
 
 [[doc]]
 path = "docs/quality/qfd.md"
@@ -233,9 +243,7 @@ holds = "Five competing products scored 0-5 per WHAT."
 path = "docs/quality/house-vs-product.md"
 holds = "Four standing challenges where the scored houses disagree with the real product: D1 flow invisible to the house, D2 refresh area is not a latency lever, D3 focus mode acts on its own, D4 font picker over-serves W13."
 
-# ---------------------------------------------------------------------------
 # Record — dated, append-only. This is where measured constants live.
-# ---------------------------------------------------------------------------
 
 [[doc]]
 path = "docs/record/postmortems/2026-07-05-spike3-sd-cmd59.md"
@@ -322,9 +330,7 @@ path = "docs/record/notes/git-sync-images-and-repo-size.md"
 nodes = ["git-sync", "sd"]
 holds = "Decision: do not shrink the notes repo. Why shrinking is off the table, what an ongoing pull actually costs, and the increment-C fix landed 2026-07-14."
 
-# ---------------------------------------------------------------------------
 # Outside docs/ but referenced by it — listed so the index is a complete map.
-# ---------------------------------------------------------------------------
 
 [[doc]]
 path = "hardware/bom.md"

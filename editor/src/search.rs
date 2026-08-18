@@ -57,7 +57,7 @@ impl Editor {
                 }
                 None => {
                     self.set_notice(format!("not found: {pat}"));
-                    return; // absent now, absent on every repeat
+                    return;
                 }
             }
         }

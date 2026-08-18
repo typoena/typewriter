@@ -93,7 +93,7 @@ impl Editor {
         let col = substr(&self.text, ls..self.caret).chars().count();
         let le = self.line_end(self.caret);
         if le >= self.text.len() {
-            return; // already on the last line
+            return;
         }
         let next_start = le + 1;
         let next_end = self.line_end(next_start);
@@ -103,11 +103,11 @@ impl Editor {
     pub(crate) fn move_up(&mut self) {
         let ls = self.line_start(self.caret);
         if ls == 0 {
-            return; // already on the first line
+            return;
         }
         let col = substr(&self.text, ls..self.caret).chars().count();
         let prev_start = self.line_start(ls - 1);
-        let prev_end = ls - 1; // the '\n' that ends the previous line
+        let prev_end = ls - 1;
         self.caret = self.advance_chars(prev_start, col, prev_end);
     }
 

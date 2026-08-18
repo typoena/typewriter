@@ -23,8 +23,8 @@ SOT323 = "Package_TO_SOT_SMD:SOT-323_SC-70"
 SOD123 = "Diode_SMD:D_SOD-123"
 PH2 = "Connector_JST:JST_PH_S2B-PH-K_1x02_P2.00mm_Horizontal"
 
-comps = []          # (ref, lib_id, value, footprint, {pin: net}, extra_props)
-notes = []          # (texte, x, y)
+comps = []
+notes = []
 _zone = {}
 
 
@@ -33,7 +33,7 @@ def C(ref, lib_id, value, fp, pins, **props):
 
 
 GRID = 1.27
-PAD_X = 5.08 + 33.0    # moignon + place pour le texte du label
+PAD_X = 5.08 + 33.0
 PAD_Y = 5.08 + 12.7
 
 

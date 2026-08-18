@@ -75,8 +75,8 @@ panel #1 · C7 widget/editor layer #2 · C12 libgit2 #3 · C2 std runtime #4.
 keep-alive race (durable fix owed before v1.0 claims ≥ 99 %), token
 plaintext at rest (the open [ADR-011]), onboarding reach (SoftAP
 companion deferred), FAT rename window ([ADR-007]), typography paths
-(v1.0 pass), battery ([ADR-008] — bench current numbers start v0.8 cell
-sizing).
+(v1.0 pass), battery ([ADR-008] — the cell runs, but bench current numbers
+still gate the runtime claim).
 
 ## How to keep these documents honest
 

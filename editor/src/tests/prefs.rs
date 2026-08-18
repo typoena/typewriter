@@ -12,7 +12,7 @@ fn prefs_default_matches_the_documented_defaults() {
     assert_eq!(p.theme, "light");
     assert_eq!(p.auto_sync, "10m");
     assert_eq!(p.scroll_margin, 2);
-    assert_eq!(p.timezone, ""); // empty -> host leaves the clock at UTC
+    assert_eq!(p.timezone, "");
 }
 
 #[test]
@@ -28,7 +28,7 @@ fn prefs_parse_falls_back_to_defaults_for_missing_keys() {
     // Only one key present; the rest stay at their defaults.
     let p = Prefs::parse("line_numbers = false\n");
     assert!(!p.line_numbers);
-    assert!(p.save_on_idle); // untouched -> default
+    assert!(p.save_on_idle);
     assert!(p.format_on_save);
     assert_eq!(p.auto_sync, "10m");
 }
@@ -56,7 +56,7 @@ fn prefs_parse_reads_all_keys_and_ignores_comments_and_junk() {
 fn prefs_parse_keeps_default_on_an_unparseable_bool() {
     // A typo in a bool value leaves that key at its default, not `false`.
     let p = Prefs::parse("save_on_idle = yes\n");
-    assert!(p.save_on_idle); // "yes" isn't a TOML bool -> default (true)
+    assert!(p.save_on_idle);
 }
 
 #[test]
@@ -80,7 +80,7 @@ fn prefs_to_toml_round_trips_through_parse() {
 
 #[test]
 fn prefs_parse_reads_companion_and_defaults_on() {
-    assert!(Prefs::default().companion); // Typo ships on; the pref is the opt-out
+    assert!(Prefs::default().companion);
     assert!(!Prefs::parse("companion = false\n").companion);
     assert!(Prefs::parse("companion = true\n").companion);
     // A non-bool value leaves it at the (on) default rather than reading false.
@@ -89,7 +89,7 @@ fn prefs_parse_reads_companion_and_defaults_on() {
 
 #[test]
 fn prefs_parse_reads_fast_partial_and_defaults_off() {
-    assert!(!Prefs::default().fast_partial); // experimental — off unless asked
+    assert!(!Prefs::default().fast_partial);
     assert!(Prefs::parse("fast_partial = true\n").fast_partial);
     assert!(!Prefs::parse("fast_partial = false\n").fast_partial);
     // A non-bool value leaves it at the (off) default rather than reading false.
@@ -113,7 +113,7 @@ fn prefs_parse_reads_theme_and_auto_sync_strings() {
 
 #[test]
 fn prefs_parse_reads_font_and_defaults_to_builtin() {
-    assert_eq!(Prefs::default().font, "default"); // built-in Misc Fixed
+    assert_eq!(Prefs::default().font, "default");
     assert_eq!(Prefs::parse("font = \"jetbrains-mono\"\n").font, "jetbrains-mono");
     // The font key is emitted by to_toml, so it survives a `:gs` to other devices.
     assert!(Prefs::default().to_toml().contains("font = \"default\""));
@@ -121,7 +121,7 @@ fn prefs_parse_reads_font_and_defaults_to_builtin() {
 
 #[test]
 fn prefs_parse_reads_face_and_defaults_to_random() {
-    assert_eq!(Prefs::default().face, "random"); // ship on the shuffle-bag rotation
+    assert_eq!(Prefs::default().face, "random");
     assert_eq!(Prefs::parse("face = \"curious\"\n").face, "curious");
     // Emitted by to_toml, so a pinned face rides `:gs` to other devices.
     assert!(Prefs::default().to_toml().contains("face = \"random\""));
@@ -135,10 +135,10 @@ fn empty_prefs_file_yields_defaults() {
 #[test]
 fn line_numbers_off_reclaims_the_gutter_columns() {
     let mut e = Editor::with_text("one\ntwo\nthree".into());
-    assert!(e.text_cols() < WRITE_COLS); // gutter present by default
+    assert!(e.text_cols() < WRITE_COLS);
     e.prefs.line_numbers = false;
     assert_eq!(e.gutter_cols(), 0);
-    assert_eq!(e.text_cols(), WRITE_COLS); // full width reclaimed
+    assert_eq!(e.text_cols(), WRITE_COLS);
 }
 
 #[test]

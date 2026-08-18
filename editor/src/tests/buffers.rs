@@ -63,8 +63,8 @@ fn resolve_path_maps_prefixes_and_bare_names() {
 #[test]
 fn an_edit_marks_dirty_and_mark_saved_clears_it() {
     let mut e = Editor::with_file("/sd/repo/a.md".into(), Scope::Tracked, "hi".into());
-    assert!(!e.dirty()); // a freshly loaded buffer is clean
-    e.handle(Key::Char('x')); // delete a char
+    assert!(!e.dirty());
+    e.handle(Key::Char('x'));
     assert!(e.dirty());
     e.mark_saved("/sd/repo/a.md");
     assert!(!e.dirty());
@@ -97,23 +97,23 @@ fn install_loaded_parks_current_and_activates_the_target() {
 #[test]
 fn switching_back_to_a_resident_buffer_needs_no_load() {
     let mut e = Editor::with_file("/sd/repo/a.md".into(), Scope::Tracked, "AAA".into());
-    assert_eq!(e.caret, 2); // caret on A's last char
+    assert_eq!(e.caret, 2);
     e.install_loaded("/sd/repo/b.md".into(), Scope::Tracked, "BBBBB".into());
     // A is parked (resident) — switching back reads memory, not disk.
     edit(&mut e, "/sd/repo/a.md");
     assert!(e.take_effects().is_empty());
     assert_eq!(e.path(), "/sd/repo/a.md");
     assert_eq!(e.text(), "AAA");
-    assert_eq!(e.caret, 2); // its caret came back with it
+    assert_eq!(e.caret, 2);
 }
 
 #[test]
 fn the_register_is_global_across_buffers() {
     let mut e = Editor::with_file("/sd/repo/a.md".into(), Scope::Tracked, "word".into());
-    e.handle(Key::Char('y')); // yy — yank the line
+    e.handle(Key::Char('y'));
     e.handle(Key::Char('y'));
     e.install_loaded("/sd/repo/b.md".into(), Scope::Tracked, String::new());
-    e.handle(Key::Char('p')); // paste it into the other buffer
+    e.handle(Key::Char('p'));
     assert!(e.text().contains("word"));
 }
 
@@ -125,11 +125,11 @@ fn a_dirty_parked_buffer_is_saved_when_evicted() {
     e.handle(Key::Char('!'));
     e.handle(Key::Escape);
     assert!(e.dirty());
-    e.take_effects(); // discard anything queued so far
-    e.install_loaded("/sd/repo/b.md".into(), Scope::Tracked, "B".into()); // parks A(dirty)
+    e.take_effects();
+    e.install_loaded("/sd/repo/b.md".into(), Scope::Tracked, "B".into());
     e.install_loaded("/sd/repo/c.md".into(), Scope::Tracked, "C".into()); // parked: [A,B]
-    assert!(e.take_effects().is_empty()); // nothing evicted yet
-    e.install_loaded("/sd/repo/d.md".into(), Scope::Tracked, "D".into()); // evicts A
+    assert!(e.take_effects().is_empty());
+    e.install_loaded("/sd/repo/d.md".into(), Scope::Tracked, "D".into());
     let effs = e.take_effects();
     assert_eq!(effs.len(), 1, "the evicted dirty buffer must be saved");
     match &effs[0] {
@@ -145,12 +145,12 @@ fn reboot_autosaves_every_dirty_resident_buffer() {
     let mut e = Editor::with_file("/sd/repo/a.md".into(), Scope::Tracked, "A".into());
     e.handle(Key::Char('i'));
     e.handle(Key::Char('!'));
-    e.handle(Key::Escape); // A dirty
-    e.install_loaded("/sd/repo/b.md".into(), Scope::Tracked, "B".into()); // parks A(dirty)
+    e.handle(Key::Escape);
+    e.install_loaded("/sd/repo/b.md".into(), Scope::Tracked, "B".into());
     e.handle(Key::Char('i'));
     e.handle(Key::Char('!'));
-    e.handle(Key::Escape); // B (now active) dirty
-    e.take_effects(); // discard anything queued during setup
+    e.handle(Key::Escape);
+    e.take_effects();
     ex(&mut e, "reboot");
     confirm(&mut e);
     let effs = e.take_effects();
@@ -173,7 +173,7 @@ fn a_clean_parked_buffer_is_dropped_silently_on_eviction() {
     e.install_loaded("/sd/repo/c.md".into(), Scope::Tracked, "C".into());
     e.take_effects();
     e.install_loaded("/sd/repo/d.md".into(), Scope::Tracked, "D".into());
-    assert!(e.take_effects().is_empty()); // clean buffer: no save on evict
+    assert!(e.take_effects().is_empty());
 }
 
 /// Boot on `a.md`, then open the rest via the palette (installing each load),
@@ -196,14 +196,14 @@ fn opened(paths: &[&str]) -> Editor {
 #[test]
 fn ctrl_tab_toggles_between_the_last_two_notes() {
     let mut e = opened(&["/sd/repo/a.md", "/sd/repo/b.md"]);
-    e.handle(Key::CycleRecent); // b → a (resident: no disk IO)
+    e.handle(Key::CycleRecent);
     assert_eq!(e.path(), "/sd/repo/a.md");
     assert!(e.take_effects().is_empty());
-    e.handle(Key::Char('j')); // any other key commits the walk
-    e.handle(Key::CycleRecent); // a → b
+    e.handle(Key::Char('j'));
+    e.handle(Key::CycleRecent);
     assert_eq!(e.path(), "/sd/repo/b.md");
     e.handle(Key::Char('j'));
-    e.handle(Key::CycleRecent); // b → a again
+    e.handle(Key::CycleRecent);
     assert_eq!(e.path(), "/sd/repo/a.md");
 }
 
@@ -214,12 +214,12 @@ fn ctrl_release_commits_so_ctrl_tab_toggles_without_typing() {
     // deeper (c → b → a was the on-device bug: nothing committed the walk
     // when no other key was typed between presses).
     let mut e = opened(&["/sd/repo/a.md", "/sd/repo/b.md", "/sd/repo/c.md"]);
-    e.handle(Key::CycleRecent); // c → b
-    e.handle(Key::CycleCommit); // Ctrl released: recent now [b, c, a]
-    e.handle(Key::CycleRecent); // b → c, not a
+    e.handle(Key::CycleRecent);
+    e.handle(Key::CycleCommit);
+    e.handle(Key::CycleRecent);
     assert_eq!(e.path(), "/sd/repo/c.md");
     e.handle(Key::CycleCommit);
-    e.handle(Key::CycleRecent); // c → b again
+    e.handle(Key::CycleRecent);
     assert_eq!(e.path(), "/sd/repo/b.md");
 }
 
@@ -232,7 +232,7 @@ fn repeated_ctrl_tab_walks_deeper_into_the_mru_and_wraps() {
     assert_eq!(e.path(), "/sd/repo/b.md");
     e.handle(Key::CycleRecent);
     assert_eq!(e.path(), "/sd/repo/a.md");
-    e.handle(Key::CycleRecent); // wraps back to the walk's origin
+    e.handle(Key::CycleRecent);
     assert_eq!(e.path(), "/sd/repo/c.md");
     e.handle(Key::CycleRecent);
     assert_eq!(e.path(), "/sd/repo/b.md");
@@ -241,7 +241,7 @@ fn repeated_ctrl_tab_walks_deeper_into_the_mru_and_wraps() {
 #[test]
 fn committing_the_walk_floats_the_landed_note() {
     let mut e = opened(&["/sd/repo/a.md", "/sd/repo/b.md", "/sd/repo/c.md"]);
-    e.handle(Key::CycleRecent); // c → b
+    e.handle(Key::CycleRecent);
     e.handle(Key::Char('j')); // commit: recent now [b, c, a]
     // The next walk's first hop is the note we came *from*, not a.
     e.handle(Key::CycleRecent);
@@ -254,15 +254,15 @@ fn ctrl_tab_reaches_a_note_evicted_from_residency() {
     // residency — the walk reaches it via a Load like any non-resident open.
     let mut e =
         opened(&["/sd/repo/a.md", "/sd/repo/b.md", "/sd/repo/c.md", "/sd/repo/d.md"]);
-    e.take_effects(); // discard a's eviction save, if any
-    e.handle(Key::CycleRecent); // d → c (resident)
-    e.handle(Key::CycleRecent); // c → b (resident)
-    e.handle(Key::CycleRecent); // b → a: not resident, so a Load is queued
+    e.take_effects();
+    e.handle(Key::CycleRecent);
+    e.handle(Key::CycleRecent);
+    e.handle(Key::CycleRecent);
     assert_eq!(
         e.take_effects(),
         vec![Effect::Load { path: "/sd/repo/a.md".into(), scope: Scope::Tracked }]
     );
-    assert_eq!(e.path(), "/sd/repo/b.md"); // on screen until the host installs a
+    assert_eq!(e.path(), "/sd/repo/b.md");
 }
 
 #[test]
@@ -281,7 +281,7 @@ fn ctrl_tab_works_from_insert_and_lands_in_normal() {
     assert_eq!(e.mode(), Mode::Insert);
     e.handle(Key::CycleRecent);
     assert_eq!(e.path(), "/sd/repo/a.md");
-    assert_eq!(e.mode(), Mode::Normal); // buffer swaps land in Normal, like the palette
+    assert_eq!(e.mode(), Mode::Normal);
 }
 
 #[test]
@@ -290,9 +290,9 @@ fn ctrl_tab_derives_scope_for_local_notes() {
     edit(&mut e, "local/j.md");
     e.take_effects();
     e.install_loaded("/sd/local/j.md".into(), Scope::Local, "J".into());
-    e.handle(Key::CycleRecent); // j → a
-    e.handle(Key::Char('j')); // commit
-    e.handle(Key::CycleRecent); // a → j, resident swap keeps its Local scope
+    e.handle(Key::CycleRecent);
+    e.handle(Key::Char('j'));
+    e.handle(Key::CycleRecent);
     assert_eq!(e.path(), "/sd/local/j.md");
     assert_eq!(e.scope(), Scope::Local);
     assert!(e.take_effects().is_empty());
@@ -302,10 +302,10 @@ fn ctrl_tab_derives_scope_for_local_notes() {
 fn enew_creates_a_dirty_empty_buffer_and_asks_the_host_for_nothing() {
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, "A".into());
     ex(&mut e, "enew draft.md");
-    assert_eq!(e.path(), "/sd/repo/draft.md"); // bare name → current (Tracked) scope
+    assert_eq!(e.path(), "/sd/repo/draft.md");
     assert_eq!(e.scope(), Scope::Tracked);
     assert_eq!(e.text(), "");
-    assert!(e.dirty()); // fresh + unsaved, so eviction/`:w` will persist it
+    assert!(e.dirty());
     assert_eq!(e.mode(), Mode::Normal);
     // `:enew` allocates no card IO — it neither loads nor saves.
     assert!(e.take_effects().is_empty());
@@ -335,11 +335,11 @@ fn enew_adds_the_new_file_to_the_palette_list() {
 #[test]
 fn enew_of_an_already_open_file_switches_without_clobbering() {
     let mut e = Editor::with_file("/sd/repo/a.md".into(), Scope::Tracked, "AAA".into());
-    e.install_loaded("/sd/repo/b.md".into(), Scope::Tracked, "BBB".into()); // parks A
+    e.install_loaded("/sd/repo/b.md".into(), Scope::Tracked, "BBB".into());
     e.take_effects();
-    ex(&mut e, "enew /sd/repo/a.md"); // A is parked (resident) — switch, don't empty it
+    ex(&mut e, "enew /sd/repo/a.md");
     assert_eq!(e.path(), "/sd/repo/a.md");
-    assert_eq!(e.text(), "AAA"); // contents preserved, not clobbered to empty
+    assert_eq!(e.text(), "AAA");
     assert!(e.take_effects().is_empty()); // resident: no Load
 }
 
@@ -347,7 +347,7 @@ fn enew_of_an_already_open_file_switches_without_clobbering() {
 fn enew_without_a_name_is_a_usage_noop() {
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, "A".into());
     ex(&mut e, "enew");
-    assert_eq!(e.path(), "/sd/repo/notes.md"); // unchanged
+    assert_eq!(e.path(), "/sd/repo/notes.md");
     assert!(e.take_effects().is_empty());
     assert_eq!(e.mode(), Mode::Normal);
 }
@@ -366,7 +366,7 @@ fn delete_prompts_before_touching_anything() {
 fn confirming_the_prompt_queues_the_delete() {
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
     ex(&mut e, "delete");
-    e.handle(Key::Char('y')); // confirm
+    e.handle(Key::Char('y'));
     assert_eq!(
         e.take_effects(),
         vec![Effect::Delete {
@@ -384,11 +384,11 @@ fn confirming_the_prompt_queues_the_delete() {
 fn cancelling_the_prompt_leaves_the_file_untouched() {
     let mut e = palette_editor(&["/sd/repo/notes.md", "/sd/repo/todo.md"]);
     ex(&mut e, "delete");
-    e.handle(Key::Char('n')); // anything but y/Y cancels
+    e.handle(Key::Char('n'));
     assert_eq!(e.mode(), Mode::Normal);
-    assert_eq!(e.path(), "/sd/repo/notes.md"); // still the active file
-    assert!(files_vec(&e).contains(&"/sd/repo/notes.md".to_string())); // not dropped
-    assert!(e.take_effects().is_empty()); // no Delete queued
+    assert_eq!(e.path(), "/sd/repo/notes.md");
+    assert!(files_vec(&e).contains(&"/sd/repo/notes.md".to_string()));
+    assert!(e.take_effects().is_empty());
 }
 
 #[test]
@@ -404,19 +404,19 @@ fn esc_at_the_prompt_cancels_too() {
 #[test]
 fn d_is_an_alias_for_delete() {
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
-    ex(&mut e, "d"); // the shorthand also prompts...
+    ex(&mut e, "d");
     assert_eq!(e.mode(), Mode::Confirm);
-    e.handle(Key::Char('y')); // ...and deletes on confirm
+    e.handle(Key::Char('y'));
     assert_eq!(kinds(&e.take_effects()), vec![Kind::Delete]);
 }
 
 #[test]
 fn delete_never_saves_the_discarded_buffer_even_when_dirty() {
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, "A".into());
-    e.handle(Key::Char('x')); // dirty it
+    e.handle(Key::Char('x'));
     assert!(e.dirty());
     ex(&mut e, "delete");
-    e.handle(Key::Char('y')); // confirm
+    e.handle(Key::Char('y'));
     // The buffer is being deleted, so it is discarded, not saved: Delete only.
     assert_eq!(kinds(&e.take_effects()), vec![Kind::Delete]);
 }
@@ -424,12 +424,12 @@ fn delete_never_saves_the_discarded_buffer_even_when_dirty() {
 #[test]
 fn delete_switches_to_the_most_recently_parked_buffer() {
     let mut e = Editor::with_file("/sd/repo/a.md".into(), Scope::Tracked, "AAA".into());
-    e.install_loaded("/sd/repo/b.md".into(), Scope::Tracked, "BBB".into()); // active B, A parked
+    e.install_loaded("/sd/repo/b.md".into(), Scope::Tracked, "BBB".into());
     e.take_effects();
-    ex(&mut e, "delete"); // deletes B, restores A
-    e.handle(Key::Char('y')); // confirm
+    ex(&mut e, "delete");
+    e.handle(Key::Char('y'));
     assert_eq!(e.path(), "/sd/repo/a.md");
-    assert_eq!(e.text(), "AAA"); // A came back from RAM, caret/undo with it
+    assert_eq!(e.text(), "AAA");
     match &e.take_effects()[..] {
         [Effect::Delete { path, .. }] => assert_eq!(path, "/sd/repo/b.md"),
         other => panic!("expected a single Delete of B, got {other:?}"),
@@ -439,22 +439,22 @@ fn delete_switches_to_the_most_recently_parked_buffer() {
 #[test]
 fn delete_drops_the_file_from_the_palette_list() {
     let mut e = palette_editor(&["/sd/repo/notes.md", "/sd/repo/todo.md"]);
-    ex(&mut e, "delete"); // notes.md is active
-    e.handle(Key::Char('y')); // confirm
+    ex(&mut e, "delete");
+    e.handle(Key::Char('y'));
     e.take_effects();
     assert!(!files_vec(&e).contains(&"/sd/repo/notes.md".to_string()));
     e.handle(Key::Palette);
     for c in "md".chars() {
-        e.handle(Key::Char(c)); // reach the search threshold
+        e.handle(Key::Char(c));
     }
-    assert_eq!(palette_labels(&e), vec!["repo/todo.md"]); // only the survivor
+    assert_eq!(palette_labels(&e), vec!["repo/todo.md"]);
 }
 
 #[test]
 fn delete_of_a_local_file_carries_local_scope() {
     let mut e = Editor::with_file("/sd/local/j.md".into(), Scope::Local, "diary".into());
     ex(&mut e, "delete");
-    e.handle(Key::Char('y')); // confirm
+    e.handle(Key::Char('y'));
     match &e.take_effects()[..] {
         [Effect::Delete { path, scope }] => {
             assert_eq!(path, "/sd/local/j.md");
@@ -466,20 +466,20 @@ fn delete_of_a_local_file_carries_local_scope() {
 
 #[test]
 fn delete_on_an_unnamed_buffer_is_a_noop() {
-    let mut e = Editor::new(); // scratch, empty path — nothing on disk to delete
+    let mut e = Editor::new();
     ex(&mut e, "delete");
     assert!(e.take_effects().is_empty());
-    assert_eq!(e.mode(), Mode::Normal); // no prompt: nothing to delete
+    assert_eq!(e.mode(), Mode::Normal);
 }
 
 #[test]
 fn link_target_at_finds_the_span_containing_col() {
     let line = "see [intro](intro.md) and [b](../b.md) done";
     // Anywhere from `[` through `)` inclusive selects the first link…
-    assert_eq!(link_target_at(line, 4), Some("intro.md")); // on `[`
-    assert_eq!(link_target_at(line, 7), Some("intro.md")); // in the title
-    assert_eq!(link_target_at(line, 15), Some("intro.md")); // in the target
-    assert_eq!(link_target_at(line, 20), Some("intro.md")); // on `)`
+    assert_eq!(link_target_at(line, 4), Some("intro.md"));
+    assert_eq!(link_target_at(line, 7), Some("intro.md"));
+    assert_eq!(link_target_at(line, 15), Some("intro.md"));
+    assert_eq!(link_target_at(line, 20), Some("intro.md"));
     // …and the second link resolves independently.
     assert_eq!(link_target_at(line, 30), Some("../b.md"));
     // Between and around links there is nothing to follow.
@@ -528,7 +528,7 @@ fn gf_follows_a_relative_link_and_queues_the_load() {
         Scope::Tracked,
         "see [intro](../intro.md) for more".into(),
     );
-    e.caret = 6; // inside the title
+    e.caret = 6;
     send(&mut e, "gf");
     assert_eq!(
         e.take_effects(),
@@ -564,7 +564,7 @@ fn gf_unwraps_angle_brackets_and_drops_the_fragment() {
         e.take_effects(),
         vec![Effect::Load { path: "/sd/repo/my notes.md".into(), scope: Scope::Tracked }]
     );
-    e.caret = 26; // inside `[sec](b.md#heading)`
+    e.caret = 26;
     send(&mut e, "gf");
     assert_eq!(
         e.take_effects(),
@@ -577,7 +577,7 @@ fn gf_switches_to_a_resident_target_without_a_load() {
     let mut e = Editor::with_file("/sd/repo/a.md".into(), Scope::Tracked, "go [b](b.md)".into());
     edit(&mut e, "b.md");
     e.install_loaded("/sd/repo/b.md".into(), Scope::Tracked, "bee".into());
-    edit(&mut e, "a.md"); // back to a.md; b.md stays parked
+    edit(&mut e, "a.md");
     e.take_effects();
     e.caret = 4;
     send(&mut e, "gf");
@@ -593,15 +593,15 @@ fn gf_posts_notices_for_no_link_external_and_unresolvable() {
         Scope::Tracked,
         "plain text [web](https://x.dev) [out](../../x.md)".into(),
     );
-    e.caret = 2; // not on a link
+    e.caret = 2;
     send(&mut e, "gf");
     assert_eq!(e.notice.as_deref(), Some("no link under caret"));
-    e.caret = 12; // `[web](https://x.dev)` — nothing to open it with on-device
+    e.caret = 12;
     send(&mut e, "gf");
     assert_eq!(e.notice.as_deref(), Some("external link"));
-    e.caret = 33; // `[out](../../x.md)` climbs off the card
+    e.caret = 33;
     send(&mut e, "gf");
     assert_eq!(e.notice.as_deref(), Some("can't follow link"));
     assert!(e.take_effects().is_empty());
-    assert_eq!(e.path, "/sd/repo/a.md"); // never switched away
+    assert_eq!(e.path, "/sd/repo/a.md");
 }

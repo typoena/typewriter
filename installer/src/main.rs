@@ -49,7 +49,7 @@ fn main() -> anyhow::Result<()> {
                 "--no-eject" => eject = false,
                 "--yes" | "-y" => assume_yes = true,
                 "--ui" => ui = true,
-                s if s.starts_with('-') => {} // --wipe and any other flags
+                s if s.starts_with('-') => {}
                 s if volume.is_none() => volume = Some(s.to_string()),
                 _ => {}
             }

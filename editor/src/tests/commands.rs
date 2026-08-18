@@ -107,7 +107,7 @@ fn unsynced_card_discard_needs_a_second_confirm() {
         "the prompt must name the count, got {:?}",
         e.notice,
     );
-    confirm(&mut e); // presses y
+    confirm(&mut e);
     let effs = e.take_effects();
     assert!(
         matches!(effs.as_slice(), [Effect::Pull(PullIntent::Discard)]),
@@ -127,7 +127,7 @@ fn cancelled_discard_returns_to_the_card_not_out_of_the_pull() {
     // the list, still able to commit — not silently out of the sync.
     let mut e = with_unsynced_card();
     e.handle(Key::Char('d'));
-    e.handle(Key::Char('n')); // not y → cancel
+    e.handle(Key::Char('n'));
     assert_eq!(e.mode(), Mode::Unsynced, "cancel must drop back onto the card");
     assert!(e.take_effects().is_empty(), "a cancelled discard must queue nothing");
     e.handle(Key::Enter);
@@ -171,7 +171,7 @@ fn draw_the_unsynced_card_does_not_panic() {
     // lets it run free) — both are only exercised by actually drawing.
     let mut e = with_unsynced_card();
     let _ = e.draw(true);
-    e.handle(Key::Char('d')); // the confirm draws *over* the card
+    e.handle(Key::Char('d'));
     let _ = e.draw(true);
     e.handle(Key::Char('n'));
 
@@ -216,7 +216,7 @@ fn setup_command_requests_the_wizard_when_clean() {
 fn setup_prompt_cancels_on_any_other_key() {
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
     ex(&mut e, "setup");
-    e.handle(Key::Escape); // not y → cancel
+    e.handle(Key::Escape);
     assert_eq!(e.mode(), Mode::Normal);
     assert!(e.take_effects().is_empty(), "cancelled :setup must queue nothing");
 }
@@ -251,7 +251,7 @@ fn reboot_command_requests_a_restart_when_clean() {
 fn reboot_prompt_cancels_on_any_other_key() {
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
     ex(&mut e, "reboot");
-    e.handle(Key::Char('n')); // not y → cancel
+    e.handle(Key::Char('n'));
     assert_eq!(e.mode(), Mode::Normal);
     assert!(e.take_effects().is_empty(), "cancelled :reboot must queue nothing");
 }
@@ -300,7 +300,7 @@ fn update_command_requests_an_ota_check_when_clean() {
 fn update_prompt_cancels_on_any_other_key() {
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
     ex(&mut e, "update");
-    e.handle(Key::Char('n')); // not y → cancel
+    e.handle(Key::Char('n'));
     assert_eq!(e.mode(), Mode::Normal);
     assert!(e.take_effects().is_empty(), "cancelled :update must queue nothing");
     assert!(
@@ -353,7 +353,7 @@ fn about_splash_swallows_other_keys() {
     // stray press can't leave by accident or edit the hidden buffer.
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, "hello".into());
     ex(&mut e, "about");
-    e.handle(Key::Char('x')); // would delete a char in Normal
+    e.handle(Key::Char('x'));
     assert_eq!(e.mode(), Mode::About, "a stray key must not leave the splash");
     assert_eq!(e.text, "hello", "the buffer stays untouched behind the card");
 }
@@ -381,7 +381,7 @@ fn gs_formats_the_buffer_before_pushing() {
     let mut e = Editor::with_file(
         "/sd/repo/notes.md".into(),
         Scope::Tracked,
-        "hello   \nworld".to_string(), // trailing spaces
+        "hello   \nworld".to_string(),
     );
     e.handle(Key::Char(':'));
     for c in "gs".chars() {
@@ -389,7 +389,7 @@ fn gs_formats_the_buffer_before_pushing() {
     }
     e.handle(Key::Enter);
     assert_eq!(kinds(&e.take_effects()), vec![Kind::Save, Kind::Push]);
-    assert_eq!(e.text(), "hello\nworld\n"); // :fmt stripped the spaces, ended the buffer
+    assert_eq!(e.text(), "hello\nworld\n");
 }
 
 #[test]
@@ -420,15 +420,15 @@ fn format_on_save_off_leaves_the_buffer_untouched() {
     e.handle(Key::Char('w'));
     e.handle(Key::Enter);
     assert_eq!(kinds(&e.take_effects()), vec![Kind::Save]);
-    assert_eq!(e.text(), "hello   \nworld"); // unchanged when the pref is off
+    assert_eq!(e.text(), "hello   \nworld");
 }
 
 #[test]
 fn format_keeps_at_most_one_trailing_blank_line() {
     // The writer's trailing blank line (pressed Enter to open the next line) is
     // kept; a run of them collapses to one.
-    assert_eq!(format_markdown("hello\n"), "hello\n"); // one blank kept
-    assert_eq!(format_markdown("hello\n\n\n"), "hello\n"); // extras collapsed to one
+    assert_eq!(format_markdown("hello\n"), "hello\n");
+    assert_eq!(format_markdown("hello\n\n\n"), "hello\n");
 }
 
 #[test]
@@ -437,8 +437,8 @@ fn format_terminates_the_buffer_with_a_newline() {
     // empty last row) — no second pass, and an empty buffer stays empty.
     assert_eq!(format_markdown("hello"), "hello\n");
     assert_eq!(format_markdown("hello\nworld"), "hello\nworld\n");
-    assert_eq!(format_markdown("hello\n"), "hello\n"); // idempotent
-    assert_eq!(format_markdown(""), ""); // a blank scratch has no line to end
+    assert_eq!(format_markdown("hello\n"), "hello\n");
+    assert_eq!(format_markdown(""), "");
 }
 
 #[test]
@@ -446,7 +446,7 @@ fn format_on_save_adds_the_missing_trailing_newline() {
     let mut e = Editor::with_file(
         "/sd/repo/notes.md".into(),
         Scope::Tracked,
-        "hello".to_string(), // no terminator — as a file authored elsewhere arrives
+        "hello".to_string(),
     );
     e.handle(Key::Char(':'));
     e.handle(Key::Char('w'));
@@ -464,9 +464,9 @@ fn format_on_save_keeps_the_caret_on_a_trailing_blank_line() {
     let mut e = Editor::with_file(
         "/sd/repo/notes.md".into(),
         Scope::Tracked,
-        "hello\n".to_string(), // row 0 "hello", row 1 "" (a fresh empty line)
+        "hello\n".to_string(),
     );
-    e.caret = e.text().len(); // caret at the very end = on the trailing blank row
+    e.caret = e.text().len();
     let lay = e.layout();
     assert_eq!(e.caret_rc(&lay).0, 1, "precondition: caret on the blank row");
 
@@ -498,7 +498,7 @@ fn cmd_s_saves_a_dirty_buffer_like_w() {
         vec![Effect::Save {
             path: "/sd/repo/notes.md".into(),
             scope: Scope::Tracked,
-            contents: "hi\n".into(), // Normal-mode Cmd+S formats, so the terminator is there
+            contents: "hi\n".into(),
         }]
     );
 }
@@ -557,14 +557,14 @@ fn cmd_s_from_insert_does_not_reformat_mid_session() {
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
     assert!(e.prefs.format_on_save);
     e.handle(Key::Char('i'));
-    send(&mut e, "hello   "); // trailing spaces a formatter would strip
+    send(&mut e, "hello   ");
     e.handle(Key::Save);
     assert_eq!(
         e.take_effects(),
         vec![Effect::Save {
             path: "/sd/repo/notes.md".into(),
             scope: Scope::Tracked,
-            contents: "hello   \n".into(), // spaces kept — only the terminator added
+            contents: "hello   \n".into(),
         }]
     );
 }
@@ -576,10 +576,10 @@ fn cmd_s_mid_line_in_insert_leaves_the_caret_untouched() {
     let mut e = Editor::with_file(
         "/sd/repo/notes.md".into(),
         Scope::Tracked,
-        "one\ntwo".to_string(), // no terminator, as an externally authored file arrives
+        "one\ntwo".to_string(),
     );
-    e.handle(Key::Char('i')); // entering Insert checkpoints, so the buffer is dirty
-    e.caret = 1; // between 'o' and 'n' on row 0
+    e.handle(Key::Char('i'));
+    e.caret = 1;
     let before = e.caret;
     e.handle(Key::Save);
     assert_eq!(kinds(&e.take_effects()), vec![Kind::Save]);
@@ -603,20 +603,20 @@ fn fmt_keeps_the_caret_column_instead_of_snapping_to_the_line_start() {
         Scope::Tracked,
         "first line   \nsecond line here".into(),
     );
-    e.caret = "first line   \n".len() + 7; // after "second " on row 1
+    e.caret = "first line   \n".len() + 7;
     e.handle(Key::Char(':'));
     for c in "fmt".chars() {
         e.handle(Key::Char(c));
     }
     e.handle(Key::Enter);
-    assert_eq!(e.text(), "first line\nsecond line here\n"); // spaces trimmed, buffer ended
-    assert_eq!(e.caret, "first line\n".len() + 7); // same column, not the line start
-    assert_eq!(e.mode(), Mode::Normal); // and formatting never touches the mode
+    assert_eq!(e.text(), "first line\nsecond line here\n");
+    assert_eq!(e.caret, "first line\n".len() + 7);
+    assert_eq!(e.mode(), Mode::Normal);
 }
 
 #[test]
 fn unknown_command_is_ignored() {
-    let (e, effs) = command("q"); // quit is deliberately unimplemented
+    let (e, effs) = command("q");
     assert!(effs.is_empty());
     assert_eq!(e.mode(), Mode::Normal);
 }
@@ -635,8 +635,8 @@ fn w_on_an_unnamed_buffer_posts_no_file_name() {
 fn with_text_boots_normal_with_caret_on_last_char() {
     let e = Editor::with_text("resumed draft".to_string());
     assert_eq!(e.text(), "resumed draft");
-    assert_eq!(e.caret, 12); // on the last char ('t'), the resume point
-    assert_eq!(e.mode(), Mode::Normal); // vim-style: open a file in Normal
+    assert_eq!(e.caret, 12);
+    assert_eq!(e.mode(), Mode::Normal);
 }
 
 #[test]
@@ -656,7 +656,7 @@ fn ctrl_w_deletes_the_last_word_of_the_command_line() {
     }
     e.handle(Key::DeleteWord);
     assert_eq!(e.cmdline, "sync ");
-    assert_eq!(e.mode(), Mode::Command); // stays on the command line
+    assert_eq!(e.mode(), Mode::Command);
 }
 
 #[test]
@@ -666,7 +666,7 @@ fn ctrl_w_on_a_one_word_command_does_not_cancel() {
     e.handle(Key::Char('w'));
     e.handle(Key::DeleteWord);
     assert_eq!(e.cmdline, "");
-    assert_eq!(e.mode(), Mode::Command); // unlike Backspace, does not exit
+    assert_eq!(e.mode(), Mode::Command);
 }
 
 #[test]
@@ -759,7 +759,7 @@ fn publish_refuses_to_clobber_an_existing_pub_file() {
 
 #[test]
 fn publish_on_an_unnamed_scratch_warns() {
-    let mut e = Editor::new(); // unnamed scratch — no path
+    let mut e = Editor::new();
     ex(&mut e, "publish");
     assert!(e.take_effects().is_empty());
     assert_eq!(e.notice.as_deref(), Some("no file to publish"));
@@ -808,7 +808,7 @@ fn publish_rewrites_self_links_into_the_rename_contents() {
         Scope::Tracked,
         "[top](notes.md#top)".into(),
     );
-    e.caret = e.text.len(); // past the link: the 4-byte splice shifts it
+    e.caret = e.text.len();
     ex(&mut e, "publish");
     assert_eq!(e.text, "[top](notes.pub.md#top)");
     assert_eq!(e.caret, e.text.len());
@@ -826,7 +826,7 @@ fn publish_retargets_parked_buffers_in_core_and_persists_them() {
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
     edit(&mut e, "essay.md");
     e.install_loaded("/sd/repo/essay.md".into(), Scope::Tracked, "see [n](notes.md)".into());
-    edit(&mut e, "notes.md"); // back; essay.md stays parked
+    edit(&mut e, "notes.md");
     e.take_effects();
     ex(&mut e, "publish");
     let effs = e.take_effects();

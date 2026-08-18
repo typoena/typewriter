@@ -456,7 +456,7 @@ fn typed_publish_rewrites_a_subfolder_link_end_to_end() {
     );
     rt.tick(); // idle: the finished walk lands in the palette
     keyboard.type_line(":pub");
-    rt.tick(); // the typed publish drains and its effects are serviced
+    rt.tick();
     let log = storage.0.borrow();
     assert_eq!(
         log.saves,
