@@ -1,0 +1,283 @@
+(kicad_sch
+	(version 20250114)
+	(generator "typoena")
+	(generator_version "10.0")
+	(uuid "b87907f7-0d09-4e38-9be2-0dfe24e700f1")
+	(paper "A4")
+	(title_block
+		(title "Typoena devboard")
+		(date "2026-08-15")
+		(rev "A")
+		(company "Typoena")
+		(comment 1 "BQ25896 + TPS63001 + TPS61023 - carte unique PCBA")
+		(comment 2 "Connectivite inter-feuilles par etiquettes globales")
+	)
+	(lib_symbols
+	)
+	(sheet
+		(at 30.48 45.72)
+		(size 76.2 40.64)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "3a1c9e40-0001-4a00-9000-000000000001")
+		(property "Sheetname" "power"
+			(at 30.48 44.449999999999996 0)
+			(effects
+				(font
+					(size 2.54 2.54)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "01-power.kicad_sch"
+			(at 30.48 88.9 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1"
+					(page "2")
+				)
+			)
+		)
+	)
+	(text "Alimentation - BQ25896 (charge + power path"
+		(exclude_from_sim no)
+		(at 30.48 93.98 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "2b042d8b-2d06-4e13-9aa3-5677e6cf520d")
+	)
+	(text "NVDC), TPS63001 3V3, TPS61023 5V clavier, rail"
+		(exclude_from_sim no)
+		(at 30.48 96.98 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "bec8fb87-1cc8-4d04-8329-7a336162d391")
+	)
+	(text "uSD commute, bouton"
+		(exclude_from_sim no)
+		(at 30.48 99.98 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "98c04334-a804-4015-abc5-a065ab5cbce3")
+	)
+	(sheet
+		(at 130.81 45.72)
+		(size 76.2 40.64)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "3a1c9e40-0002-4a00-9000-000000000002")
+		(property "Sheetname" "mcu"
+			(at 130.81 44.449999999999996 0)
+			(effects
+				(font
+					(size 2.54 2.54)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "02-mcu.kicad_sch"
+			(at 130.81 88.9 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1"
+					(page "3")
+				)
+			)
+		)
+	)
+	(text "MCU - rangees ESP32-S3-DevKitC-1 (2 x 22,"
+		(exclude_from_sim no)
+		(at 130.81 93.98 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "c313e043-dc06-4468-b3f3-3eea2a238905")
+	)
+	(text "22,86 mm), decouplage 3V3"
+		(exclude_from_sim no)
+		(at 130.81 96.98 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "ff1527ce-2a3b-490b-b290-8366e3bcb316")
+	)
+	(sheet
+		(at 30.48 111.76)
+		(size 76.2 40.64)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "3a1c9e40-0003-4a00-9000-000000000003")
+		(property "Sheetname" "display"
+			(at 30.48 110.49000000000001 0)
+			(effects
+				(font
+					(size 2.54 2.54)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "03-display.kicad_sch"
+			(at 30.48 154.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1"
+					(page "4")
+				)
+			)
+		)
+	)
+	(text "Ecran GDEY0579T93 - etage de puissance du §9,"
+		(exclude_from_sim no)
+		(at 30.48 160.02 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "8801a5ad-3a40-4fc4-be5c-f39e137291db")
+	)
+	(text "FPC 24p, header DESPI de secours"
+		(exclude_from_sim no)
+		(at 30.48 163.02 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "f044bd84-8299-4bee-9b78-14831d4557a5")
+	)
+	(sheet
+		(at 130.81 111.76)
+		(size 76.2 40.64)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "3a1c9e40-0004-4a00-9000-000000000004")
+		(property "Sheetname" "io"
+			(at 130.81 110.49000000000001 0)
+			(effects
+				(font
+					(size 2.54 2.54)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "04-io.kicad_sch"
+			(at 130.81 154.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1"
+					(page "5")
+				)
+			)
+		)
+	)
+	(text "IO - USB-C charge, USB-C clavier (hote),"
+		(exclude_from_sim no)
+		(at 130.81 160.02 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "27f0b081-8a0b-4692-b560-739a47c7c7fc")
+	)
+	(text "clavier interne JST-PH, microSD, extension"
+		(exclude_from_sim no)
+		(at 130.81 163.02 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "429ba197-d74f-4e7e-bc62-39fd10511eff")
+	)
+	(sheet_instances
+		(path "/"
+			(page "1")
+		)
+	)
+	(embedded_fonts no)
+)

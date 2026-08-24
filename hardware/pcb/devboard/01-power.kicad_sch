@@ -1,0 +1,9510 @@
+(kicad_sch
+	(version 20250114)
+	(generator "typoena")
+	(generator_version "10.0")
+	(uuid "3a1c9e40-0001-4a00-9000-000000000001")
+	(paper "A2")
+	(title_block
+		(title "Typoena devboard")
+		(date "2026-08-15")
+		(rev "A")
+		(company "Typoena")
+		(comment 1 "Alimentation - BQ25896 (charge + power path NVDC), TPS63001 3V3, TPS61023 5V clavier, rail")
+		(comment 2 "")
+	)
+	(lib_symbols
+	(symbol "typoena:BQ25896RTW"
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "U"
+				(at -6.604 21.844 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "BQ25896RTW"
+				(at 3.556 21.844 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "Package_DFN_QFN:Texas_RTW_WQFN-24-1EP_4x4mm_P0.5mm_EP2.7x2.7mm_ThermalVias"
+				(at 0 -29.464 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "https://www.ti.com/lit/ds/symlink/bq25896.pdf"
+				(at 0 -27.432 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "I2C Controlled Single Cell Li-Ion 3A Fast Charger with NVDC Power Path, ADC, OTG boost and ship mode. VBUS 3.9..14V. WQFN-24-EP 4x4mm. Derive du symbole stock BQ25895RTW: broches 2/3/24 differentes (PSEL, /PG, NC)."
+				(at 0 -25.4 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "1-cell Battery-Charger Power-Path NVDC I2C ADC ship-mode OTG"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "*WQFN*4x4mm*P0.5mm*EP2.7*x2.7*mm*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "BQ25896RTW_0_1"
+				(rectangle
+					(start -7.62 20.32)
+					(end 7.62 -20.32)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+			)
+			(symbol "BQ25896RTW_1_1"
+				(pin power_in line
+					(at -10.16 17.78 0)
+					(length 2.54)
+					(name "VBUS"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -10.16 12.7 0)
+					(length 2.54)
+					(name "PSEL"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin open_collector line
+					(at -10.16 10.16 0)
+					(length 2.54)
+					(name "~{PG}"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin open_collector line
+					(at 10.16 17.78 180)
+					(length 2.54)
+					(name "STAT"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -10.16 5.08 0)
+					(length 2.54)
+					(name "SCL"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin bidirectional line
+					(at -10.16 2.54 0)
+					(length 2.54)
+					(name "SDA"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin open_collector line
+					(at -10.16 -2.54 0)
+					(length 2.54)
+					(name "~{INT}"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "7"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -10.16 -5.08 0)
+					(length 2.54)
+					(name "OTG"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "8"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -10.16 -7.62 0)
+					(length 2.54)
+					(name "~{CE}"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "9"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -10.16 -17.78 0)
+					(length 2.54)
+					(name "ILIM"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "10"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 10.16 -17.78 180)
+					(length 2.54)
+					(name "TS"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "11"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -10.16 -12.7 0)
+					(length 2.54)
+					(name "~{QON}"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "12"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 10.16 -7.62 180)
+					(length 2.54)
+					(name "BAT"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "13"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 10.16 -7.62 180)
+					(length 2.54)
+					(hide yes)
+					(name "BAT"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "14"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 10.16 -5.08 180)
+					(length 2.54)
+					(name "SYS"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "15"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 10.16 -5.08 180)
+					(length 2.54)
+					(hide yes)
+					(name "SYS"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "16"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at 0 -22.86 90)
+					(length 2.54)
+					(name "PGND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "17"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -22.86 90)
+					(length 2.54)
+					(hide yes)
+					(name "PGND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "18"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_out line
+					(at 10.16 5.08 180)
+					(length 2.54)
+					(name "SW"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "19"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 10.16 5.08 180)
+					(length 2.54)
+					(hide yes)
+					(name "SW"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "20"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 10.16 0 180)
+					(length 2.54)
+					(name "BTST"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "21"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_out line
+					(at 10.16 -12.7 180)
+					(length 2.54)
+					(name "REGN"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "22"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_out line
+					(at 10.16 10.16 180)
+					(length 2.54)
+					(name "PMID"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "23"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin no_connect line
+					(at 10.16 15.24 180)
+					(length 2.54)
+					(name "NC"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "24"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -22.86 90)
+					(length 2.54)
+					(hide yes)
+					(name "PGND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "25"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+	(symbol "Device:L"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 1.016)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "L"
+				(at -1.27 0 90)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "L"
+				(at 1.905 0 90)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Inductor"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "inductor choke coil reactor magnetic"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "Choke_* *Coil* Inductor_* L_*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "L_0_1"
+				(arc
+					(start 0 2.54)
+					(mid 0.6323 1.905)
+					(end 0 1.27)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(arc
+					(start 0 1.27)
+					(mid 0.6323 0.635)
+					(end 0 0)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(arc
+					(start 0 0)
+					(mid 0.6323 -0.635)
+					(end 0 -1.27)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(arc
+					(start 0 -1.27)
+					(mid 0.6323 -1.905)
+					(end 0 -2.54)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "L_1_1"
+				(pin passive line
+					(at 0 3.81 270)
+					(length 1.27)
+					(name "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -3.81 90)
+					(length 1.27)
+					(name "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+	(symbol "Device:C"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0.254)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "C"
+				(at 0.635 2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Value" "C"
+				(at 0.635 -2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Footprint" ""
+				(at 0.9652 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Unpolarized capacitor"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "cap capacitor"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "C_*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "C_0_1"
+				(polyline
+					(pts
+						(xy -2.032 0.762) (xy 2.032 0.762)
+					)
+					(stroke
+						(width 0.508)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -2.032 -0.762) (xy 2.032 -0.762)
+					)
+					(stroke
+						(width 0.508)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "C_1_1"
+				(pin passive line
+					(at 0 3.81 270)
+					(length 2.794)
+					(name ""
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -3.81 90)
+					(length 2.794)
+					(name ""
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+	(symbol "Device:R"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "R"
+				(at 2.032 0 90)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "R"
+				(at 0 0 90)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at -1.778 0 90)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Resistor"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "R res resistor"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "R_*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "R_0_1"
+				(rectangle
+					(start -1.016 -2.54)
+					(end 1.016 2.54)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "R_1_1"
+				(pin passive line
+					(at 0 3.81 270)
+					(length 1.27)
+					(name ""
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -3.81 90)
+					(length 1.27)
+					(name ""
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+	(symbol "Switch:SW_Push"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 1.016)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "SW"
+				(at 1.27 2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Value" "SW_Push"
+				(at 0 -1.524 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 5.08 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 5.08 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Push button switch, generic, two pins"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "switch normally-open pushbutton push-button"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "SW_Push_0_1"
+				(circle
+					(center -2.032 0)
+					(radius 0.508)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 1.27) (xy 0 3.048)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(circle
+					(center 2.032 0)
+					(radius 0.508)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 2.54 1.27) (xy -2.54 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(pin passive line
+					(at -5.08 0 0)
+					(length 2.54)
+					(name "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 5.08 0 180)
+					(length 2.54)
+					(name "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+	(symbol "Device:D_TVS"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 1.016)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "D"
+				(at 0 2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "D_TVS"
+				(at 0 -2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Bidirectional transient-voltage-suppression diode"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "diode TVS thyrector"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "TO-???* *_Diode_* *SingleDiode* D_*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "D_TVS_0_1"
+				(polyline
+					(pts
+						(xy -2.54 1.27) (xy -2.54 -1.27) (xy 2.54 1.27) (xy 2.54 -1.27) (xy -2.54 1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.508 1.27) (xy 0 1.27) (xy 0 -1.27) (xy -0.508 -1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 0) (xy -1.27 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "D_TVS_1_1"
+				(pin passive line
+					(at -3.81 0 0)
+					(length 2.54)
+					(name "A1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 3.81 0 180)
+					(length 2.54)
+					(name "A2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+	(symbol "Connector_Generic:Conn_01x02"
+			(pin_names
+				(offset 1.016)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "J"
+				(at 0 2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "Conn_01x02"
+				(at 0 -5.08 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "connector"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "Connector*:*_1x??_*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "Conn_01x02_1_1"
+				(rectangle
+					(start -1.27 1.27)
+					(end 1.27 -3.81)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(rectangle
+					(start -1.27 0.127)
+					(end 0 -0.127)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start -1.27 -2.413)
+					(end 0 -2.667)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(pin passive line
+					(at -5.08 0 0)
+					(length 3.81)
+					(name "Pin_1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -5.08 -2.54 0)
+					(length 3.81)
+					(name "Pin_2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+	(symbol "Regulator_Switching:TPS63001"
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			
+			(property "Reference" "U"
+				(at -7.62 13.97 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Value" "TPS63001"
+				(at 5.08 13.97 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "Package_SON:Texas_DRC0010J_ThermalVias"
+				(at 21.59 -13.97 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "http://www.ti.com/lit/ds/symlink/tps63000.pdf"
+				(at -7.62 13.97 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Buck-Boost Converter, 1.8-5.5V Input Voltage, 1.7A Switch Current, 3.3V Output Voltage, VSON-10"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "Buck-Boost fixed 3.3V converter"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "Texas*DRC0010J*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(embedded_fonts no)
+		
+(symbol "TPS63001_0_1"
+				(rectangle
+					(start -7.62 12.7)
+					(end 7.62 -12.7)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+			)
+(symbol "TPS63001_1_1"
+				(pin power_out line
+					(at 10.16 10.16 180)
+					(length 2.54)
+					(name "VOUT"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -10.16 -10.16 0)
+					(length 2.54)
+					(name "L2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at 0 -15.24 90)
+					(length 2.54)
+					(name "PGND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -10.16 0 0)
+					(length 2.54)
+					(name "L1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -10.16 10.16 0)
+					(length 2.54)
+					(name "VIN"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -10.16 5.08 0)
+					(length 2.54)
+					(name "EN"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -10.16 2.54 0)
+					(length 2.54)
+					(name "PS/SYNC"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "7"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -10.16 7.62 0)
+					(length 2.54)
+					(name "VINA"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "8"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -2.54 -15.24 90)
+					(length 2.54)
+					(name "GND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "9"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at 10.16 2.54 180)
+					(length 2.54)
+					(name "FB"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "10"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -15.24 90)
+					(length 2.54)
+					(hide yes)
+					(name "PGND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "11"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+		)
+	(symbol "typoena:TPS61023DRL"
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "U"
+				(at -7.62 8.89 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left bottom)
+				)
+			)
+			(property "Value" "TPS61023DRL"
+				(at -7.62 11.43 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left bottom)
+				)
+			)
+			(property "Footprint" "Package_TO_SOT_SMD:SOT-563"
+				(at 0 2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tps61023.pdf"
+				(at 0 0.0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Boost 3.7A switch, VIN 0.5..5.5V, VOUT up to 5.5V, SOT-563 (DRL) 6-pin"
+				(at 0 -2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "boost regulator dc-dc step-up"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "*SOT?563*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "TPS61023DRL_0_1"
+				(rectangle
+					(start -7.62 -7.62)
+					(end 7.62 7.62)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+			)
+			(symbol "TPS61023DRL_1_1"
+				(pin power_in line
+					(at -10.16 5.08 0)
+					(length 2.54)
+					(name "VIN"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -10.16 0 0)
+					(length 2.54)
+					(name "EN"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -10.16 -5.08 0)
+					(length 2.54)
+					(name "FB"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_out line
+					(at 10.16 5.08 180)
+					(length 2.54)
+					(name "VOUT"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 10.16 0 180)
+					(length 2.54)
+					(name "SW"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at 0 -10.16 90)
+					(length 2.54)
+					(name "GND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+	(symbol "Transistor_FET:AO3401A"
+			(pin_names
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			
+			(property "Reference" "Q"
+				(at 5.08 1.905 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Value" "AO3401A"
+				(at 5.08 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
+				(at 5.08 -1.905 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+						(italic yes)
+					)
+					(justify left)
+				)
+			)
+			(property "Datasheet" "http://www.aosmd.com/pdfs/datasheet/AO3401A.pdf"
+				(at 5.08 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Description" "-4.0A Id, -30V Vds, P-Channel MOSFET, SOT-23"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "P-Channel MOSFET"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "SOT?23*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(embedded_fonts no)
+		
+(symbol "AO3401A_0_1"
+				(polyline
+					(pts
+						(xy 0.254 1.905) (xy 0.254 -1.905)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.254 0) (xy -2.54 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.762 2.286) (xy 0.762 1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.762 1.778) (xy 3.302 1.778) (xy 3.302 -1.778) (xy 0.762 -1.778)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.762 0.508) (xy 0.762 -0.508)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.762 -1.27) (xy 0.762 -2.286)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(circle
+					(center 1.651 0)
+					(radius 2.794)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 2.286 0) (xy 1.27 0.381) (xy 1.27 -0.381) (xy 2.286 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(polyline
+					(pts
+						(xy 2.54 2.54) (xy 2.54 1.778)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(circle
+					(center 2.54 1.778)
+					(radius 0.254)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(circle
+					(center 2.54 -1.778)
+					(radius 0.254)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(polyline
+					(pts
+						(xy 2.54 -2.54) (xy 2.54 0) (xy 0.762 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 2.794 -0.508) (xy 2.921 -0.381) (xy 3.683 -0.381) (xy 3.81 -0.254)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 3.302 -0.381) (xy 2.921 0.254) (xy 3.683 0.254) (xy 3.302 -0.381)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+(symbol "AO3401A_1_1"
+				(pin input line
+					(at -5.08 0 0)
+					(length 2.54)
+					(name "G"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 2.54 -5.08 90)
+					(length 2.54)
+					(name "S"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 2.54 5.08 270)
+					(length 2.54)
+					(name "D"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+		)
+	(symbol "Transistor_FET:2N7002"
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			
+			(property "Reference" "Q"
+				(at 5.08 1.905 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Value" "2N7002"
+				(at 5.08 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
+				(at 5.08 -1.905 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+						(italic yes)
+					)
+					(justify left)
+				)
+			)
+			(property "Datasheet" "https://www.onsemi.com/pub/Collateral/NDS7002A-D.PDF"
+				(at 5.08 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Description" "0.115A Id, 60V Vds, N-Channel MOSFET, SOT-23"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "N-Channel Switching MOSFET"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "SOT?23*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(embedded_fonts no)
+		
+(symbol "2N7002_0_1"
+				(polyline
+					(pts
+						(xy 0.254 1.905) (xy 0.254 -1.905)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.254 0) (xy -2.54 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.762 2.286) (xy 0.762 1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.762 0.508) (xy 0.762 -0.508)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.762 -1.27) (xy 0.762 -2.286)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.762 -1.778) (xy 3.302 -1.778) (xy 3.302 1.778) (xy 0.762 1.778)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.016 0) (xy 2.032 0.381) (xy 2.032 -0.381) (xy 1.016 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(circle
+					(center 1.651 0)
+					(radius 2.794)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 2.54 2.54) (xy 2.54 1.778)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(circle
+					(center 2.54 1.778)
+					(radius 0.254)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(circle
+					(center 2.54 -1.778)
+					(radius 0.254)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(polyline
+					(pts
+						(xy 2.54 -2.54) (xy 2.54 0) (xy 0.762 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 2.921 0.381) (xy 3.683 0.381)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 3.302 0.381) (xy 2.921 -0.254) (xy 3.683 -0.254) (xy 3.302 0.381)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+(symbol "2N7002_1_1"
+				(pin input line
+					(at -5.08 0 0)
+					(length 2.54)
+					(name "G"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 2.54 -5.08 90)
+					(length 2.54)
+					(name "S"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 2.54 5.08 270)
+					(length 2.54)
+					(name "D"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+		)
+	(symbol "power:PWR_FLAG"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#FLG"
+				(at 0 1.905 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "PWR_FLAG"
+				(at 0 3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Special symbol for telling ERC where power comes from"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "flag power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "PWR_FLAG_0_0"
+				(pin power_out line
+					(at 0 0 90)
+					(length 0)
+					(name ""
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(symbol "PWR_FLAG_0_1"
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 1.27) (xy -1.016 1.905) (xy 0 2.54) (xy 1.016 1.905) (xy 0 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+	)
+	(symbol
+		(lib_id "typoena:BQ25896RTW")
+		(at 73.66 74.93 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "da89b8dc-9af9-4bc9-a8c6-a145bb289654")
+		(property "Reference" "U2"
+			(at 73.66 62.230000000000004 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "BQ25896RTW"
+			(at 73.66 59.690000000000005 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Package_DFN_QFN:Texas_RTW_WQFN-24-1EP_4x4mm_P0.5mm_EP2.7x2.7mm_ThermalVias"
+			(at 73.66 57.150000000000006 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 73.66 54.61000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 73.66 52.07000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C181475"
+			(at 73.66 49.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "BQ25896RTWR"
+			(at 73.66 46.99000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "69384df0-3b11-4139-a991-16a4231b83d1")
+		)
+		(pin "2"
+			(uuid "207ed3e4-65d9-4c84-b8b2-da32e2a95021")
+		)
+		(pin "3"
+			(uuid "2aea96d6-d525-41de-b8e9-3b0259199efc")
+		)
+		(pin "4"
+			(uuid "10ab2d4e-d0f9-4297-9d59-ffc9554b93d8")
+		)
+		(pin "5"
+			(uuid "77707116-0367-4266-b09f-d361b0d1fb99")
+		)
+		(pin "6"
+			(uuid "12d0f823-ab5b-461b-a5f6-66a81391f35f")
+		)
+		(pin "7"
+			(uuid "5942f51e-8867-41d2-b41a-7865ad1e036d")
+		)
+		(pin "8"
+			(uuid "13cabf0c-a2a4-400d-85b6-5e91b2a6e1a3")
+		)
+		(pin "9"
+			(uuid "6e3cf25a-f15e-4e53-90b4-908d61cd1b65")
+		)
+		(pin "10"
+			(uuid "2686aedd-5f2e-4d89-9971-4b2eec07549c")
+		)
+		(pin "11"
+			(uuid "8bc61b00-0927-44d0-962b-ca44efb93dc2")
+		)
+		(pin "12"
+			(uuid "043c99b8-38bd-4b3c-a839-09a00efabb57")
+		)
+		(pin "13"
+			(uuid "b6976923-98a0-4065-9639-f22dd202112c")
+		)
+		(pin "14"
+			(uuid "43a2a15f-9fcf-4bbc-b5c4-04e4afddac95")
+		)
+		(pin "15"
+			(uuid "78bd6795-333a-45bd-bb31-ad495db3bcfd")
+		)
+		(pin "16"
+			(uuid "a48d6b32-a3ec-4f0e-8e99-c5b9481b30eb")
+		)
+		(pin "17"
+			(uuid "2e3842e5-c233-43b5-8c01-2a5b6ac121de")
+		)
+		(pin "18"
+			(uuid "0d365768-1477-4ebb-8618-993ca324f586")
+		)
+		(pin "19"
+			(uuid "eb616f30-21e2-41ef-bd05-cee86d30866d")
+		)
+		(pin "20"
+			(uuid "c175a54b-9d43-48fa-a9ec-8563941dc5dd")
+		)
+		(pin "21"
+			(uuid "a8a48212-2f7e-4778-91cc-4689054a4d46")
+		)
+		(pin "22"
+			(uuid "edd39020-2b0f-42f4-bc21-0a0c71636327")
+		)
+		(pin "23"
+			(uuid "5bead0a0-56b1-441b-aa4a-7dfd62e43606")
+		)
+		(pin "24"
+			(uuid "d5504c55-7f92-4407-961e-dad8578bf076")
+		)
+		(pin "25"
+			(uuid "4ea57531-b934-41c8-b4ae-cd3d44eeab0f")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "U2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 63.5 57.150000000000006) (xy 58.42 57.150000000000006)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "48944337-ac52-4442-8510-a9b9938852dd")
+	)
+	(global_label "VBUS"
+		(shape bidirectional)
+		(at 58.42 57.150000000000006 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "9c53885e-4887-4835-ad66-3daa003bf0d6")
+	)
+	(wire
+		(pts
+			(xy 63.5 62.230000000000004) (xy 58.42 62.230000000000004)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "050d42a5-b0d9-4259-8c27-3574831efd03")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 58.42 62.230000000000004 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "a15e7bc0-5908-41d9-b500-6470b179bce8")
+	)
+	(wire
+		(pts
+			(xy 63.5 64.77000000000001) (xy 58.42 64.77000000000001)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ede17b77-148d-473d-9bf8-62b301a3bda9")
+	)
+	(global_label "PMIC_PG"
+		(shape bidirectional)
+		(at 58.42 64.77000000000001 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "41d5a264-b953-4533-a358-968ad60fa1ac")
+	)
+	(wire
+		(pts
+			(xy 83.82 57.150000000000006) (xy 88.89999999999999 57.150000000000006)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c3c87a13-319c-44fb-886f-a31610541ef3")
+	)
+	(global_label "PMIC_STAT"
+		(shape bidirectional)
+		(at 88.89999999999999 57.150000000000006 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "95dde641-ef02-4880-bd8a-64b25979fd09")
+	)
+	(wire
+		(pts
+			(xy 63.5 69.85000000000001) (xy 58.42 69.85000000000001)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2aed419d-b1e6-486e-9999-6635a6e79672")
+	)
+	(global_label "I2C_SCL"
+		(shape bidirectional)
+		(at 58.42 69.85000000000001 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "a3683151-96cb-4132-83c4-2eea4fa389fe")
+	)
+	(wire
+		(pts
+			(xy 63.5 72.39) (xy 58.42 72.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9ae273a1-800c-4cf5-a117-9cc515c0ed41")
+	)
+	(global_label "I2C_SDA"
+		(shape bidirectional)
+		(at 58.42 72.39 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "d18e65a9-98d9-4820-8633-751610781301")
+	)
+	(wire
+		(pts
+			(xy 63.5 77.47000000000001) (xy 58.42 77.47000000000001)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6b87620e-1409-43f9-8274-40edf3005026")
+	)
+	(global_label "PMIC_INT"
+		(shape bidirectional)
+		(at 58.42 77.47000000000001 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "769dfcf1-587a-4b14-98d3-c93587274393")
+	)
+	(wire
+		(pts
+			(xy 63.5 80.01) (xy 58.42 80.01)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "23635be1-50bc-4320-b83a-1d9c6d6ac109")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 58.42 80.01 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "80db73c6-ea93-4ebf-865d-1974e622c715")
+	)
+	(wire
+		(pts
+			(xy 63.5 82.55000000000001) (xy 58.42 82.55000000000001)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a44b130d-3955-4eb3-aa77-0c805842dbcb")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 58.42 82.55000000000001 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "83dbc7e1-29bb-436c-8f33-60eafdf805af")
+	)
+	(wire
+		(pts
+			(xy 63.5 92.71000000000001) (xy 58.42 92.71000000000001)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7b4b1b8e-ee0a-4669-a408-94332a547fc5")
+	)
+	(global_label "PMIC_ILIM"
+		(shape bidirectional)
+		(at 58.42 92.71000000000001 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "73afc7ec-1f90-45ab-9b82-4df502a662e8")
+	)
+	(wire
+		(pts
+			(xy 83.82 92.71000000000001) (xy 88.89999999999999 92.71000000000001)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f325f394-e23e-439b-8cb9-d4a7d802ef39")
+	)
+	(global_label "PMIC_TS"
+		(shape bidirectional)
+		(at 88.89999999999999 92.71000000000001 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "0a10388c-947a-4550-a74d-871fc63548fc")
+	)
+	(wire
+		(pts
+			(xy 63.5 87.63000000000001) (xy 58.42 87.63000000000001)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ef00757d-f73d-4663-8b28-8fcb1a903a19")
+	)
+	(global_label "PMIC_QON"
+		(shape bidirectional)
+		(at 58.42 87.63000000000001 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "28bb6e7d-f479-4e43-975c-ad664815d090")
+	)
+	(wire
+		(pts
+			(xy 83.82 82.55000000000001) (xy 88.89999999999999 82.55000000000001)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d00eef79-fa11-4da5-b17e-3cd05d04f2cc")
+	)
+	(global_label "VBAT"
+		(shape bidirectional)
+		(at 88.89999999999999 82.55000000000001 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "6af5c31a-768e-45bf-90e0-d55184a3b0e0")
+	)
+	(wire
+		(pts
+			(xy 83.82 80.01) (xy 88.89999999999999 80.01)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "07da11fa-0b7c-4618-a2bc-d271e8974614")
+	)
+	(global_label "VSYS"
+		(shape bidirectional)
+		(at 88.89999999999999 80.01 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "03b88a67-87e4-46f6-a3b1-63b4be936fdc")
+	)
+	(wire
+		(pts
+			(xy 73.66 97.79) (xy 73.66 102.87)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "86b40dfd-8524-48e1-aeaf-60e0eb44d479")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 73.66 102.87 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "8d83b649-2b4a-4d4f-84e0-930fb3a25e82")
+	)
+	(wire
+		(pts
+			(xy 83.82 69.85000000000001) (xy 88.89999999999999 69.85000000000001)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1db7e35b-32b1-4cce-8b04-d7051317612a")
+	)
+	(global_label "PMIC_SW"
+		(shape bidirectional)
+		(at 88.89999999999999 69.85000000000001 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "34163ee8-78f1-474e-8f1a-cedc01ab915f")
+	)
+	(wire
+		(pts
+			(xy 83.82 74.93) (xy 88.89999999999999 74.93)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0cba6eee-8813-4fad-9c31-2084103eed3d")
+	)
+	(global_label "PMIC_BTST"
+		(shape bidirectional)
+		(at 88.89999999999999 74.93 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "5886fdb9-2870-4c2c-99b0-48d9bd366f4f")
+	)
+	(wire
+		(pts
+			(xy 83.82 87.63000000000001) (xy 88.89999999999999 87.63000000000001)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9cfccaaf-47a1-4013-b519-b535d63d6056")
+	)
+	(global_label "PMIC_REGN"
+		(shape bidirectional)
+		(at 88.89999999999999 87.63000000000001 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "a557a988-3675-487c-9000-878b3e18ef60")
+	)
+	(wire
+		(pts
+			(xy 83.82 64.77000000000001) (xy 88.89999999999999 64.77000000000001)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "64f79572-2d2d-480f-8104-599c1c8b8907")
+	)
+	(global_label "PMID"
+		(shape bidirectional)
+		(at 88.89999999999999 64.77000000000001 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "6e808355-4475-442c-8e7b-5b767a04f7b5")
+	)
+	(symbol
+		(lib_id "Device:L")
+		(at 160.02 60.96 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "0830dbcb-0934-426a-ac18-e8d798aaa1d9")
+		(property "Reference" "L1"
+			(at 160.02 48.260000000000005 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "1uH 4.15A"
+			(at 160.02 45.720000000000006 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Inductor_SMD:L_APV_ANR4030"
+			(at 160.02 43.18000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 160.02 40.64000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 160.02 38.10000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C42193"
+			(at 160.02 35.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "SWPA4030S1R0NT"
+			(at 160.02 33.02000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "6c3a26f4-222b-4e5b-bc43-e9971b5bbc05")
+		)
+		(pin "2"
+			(uuid "fe1818d1-767b-43db-bc06-d6a62eb74bd7")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "L1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 160.02 57.15) (xy 160.02 52.07)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "32421859-d27c-43ef-bc4a-ede7f367a28a")
+	)
+	(global_label "PMIC_SW"
+		(shape bidirectional)
+		(at 160.02 52.07 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "a083f5c0-ca08-4edd-bc91-f51e439bb92e")
+	)
+	(wire
+		(pts
+			(xy 160.02 64.77) (xy 160.02 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a5583307-faff-42f7-81c5-79c6d8db504f")
+	)
+	(global_label "VSYS"
+		(shape bidirectional)
+		(at 160.02 69.85 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "82d41426-1f00-4cc7-addd-7f97e4dc4063")
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 236.22 60.96 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "13b071a0-ebd8-4b0c-8efb-b8ad15a35dba")
+		(property "Reference" "C1"
+			(at 236.22 48.260000000000005 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "1uF"
+			(at 236.22 45.720000000000006 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+			(at 236.22 43.18000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 236.22 40.64000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 236.22 38.10000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C15849"
+			(at 236.22 35.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "CL10A105KB8NNNC"
+			(at 236.22 33.02000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "ab42670e-5d68-4fc9-8c36-a12101f7adf3")
+		)
+		(pin "2"
+			(uuid "41be99c7-cd8e-4ff6-b98f-9c43e5e625da")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "C1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 236.22 57.15) (xy 236.22 52.07)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0d06c92c-b711-422b-9b76-bac0b6e46a9f")
+	)
+	(global_label "VBUS"
+		(shape bidirectional)
+		(at 236.22 52.07 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "aabdc243-c17b-4985-b211-406c81dd92fd")
+	)
+	(wire
+		(pts
+			(xy 236.22 64.77) (xy 236.22 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "27c67cb8-da47-4c56-9e58-7b96f596f891")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 236.22 69.85 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "5aa2eb25-4d92-4c93-af31-1db0bf5756da")
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 312.42 60.96 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "f50cd67b-8d58-41a6-b528-b891c5076e78")
+		(property "Reference" "C2"
+			(at 312.42 48.260000000000005 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "10uF"
+			(at 312.42 45.720000000000006 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 312.42 43.18000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 312.42 40.64000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 312.42 38.10000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C15850"
+			(at 312.42 35.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "CL21A106KAYNNNE"
+			(at 312.42 33.02000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "3d9c3845-14fb-4fdc-8180-71e6118428ab")
+		)
+		(pin "2"
+			(uuid "22a43802-9962-449a-9c02-82a24f38b589")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "C2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 312.42 57.15) (xy 312.42 52.07)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f14884e8-fe28-45fa-a92d-2cdcdb63b8f7")
+	)
+	(global_label "PMID"
+		(shape bidirectional)
+		(at 312.42 52.07 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "6c9e7542-cb28-4364-b359-f698cf7472a5")
+	)
+	(wire
+		(pts
+			(xy 312.42 64.77) (xy 312.42 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "15c9adfa-3f8a-4ec8-91f5-60723e6b44e5")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 312.42 69.85 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "ef2241ca-e43c-4814-8d9e-2f7c3599fce6")
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 388.62 60.96 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "4148a1cd-9928-41fb-ae9c-14cee2f79b97")
+		(property "Reference" "C3"
+			(at 388.62 48.260000000000005 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "47nF"
+			(at 388.62 45.720000000000006 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+			(at 388.62 43.18000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 388.62 40.64000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 388.62 38.10000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C1622"
+			(at 388.62 35.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "CL10B473KB8NNNC"
+			(at 388.62 33.02000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "b3262a47-9266-4f10-a4a5-4b20a980b07d")
+		)
+		(pin "2"
+			(uuid "cfb05637-c702-4634-801a-83cdf0c7a9ca")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "C3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 388.62 57.15) (xy 388.62 52.07)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f236758a-5391-4141-a2d3-d81dbaa27aab")
+	)
+	(global_label "PMIC_BTST"
+		(shape bidirectional)
+		(at 388.62 52.07 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "73425814-832c-45d2-909f-a47134cdd557")
+	)
+	(wire
+		(pts
+			(xy 388.62 64.77) (xy 388.62 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e8244156-075d-4935-aadb-35bdb32fdd1d")
+	)
+	(global_label "PMIC_SW"
+		(shape bidirectional)
+		(at 388.62 69.85 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "3f536337-cd09-4f72-89a8-103501073a71")
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 464.82 60.96 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "8789e80c-8845-48cf-ba98-8264d573a371")
+		(property "Reference" "C4"
+			(at 464.82 48.260000000000005 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "4.7uF"
+			(at 464.82 45.720000000000006 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 464.82 43.18000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 464.82 40.64000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 464.82 38.10000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C1779"
+			(at 464.82 35.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "CL21A475KAQNNNE"
+			(at 464.82 33.02000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "939c063a-f666-4576-b784-b3dd67f248fd")
+		)
+		(pin "2"
+			(uuid "5c0b8201-043b-4ffa-ad25-3f74a9980c46")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "C4")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 464.82 57.15) (xy 464.82 52.07)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "70963b93-138d-482f-9f77-1c82c2cc3290")
+	)
+	(global_label "PMIC_REGN"
+		(shape bidirectional)
+		(at 464.82 52.07 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "fb9cd095-4d46-4fa2-885a-bb529f32c156")
+	)
+	(wire
+		(pts
+			(xy 464.82 64.77) (xy 464.82 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5bd06344-d0e2-4d07-b15a-968791c8622d")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 464.82 69.85 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "05b09889-9334-491b-9417-eedb9beb427d")
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 539.75 60.96 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "7dad34e7-1b0b-49ab-bf6e-cfc3bb3ce793")
+		(property "Reference" "C5"
+			(at 539.75 48.260000000000005 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "10uF"
+			(at 539.75 45.720000000000006 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 539.75 43.18000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 539.75 40.64000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 539.75 38.10000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C15850"
+			(at 539.75 35.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "CL21A106KAYNNNE"
+			(at 539.75 33.02000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "a2797f98-7d6d-4bcd-957e-71ea73ff3b0d")
+		)
+		(pin "2"
+			(uuid "4591bde3-2b5b-4678-9590-9eb0f5ff3a60")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "C5")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 539.75 57.15) (xy 539.75 52.07)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4d1eadba-adf2-47a7-bad3-996d4a57101c")
+	)
+	(global_label "VBAT"
+		(shape bidirectional)
+		(at 539.75 52.07 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "0f277389-ec44-499b-87ac-d0a2edc5a8ba")
+	)
+	(wire
+		(pts
+			(xy 539.75 64.77) (xy 539.75 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "254ea9c1-2845-411b-bb7b-2eecd98f5f90")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 539.75 69.85 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "06012da3-bcce-4260-9dca-f1dc7fd2dfd7")
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 615.95 60.96 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "97dcbc1c-dbc0-441c-98ed-d4050461ec33")
+		(property "Reference" "C6"
+			(at 615.95 48.260000000000005 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "10uF"
+			(at 615.95 45.720000000000006 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 615.95 43.18000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 615.95 40.64000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 615.95 38.10000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C15850"
+			(at 615.95 35.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "CL21A106KAYNNNE"
+			(at 615.95 33.02000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "0664712a-d752-43db-8a7c-6c6bb98d9fd3")
+		)
+		(pin "2"
+			(uuid "1a8d8058-63fe-4dc0-9190-d3d8782b6651")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "C6")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 615.95 57.15) (xy 615.95 52.07)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "036dfed1-b7ab-40f0-ab2a-1570258c04e1")
+	)
+	(global_label "VSYS"
+		(shape bidirectional)
+		(at 615.95 52.07 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "320ba73a-5794-4a0b-b8d4-04e2fb17220b")
+	)
+	(wire
+		(pts
+			(xy 615.95 64.77) (xy 615.95 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "92552ba1-5909-49b0-9fc5-2d56ea3a1398")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 615.95 69.85 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "9a07a2bf-c22c-4d88-a4ae-ee474e5fd5e1")
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 692.15 60.96 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "1a21ce65-2a7d-46c4-8c44-acd6f39b9452")
+		(property "Reference" "C7"
+			(at 692.15 48.260000000000005 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "10uF"
+			(at 692.15 45.720000000000006 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 692.15 43.18000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 692.15 40.64000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 692.15 38.10000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C15850"
+			(at 692.15 35.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "CL21A106KAYNNNE"
+			(at 692.15 33.02000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "06a408cd-15f2-40fc-b281-e3dbc499a42f")
+		)
+		(pin "2"
+			(uuid "c05c5b02-bb77-4729-8750-24da0ea958ab")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "C7")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 692.15 57.15) (xy 692.15 52.07)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9e65c9e1-f539-49a4-bbe5-c96793567364")
+	)
+	(global_label "VSYS"
+		(shape bidirectional)
+		(at 692.15 52.07 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "48451e0b-74d8-460b-bdcb-6e74be02ec77")
+	)
+	(wire
+		(pts
+			(xy 692.15 64.77) (xy 692.15 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "03f5296c-5bcb-4c3d-b7ba-480e27424de7")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 692.15 69.85 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "9270f259-dd42-4f5e-8cb9-a4b2fb09ecfe")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 768.35 60.96 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "4d486984-5a68-4f76-b0a2-6f57da4480db")
+		(property "Reference" "R1"
+			(at 768.35 48.260000000000005 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "150R"
+			(at 768.35 45.720000000000006 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 768.35 43.18000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 768.35 40.64000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 768.35 38.10000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C25082"
+			(at 768.35 35.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "0402WGF1500TCE"
+			(at 768.35 33.02000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "769d1682-e206-467d-8de8-ae4edf69a626")
+		)
+		(pin "2"
+			(uuid "e873bafb-5762-472a-a757-741834fb8c44")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "R1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 768.35 57.15) (xy 768.35 52.07)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b620f5ad-0d52-45f8-98f6-266a88ffbcd5")
+	)
+	(global_label "PMIC_ILIM"
+		(shape bidirectional)
+		(at 768.35 52.07 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "50555cff-db01-480b-940f-383469b5a49a")
+	)
+	(wire
+		(pts
+			(xy 768.35 64.77) (xy 768.35 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "48ceec07-d545-4129-ba8b-877893afd319")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 768.35 69.85 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "c70907de-d105-456b-9215-eb8406636204")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 844.5500000000001 60.96 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "f139873d-7096-40c7-9e7f-954321168735")
+		(property "Reference" "R2"
+			(at 844.5500000000001 48.260000000000005 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "10k"
+			(at 844.5500000000001 45.720000000000006 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 844.5500000000001 43.18000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 844.5500000000001 40.64000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 844.5500000000001 38.10000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C25744"
+			(at 844.5500000000001 35.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "0402WGF1002TCE"
+			(at 844.5500000000001 33.02000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "0b470d9d-a74d-4a51-ab5d-9fd2552b9997")
+		)
+		(pin "2"
+			(uuid "2a2c55fd-f2f4-45f7-842f-819d18074720")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "R2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 844.5500000000001 57.15) (xy 844.5500000000001 52.07)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "469e7acf-ccf3-4cfd-95f4-2f79f991c739")
+	)
+	(global_label "PMIC_REGN"
+		(shape bidirectional)
+		(at 844.5500000000001 52.07 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "75abd8b6-d4c9-4ed1-91d7-b219f0d09731")
+	)
+	(wire
+		(pts
+			(xy 844.5500000000001 64.77) (xy 844.5500000000001 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6cb8751d-ed96-496a-be1e-5162c40f270c")
+	)
+	(global_label "PMIC_TS"
+		(shape bidirectional)
+		(at 844.5500000000001 69.85 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "6570d4fa-c90a-4e71-a3f8-c9e6a4af3be4")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 920.75 60.96 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "fbfdee5c-0ab6-4d29-ad31-d8ea83b0c355")
+		(property "Reference" "R3"
+			(at 920.75 48.260000000000005 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "12k"
+			(at 920.75 45.720000000000006 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 920.75 43.18000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 920.75 40.64000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 920.75 38.10000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C25752"
+			(at 920.75 35.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "0402WGF1202TCE"
+			(at 920.75 33.02000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "5331edb3-8519-47fc-8ecd-5c57e9044f2d")
+		)
+		(pin "2"
+			(uuid "eab47904-53d0-4577-9a57-847a5d3c5800")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "R3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 920.75 57.15) (xy 920.75 52.07)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "757bad42-93b2-4aca-b405-ff14e7d84e2b")
+	)
+	(global_label "PMIC_TS"
+		(shape bidirectional)
+		(at 920.75 52.07 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "ae6c13a1-df3d-475c-9c7a-ea304f63b5d3")
+	)
+	(wire
+		(pts
+			(xy 920.75 64.77) (xy 920.75 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f98ce845-3b0a-4147-b4f1-ace1b7b33092")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 920.75 69.85 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "c6bd198d-b0ef-4f3a-8e12-580f0549c1f2")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 996.95 60.96 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "2dec81bd-f659-40b5-bf9a-7d3e3c69d136")
+		(property "Reference" "R4"
+			(at 996.95 48.260000000000005 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "10k"
+			(at 996.95 45.720000000000006 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 996.95 43.18000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 996.95 40.64000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 996.95 38.10000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C25744"
+			(at 996.95 35.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "0402WGF1002TCE"
+			(at 996.95 33.02000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "15b95d16-4e4a-456a-a955-a39e2b104845")
+		)
+		(pin "2"
+			(uuid "d991291c-9062-486d-bd9d-5ee3a7e50847")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "R4")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 996.95 57.15) (xy 996.95 52.07)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "44563783-2709-41ca-8725-b997ee9d7d87")
+	)
+	(global_label "+3V3"
+		(shape bidirectional)
+		(at 996.95 52.07 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "ef380d3e-7e9c-4c56-9dbd-412e8c45f0a9")
+	)
+	(wire
+		(pts
+			(xy 996.95 64.77) (xy 996.95 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f6f96040-cd26-4821-9863-fdaa9e4949c1")
+	)
+	(global_label "PMIC_PG"
+		(shape bidirectional)
+		(at 996.95 69.85 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "a3a56eb1-b4ee-4306-8205-7e5b1c2018f0")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 1073.15 60.96 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "6cd1b8e0-8b66-4708-925b-02ba26391094")
+		(property "Reference" "R5"
+			(at 1073.15 48.260000000000005 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "10k"
+			(at 1073.15 45.720000000000006 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 1073.15 43.18000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 1073.15 40.64000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 1073.15 38.10000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C25744"
+			(at 1073.15 35.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "0402WGF1002TCE"
+			(at 1073.15 33.02000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "5d081acd-5761-4033-a23c-7171796bbe67")
+		)
+		(pin "2"
+			(uuid "07805cd7-79c0-4696-b1aa-792313f59958")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "R5")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 1073.15 57.15) (xy 1073.15 52.07)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3756eca9-ebf5-4245-a02a-63644b311ea5")
+	)
+	(global_label "+3V3"
+		(shape bidirectional)
+		(at 1073.15 52.07 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "a47f3802-294b-4050-97d2-98e993852ae3")
+	)
+	(wire
+		(pts
+			(xy 1073.15 64.77) (xy 1073.15 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "05b1cc29-4193-4d94-8763-167007718a5b")
+	)
+	(global_label "PMIC_STAT"
+		(shape bidirectional)
+		(at 1073.15 69.85 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "a62506e1-81c1-465c-a844-3f0514907e1d")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 63.5 137.16 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "4f6d7173-ae46-4518-a65e-ea19362a0549")
+		(property "Reference" "R6"
+			(at 63.5 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "10k"
+			(at 63.5 121.91999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 63.5 119.38 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 63.5 116.83999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 63.5 114.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C25744"
+			(at 63.5 111.75999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "0402WGF1002TCE"
+			(at 63.5 109.22 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "6674751d-5f6c-418f-a2b5-4fd6dfd55599")
+		)
+		(pin "2"
+			(uuid "65c56b97-63b8-4dea-a6ff-a7eda778010f")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "R6")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 63.5 133.35) (xy 63.5 128.26999999999998)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "157c5747-e111-4c47-a5c6-eef17a1826e7")
+	)
+	(global_label "+3V3"
+		(shape bidirectional)
+		(at 63.5 128.26999999999998 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "3e440e1c-07b1-4dae-8a2a-e37f1996af2d")
+	)
+	(wire
+		(pts
+			(xy 63.5 140.97) (xy 63.5 146.05)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "376b35b6-69f3-4537-ae5b-680ee8460f26")
+	)
+	(global_label "PMIC_INT"
+		(shape bidirectional)
+		(at 63.5 146.05 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "b2ef84dc-817e-463b-ae49-032887825f2d")
+	)
+	(symbol
+		(lib_id "Switch:SW_Push")
+		(at 144.78 133.35 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "adb39ecd-3fe0-4083-ae1d-8f993879d958")
+		(property "Reference" "SW1"
+			(at 144.78 120.64999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "QON"
+			(at 144.78 118.10999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Button_Switch_SMD:SW_SPST_B3U-1000P"
+			(at 144.78 115.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 144.78 113.02999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 144.78 110.49 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C231329"
+			(at 144.78 107.94999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "B3U-1000P"
+			(at 144.78 105.41 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "3f0d4811-ac74-4bfd-915b-441f8f90e2bd")
+		)
+		(pin "2"
+			(uuid "ca6ca35b-2e7e-469c-88a6-d2f2797dac41")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "SW1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 139.7 133.35) (xy 134.61999999999998 133.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "422d0bc6-85f2-4fdc-9487-eace1d97d7ba")
+	)
+	(global_label "PMIC_QON"
+		(shape bidirectional)
+		(at 134.61999999999998 133.35 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "a5626851-0039-47d3-8b4c-4d80c4518966")
+	)
+	(wire
+		(pts
+			(xy 149.86 133.35) (xy 154.94000000000003 133.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8325af01-ffa6-4bb7-af80-382eee3a1dd8")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 154.94000000000003 133.35 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "453fa898-d15e-4c11-b8ad-81301b8425de")
+	)
+	(symbol
+		(lib_id "Device:D_TVS")
+		(at 229.87 133.35 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "cb005705-63c5-4896-bbe7-6ccaa2ed947f")
+		(property "Reference" "D1"
+			(at 229.87 120.64999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "SMF5.0A"
+			(at 229.87 118.10999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 229.87 115.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 229.87 113.02999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 229.87 110.49 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C284108"
+			(at 229.87 107.94999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "SMF5.0A"
+			(at 229.87 105.41 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "d3eb7202-3669-46c7-92ac-4e5f7535d6be")
+		)
+		(pin "2"
+			(uuid "8eac0926-195f-40b7-9e14-5b42c3e9d712")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "D1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 226.06 133.35) (xy 220.98 133.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "74dffaf0-b334-4d80-a5e6-316f163cf9a4")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 220.98 133.35 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "647e3742-5dbb-4c82-96fc-ff5329585f49")
+	)
+	(wire
+		(pts
+			(xy 233.68 133.35) (xy 238.76000000000002 133.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4d24549e-b665-4182-a5f5-6be0f24a6a1b")
+	)
+	(global_label "VBUS"
+		(shape bidirectional)
+		(at 238.76000000000002 133.35 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "13953396-e02c-432d-9c3d-d1ab035910cb")
+	)
+	(symbol
+		(lib_id "Connector_Generic:Conn_01x02")
+		(at 314.96 133.35 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "85abe097-7c78-4c20-9285-bf6279a209a7")
+		(property "Reference" "J1"
+			(at 314.96 120.64999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "BATTERIE JST-PH"
+			(at 314.96 118.10999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Connector_JST:JST_PH_S2B-PH-K_1x02_P2.00mm_Horizontal"
+			(at 314.96 115.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 314.96 113.02999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 314.96 110.49 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C173752"
+			(at 314.96 107.94999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "S2B-PH-K-S"
+			(at 314.96 105.41 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "1863e793-9db2-41e2-9355-43fce3a89b8c")
+		)
+		(pin "2"
+			(uuid "e5454502-3963-4359-abf6-3edf2d68b06b")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "J1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 309.88 133.35) (xy 304.8 133.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2a8f2058-eda5-4b6b-aa36-7597ebd87dad")
+	)
+	(global_label "VBAT"
+		(shape bidirectional)
+		(at 304.8 133.35 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "3d5db840-92b9-4927-bb08-32dbb0523c6f")
+	)
+	(wire
+		(pts
+			(xy 309.88 135.89) (xy 304.8 135.89)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "06ee8992-ffef-4a40-84f4-7b11e732c436")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 304.8 135.89 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "bfb4c004-7a1e-42a8-af20-18805dab4cc5")
+	)
+	(symbol
+		(lib_id "Regulator_Switching:TPS63001")
+		(at 396.24 143.51 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "ffaa25fe-f19b-4fce-8596-292468e81309")
+		(property "Reference" "U3"
+			(at 396.24 130.81 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "TPS63001DRCR"
+			(at 396.24 128.27 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Package_SON:Texas_DRC0010J_ThermalVias"
+			(at 396.24 125.73 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 396.24 123.19 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 396.24 120.65 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C28060"
+			(at 396.24 118.11 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "TPS63001DRCR"
+			(at 396.24 115.57000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "3e6b8ee7-a3c4-4a69-bf45-ee6419eb012e")
+		)
+		(pin "2"
+			(uuid "c9c589ae-09e6-48db-b371-404f7bd98299")
+		)
+		(pin "3"
+			(uuid "0e2d22c2-7e35-49b0-833b-e75099e5fc0e")
+		)
+		(pin "4"
+			(uuid "97c4d8d4-f729-42fb-ac2b-1d788d981fce")
+		)
+		(pin "5"
+			(uuid "63a57795-fcce-453e-bb55-cfb309ae497a")
+		)
+		(pin "6"
+			(uuid "65331638-bfff-411c-9232-697dea9dfba6")
+		)
+		(pin "7"
+			(uuid "a702aedf-f5b6-42d0-81df-ed1e62c82114")
+		)
+		(pin "8"
+			(uuid "fdf6fab2-29b0-4c26-994d-d42b40e6fc89")
+		)
+		(pin "9"
+			(uuid "1a0e056a-be11-4cea-bedf-39889ed11ef0")
+		)
+		(pin "10"
+			(uuid "c475abfc-3bb8-4a45-81bb-538fc0fc5fc9")
+		)
+		(pin "11"
+			(uuid "b34a0543-5ffa-4dff-92bb-83a336ec8432")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "U3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 406.40000000000003 133.35) (xy 411.48 133.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "015717d4-9a3a-4224-a8d5-68f511a3de8c")
+	)
+	(global_label "+3V3"
+		(shape bidirectional)
+		(at 411.48 133.35 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "49e7c90b-bb44-46c8-a018-d953452dc470")
+	)
+	(wire
+		(pts
+			(xy 386.08 153.67) (xy 381.0 153.67)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a74a79f9-6db4-45b9-aa46-c35b9fa95a4d")
+	)
+	(global_label "L_3V3_B"
+		(shape bidirectional)
+		(at 381.0 153.67 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "1e7dbac0-a7bc-45cf-8ea7-54675f18c443")
+	)
+	(wire
+		(pts
+			(xy 396.24 158.75) (xy 396.24 163.83)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ec8c38aa-ae32-49ab-9690-1acb8d645006")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 396.24 163.83 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "9505c43c-c563-4869-aaa7-d5d89aec9195")
+	)
+	(wire
+		(pts
+			(xy 386.08 143.51) (xy 381.0 143.51)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "70b43d71-ff79-43d8-974a-b5ac201fed87")
+	)
+	(global_label "L_3V3_A"
+		(shape bidirectional)
+		(at 381.0 143.51 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "8d0b2249-8fbb-493d-8e55-bc060dffcaef")
+	)
+	(wire
+		(pts
+			(xy 386.08 133.35) (xy 381.0 133.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e434da26-c7b2-4ea9-898a-a3c1b214c052")
+	)
+	(global_label "VSYS"
+		(shape bidirectional)
+		(at 381.0 133.35 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "a79cf2a6-5032-4126-8db8-d99a86801f66")
+	)
+	(wire
+		(pts
+			(xy 386.08 138.42999999999998) (xy 381.0 138.42999999999998)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5c5609a7-694e-4e2f-ba24-e89c19e0fc94")
+	)
+	(global_label "VSYS"
+		(shape bidirectional)
+		(at 381.0 138.42999999999998 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "24287d83-c27e-4a73-abb7-64aa7e47e3ad")
+	)
+	(wire
+		(pts
+			(xy 386.08 140.97) (xy 381.0 140.97)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "00b12ee5-d554-41e3-b484-e99c5a04443c")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 381.0 140.97 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "88996076-4e8f-44de-9791-b0931149505c")
+	)
+	(wire
+		(pts
+			(xy 386.08 135.89) (xy 381.0 135.89)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c3d73679-978a-49ce-9e36-f1ca04a6945a")
+	)
+	(global_label "VSYS"
+		(shape bidirectional)
+		(at 381.0 135.89 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "98caf20b-122d-448b-8fa8-12fad01057d1")
+	)
+	(wire
+		(pts
+			(xy 393.7 158.75) (xy 393.7 163.83)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e4d19816-be11-4e2b-99a3-acc3362ad4ba")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 393.7 163.83 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "15b3f399-268a-468a-989a-541422bedd2c")
+	)
+	(wire
+		(pts
+			(xy 406.40000000000003 140.97) (xy 411.48 140.97)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f6c4ec73-d87b-41db-90b4-e9a0eb5d2b36")
+	)
+	(global_label "+3V3"
+		(shape bidirectional)
+		(at 411.48 140.97 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "62f9c613-bff2-481d-8604-6fdfb2ccb8ce")
+	)
+	(symbol
+		(lib_id "Device:L")
+		(at 482.6 137.16 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "23283278-b514-403f-a7a0-2034629fac70")
+		(property "Reference" "L2"
+			(at 482.6 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "2.2uH 2.9A"
+			(at 482.6 121.91999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Inductor_SMD:L_Bourns-SRN4018"
+			(at 482.6 119.38 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 482.6 116.83999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 482.6 114.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C913207"
+			(at 482.6 111.75999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "SRN4018-2R2M"
+			(at 482.6 109.22 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "a8be393d-202a-41bf-ab25-67846871e69b")
+		)
+		(pin "2"
+			(uuid "342b7297-9ce0-459b-bfd3-e5c9dfa0b4dd")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "L2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 482.6 133.35) (xy 482.6 128.26999999999998)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f25ce626-e00e-4deb-be32-4c49a5e8d16f")
+	)
+	(global_label "L_3V3_A"
+		(shape bidirectional)
+		(at 482.6 128.26999999999998 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "d738d3ff-8cc6-4bf7-a046-37ba042e2501")
+	)
+	(wire
+		(pts
+			(xy 482.6 140.97) (xy 482.6 146.05)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d6de58bf-0487-46c3-8e15-0007b7e7fb1d")
+	)
+	(global_label "L_3V3_B"
+		(shape bidirectional)
+		(at 482.6 146.05 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "1c122a81-b408-449a-b6c1-28d5eaf6bb3e")
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 557.53 137.16 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "429e4339-d83a-484b-ae91-2af793c9da87")
+		(property "Reference" "C8"
+			(at 557.53 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "10uF"
+			(at 557.53 121.91999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 557.53 119.38 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 557.53 116.83999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 557.53 114.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C15850"
+			(at 557.53 111.75999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "CL21A106KAYNNNE"
+			(at 557.53 109.22 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "ab7c1fa0-a6a0-4c45-8f54-3617ac4a9ce0")
+		)
+		(pin "2"
+			(uuid "0b066316-6b64-4869-907b-3166d0c4c9c6")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "C8")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 557.53 133.35) (xy 557.53 128.26999999999998)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "700f0e8e-6f76-4142-b348-413ac3b8c096")
+	)
+	(global_label "VSYS"
+		(shape bidirectional)
+		(at 557.53 128.26999999999998 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "18e323a3-b0e8-4e80-82df-51bba44fb66b")
+	)
+	(wire
+		(pts
+			(xy 557.53 140.97) (xy 557.53 146.05)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2ed53a7a-c437-45d0-945e-0cd778ad5098")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 557.53 146.05 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "61180c21-caed-4d33-8415-562a0a4993c5")
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 633.73 137.16 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "8e13976f-052e-4337-8900-bc3f281cc152")
+		(property "Reference" "C9"
+			(at 633.73 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "10uF"
+			(at 633.73 121.91999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 633.73 119.38 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 633.73 116.83999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 633.73 114.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C15850"
+			(at 633.73 111.75999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "CL21A106KAYNNNE"
+			(at 633.73 109.22 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "82cf35e9-cfbe-4ea8-9587-1cae71866364")
+		)
+		(pin "2"
+			(uuid "58bd0f91-3bf2-457e-a8af-5b201ce5e779")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "C9")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 633.73 133.35) (xy 633.73 128.26999999999998)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b20ccdec-3a0a-466d-8a98-35ab96afb47a")
+	)
+	(global_label "+3V3"
+		(shape bidirectional)
+		(at 633.73 128.26999999999998 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "0ffc2709-587a-448b-8bfb-6302a1647e79")
+	)
+	(wire
+		(pts
+			(xy 633.73 140.97) (xy 633.73 146.05)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f78c4215-61c2-4b54-8c90-17e3c62c7efa")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 633.73 146.05 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "1e54d8d0-0a61-4bc6-ba93-399709b68f73")
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 709.9300000000001 137.16 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "b3acd985-5161-492d-91dd-66caa1d9e613")
+		(property "Reference" "C30"
+			(at 709.9300000000001 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "10uF"
+			(at 709.9300000000001 121.91999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 709.9300000000001 119.38 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 709.9300000000001 116.83999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 709.9300000000001 114.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C15850"
+			(at 709.9300000000001 111.75999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "CL21A106KAYNNNE"
+			(at 709.9300000000001 109.22 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "aac0f3af-5f2f-4c53-8ccb-4ca63a76bc9d")
+		)
+		(pin "2"
+			(uuid "e2dd885d-555c-45fb-94d5-51e092acaf48")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "C30")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 709.9300000000001 133.35) (xy 709.9300000000001 128.26999999999998)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9d297bb0-d861-498e-88a8-f6624a91806c")
+	)
+	(global_label "+3V3"
+		(shape bidirectional)
+		(at 709.9300000000001 128.26999999999998 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "1ad13df6-93f9-468d-921b-25cb69230bc9")
+	)
+	(wire
+		(pts
+			(xy 709.9300000000001 140.97) (xy 709.9300000000001 146.05)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "75eb0398-8b7a-4e4c-ad8f-9f10ff356f2a")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 709.9300000000001 146.05 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "d7ab77d0-d484-4453-a9e7-5b52a0e2508d")
+	)
+	(symbol
+		(lib_id "typoena:TPS61023DRL")
+		(at 796.29 138.43 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "e422ec0e-790d-439b-a16c-c7de11b32805")
+		(property "Reference" "U4"
+			(at 796.29 125.73 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "TPS61023DRL"
+			(at 796.29 123.19 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-563"
+			(at 796.29 120.65 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 796.29 118.11 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 796.29 115.57000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C919459"
+			(at 796.29 113.03 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "TPS61023DRLR"
+			(at 796.29 110.49000000000001 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "68ecfdd2-0a4e-4360-974c-0686877e6f4c")
+		)
+		(pin "2"
+			(uuid "79f1a7c3-437c-4b1f-a88d-9e9b17d9b776")
+		)
+		(pin "3"
+			(uuid "bb48d927-5693-4fc6-b96f-e8bec7d5733f")
+		)
+		(pin "4"
+			(uuid "b52778c6-b3f0-4df5-a881-a7d1c5403fb3")
+		)
+		(pin "5"
+			(uuid "409be21c-c3a7-4dd0-b5a4-39d47632a827")
+		)
+		(pin "6"
+			(uuid "ff3922d8-98a0-4092-93ec-d0835f8e11b5")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "U4")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 786.13 143.51000000000002) (xy 781.05 143.51000000000002)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4de5dea5-66fe-4e34-8c58-8112202ed094")
+	)
+	(global_label "FB_5V"
+		(shape bidirectional)
+		(at 781.05 143.51000000000002 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "727ddea1-9ad7-457e-98a0-7baa328a5dfe")
+	)
+	(wire
+		(pts
+			(xy 786.13 138.43) (xy 781.05 138.43)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "beecf570-0b6a-49a6-a50a-162ccfc222f5")
+	)
+	(global_label "KBD_5V_EN"
+		(shape bidirectional)
+		(at 781.05 138.43 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "9020c5de-5dfb-4f9c-91b5-add036c27446")
+	)
+	(wire
+		(pts
+			(xy 786.13 133.35) (xy 781.05 133.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d7711809-b513-409a-8b14-c90551b7d150")
+	)
+	(global_label "VSYS"
+		(shape bidirectional)
+		(at 781.05 133.35 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "4cb2f2f5-13f6-444e-ae3a-0a1722d3867f")
+	)
+	(wire
+		(pts
+			(xy 796.29 148.59) (xy 796.29 153.67000000000002)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ec85ca5c-5c5d-4ef3-853e-c5267abd5351")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 796.29 153.67000000000002 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "a467e248-7cb7-4ace-b72b-d79624c55bdf")
+	)
+	(wire
+		(pts
+			(xy 806.4499999999999 138.43) (xy 811.53 138.43)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6f30e0ab-dad1-4d26-b1a0-273c44e8cb96")
+	)
+	(global_label "SW_5V"
+		(shape bidirectional)
+		(at 811.53 138.43 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "179b6a4a-0b65-463f-83a5-e7caef003dcb")
+	)
+	(wire
+		(pts
+			(xy 806.4499999999999 133.35) (xy 811.53 133.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "951a50e0-194b-46c4-ab9f-6265ae34168c")
+	)
+	(global_label "+5V"
+		(shape bidirectional)
+		(at 811.53 133.35 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "e75b2ef1-2cc9-434c-b0e2-29657c85829f")
+	)
+	(symbol
+		(lib_id "Device:L")
+		(at 882.65 137.16 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "775bd545-7f93-44ad-b959-7e2d1ee086a6")
+		(property "Reference" "L3"
+			(at 882.65 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "1uH 4.15A"
+			(at 882.65 121.91999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Inductor_SMD:L_APV_ANR4030"
+			(at 882.65 119.38 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 882.65 116.83999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 882.65 114.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C42193"
+			(at 882.65 111.75999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "SWPA4030S1R0NT"
+			(at 882.65 109.22 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "276702d2-82b3-4326-88f1-a727d680c926")
+		)
+		(pin "2"
+			(uuid "614dd1f7-df0a-48f4-b526-1c90ce1a7e50")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "L3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 882.65 133.35) (xy 882.65 128.26999999999998)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "91a2ad56-3b54-403c-98ec-b1014eb7b6d2")
+	)
+	(global_label "VSYS"
+		(shape bidirectional)
+		(at 882.65 128.26999999999998 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "cee05abb-30a6-4227-9fbc-d4bd5e1e912c")
+	)
+	(wire
+		(pts
+			(xy 882.65 140.97) (xy 882.65 146.05)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "842a2808-1edd-48a6-91a9-b26598a92c4a")
+	)
+	(global_label "SW_5V"
+		(shape bidirectional)
+		(at 882.65 146.05 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "76a235e5-4b28-495c-a311-93513d2b9d8d")
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 958.85 137.16 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "aa166659-7d1d-4171-8282-c25fe4eb45a1")
+		(property "Reference" "C10"
+			(at 958.85 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "10uF"
+			(at 958.85 121.91999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 958.85 119.38 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 958.85 116.83999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 958.85 114.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C15850"
+			(at 958.85 111.75999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "CL21A106KAYNNNE"
+			(at 958.85 109.22 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "2aee7081-24fc-4aed-a4ee-1f8289f16b44")
+		)
+		(pin "2"
+			(uuid "4cb8df1c-e7ee-484a-ab21-80969e1efca2")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "C10")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 958.85 133.35) (xy 958.85 128.26999999999998)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "05e9d32d-1951-4a9d-b412-7bb0708d1d43")
+	)
+	(global_label "VSYS"
+		(shape bidirectional)
+		(at 958.85 128.26999999999998 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "676ea76f-c304-40bb-be8a-d3391f574d3f")
+	)
+	(wire
+		(pts
+			(xy 958.85 140.97) (xy 958.85 146.05)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "395a4792-db6e-42fb-ac32-d0fb24952d69")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 958.85 146.05 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "54429870-fac1-424a-9c99-73b55813944d")
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 1035.05 137.16 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "7c27d22f-815a-4359-add3-f4b03ee3f3a6")
+		(property "Reference" "C11"
+			(at 1035.05 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "22uF"
+			(at 1035.05 121.91999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 1035.05 119.38 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 1035.05 116.83999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 1035.05 114.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C45783"
+			(at 1035.05 111.75999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "CL21A226MAQNNNE"
+			(at 1035.05 109.22 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "430ae023-65c0-4352-bb41-535b8fda9cba")
+		)
+		(pin "2"
+			(uuid "d9ebeff5-d344-494a-bbd4-57d99e2ca788")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "C11")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 1035.05 133.35) (xy 1035.05 128.26999999999998)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "690e8d48-b760-437a-bd4d-7f9cef8c5807")
+	)
+	(global_label "+5V"
+		(shape bidirectional)
+		(at 1035.05 128.26999999999998 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "deb7cdeb-f7fe-4569-a4be-23a01395a349")
+	)
+	(wire
+		(pts
+			(xy 1035.05 140.97) (xy 1035.05 146.05)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b2bcdf31-62c2-499b-be74-df82acaf05b9")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 1035.05 146.05 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "afb7ee27-bc35-4dcf-88a0-d43f1ef5b7ae")
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 1111.25 137.16 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "1509e771-002b-4f58-91a4-251167239415")
+		(property "Reference" "C12"
+			(at 1111.25 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "22uF"
+			(at 1111.25 121.91999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 1111.25 119.38 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 1111.25 116.83999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 1111.25 114.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C45783"
+			(at 1111.25 111.75999999999999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "CL21A226MAQNNNE"
+			(at 1111.25 109.22 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "e8807f2b-8c9b-4aef-81e8-461464e0640d")
+		)
+		(pin "2"
+			(uuid "921c7343-dd00-4822-b6a2-0fac29ddcb25")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "C12")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 1111.25 133.35) (xy 1111.25 128.26999999999998)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "19810230-e254-47e2-ab15-e5351b7392e7")
+	)
+	(global_label "+5V"
+		(shape bidirectional)
+		(at 1111.25 128.26999999999998 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "d5f226f3-652c-4f87-a234-29d429efd0ad")
+	)
+	(wire
+		(pts
+			(xy 1111.25 140.97) (xy 1111.25 146.05)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0f4eaddd-b45f-439c-baf9-bca02f304cf0")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 1111.25 146.05 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "2882b743-f1c1-4e3a-8b3f-c81e0fa659b0")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 63.5 198.12 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "bde3cad3-7e98-453a-860e-ec30adc423e2")
+		(property "Reference" "R10"
+			(at 63.5 185.42000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "56k 1%"
+			(at 63.5 182.88000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 63.5 180.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 63.5 177.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 63.5 175.26000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C25796"
+			(at 63.5 172.72000000000003 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "0402WGF5602TCE"
+			(at 63.5 170.18 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "d5d363d4-d358-4bab-bdca-97287fca4000")
+		)
+		(pin "2"
+			(uuid "67b8aec5-23b0-4ce6-9571-80e40f1f1e14")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "R10")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 63.5 194.31) (xy 63.5 189.23)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "be70585b-c71d-4d4d-8f37-4d414baa9d23")
+	)
+	(global_label "+5V"
+		(shape bidirectional)
+		(at 63.5 189.23 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "dfdc1d8e-5fcc-45f9-a35e-9c8936583c84")
+	)
+	(wire
+		(pts
+			(xy 63.5 201.93) (xy 63.5 207.01000000000002)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b2a25789-b6ab-40cd-87f9-021864a4c9b4")
+	)
+	(global_label "FB_5V"
+		(shape bidirectional)
+		(at 63.5 207.01000000000002 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "c0d95aae-515a-4203-b06d-d24a84f76ee0")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 139.7 198.12 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "f3caa96b-adb3-4170-bdb0-f5cdbf486149")
+		(property "Reference" "R11"
+			(at 139.7 185.42000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "7.5k 1%"
+			(at 139.7 182.88000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 139.7 180.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 139.7 177.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 139.7 175.26000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C25918"
+			(at 139.7 172.72000000000003 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "0402WGF7501TCE"
+			(at 139.7 170.18 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "37f77d78-9401-419f-9a98-a5727e2c8e6b")
+		)
+		(pin "2"
+			(uuid "09340a6c-2693-4efb-9627-d300f8038937")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "R11")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 139.7 194.31) (xy 139.7 189.23)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4f4ca3ca-7a25-4163-b008-f8a73ca04053")
+	)
+	(global_label "FB_5V"
+		(shape bidirectional)
+		(at 139.7 189.23 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "58675ebb-80bf-4d12-92f8-c61bc10306be")
+	)
+	(wire
+		(pts
+			(xy 139.7 201.93) (xy 139.7 207.01000000000002)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a2fa6968-9acf-4dc2-97f8-7c4c4599b1cd")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 139.7 207.01000000000002 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "34553464-f91a-421a-9004-3c60c324df90")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 215.9 198.12 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "4b7c9140-455d-44b2-88a1-a9d61874e64e")
+		(property "Reference" "R12"
+			(at 215.9 185.42000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "100k"
+			(at 215.9 182.88000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 215.9 180.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 215.9 177.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 215.9 175.26000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C25741"
+			(at 215.9 172.72000000000003 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "0402WGF1003TCE"
+			(at 215.9 170.18 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "fa220bbd-cac0-40f1-af4e-f012aeeb6fa2")
+		)
+		(pin "2"
+			(uuid "146d6019-954c-4bcd-846d-b73985a325a2")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "R12")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 215.9 194.31) (xy 215.9 189.23)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a5431f5c-7363-4bdb-9583-b1c6c5e7339a")
+	)
+	(global_label "KBD_5V_EN"
+		(shape bidirectional)
+		(at 215.9 189.23 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "69a24c7f-14a6-448d-8c06-adabee34d321")
+	)
+	(wire
+		(pts
+			(xy 215.9 201.93) (xy 215.9 207.01000000000002)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "fa763f34-b4c6-4b2d-99e2-aa50082e597f")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 215.9 207.01000000000002 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "04000eb1-0178-4a72-8ea6-7ba8b8f54f2a")
+	)
+	(symbol
+		(lib_id "Transistor_FET:AO3401A")
+		(at 297.18 199.39000000000001 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "fbcf1590-1dc3-4050-ab2c-f68bdc9d897d")
+		(property "Reference" "Q1"
+			(at 297.18 186.69000000000003 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "AO3401A"
+			(at 297.18 184.15000000000003 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
+			(at 297.18 181.61 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 297.18 179.07000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 297.18 176.53000000000003 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C15127"
+			(at 297.18 173.99000000000004 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "AO3401A"
+			(at 297.18 171.45000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "5a4e9c0b-f918-48db-971f-a10bda99f0e7")
+		)
+		(pin "2"
+			(uuid "f10f192f-49df-4c75-bc50-bd651fd90a1a")
+		)
+		(pin "3"
+			(uuid "dab030bd-eb82-4188-92ba-90e049d0dbb2")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "Q1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 292.1 199.39000000000001) (xy 287.02000000000004 199.39000000000001)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "813fb202-d2e9-4290-9d78-a59b15439f29")
+	)
+	(global_label "SD_GATE"
+		(shape bidirectional)
+		(at 287.02000000000004 199.39000000000001 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "3f7ee0d0-8b29-4a46-a22e-05efc631c4f5")
+	)
+	(wire
+		(pts
+			(xy 299.72 204.47000000000003) (xy 299.72 209.55000000000004)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2a345d33-994f-48f8-86f5-5cc2fc826dd5")
+	)
+	(global_label "+3V3"
+		(shape bidirectional)
+		(at 299.72 209.55000000000004 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "2280d171-cca3-4cbd-8cb7-ef5c80ccfe3a")
+	)
+	(wire
+		(pts
+			(xy 299.72 194.31) (xy 299.72 189.23)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c0359cd7-d3e7-4a31-b42a-a9ff7c59ea06")
+	)
+	(global_label "+3V3_SD"
+		(shape bidirectional)
+		(at 299.72 189.23 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "7817c825-d5e6-45ae-869f-9b5a8f3ade87")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 375.92 198.12 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "9072c33f-e670-4b3d-b9c7-4788f1f5077e")
+		(property "Reference" "R13"
+			(at 375.92 185.42000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "100k"
+			(at 375.92 182.88000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 375.92 180.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 375.92 177.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 375.92 175.26000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C25741"
+			(at 375.92 172.72000000000003 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "0402WGF1003TCE"
+			(at 375.92 170.18 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "2400b746-db45-4b72-ae39-6fb17e12aea4")
+		)
+		(pin "2"
+			(uuid "25ef256d-f5ee-4bc4-9e0e-a92b2fac5e32")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "R13")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 375.92 194.31) (xy 375.92 189.23)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f82f9b7d-d9d3-4adb-b7fb-0e1d9c899c3b")
+	)
+	(global_label "+3V3"
+		(shape bidirectional)
+		(at 375.92 189.23 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "71de7742-e0f8-4c46-beac-0c2b1bbc2802")
+	)
+	(wire
+		(pts
+			(xy 375.92 201.93) (xy 375.92 207.01000000000002)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ac62c3dd-eec5-45fd-a6c8-32e6ee7f186d")
+	)
+	(global_label "SD_GATE"
+		(shape bidirectional)
+		(at 375.92 207.01000000000002 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "ac4fc6b2-01c0-49be-a570-d36e76c324bf")
+	)
+	(symbol
+		(lib_id "Transistor_FET:2N7002")
+		(at 457.2 199.39000000000001 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "dfa48e11-970c-4269-adf1-958cce1a6c6d")
+		(property "Reference" "Q2"
+			(at 457.2 186.69000000000003 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "2N7002"
+			(at 457.2 184.15000000000003 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
+			(at 457.2 181.61 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 457.2 179.07000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 457.2 176.53000000000003 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C8545"
+			(at 457.2 173.99000000000004 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "2N7002"
+			(at 457.2 171.45000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "5c3ea395-293f-42bc-900d-e13e6631e708")
+		)
+		(pin "2"
+			(uuid "74470ca6-e732-48e9-a54c-0a71989c4ddf")
+		)
+		(pin "3"
+			(uuid "d1340dac-dc7c-4016-83ce-0133ed8a51ab")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "Q2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 452.12 199.39000000000001) (xy 447.04 199.39000000000001)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c949b9fd-14db-41f1-9922-d765c892ea13")
+	)
+	(global_label "SD_PWR_EN"
+		(shape bidirectional)
+		(at 447.04 199.39000000000001 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "425765cf-abac-4f5f-831e-2180c7737d1d")
+	)
+	(wire
+		(pts
+			(xy 459.74 204.47000000000003) (xy 459.74 209.55000000000004)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "863d8d63-6e6d-48de-912a-672c8f642449")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 459.74 209.55000000000004 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "9d6ea7f4-057f-4358-9b00-43a934a107bb")
+	)
+	(wire
+		(pts
+			(xy 459.74 194.31) (xy 459.74 189.23)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a2691b7e-dae3-4697-ae6f-bdf23384d753")
+	)
+	(global_label "SD_GATE"
+		(shape bidirectional)
+		(at 459.74 189.23 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "d41e0220-8f96-4f08-a9db-4af68c3a8983")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 534.67 198.12 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "68c31ca9-7148-4f33-96fe-2c83348babad")
+		(property "Reference" "R14"
+			(at 534.67 185.42000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "100k"
+			(at 534.67 182.88000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 534.67 180.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 534.67 177.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 534.67 175.26000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C25741"
+			(at 534.67 172.72000000000003 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "0402WGF1003TCE"
+			(at 534.67 170.18 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "a9b188e2-973a-4d77-ad27-396c304f0030")
+		)
+		(pin "2"
+			(uuid "5213ae0d-eeb3-48f1-a358-e6bd10878699")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "R14")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 534.67 194.31) (xy 534.67 189.23)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b3dae557-f27b-47cf-8426-c02674684064")
+	)
+	(global_label "SD_PWR_EN"
+		(shape bidirectional)
+		(at 534.67 189.23 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "c419bea8-f282-4f34-8809-f249cdcaa4f1")
+	)
+	(wire
+		(pts
+			(xy 534.67 201.93) (xy 534.67 207.01000000000002)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6de6878b-8835-443d-be83-5b727667e956")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 534.67 207.01000000000002 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "d9a7e556-c8c8-4b1c-9aba-47ad40840819")
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 610.87 198.12 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "ce5d3453-705b-402e-b293-a56fc3d64dbe")
+		(property "Reference" "C13"
+			(at 610.87 185.42000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "10uF"
+			(at 610.87 182.88000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 610.87 180.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 610.87 177.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 610.87 175.26000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C15850"
+			(at 610.87 172.72000000000003 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "CL21A106KAYNNNE"
+			(at 610.87 170.18 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "1d5ea958-d0dc-4cb6-b235-6618323223b9")
+		)
+		(pin "2"
+			(uuid "d2b604d0-7a43-4a20-a889-469b957f4725")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "C13")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 610.87 194.31) (xy 610.87 189.23)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e7a30b80-5bd9-49ea-a2a6-c66824c1a4b1")
+	)
+	(global_label "+3V3_SD"
+		(shape bidirectional)
+		(at 610.87 189.23 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "b8f56572-f4e4-46d8-a39a-9cb3670cc1ec")
+	)
+	(wire
+		(pts
+			(xy 610.87 201.93) (xy 610.87 207.01000000000002)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1fa97c92-8f80-4485-bd79-fb286d04d65f")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 610.87 207.01000000000002 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "9aac8525-dab3-4d2a-b62d-2987b83ce675")
+	)
+	(symbol
+		(lib_id "Connector_Generic:Conn_01x02")
+		(at 692.15 194.31 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "1a9b9e7a-a733-4826-b82d-b8ad685673d8")
+		(property "Reference" "J2"
+			(at 692.15 181.61 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "BOUTON contact JST-PH"
+			(at 692.15 179.07000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Connector_JST:JST_PH_S2B-PH-K_1x02_P2.00mm_Horizontal"
+			(at 692.15 176.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 692.15 173.99 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 692.15 171.45000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C173752"
+			(at 692.15 168.91000000000003 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "S2B-PH-K-S"
+			(at 692.15 166.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "2ade94d4-dc5e-4b13-bd2d-5870e8ab3a68")
+		)
+		(pin "2"
+			(uuid "0c3c8cf0-0fad-4ff5-8a66-793eacdf0769")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "J2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 687.0699999999999 194.31) (xy 681.9899999999999 194.31)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "99eb8454-b25b-49b6-9614-31eb8566dce6")
+	)
+	(global_label "BTN_SW"
+		(shape bidirectional)
+		(at 681.9899999999999 194.31 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "9a16358d-1839-470d-bd0d-d330520e1bd3")
+	)
+	(wire
+		(pts
+			(xy 687.0699999999999 196.85) (xy 681.9899999999999 196.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "fedc15d2-6234-48c9-9efd-055ca93d24f7")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 681.9899999999999 196.85 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "9d158240-f3ea-45c8-8c10-05d8664e4f96")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 763.27 198.12 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "cf1c3caa-376d-498d-ac95-64196e2ad790")
+		(property "Reference" "R15"
+			(at 763.27 185.42000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "10k"
+			(at 763.27 182.88000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 763.27 180.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 763.27 177.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 763.27 175.26000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C25744"
+			(at 763.27 172.72000000000003 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "0402WGF1002TCE"
+			(at 763.27 170.18 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "e946344d-c622-4153-8544-c4f68df2720a")
+		)
+		(pin "2"
+			(uuid "ab5ef497-2eee-407b-81b0-6b26f0107134")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "R15")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 763.27 194.31) (xy 763.27 189.23)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "568cf430-baca-487c-9207-136e277ee5a7")
+	)
+	(global_label "BTN_SW"
+		(shape bidirectional)
+		(at 763.27 189.23 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "b4c4217a-69b5-40ef-9a95-bffc8fed98bf")
+	)
+	(wire
+		(pts
+			(xy 763.27 201.93) (xy 763.27 207.01000000000002)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4e2888fd-25b6-4778-8a35-fcac534f969a")
+	)
+	(global_label "PWR_SENSE"
+		(shape bidirectional)
+		(at 763.27 207.01000000000002 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "e14cec29-f639-4cf3-9994-39aff885cb48")
+	)
+	(symbol
+		(lib_id "Connector_Generic:Conn_01x02")
+		(at 844.5500000000001 194.31 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "c1fc5ce1-93c0-40d1-8dda-32898788a0e9")
+		(property "Reference" "J3"
+			(at 844.5500000000001 181.61 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "BOUTON LED JST-PH"
+			(at 844.5500000000001 179.07000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Connector_JST:JST_PH_S2B-PH-K_1x02_P2.00mm_Horizontal"
+			(at 844.5500000000001 176.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 844.5500000000001 173.99 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 844.5500000000001 171.45000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C173752"
+			(at 844.5500000000001 168.91000000000003 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "S2B-PH-K-S"
+			(at 844.5500000000001 166.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "9da277d8-7a08-4a6e-be99-834c7a18a138")
+		)
+		(pin "2"
+			(uuid "9218c042-b4ab-49df-bea9-1841c9222b32")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "J3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 839.47 194.31) (xy 834.39 194.31)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0a8c5022-5a92-4415-9fe4-0a5f770d6dcc")
+	)
+	(global_label "BTN_LED_A"
+		(shape bidirectional)
+		(at 834.39 194.31 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "05dea921-4cfc-435b-a53e-81e1cc4291ca")
+	)
+	(wire
+		(pts
+			(xy 839.47 196.85) (xy 834.39 196.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f659d252-98c4-4e64-a73a-36893bec51b0")
+	)
+	(global_label "BTN_LED_K"
+		(shape bidirectional)
+		(at 834.39 196.85 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "1b8d2dcf-b460-45f6-a8e2-1802d8583de3")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 915.67 198.12 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "7031e90c-8344-487f-9d03-378bd69ee0f8")
+		(property "Reference" "R16"
+			(at 915.67 185.42000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "100R"
+			(at 915.67 182.88000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 915.67 180.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 915.67 177.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 915.67 175.26000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C25076"
+			(at 915.67 172.72000000000003 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "0402WGF1000TCE"
+			(at 915.67 170.18 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "c128e25b-38a4-41c8-89a3-cd719c4b02c4")
+		)
+		(pin "2"
+			(uuid "f8e83714-001c-4502-97dc-adc547c9a939")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "R16")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 915.67 194.31) (xy 915.67 189.23)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "174cac7d-f371-4b21-bf48-1c83c5c81ac5")
+	)
+	(global_label "+3V3"
+		(shape bidirectional)
+		(at 915.67 189.23 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "ea22e810-df97-4e83-abf4-5d82ebc3f0f4")
+	)
+	(wire
+		(pts
+			(xy 915.67 201.93) (xy 915.67 207.01000000000002)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0d2a7273-9f65-4933-94b8-a62d35c424ec")
+	)
+	(global_label "BTN_LED_A"
+		(shape bidirectional)
+		(at 915.67 207.01000000000002 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "fee3080c-ae87-4cb8-b6b9-b9701af67b69")
+	)
+	(symbol
+		(lib_id "Transistor_FET:2N7002")
+		(at 996.95 199.39000000000001 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "85b7ac4a-0aa6-4383-99ec-5bb39ff51772")
+		(property "Reference" "Q3"
+			(at 996.95 186.69000000000003 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "2N7002"
+			(at 996.95 184.15000000000003 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
+			(at 996.95 181.61 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 996.95 179.07000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 996.95 176.53000000000003 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C8545"
+			(at 996.95 173.99000000000004 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "2N7002"
+			(at 996.95 171.45000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "c816310e-964f-4cd5-afee-6fe9c9d551cb")
+		)
+		(pin "2"
+			(uuid "698de8c8-b534-442d-adb4-f84b93db5a65")
+		)
+		(pin "3"
+			(uuid "8f893cee-26c1-4315-b643-f3c653dfa983")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "Q3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 991.87 199.39000000000001) (xy 986.79 199.39000000000001)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "392da11f-e9d9-4201-92be-bc83b3b98a9c")
+	)
+	(global_label "BTN_LED"
+		(shape bidirectional)
+		(at 986.79 199.39000000000001 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "4666a07f-bcd3-4adb-a547-1bc0edf5e0e9")
+	)
+	(wire
+		(pts
+			(xy 999.49 204.47000000000003) (xy 999.49 209.55000000000004)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f199dd00-576f-43d6-becd-5523e798320f")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 999.49 209.55000000000004 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "6d7d49e9-9314-4ae4-9a3d-d4f8ad0f4b2e")
+	)
+	(wire
+		(pts
+			(xy 999.49 194.31) (xy 999.49 189.23)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "76a3845e-f782-4aa4-afca-a0c490f5e28a")
+	)
+	(global_label "BTN_LED_K"
+		(shape bidirectional)
+		(at 999.49 189.23 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "59938c62-8925-40ec-8b9e-d1b089a8db8b")
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 1075.69 198.12 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "1d239a9c-569d-437d-9258-fb8f05abf122")
+		(property "Reference" "R17"
+			(at 1075.69 185.42000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "100k"
+			(at 1075.69 182.88000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 1075.69 180.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 1075.69 177.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 1075.69 175.26000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "LCSC" "C25741"
+			(at 1075.69 172.72000000000003 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "MPN" "0402WGF1003TCE"
+			(at 1075.69 170.18 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "c939bd79-4ca4-4f1b-9796-ebeabd8d1bff")
+		)
+		(pin "2"
+			(uuid "8e09e98a-b17e-4ec5-b68c-17a0140fd89a")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "R17")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 1075.69 194.31) (xy 1075.69 189.23)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3e81c934-a3f0-4489-9759-8d0cbc3de4d6")
+	)
+	(global_label "BTN_LED"
+		(shape bidirectional)
+		(at 1075.69 189.23 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "901e6454-3b40-4238-9973-b8ae95ee3437")
+	)
+	(wire
+		(pts
+			(xy 1075.69 201.93) (xy 1075.69 207.01000000000002)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8c55ae73-6133-45f5-b7a1-72629c725010")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 1075.69 207.01000000000002 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "d8892ea8-191f-4757-abff-d682fa5825d7")
+	)
+	(symbol
+		(lib_id "power:PWR_FLAG")
+		(at 63.5 240.03 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "3c75afb1-4f21-461d-a146-0216c707aa54")
+		(property "Reference" "#FLG00"
+			(at 63.5 227.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PWR_FLAG"
+			(at 63.5 224.79000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 63.5 222.25 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 63.5 219.71 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 63.5 217.17000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "db9316b9-ac37-4280-a360-a09dbfe6018b")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "#FLG00")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 63.5 240.03) (xy 63.5 245.11)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "90b94bd5-103e-4180-b03d-0809459cd63b")
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 63.5 245.11 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "94adaf41-2ac3-4db2-809f-c8fb08849c46")
+	)
+	(symbol
+		(lib_id "power:PWR_FLAG")
+		(at 139.7 240.03 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "d2068ea4-569d-48cb-9f47-a547826c7ad3")
+		(property "Reference" "#FLG01"
+			(at 139.7 227.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PWR_FLAG"
+			(at 139.7 224.79000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 139.7 222.25 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 139.7 219.71 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 139.7 217.17000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "6f83d776-2772-45a3-a069-b53bf5bdbd82")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "#FLG01")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 139.7 240.03) (xy 139.7 245.11)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7b9ba03c-5256-4953-8461-63e8bf9867a3")
+	)
+	(global_label "VBAT"
+		(shape bidirectional)
+		(at 139.7 245.11 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "8cd2cbb9-78e1-4807-9fa8-d12fe6c97d4d")
+	)
+	(symbol
+		(lib_id "power:PWR_FLAG")
+		(at 215.9 240.03 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "a86a2da0-55a4-4908-a86d-794c8e05f33c")
+		(property "Reference" "#FLG02"
+			(at 215.9 227.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PWR_FLAG"
+			(at 215.9 224.79000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 215.9 222.25 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 215.9 219.71 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 215.9 217.17000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "9769cd6e-5b0d-4783-bbe5-80196e177274")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "#FLG02")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 215.9 240.03) (xy 215.9 245.11)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8c65e4df-9c15-4216-adea-45e146e2dad8")
+	)
+	(global_label "VBUS"
+		(shape bidirectional)
+		(at 215.9 245.11 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "84e2bb7c-0572-4f53-8fbc-38929c7bd7f8")
+	)
+	(symbol
+		(lib_id "power:PWR_FLAG")
+		(at 292.1 240.03 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "f2f81e25-945b-4990-abcc-e100318188fc")
+		(property "Reference" "#FLG03"
+			(at 292.1 227.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PWR_FLAG"
+			(at 292.1 224.79000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 292.1 222.25 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 292.1 219.71 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 292.1 217.17000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "0248f1fc-b641-4a4c-92cd-ec26246b834b")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "#FLG03")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 292.1 240.03) (xy 292.1 245.11)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "fc4a287c-0f06-4dc7-9d1d-81a9b1f44738")
+	)
+	(global_label "VSYS"
+		(shape bidirectional)
+		(at 292.1 245.11 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "e94b675a-82f0-4ec1-9fc5-30e1306f0151")
+	)
+	(symbol
+		(lib_id "power:PWR_FLAG")
+		(at 368.3 240.03 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "fe00f907-7ae2-406e-ad98-fd3dd328f97b")
+		(property "Reference" "#FLG04"
+			(at 368.3 227.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PWR_FLAG"
+			(at 368.3 224.79000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 368.3 222.25 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Datasheet" ""
+			(at 368.3 219.71 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(property "Description" ""
+			(at 368.3 217.17000000000002 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+			(hide yes)
+		)
+		(pin "1"
+			(uuid "a4b52c19-e66a-4fd9-9cb6-b3ad1ab88e3b")
+		)
+		(instances
+			(project "typoena-devboard"
+				(path "/b87907f7-0d09-4e38-9be2-0dfe24e700f1/3a1c9e40-0001-4a00-9000-000000000001"
+					(reference "#FLG04")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 368.3 240.03) (xy 368.3 245.11)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c8d70988-12be-4aa9-ae25-7a0b0392764c")
+	)
+	(global_label "+3V3_SD"
+		(shape bidirectional)
+		(at 368.3 245.11 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "816e233f-6907-4f59-b8af-2ad843949f0e")
+	)
+	(text "Alimentation - BQ25896 (charge + power path NVDC), TPS63001 3V3, TPS61023 5V clavier, rail uSD commute, bouton"
+		(exclude_from_sim no)
+		(at 25 30 0)
+		(effects
+			(font
+				(size 2.5 2.5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "f237dd12-032a-43c2-99ea-39716b2566d5")
+	)
+	(embedded_fonts no)
+)

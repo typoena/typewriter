@@ -1,0 +1,51 @@
+(version 1)
+
+# Isolation pad-à-pad à l'intérieur d'une même empreinte.
+#
+# L'écartement des pastilles d'un composant est fixé par son fabricant : U4
+# (SOT-563) descend à 0,15 mm, U2 (WQFN-24, pas 0,5 mm) à 0,20. Aucune classe de
+# net ne peut être honorée là — Power exige 0,25 et Switching 0,30 — et aucune
+# décision de placement ou de routage ne peut y changer quoi que ce soit.
+#
+# Le plancher reste à 0,1 mm plutôt que d'être désactivé : il attrape encore des
+# pastilles qui se chevauchent, c'est-à-dire une empreinte cassée. Il n'est sûr
+# que parce que ce projet n'utilise que des empreintes de bibliothèque, jamais
+# d'empreinte faite main.
+#
+# Ne couvre que pad-à-pad : la condition exige les deux objets de type Pad.
+# L'échappée d'une piste hors de ces mêmes boîtiers relève de la règle suivante.
+
+(rule "pad-à-pad interne à une empreinte"
+  (constraint clearance (min 0.1mm))
+  (condition "A.Type == 'Pad' && B.Type == 'Pad' && A.Reference == B.Reference"))
+
+# Isolation des échappées — pistes ET vias — dans les boîtiers au pas de 0,5 mm.
+#
+# Le même écartement de fabricant ferme aussi la sortie des pistes. Sur U3
+# (VSON-10), l'axe d'une broche est à 0,38 mm du bord de sa voisine : avec les
+# 0,30 mm exigés par Switching, la largeur maximale d'une échappée tombe à
+# 0,16 mm, sous le plancher de 0,20 mm de la carte. La fenêtre est vide — aucune
+# piste ne sort du boîtier, à aucune largeur.
+#
+# Les 0,30 mm de Switching visent le cuivre à découvert d'un nœud de commutation,
+# pas l'intérieur d'un QFN. La règle les ramène à 0,20 mm au contact des boîtiers
+# au pas de 0,5 mm seulement ; la classe garde sa marge partout ailleurs.
+#
+# Les vias sont couvertes au même titre : une via de masse au pied d'une broche
+# subit exactement la même géométrie. À 0,20 mm, une via de 0,6/0,3 se pose
+# contre les broches de U3 ; une de 0,8/0,4 n'y entre pas (0,10 mm) et reste
+# refusée — d'où les deux tailles déclarées dans les dimensions prédéfinies.
+#
+# Les connecteurs y figurent pour la même raison que les circuits intégrés :
+# J4 (FPC 24p), J6 et J7 (USB-C) sont eux aussi au pas de 0,5 mm, et rien ne
+# distingue électriquement une échappée hors d'un QFN d'une échappée hors d'un
+# connecteur. `tools/check_pcb.py` (contrôle F3) vérifie que cette liste couvre
+# bien tout boîtier au pas de 0,5 mm présent sur la carte — c'est ce qui empêche
+# un nouveau composant d'y échapper en silence.
+#
+# Elle ne relâche pas tout : une piste de 0,6 mm sur une broche de U3 laisse
+# 0,08 mm à sa voisine et reste refusée.
+
+(rule "échappée piste ou via dans un boîtier au pas de 0,5 mm"
+  (constraint clearance (min 0.2mm))
+  (condition "(A.Type == 'Track' || A.Type == 'Via') && B.Type == 'Pad' && (B.Reference == 'U2' || B.Reference == 'U3' || B.Reference == 'U4' || B.Reference == 'U5' || B.Reference == 'J4' || B.Reference == 'J6' || B.Reference == 'J7')"))
