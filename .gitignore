@@ -70,3 +70,6 @@ fp-info-cache
 # Intermediate netlist: KiCad regenerates it from the schematic on demand.
 hardware/pcb/**/*.net
 
+# Fabrication outputs: kicad-cli regenerates them from the .kicad_pcb, and the
+# board file is the record of what was sent.
+hardware/pcb/**/fab/
