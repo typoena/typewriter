@@ -8417,7 +8417,7 @@
 				)
 			)
 		)
-		(property "Value" "510k 1%"
+		(property "Value" "56k 1%"
 			(at 63.5 182.88 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8426,8 +8426,7 @@
 					(size 1.27 1.27)
 				)
 			)
-		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		)		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
 			(at 63.5 180.34 0)
 			(hide yes)
 			(show_name no)
@@ -8460,7 +8459,28 @@
 				)
 			)
 		)
-		(pin "1"
+
+		(property "LCSC" "C25796"
+			(at 63.5 172.72 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)		(property "MPN" "0402WGF5602TCE"
+			(at 63.5 170.18 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)	(pin "1"
 			(uuid "7502aa01-f9f8-4bf9-9677-12a1939fbe43")
 		)
 		(pin "2"
@@ -9492,7 +9512,7 @@
 				)
 			)
 		)
-		(property "Value" "68k 1%"
+		(property "Value" "7.5k 1%"
 			(at 139.7 182.88 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9501,8 +9521,7 @@
 					(size 1.27 1.27)
 				)
 			)
-		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		)		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
 			(at 139.7 180.34 0)
 			(hide yes)
 			(show_name no)
@@ -9535,7 +9554,28 @@
 				)
 			)
 		)
-		(pin "1"
+
+		(property "LCSC" "C25918"
+			(at 139.7 172.72 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)		(property "MPN" "0402WGF7501TCE"
+			(at 139.7 170.18 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)	(pin "1"
 			(uuid "e57bf618-1a31-4e16-b4b5-27b27cc9f8f7")
 		)
 		(pin "2"
