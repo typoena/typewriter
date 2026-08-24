@@ -7,7 +7,7 @@ Projet KiCad 10. Une seule carte porte toute l'électronique de la machine.
 | Schéma | hiérarchique, 4 feuilles — **96 composants, ERC 0 violation** |
 | Nets | 79, 342 connexions |
 | BOM | 45 lignes, **42 référencées LCSC** (les 3 autres sont des connecteurs non montés) |
-| PCB | **en cours de routage** — 94 × 45 mm, 4 couches, 95 empreintes posées, 4 plans remplis |
+| PCB | **routé** — 94 × 45 mm, 4 couches, 95 empreintes, 794 segments, 113 vias, 4 zones remplies, 0 connexion restante |
 | Valeurs et leur source | [`DESIGN-NOTES.md`](DESIGN-NOTES.md) |
 
 ```
@@ -271,10 +271,13 @@ Les **budgets de courant sont des hypothèses** à corriger après mesure au ban
       des fils : électriquement équivalent, ERC-propre, et le netlist est identique à ce
       qu'il serait avec des fils. Mais c'est aride à lire. Les tracer est un travail de
       souris qui ne change pas le netlist — la découpe en feuilles, elle, est faite.
-- [ ] **Layout 4 couches** `SIG/GND/PWR/SIG` sur 94 × 45 mm. **Plus bloqué** — le
-      boîtier suivra la carte. Ordre : connecteurs sur le bord long d'abord, module en
-      débord au bord opposé, puis les trois blocs de puissance, puis le routage en
-      commençant par les boucles de commutation (elles ne se rattrapent pas après).
+- [ ] **Sérigraphie : 6 débordements de bord**, les contours d'empreinte de J6, J7 et
+      U1. Le fabricant les détoure au tracé ; à trancher au cas par cas.
+- [ ] **Générer les fichiers de fabrication** — Gerber, perçage, BOM, placement. Rien
+      dans `tools/` ne les produit encore.
+- [ ] **Confirmer les 25 perçages Ø0,2 mm** — les matrices thermiques de U1, U2 et U3 —
+      sur la page de capacités du fabricant. Seul poste de la carte sous le procédé
+      courant, donc le seul susceptible de changer de catégorie tarifaire.
 - [ ] **Frais de chargeur à arbitrer.** Tous les passifs sont Basic ou Preferred, donc
       exemptés. Restent ~12 lignes Extended à 3 $ : les 5 ICs (incompressible), les
       4 inductances (JLCPCB n'a **aucune** inductance de puissance en Basic) et les
@@ -291,6 +294,10 @@ Les **budgets de courant sont des hypothèses** à corriger après mesure au ban
   NTC, donc `TS` est polarisé par un pont fixe au centre de la fenêtre autorisée. C'est
   la conséquence assumée du choix de cellule — détail et valeurs dans
   [`DESIGN-NOTES.md`](DESIGN-NOTES.md).
+- **Le courant de charge n'est pas sourcé.** La fiche de la cellule EEMB 103395 n'a pas
+  été consultée, et l'`ICHG` par défaut du BQ25896 n'est pas vérifié. `/CE` étant à la
+  masse, c'est cette valeur par défaut qui s'applique au premier branchement, avant que
+  le firmware ne parle en I²C — donc avant toute programmation possible.
 - **Consommation du CH343P en veille.** Son `VIO` est sur le 3V3 permanent (c'est
   l'usage prévu de cette broche) tandis que `VDD5` vient de VBUS. À mesurer : si le
   quiescent est significatif devant les ~84 µA visés, l'alimenter autrement.
