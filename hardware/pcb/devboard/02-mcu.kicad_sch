@@ -914,7 +914,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "45a27b01-9bd5-48ab-976e-8dc7d46d3f88")
 		(property "Reference" "J11"
@@ -1255,49 +1255,13 @@
 		)
 		(uuid "8efebff1-9b53-48a4-9cdb-17acb3596cdd")
 	)
-	(wire
-		(pts
-			(xy 63.5 85.09) (xy 58.42 85.09)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "7423d748-d8b1-4b21-994b-2386a8295a32")
+	(no_connect
+		(at 63.5 85.09)
+		(uuid "f55ecff0-72cf-48db-9ef8-5c61ed3dd184")
 	)
-	(global_label "IO8"
-		(shape bidirectional)
-		(at 58.42 85.09 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "7e40f297-c8e0-4334-b817-999ba0b16828")
-	)
-	(wire
-		(pts
-			(xy 63.5 92.71) (xy 58.42 92.71)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a8633d77-24a9-4b07-8a73-72c9c8a90102")
-	)
-	(global_label "IO9"
-		(shape bidirectional)
-		(at 58.42 92.71 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "35168c84-0e15-47e9-90e2-5731445160e6")
+	(no_connect
+		(at 63.5 92.71)
+		(uuid "ce017217-7a8b-42b7-9112-dd1076640ed1")
 	)
 	(wire
 		(pts
@@ -1454,7 +1418,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "7ba1206b-d8fd-4cf1-913f-cd51008dafa2")
 		(property "Reference" "J12"
@@ -1597,71 +1561,17 @@
 		)
 		(uuid "ee36084c-440a-48e8-ac4d-435c746047dc")
 	)
-	(wire
-		(pts
-			(xy 139.7 64.77) (xy 134.61999999999998 64.77)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "dc2018db-4b80-4efa-a589-949186afdfbd")
+	(no_connect
+		(at 139.7 64.77)
+		(uuid "d58f31e0-7bcc-4f97-a83f-535a410b12a4")
 	)
-	(global_label "IO1"
-		(shape bidirectional)
-		(at 134.61999999999998 64.77 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "46909576-7688-45fe-a2e4-8edadf831203")
+	(no_connect
+		(at 139.7 67.31)
+		(uuid "80633748-4cb7-4119-aa2e-386cc98b9ba3")
 	)
-	(wire
-		(pts
-			(xy 139.7 67.31) (xy 134.61999999999998 67.31)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "ba79d62d-7ade-4381-bc9b-88ffde5ec6a1")
-	)
-	(global_label "IO2"
-		(shape bidirectional)
-		(at 134.61999999999998 67.31 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "07eba5fb-1532-4495-b4a3-dee987d6654e")
-	)
-	(wire
-		(pts
-			(xy 139.7 69.85) (xy 134.61999999999998 69.85)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "fe597c22-cc01-4339-8f01-4851f6c96497")
-	)
-	(global_label "IO42"
-		(shape bidirectional)
-		(at 134.61999999999998 69.85 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "0700c0d0-32e7-46c9-8fe4-5ddecd603768")
+	(no_connect
+		(at 139.7 69.85)
+		(uuid "7858a7e4-6408-48cd-be0c-13b65c4b86a9")
 	)
 	(wire
 		(pts
@@ -1707,27 +1617,9 @@
 		)
 		(uuid "dc91dfa3-562c-4819-a127-93c264b825e3")
 	)
-	(wire
-		(pts
-			(xy 139.7 77.47) (xy 134.61999999999998 77.47)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "9450a264-3158-4782-9eb8-6d067c4dc432")
-	)
-	(global_label "IO39"
-		(shape bidirectional)
-		(at 134.61999999999998 77.47 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "27d1b283-3777-40c4-aa65-1b3df91fd88b")
+	(no_connect
+		(at 139.7 77.47)
+		(uuid "173df8c1-8885-4c82-be42-dbb44f1b5357")
 	)
 	(wire
 		(pts
@@ -1751,49 +1643,13 @@
 		)
 		(uuid "3f466b1d-71d7-4a69-a557-ddf07f529ecd")
 	)
-	(wire
-		(pts
-			(xy 139.7 95.25) (xy 134.61999999999998 95.25)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c3a523fe-4feb-49be-afba-dabbdae2c840")
+	(no_connect
+		(at 139.7 95.25)
+		(uuid "85b10a31-5097-47f4-ab11-09bfd7f4b1db")
 	)
-	(global_label "IO48"
-		(shape bidirectional)
-		(at 134.61999999999998 95.25 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "755e6711-a380-4d26-a01f-d78e0c4b6e3d")
-	)
-	(wire
-		(pts
-			(xy 139.7 97.78999999999999) (xy 134.61999999999998 97.78999999999999)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "35732b09-836f-4644-9db1-541340dbae7c")
-	)
-	(global_label "IO47"
-		(shape bidirectional)
-		(at 134.61999999999998 97.78999999999999 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "cc6b2510-75d1-428d-af9d-ae7898201ae3")
+	(no_connect
+		(at 139.7 97.78999999999999)
+		(uuid "6bbbe7e1-f99b-441b-99ef-dae75b8ff635")
 	)
 	(wire
 		(pts

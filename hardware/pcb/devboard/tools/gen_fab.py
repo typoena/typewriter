@@ -37,6 +37,7 @@ ROTATION_JLCPCB = {
     "J1": 180,   # JST-PH 2 points
     "J2": 180,
     "J3": 180,
+    "J13": 180,  # JST-PH 4 points (S4B-PH-K), même convention de broche 1 que J1-J3
 }
 
 # Composants dont la position doit rester celle de l'origine d'empreinte plutôt

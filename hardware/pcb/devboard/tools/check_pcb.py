@@ -1106,6 +1106,10 @@ def check_sensitive(bd, rep):
 
     rows, worst = [], PASS
     for a, b in (("USB_DP", "USB_DM"), ("USB_PROG_DP", "USB_PROG_DM")):
+        # Un net sans pad n'existe pas sur cette carte : la paire est absente du
+        # netlist (USB_PROG est propre à la mainboard), pas « non routée ».
+        if not bd.net_pads(a) and not bd.net_pads(b):
+            continue
         sa, sb = bd.net_segments(a), bd.net_segments(b)
         if not sa or not sb:
             rows.append(f"{a}/{b} : pas encore routés")
