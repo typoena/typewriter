@@ -4417,7 +4417,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 768.35 43.18000000000001 0)
 			(effects
 				(font
@@ -4444,7 +4444,7 @@
 			)
 			(hide yes)
 		)
-		(property "LCSC" "C25082"
+		(property "LCSC" "C22808"
 			(at 768.35 35.56 0)
 			(effects
 				(font
@@ -4453,7 +4453,7 @@
 			)
 			(hide yes)
 		)
-		(property "MPN" "0402WGF1500TCE"
+		(property "MPN" "0603WAF1500T5E"
 			(at 768.35 33.02000000000001 0)
 			(effects
 				(font
@@ -5178,7 +5178,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "adb39ecd-3fe0-4083-ae1d-8f993879d958")
 		(property "Reference" "SW1"
@@ -5354,7 +5354,7 @@
 			)
 			(hide yes)
 		)
-		(property "LCSC" "C284108"
+		(property "LCSC" "C19077497"
 			(at 229.87 107.94999999999999 0)
 			(effects
 				(font
@@ -5438,7 +5438,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "85abe097-7c78-4c20-9285-bf6279a209a7")
 		(property "Reference" "J1"
@@ -7190,7 +7190,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 63.5 180.34 0)
 			(effects
 				(font
@@ -7217,7 +7217,7 @@
 			)
 			(hide yes)
 		)
-		(property "LCSC" "C25796"
+		(property "LCSC" "C23206"
 			(at 63.5 172.72000000000003 0)
 			(effects
 				(font
@@ -7226,7 +7226,7 @@
 			)
 			(hide yes)
 		)
-		(property "MPN" "0402WGF5602TCE"
+		(property "MPN" "0603WAF5602T5E"
 			(at 63.5 170.18 0)
 			(effects
 				(font
@@ -7320,7 +7320,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 139.7 180.34 0)
 			(effects
 				(font
@@ -7347,7 +7347,7 @@
 			)
 			(hide yes)
 		)
-		(property "LCSC" "C25918"
+		(property "LCSC" "C23234"
 			(at 139.7 172.72000000000003 0)
 			(effects
 				(font
@@ -7356,7 +7356,7 @@
 			)
 			(hide yes)
 		)
-		(property "MPN" "0402WGF7501TCE"
+		(property "MPN" "0603WAF7501T5E"
 			(at 139.7 170.18 0)
 			(effects
 				(font
@@ -8261,7 +8261,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "1a9b9e7a-a733-4826-b82d-b8ad685673d8")
 		(property "Reference" "J2"
@@ -8521,7 +8521,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "c1fc5ce1-93c0-40d1-8dda-32898788a0e9")
 		(property "Reference" "J3"

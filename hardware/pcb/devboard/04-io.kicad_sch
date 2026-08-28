@@ -2818,7 +2818,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 414.02 43.18000000000001 0)
 			(effects
 				(font
@@ -2845,7 +2845,7 @@
 			)
 			(hide yes)
 		)
-		(property "LCSC" "C25796"
+		(property "LCSC" "C23206"
 			(at 414.02 35.56 0)
 			(effects
 				(font
@@ -2854,7 +2854,7 @@
 			)
 			(hide yes)
 		)
-		(property "MPN" "0402WGF5602TCE"
+		(property "MPN" "0603WAF5602T5E"
 			(at 414.02 33.02000000000001 0)
 			(effects
 				(font
@@ -2948,7 +2948,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 490.22 43.18000000000001 0)
 			(effects
 				(font
@@ -2975,7 +2975,7 @@
 			)
 			(hide yes)
 		)
-		(property "LCSC" "C25796"
+		(property "LCSC" "C23206"
 			(at 490.22 35.56 0)
 			(effects
 				(font
@@ -2984,7 +2984,7 @@
 			)
 			(hide yes)
 		)
-		(property "MPN" "0402WGF5602TCE"
+		(property "MPN" "0603WAF5602T5E"
 			(at 490.22 33.02000000000001 0)
 			(effects
 				(font
@@ -3059,7 +3059,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "30740bb0-9b3c-4a7f-a2e9-19cfc15325d0")
 		(property "Reference" "J13"
