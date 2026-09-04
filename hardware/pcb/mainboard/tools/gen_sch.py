@@ -96,7 +96,11 @@ C("R5", "Device:R", "10k", R04, {"1": "+3V3", "2": "PMIC_STAT"})
 C("R6", "Device:R", "10k", R04, {"1": "+3V3", "2": "PMIC_INT"})
 C("SW1", "Switch:SW_Push", "QON", "Button_Switch_SMD:SW_SPST_B3U-1000P",
   {"1": "PMIC_QON", "2": "GND"})
-C("D1", "Device:D_TVS", "SMF5.0A", SOD123, {"1": "GND", "2": "VBUS"})
+# TVS unidirectionnelle : symbole zener, cathode (broche 1) sur VBUS.
+# Device:D_TVS est bidirectionnel — broches A1/A2, aucune polarité
+# exprimée, donc rien que l'ERC puisse refuser si la cathode part à la
+# masse. Contrôle H3 de check_pcb.py.
+C("D1", "Device:D_Zener", "SMF5.0A", SOD123, {"1": "VBUS", "2": "GND"})
 C("J1", "Connector_Generic:Conn_01x02", "BATTERIE JST-PH", PH2,
   {"1": "VBAT", "2": "GND"})
 

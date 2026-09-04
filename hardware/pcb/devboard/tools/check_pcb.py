@@ -159,7 +159,7 @@ def rect_dist(a, b):
 
 class Pad:
     __slots__ = ("ref", "num", "net", "kind", "shape", "x", "y", "hw", "hh",
-                 "rot", "drill", "layers")
+                 "rot", "drill", "layers", "func")
 
     def is_smd(self):
         return self.kind == "smd"
@@ -215,6 +215,8 @@ class Board:
                 p.drill = num(dr[1]) if dr and len(dr) > 1 else 0.0
                 p.net = nt[1] if nt and len(nt) > 1 else ""
                 p.layers = [str(x) for x in ly[1:]] if ly else []
+                pf = kid(pd, "pinfunction")
+                p.func = pf[1] if pf and len(pf) > 1 else ""
                 self.pads.append(p)
                 self.footprints[ref]["pads"].append(p)
 
@@ -1012,6 +1014,24 @@ def check_cross(bd, rep, outdir):
              and not p.ref.startswith("MH")]
     rep.add("H2", "pastilles sans net", PASS if not nonet else WARN,
             f"{len(nonet)}", [f"{p.ref}.{p.num} ({p.shape})" for p in nonet])
+
+    # Une empreinte de diode est polarisée : la pastille 1 est la cathode, et
+    # c'est elle qui fixe le sens de pose. Un symbole non polarisé —
+    # Device:D_TVS, bidirectionnel, broches A1/A2 — ne dit rien de ce sens :
+    # l'ERC n'a alors rien à signaler, la cathode atterrit du côté où le fil
+    # l'a menée, et une TVS unidirectionnelle posée à l'envers court-circuite
+    # le rail qu'elle protège.
+    diodes = sorted(r for r in bd.footprints if re.fullmatch(r"D\d+", r))
+    unpolar = []
+    for ref in diodes:
+        fns = {re.sub(r"_\d+$", "", p.func)
+               for p in bd.footprints[ref]["pads"] if p.num}
+        if fns != {"K", "A"}:
+            unpolar.append(f"{ref} ({bd.footprints[ref]['value']}) : broches "
+                           f"{'/'.join(sorted(fns)) or '-'} au lieu de K/A")
+    rep.add("H3", "diodes : polarité portée par le symbole",
+            PASS if not unpolar else FAIL,
+            f"{len(diodes) - len(unpolar)}/{len(diodes)}", unpolar)
 
 
 def check_fab(bd, rep):
