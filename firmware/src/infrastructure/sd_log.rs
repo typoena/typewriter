@@ -46,7 +46,7 @@
 
 use std::fs;
 use std::io::Write as _;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -74,8 +74,10 @@ pub const DIAG: &str = "typoena-diag";
 /// 256 KiB of log whatever happens.
 const MAX_BYTES: u64 = 128 * 1024;
 
-/// Bound on the RAM buffer between flushes. Records past it are dropped and
-/// counted, never grown into — the editor's heap is not the log's to spend.
+/// Bound on the RAM buffer between flushes. Once it is reached records are
+/// dropped and counted rather than buffered — the editor's heap is not the log's
+/// to spend. The check is before the write, so the buffer can overshoot by the
+/// one record that crossed the line and no more.
 const BUF_MAX: usize = 16 * 1024;
 
 /// Flush period. Long enough that a healthy session's SD traffic is zero and a
@@ -88,11 +90,6 @@ const FLUSH_MS: u64 = 2000;
 /// the 16 KB SPIRAM-malloc threshold so it lands in PSRAM rather than the tight
 /// internal DRAM — the same trick the palette's path blob uses.
 static BUF: Mutex<String> = Mutex::new(String::new());
-
-/// Set while the flusher is inside its SD write. Records emitted from under
-/// there (or by anything the write itself logs) go to UART only, so the sink can
-/// never feed itself.
-static MUTED: AtomicBool = AtomicBool::new(false);
 
 /// Records the buffer had no room for since the last flush.
 static DROPPED: AtomicU32 = AtomicU32::new(0);
@@ -118,7 +115,7 @@ impl Log for Tee {
         // the sink that must never be affected by anything below.
         UART.log(record);
 
-        if !wants_card(record.level(), record.target()) || MUTED.load(Ordering::Relaxed) {
+        if !wants_card(record.level(), record.target()) {
             return;
         }
         let marker = match record.level() {
@@ -134,7 +131,7 @@ impl Log for Tee {
             DROPPED.fetch_add(1, Ordering::Relaxed);
             return;
         }
-        let _ = writeln!(buf, "{marker} ({ts}) {}: {}", record.target(), record.args());
+        let _ = writeln!(*buf, "{marker} ({ts}) {}: {}", record.target(), record.args());
     }
 
     /// Push whatever is buffered to the card. Does real SD I/O on the calling
@@ -173,6 +170,11 @@ pub fn init() {
 /// Start the flusher, once the card is mounted. Best-effort: if the thread
 /// cannot be spawned the buffer simply stays in RAM, bounded, and UART logging
 /// is unaffected.
+///
+/// This call is the whole card sink's only switch. Not calling it costs no
+/// thread and no SD write, leaves the diagnostics on UART, and caps the buffer
+/// at [`BUF_MAX`] — so a bench session that suspects the sink of costing the
+/// writer latency can rule it out by dropping this one line.
 pub fn start() {
     // Background-task scheduling for the spawn below, mirroring the palette
     // walk's: Core1 keeps it off the UI core, priority 1 matches the main task.
@@ -225,9 +227,11 @@ fn flusher() {
         if dropped > 0 {
             let _ = writeln!(chunk, "W (0) {DIAG}: sd log: {dropped} record(s) dropped, buffer full");
         }
-        MUTED.store(true, Ordering::Relaxed);
+        // Appending is deliberately NOT mutually exclusive with buffering: the
+        // lock is already released, `append` reaches no Rust `log::` call, and
+        // muting here would silently lose the records emitted during the write —
+        // on a slow card, exactly the window the interesting ones fall in.
         let outcome = append(&chunk, &mut size);
-        MUTED.store(false, Ordering::Relaxed);
         if let Err(e) = outcome {
             // Once per session: the card is the thing that just failed, so
             // repeating this every two seconds would only fill the serial log.
