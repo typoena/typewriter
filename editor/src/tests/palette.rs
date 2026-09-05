@@ -434,9 +434,10 @@ fn ctrl_w_eats_trailing_space_then_the_prior_word() {
 
 #[test]
 fn command_filter_fuzzy_matches_the_label() {
+    // A loose subsequence hit is still a hit ("new f-l-e-et-i-ng-n-ot-e"), so
+    // the assertion is on the *ranking*: the word-boundary match wins.
     let e = palette_type(&["/sd/repo/notes.md"], ">line");
     let matches = e.palette_command_matches();
-    assert_eq!(matches.len(), 1);
     assert_eq!(PALETTE_CMDS[matches[0]], PaletteCmd::LineNumbers);
 }
 

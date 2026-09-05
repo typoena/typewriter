@@ -1,5 +1,6 @@
 //! Fleeting-note commands: `:inbox`/`:in` (open/create today's note) and
-//! `:oldest`/`:old` (open the oldest note for cleanup).
+//! `:oldest`/`:old` (open the oldest note for cleanup), plus the `>` palette
+//! entries that spell them out.
 
 use super::*;
 
@@ -119,4 +120,45 @@ fn oldest_ignores_non_md_files_and_lookalike_dirs() {
         e.take_effects(),
         vec![Effect::Load { path: "/sd/repo/_inbox/2026-06-20.md".into(), scope: Scope::Tracked }],
     );
+}
+
+// ---- the `>` palette entries -------------------------------------------
+
+/// Open the command palette and run the entry `filter` selects.
+fn run_palette_cmd(e: &mut Editor, filter: &str) {
+    e.handle(Key::CommandPalette);
+    for c in filter.chars() {
+        e.handle(Key::Char(c));
+    }
+    e.handle(Key::Enter);
+}
+
+#[test]
+fn palette_new_fleeting_note_creates_todays_note() {
+    let mut e = palette_editor(&["/sd/repo/notes.md"]);
+    e.set_today(Some(TODAY));
+    run_palette_cmd(&mut e, "new fleeting");
+    assert_eq!(e.mode(), Mode::Normal, "a one-shot closes the palette");
+    assert_eq!(e.path(), INBOX_TODAY);
+    assert_eq!(e.text(), "# 18/07/2026\n\n");
+}
+
+#[test]
+fn palette_oldest_fleeting_note_opens_the_oldest() {
+    let mut e = palette_editor(&["/sd/repo/_inbox/2026-06-15.md", "/sd/repo/_inbox/2026-07-08.md"]);
+    run_palette_cmd(&mut e, "oldest fleeting");
+    assert_eq!(e.mode(), Mode::Normal);
+    assert_eq!(
+        e.take_effects(),
+        vec![Effect::Load { path: "/sd/repo/_inbox/2026-06-15.md".into(), scope: Scope::Tracked }],
+    );
+}
+
+#[test]
+fn palette_new_fleeting_note_refuses_without_a_clock() {
+    // Same guard as `:inbox`: no trustworthy date, no `1970-01-01.md`.
+    let mut e = palette_editor(&["/sd/repo/notes.md"]);
+    run_palette_cmd(&mut e, "new fleeting");
+    assert_eq!(e.path(), "/sd/repo/notes.md");
+    assert_eq!(e.notice.as_deref(), Some("clock not set - :gl first"));
 }

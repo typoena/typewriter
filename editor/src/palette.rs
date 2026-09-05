@@ -84,6 +84,8 @@ fn date_prefix_len(s: &str) -> usize {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum PaletteCmd {
     NewFile,
+    Inbox,
+    Oldest,
     AddLink,
     FollowLink,
     Format,
@@ -121,7 +123,9 @@ impl PaletteCmd {
     fn kind(self) -> CmdKind {
         match self {
             PaletteCmd::NewFile | PaletteCmd::AddLink => CmdKind::Param,
-            PaletteCmd::FollowLink
+            PaletteCmd::Inbox
+            | PaletteCmd::Oldest
+            | PaletteCmd::FollowLink
             | PaletteCmd::Format
             | PaletteCmd::Push
             | PaletteCmd::Setup
@@ -134,8 +138,10 @@ impl PaletteCmd {
 
 /// The palette command list, in display order (empty `>` query shows them all):
 /// the actions first, the settings after.
-pub(crate) const PALETTE_CMDS: [PaletteCmd; 19] = [
+pub(crate) const PALETTE_CMDS: [PaletteCmd; 21] = [
     PaletteCmd::NewFile,
+    PaletteCmd::Inbox,
+    PaletteCmd::Oldest,
     PaletteCmd::AddLink,
     PaletteCmd::FollowLink,
     PaletteCmd::Format,
@@ -433,6 +439,8 @@ impl Editor {
         let on = |b| if b { "on" } else { "off" };
         match cmd {
             PaletteCmd::NewFile => "new file...".to_string(),
+            PaletteCmd::Inbox => "new fleeting note".to_string(),
+            PaletteCmd::Oldest => "oldest fleeting note".to_string(),
             PaletteCmd::AddLink => "add local link...".to_string(),
             PaletteCmd::FollowLink => "follow link".to_string(),
             PaletteCmd::Format => "format".to_string(),
@@ -487,6 +495,9 @@ impl Editor {
                     // Same follow as `gf` — the palette entry is the
                     // discoverable spelling of the keybind.
                     PaletteCmd::FollowLink => self.follow_link_at_caret(),
+                    // The `:inbox` / `:oldest` pair, spelled out for browsing.
+                    PaletteCmd::Inbox => self.open_inbox_today(),
+                    PaletteCmd::Oldest => self.open_oldest_inbox(),
                     PaletteCmd::Format => {
                         self.format_buffer();
                         self.set_notice("formatted");
@@ -672,6 +683,8 @@ impl Editor {
             // arrive here. Return before the SavePrefs/notice below rather than
             // panicking the firmware on a would-be routing bug.
             PaletteCmd::NewFile
+            | PaletteCmd::Inbox
+            | PaletteCmd::Oldest
             | PaletteCmd::AddLink
             | PaletteCmd::FollowLink
             | PaletteCmd::Format
