@@ -25,7 +25,7 @@ There is no `:e` — bare `Cmd-P` opens files, `> new file` creates them.
 
 | Command | What it does |
 | --- | --- |
-| `:inbox` `:in` | Open today's fleeting note, creating it if new. Lives in the git-tracked `_inbox/` as `YYYY-MM-DD.md` (ISO order, so a listing sorts chronologically), prefilled with a `# DD/MM/YYYY` heading. Switches to the note if it is already open or already on the card. Refuses when the clock is unset — a clear notice beats a note dated `1970-01-01`. |
+| `:inbox` `:in` | Open today's fleeting note, creating it if new. Lives in the git-tracked `_inbox/` as `YYYY-MM-DD.md` (ISO order, so a listing sorts chronologically), prefilled with a `# DD/MM/YYYY` heading. Switches to the note if it is already open or already on the card. With the clock still unset (no battery-backed RTC), the request is held while the radio thread sets it over SNTP alone — no fetch — and the note opens itself once a date lands; the writer keeps typing in the buffer they were in meanwhile, and nothing is ever dated `1970-01-01`. |
 | `:oldest` `:old` | Open the oldest note in `_inbox/` for cleanup. The palette list is path-sorted and the names are ISO dates, so the first `_inbox/` entry is the oldest — no dates parsed. Needs no clock, so it works offline at any time. |
 
 ## Sync
