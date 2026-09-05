@@ -2,13 +2,14 @@
 //! protocols.
 //!
 //! SD/FAT storage ([`storage_sd`], `app::Storage`), the background palette file
-//! index ([`file_index`], `app::FileIndex`), the git push transport plus its
-//! `app::NetService` ([`net`]), and the onboarding wizard's hardware I/O
-//! ([`wizard_io`]). Mirrors the `infrastructure/` tier of the C
-//! `../typing-machine` reference.
+//! index ([`file_index`], `app::FileIndex`), the card-side log mirror
+//! ([`sd_log`]), the git push transport plus its `app::NetService` ([`net`]),
+//! and the onboarding wizard's hardware I/O ([`wizard_io`]). Mirrors the
+//! `infrastructure/` tier of the C `../typing-machine` reference.
 
 pub mod file_index;
 pub mod panic_scribe;
+pub mod sd_log;
 pub mod storage_sd;
 
 // The net transport is feature-gated: it pulls libgit2, which the standalone

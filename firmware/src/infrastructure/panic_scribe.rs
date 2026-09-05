@@ -37,6 +37,9 @@ pub fn arm(rt: *const (), snap: Snap) {
     std::panic::set_hook(Box::new(move |info| {
         // Report first — the flush below is best-effort and may itself fail.
         prev(info);
+        // The warnings that precede a crash are the ones worth keeping, and the
+        // card mirror's flusher will not get another turn before the reboot.
+        crate::infrastructure::sd_log::flush_blocking();
         let Some(&(ui_thread, rt, snap)) = SCRIBE.get() else { return };
         // A panic on any other thread (net, file walk, USB pumps) can't have
         // corrupted the buffer, and reading the editor from here would race
