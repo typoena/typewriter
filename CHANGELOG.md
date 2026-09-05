@@ -9,6 +9,21 @@ _Generated from the commit history with [git-cliff](https://git-cliff.org)._
 ## Firmware
 
 
+### [0.11.0] — 2026-09-05
+#### Added
+- **prefs:** Hide folders from the device with hidden_folders
+- **prefs:** Match hidden folders by prefix, with exceptions
+- **inbox:** Date a fleeting note over SNTP alone, never a pull
+- **logging:** Mirror warn+ logs to the SD card
+
+#### Fixed
+- **sync:** Observe net outcomes while the writer types
+- **sync:** Scope the idle-save hold-off and expire it on silence
+- **prefs:** Filter hidden folders in one place, not two
+- **net:** Let the clock-only sync give the radio back
+- **sd:** Bound libgit2's open packs, close the TLS fd leak, instrument load failures
+- **logging:** Keep card records during a flush, drop the dead mute
+
 ### [0.10.0] — 2026-09-05
 #### Added
 - **hardware:** Add routed mainboard PCB with gerbers
