@@ -23,8 +23,9 @@ use editor::{Editor, Effect, Mode, PullIntent, Scope, PREFS_PATH, REPO_DIR};
 use hal::{Keyboard, Screen};
 
 use crate::ports::{
-    Clock, FileIndex, PushDispatch, PushOutcome, PullDispatch, PullOutcome, SetupDispatch,
-    Storage, NetOutcome, NetService, System, UpdateDispatch, UpdateOutcome,
+    Clock, ClockDispatch, ClockOutcome, FileIndex, PushDispatch, PushOutcome, PullDispatch,
+    PullOutcome, SetupDispatch, Storage, NetOutcome, NetService, System, UpdateDispatch,
+    UpdateOutcome,
 };
 use crate::render::{FocusTimer, Panel};
 
@@ -100,6 +101,22 @@ impl<S: Screen> Runtime<S> {
         system: Box<dyn System>,
         files: Box<dyn FileIndex>,
     ) -> Self {
+        // A cold boot has no date (no battery-backed RTC) and `:inbox` needs one,
+        // so ask for the clock unprompted rather than make the first fleeting note
+        // of the session wait on it. The whole cost here is a channel send: the
+        // composition root builds the runtime *after* the first editor frame, and
+        // the sync runs on the radio thread, so the boot-to-cursor budget never
+        // sees it. Skipped when the clock already holds a date (a `:update` or
+        // `:setup` restart keeps it), so a warm reboot doesn't wake the radio for
+        // nothing. Silent either way: nobody asked, so nothing is painted (see
+        // `settle_clock`).
+        if clock.today().is_none() {
+            match net.sync_clock() {
+                ClockDispatch::Dispatched => log::info!("boot: clock sync dispatched (SNTP only)"),
+                ClockDispatch::ThreadDown => log::warn!("boot: no net thread; clock stays unset"),
+            }
+        }
+
         // Diff against the flag baked into the painted boot frame, NOT the
         // hardware: a keyboard that attached between the editor seed and here
         // would make both readings agree and the stale NO KBD flag would never
@@ -147,8 +164,12 @@ impl<S: Screen> Runtime<S> {
     pub fn tick(&mut self) {
         // Feed today's date each pass, so a session crossing midnight (or one
         // whose clock is only set mid-session by the first sync) sees the current
-        // day. `None` until the clock is trustworthy.
+        // day. `None` until the clock is trustworthy. The first real date also
+        // completes an `:inbox` held waiting for one — a buffer switch nobody
+        // pressed a key for, so remember it for the idle branch below to paint.
+        let held_inbox = self.ed.inbox_pending();
         self.ed.set_today(self.clock.today());
+        let inbox_opened = held_inbox && !self.ed.inbox_pending();
 
         let prev_mode = self.ed.mode();
         let keys = self.drain_keys();
@@ -180,16 +201,17 @@ impl<S: Screen> Runtime<S> {
         // Exactly one outcome per pass: the backend already coalesces a progress
         // burst to its newest line and lets a terminal outcome win, and two
         // settles in one pass would each want their own paint.
-        let settled = match self.net.poll_outcome() {
-            Some(outcome) => {
-                self.handle_net_outcome(outcome);
-                true
-            }
-            None => false,
-        };
+        let settled = self.net.poll_outcome().is_some_and(|o| self.handle_net_outcome(o));
         self.expire_silent_dispatches();
 
         if keys == 0 {
+            // The date that landed this pass opened the held `:inbox` (its Load,
+            // if any, was serviced just above) — paint it instead of idling, or
+            // the note stays invisible until the next keystroke.
+            if inbox_opened {
+                self.panel.repaint_if_changed(&mut self.ed);
+                return;
+            }
             self.idle_step(settled);
             return;
         }
@@ -332,6 +354,17 @@ impl<S: Screen> Runtime<S> {
                 }
                 UpdateDispatch::ThreadDown => self.ed.set_notice("update: git thread down"),
             },
+            // Non-blocking like Push: SNTP's budget is 20 s and the writer must
+            // never wait behind it — they keep typing, and the held `:inbox`
+            // opens itself when the date lands.
+            Effect::SyncClock => match self.net.sync_clock() {
+                ClockDispatch::Dispatched => self.ed.set_notice("inbox: setting the clock..."),
+                ClockDispatch::ThreadDown => {
+                    // Nothing will report back, so a hold here would never end.
+                    self.ed.take_pending_inbox();
+                    self.ed.set_notice("clock: net thread down");
+                }
+            },
             Effect::FocusStart => self.focus.start(self.ed.word_count()),
             Effect::FocusStop => self.focus.stop(),
         }
@@ -366,7 +399,14 @@ impl<S: Screen> Runtime<S> {
         // A finished background file walk (boot or post-pull) feeds the palette;
         // repaint only if the visible frame changed.
         if let Some(files) = self.files.poll_result() {
+            let held_inbox = self.ed.inbox_pending();
             self.ed.set_file_list_joined(files);
+            // The walk can complete an `:inbox` that was held for it. Its Load
+            // has to be serviced here: `service_effects` already ran this pass,
+            // and the repaint below is the one that shows the note.
+            if held_inbox && !self.ed.inbox_pending() {
+                self.service_effects();
+            }
             self.panel.repaint_if_changed(&mut self.ed);
             return;
         }
@@ -466,18 +506,23 @@ impl<S: Screen> Runtime<S> {
     /// paints it in [`idle_step`](Self::idle_step). Painting here would cost a
     /// second whole-panel area partial (~630 ms of drive and another of the
     /// 64-partial ghosting budget) on every keystroke that carries an outcome.
-    fn handle_net_outcome(&mut self, outcome: NetOutcome) {
-        // Every variant but a progress line is terminal, and only a terminal one
-        // frees the idle-save and drops the panel flag: the operation is still
-        // running behind a `Progress`.
-        if matches!(outcome, NetOutcome::Progress(_)) {
+    fn handle_net_outcome(&mut self, outcome: NetOutcome) -> bool {
+        match outcome {
             // Proof of life for the oldest outstanding operation, so a slow
             // fetch keeps its hold-off (see `expire_silent_dispatches`).
-            if let Some(t) = self.net_in_flight.front_mut() {
-                *t = Instant::now();
+            NetOutcome::Progress(_) => {
+                if let Some(t) = self.net_in_flight.front_mut() {
+                    *t = Instant::now();
+                }
             }
-        } else {
-            self.settle_net_dispatch();
+            // The boot clock sync is dispatched without a slot — it must not
+            // raise the panel flag or hold off the idle-save — so settling one
+            // here would pop the slot of a `:gs`/`:gl` that is still running and
+            // hand back the protection that sync depends on.
+            NetOutcome::Clock(_) => {}
+            // Every other variant is terminal: it frees the idle-save and drops
+            // the panel flag once the last outstanding operation lands.
+            _ => self.settle_net_dispatch(),
         }
         let notice = match outcome {
             NetOutcome::Push(o) => push_notice(&o),
@@ -536,11 +581,42 @@ impl<S: Screen> Runtime<S> {
                 UpdateOutcome::UpToDate(ver) => format!("firmware up to date ({ver})"),
                 UpdateOutcome::Failed(reason) => reason,
             },
+            // Silent unless an `:inbox` was actually waiting on the date: the
+            // boot sync runs unasked, so an offline session must not open on a
+            // network error nobody provoked.
+            // A silent clock sync leaves nothing on screen, and saying so is
+            // what keeps it from costing a paint: `show_notice` has no change
+            // detection, so a `settled` of `true` would drive a full-panel
+            // partial every boot for something the writer never asked for.
+            NetOutcome::Clock(o) => match self.settle_clock(o) {
+                Some(reason) => reason,
+                None => return false,
+            },
             // In-flight status line: nothing to settle, just paint it (the tail
             // below). The operation is still running and will report again.
             NetOutcome::Progress(line) => line,
         };
         self.ed.set_notice(notice);
+        true
+    }
+
+    /// Settle a finished clock-only sync into the notice it deserves, or `None`
+    /// for silence. Success says nothing: the date travels through
+    /// [`Clock::today`], which `tick` feeds every pass, and the `:inbox` that was
+    /// held waiting for it opens — and paints — from there. Failure speaks only
+    /// if a request was in fact held; the other caller of this sync is the boot
+    /// kick, which nobody asked for.
+    fn settle_clock(&mut self, outcome: ClockOutcome) -> Option<String> {
+        match outcome {
+            ClockOutcome::Synced => {
+                log::info!("clock synced; today = {:?}", self.clock.today());
+                None
+            }
+            ClockOutcome::Failed(reason) => {
+                log::warn!("clock sync failed: {reason}");
+                self.ed.take_pending_inbox().then_some(reason)
+            }
+        }
     }
 
     /// Settle the resident buffers after a confirmed discard rolled `paths`

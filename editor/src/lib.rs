@@ -190,10 +190,10 @@ pub enum Scope {
 /// A calendar day, fed by the host from its real-time clock
 /// ([`set_today`](Editor::set_today)) — the pure core has no clock of its own.
 /// `:inbox` uses it to name and title today's fleeting note. The host passes
-/// `None` while it has **no trustworthy date**: the editor boot path never runs
-/// SNTP, so the wall clock is at the epoch until a `:gl`/`:gs` sync sets it this
-/// power cycle (there is no battery-backed RTC). `:inbox` then refuses rather than
-/// dating a note `1970-01-01` (see [`open_inbox_today`](Editor::open_inbox_today)).
+/// `None` while it has **no trustworthy date**: there is no battery-backed RTC,
+/// so the wall clock sits at the epoch until SNTP sets it this power cycle.
+/// `:inbox` then holds its request until a date lands rather than date a note
+/// `1970-01-01` (see [`open_inbox_today`](Editor::open_inbox_today)).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Date {
     pub year: i32,
@@ -317,6 +317,13 @@ pub enum Effect {
     /// buffer is dirty ([`any_dirty`](Editor::any_dirty)) — the post-install reboot
     /// would lose unsaved edits — so it is gated exactly like [`Setup`](Effect::Setup).
     Update,
+    /// `:inbox` with no trustworthy date — bring the wall clock up (Wi-Fi +
+    /// SNTP only, no fetch and no git) so the fleeting note can be dated. Rides
+    /// the same radio-owning thread as [`Push`](Effect::Push) and is
+    /// fire-and-forget like it: the writer keeps typing while it resolves, and
+    /// the held `:inbox` completes itself when the date lands (see
+    /// [`open_inbox_today`](Editor::open_inbox_today) for the contract).
+    SyncClock,
     /// Focus mode (Pomodoro): begin — or, after a break, restart — a focus
     /// block. The host starts its silent monotonic block timer and snapshots the
     /// word count for the session stats. Queued by `:focus` (turning the session
@@ -455,6 +462,10 @@ pub struct Editor {
     /// the palette's empty state — the walk takes seconds on a big tree, and
     /// `Cmd-P` during it should say so rather than claim an empty card.
     files_walked: bool,
+    /// Set only while a held `:inbox` is being resolved without a keystroke, so
+    /// [`open_inbox_today`](Self::open_inbox_today) can persist the buffer it is
+    /// about to park. A switch the writer pressed a key for is their choice.
+    resolving_inbox: bool,
     /// Recently-opened files, most-recent-first (an MRU), deduped and bounded to
     /// [`MRU_MAX`]. Every `:e`/palette open pushes to the front
     /// ([`note_recent`](Self::note_recent)); it orders the palette when the query
@@ -532,9 +543,14 @@ pub struct Editor {
     help_page: usize,
     /// Today's date, fed by the host each key batch ([`set_today`](Self::set_today))
     /// from its real-time clock. `None` until the host has a trustworthy date (see
-    /// [`Date`]); `:inbox` needs it to name/date the note and refuses while it is
-    /// `None`.
+    /// [`Date`]); `:inbox` needs it to name/date the note, and holds the request
+    /// in [`pending_inbox`](Self::pending_inbox) while it is `None`.
     today: Option<Date>,
+    /// An `:inbox` that ran before the host had a date: the request waits here
+    /// until one lands ([`set_today`](Self::set_today)), which opens the note.
+    /// One-shot — that resolution clears it, as does a clock sync that comes
+    /// back empty-handed ([`take_pending_inbox`](Self::take_pending_inbox)).
+    pending_inbox: bool,
     /// The running firmware version, fed by the host at boot via
     /// [`set_version`](Self::set_version) — the pure core has no build metadata.
     /// Shown by `:about`; empty until fed (host tests leave it so).
@@ -595,6 +611,7 @@ impl Editor {
             file_blob: String::new(),
             file_spans: Vec::new(),
             files_walked: false,
+            resolving_inbox: false,
             recent: Vec::new(),
             recent_cycle: None,
             palette_query: String::new(),
@@ -614,6 +631,7 @@ impl Editor {
             unsynced_scroll: 0,
             help_page: 0,
             today: None,
+            pending_inbox: false,
             version: String::new(),
         }
     }
@@ -767,11 +785,44 @@ impl Editor {
 
     /// Feed the editor today's date from the host clock — the pure core has none.
     /// Passed each key batch so a session crossing midnight (or one whose clock is
-    /// only set mid-session by the first sync) always sees the current day. `None`
-    /// means the host has no trustworthy date yet (unset clock); `:inbox` refuses
-    /// in that case. See [`Date`].
+    /// only set mid-session by a sync) always sees the current day. `None` means
+    /// the host has no trustworthy date yet (unset clock). See [`Date`].
+    ///
+    /// The first date to arrive completes an `:inbox` that ran without one, so
+    /// the note opens by itself — the effects that opening queues drain with the
+    /// batch, exactly as if the command had just been typed.
+    ///
+    /// Only from [`Mode::Normal`], though. Opening a buffer resets the transient
+    /// input state, and this arrival is not something the writer pressed a key
+    /// for: landing it mid-Insert would drop them into Normal so their prose
+    /// became motions, and landing it under a prompt or a card would answer that
+    /// prompt into a buffer that is no longer there. Normal is the seam where
+    /// nothing is in flight — and it is where `:inbox` leaves them, so the hold
+    /// normally resolves on the very next pass.
     pub fn set_today(&mut self, date: Option<Date>) {
         self.today = date;
+        if date.is_some() && self.pending_inbox && self.files_walked && self.mode == Mode::Normal {
+            self.pending_inbox = false;
+            self.resolving_inbox = true;
+            self.open_inbox_today();
+            self.resolving_inbox = false;
+        }
+    }
+
+    /// Whether an `:inbox` is held waiting on the clock (see
+    /// [`open_inbox_today`](Self::open_inbox_today)). The host watches this
+    /// across [`set_today`](Self::set_today): a hold that clears there opened a
+    /// note with no keystroke behind it, so nothing else would paint it.
+    pub fn inbox_pending(&self) -> bool {
+        self.pending_inbox
+    }
+
+    /// Drop a held `:inbox` because the host's clock sync came back without a
+    /// date, and report whether one was actually waiting. The host only shows
+    /// its reason when this is `true`: it also syncs the clock unasked at boot,
+    /// and an offline session must not open on an error nobody provoked.
+    pub fn take_pending_inbox(&mut self) -> bool {
+        std::mem::take(&mut self.pending_inbox)
     }
 
     /// Post a transient side-panel notice ("snackbar") — e.g. the result of a

@@ -1,11 +1,13 @@
 use std::rc::Rc;
 
+use esp_idf_svc::hal::cpu::Core;
 use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::gpio::{AnyIOPin, PinDriver, Pull};
 use esp_idf_svc::hal::peripherals::Peripherals;
 use esp_idf_svc::hal::spi::config::{Config, DriverConfig};
 use esp_idf_svc::hal::spi::{Dma, SpiBusDriver, SpiDriver};
 use esp_idf_svc::hal::units::FromValueType;
+use esp_idf_svc::hal::task::thread::ThreadSpawnConfiguration;
 
 use app::{FileIndex, Panel, Runtime};
 use display::Frame;
@@ -136,19 +138,40 @@ fn main() -> anyhow::Result<()> {
     }
     let (boot_path, boot_scope, saved) = boot_note(&mut epd, &storage, &prefs);
 
-    // The net thread owns the Wi-Fi stack, brought up lazily on the first
-    // request, so the radio stays off until you sync or update.
+    // The net thread owns the Wi-Fi stack, brought up lazily on its first
+    // request. On a cold clock that request is the runtime's own boot kick a
+    // moment from now (`Runtime::new`), which dates `:inbox` without a fetch.
     let (net_tx, net_rx) = {
         use firmware::infrastructure::net::{run_net_service, NetOutcome, NetRequest, GIT_STACK};
 
         let (req_tx, req_rx) = std::sync::mpsc::channel::<NetRequest>();
         let (res_tx, res_rx) = std::sync::mpsc::channel::<NetOutcome>();
-        std::thread::Builder::new()
+        // Core1 at priority 1, like the file walk (see `spawn_file_walk`): an
+        // esp-idf `std::thread` defaults to priority 5 against the UI task's 1,
+        // and the boot clock kick makes this thread — plus the Wi-Fi and lwIP
+        // tasks it starts — run during the opening seconds of a session, when
+        // the writer is already typing.
+        let cfg = ThreadSpawnConfiguration {
+            name: None,
+            stack_size: GIT_STACK,
+            priority: 1,
+            inherit: false,
+            pin_to_core: Some(Core::Core1),
+            ..Default::default()
+        };
+        if let Err(e) = cfg.set() {
+            log::warn!("net thread cfg (Core1, prio 1) FAILED ({e}); spawning at pthread default");
+        }
+        let spawned = std::thread::Builder::new()
             .name("net".into())
             .stack_size(GIT_STACK)
-            .spawn(move || run_net_service(modem, sys_loop, nvs, req_rx, res_tx))?;
+            .spawn(move || run_net_service(modem, sys_loop, nvs, req_rx, res_tx));
+        if let Err(e) = ThreadSpawnConfiguration::default().set() {
+            log::warn!("restoring default thread cfg FAILED ({e})");
+        }
+        spawned?;
         log::info!(
-            "net thread up ({} KB stack); Wi-Fi comes up on the first :gs/:gl/:update",
+            "net thread up ({} KB stack); Wi-Fi comes up on its first request",
             GIT_STACK / 1024
         );
         (req_tx, res_rx)

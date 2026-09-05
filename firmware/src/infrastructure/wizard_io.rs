@@ -32,7 +32,6 @@ use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::modem::{Modem, WifiModem};
 use esp_idf_svc::http::client::{Configuration as HttpConfig, EspHttpConnection};
 use esp_idf_svc::nvs::EspDefaultNvsPartition;
-use esp_idf_svc::sntp::{EspSntp, SyncStatus};
 use esp_idf_svc::wifi::{BlockingWifi, ClientConfiguration, Configuration, EspWifi};
 
 use display::{Frame, HEIGHT};
@@ -41,11 +40,8 @@ use wizard::{Effect, Event, RepoChoice, Wizard};
 
 use crate::drivers::keyboard_usb as usb_kbd;
 use crate::drivers::screen_epd::Epd;
-use crate::drivers::wifi_esp::connect_wifi;
+use crate::drivers::wifi_esp::{connect_wifi, sync_clock};
 use crate::infrastructure::storage_sd::Storage;
-
-/// SNTP first-sync budget (mirrors git_sync's): required before any TLS.
-const SNTP_TIMEOUT: Duration = Duration::from_secs(20);
 
 /// Progress from the background clone thread (see `Effect::Clone`), drained in
 /// the main loop's idle branch and turned into wizard `Event`s.
@@ -701,18 +697,4 @@ fn read_body(conn: &mut EspHttpConnection, max: usize) -> Result<String> {
         }
     }
     Ok(String::from_utf8_lossy(&out).into_owned())
-}
-
-/// SNTP once before the first TLS (mirrors git_sync's `sync_clock`).
-fn sync_clock() -> Result<()> {
-    let sntp = EspSntp::new_default()?;
-    log::info!("wizard: SNTP started, waiting for first sync…");
-    let start = Instant::now();
-    while sntp.get_sync_status() != SyncStatus::Completed {
-        if start.elapsed() >= SNTP_TIMEOUT {
-            bail!("SNTP did not sync within {SNTP_TIMEOUT:?}");
-        }
-        FreeRtos::delay_ms(100);
-    }
-    Ok(())
 }

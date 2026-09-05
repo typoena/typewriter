@@ -18,8 +18,6 @@
 //! Credentials come from build-time env (build.rs → env!): set TW_WIFI_SSID /
 //! TW_WIFI_PASS in firmware/.env and run `just flash-wifi`.
 
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
-
 use anyhow::{bail, Context, Result};
 use embedded_svc::http::Method;
 use esp_idf_svc::eventloop::EspSystemEventLoop;
@@ -27,9 +25,8 @@ use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::peripherals::Peripherals;
 use esp_idf_svc::http::client::{Configuration as HttpConfig, EspHttpConnection};
 use esp_idf_svc::nvs::EspDefaultNvsPartition;
-use esp_idf_svc::sntp::{EspSntp, SyncStatus};
 use esp_idf_svc::wifi::{BlockingWifi, EspWifi};
-use firmware::drivers::wifi_esp::connect_wifi;
+use firmware::drivers::wifi_esp::{connect_wifi, sync_clock};
 
 /// Injected by build.rs so serial output identifies the exact build.
 const BUILD_TAG: &str = concat!("build ", env!("BUILD_TIME"), " @", env!("BUILD_GIT"));
@@ -43,10 +40,6 @@ const WIFI_PASS: &str = env!("TW_WIFI_PASS");
 /// User-Agent, and is served over a normal public CA chain — a faithful
 /// stand-in for the api.github.com host Spike 7 will push through.
 const TEST_URL: &str = "https://api.github.com/";
-
-/// SNTP first-sync budget. Home networks resolve pool.ntp.org and answer well
-/// within this; failing past it is a real problem worth surfacing.
-const SNTP_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(20);
 
 fn main() -> Result<()> {
     // Required once before any esp-idf-svc call; some runtime patches only link
@@ -89,33 +82,6 @@ fn run() -> Result<()> {
     sync_clock()?;
 
     https_get(TEST_URL)?;
-    Ok(())
-}
-
-/// Kick off SNTP and block until the first sync (or time out). Required before
-/// TLS: cert validity is checked against wall time.
-fn sync_clock() -> Result<()> {
-    let sntp = EspSntp::new_default()?;
-    log::info!("SNTP started, waiting for first sync…");
-
-    let start = Instant::now();
-    while sntp.get_sync_status() != SyncStatus::Completed {
-        if start.elapsed() >= SNTP_TIMEOUT {
-            bail!("SNTP did not sync within {SNTP_TIMEOUT:?} — TLS cert validity would fail");
-        }
-        FreeRtos::delay_ms(100);
-    }
-
-    let unix = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    // A synced clock lands well past this (2023-11-14); anything below means the
-    // RTC never actually advanced and TLS would reject on validity.
-    if unix < 1_700_000_000 {
-        bail!("clock still at {unix} after SNTP sync — refusing TLS with a bad wall clock");
-    }
-    log::info!("clock synced — unix {unix}");
     Ok(())
 }
 

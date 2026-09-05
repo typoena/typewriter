@@ -542,14 +542,57 @@ impl Editor {
     /// to it rather than replacing it with an empty buffer — reopening it later in
     /// the day to add more is the common case.
     ///
-    /// Refuses when the host has no trustworthy date ([`today`](Self::today) is
-    /// `None` — the clock is unset until the first `:gl`/`:gs` sync of this power
-    /// cycle): a clear notice beats a note dated `1970-01-01`.
+    /// **Contract with no trustworthy date.** [`today`](Self::today) is `None`
+    /// until something sets the wall clock this power cycle — there is no
+    /// battery-backed RTC, so it boots at the epoch. The request is then *held*,
+    /// never refused and never dated `1970-01-01`:
+    ///
+    /// * [`Effect::SyncClock`] asks the host for a clock-only sync (Wi-Fi +
+    ///   SNTP, no fetch, no git), and the note opens by itself the moment a date
+    ///   lands ([`set_today`](Self::set_today)). Usually that is immediate: the
+    ///   host kicks the same sync unasked at boot.
+    /// * Until it lands the writer keeps the buffer they were in, so every
+    ///   keystroke still goes to a real named file. The alternative — a
+    ///   placeholder note — is worse in both directions: an undated name has to
+    ///   be renamed under the writer (and merged, when today's note turns out to
+    ///   exist), and a nameless scratch has nowhere to save at all.
+    /// * The cost of that choice is a buffer switch arriving seconds after the
+    ///   command. It waits for [`Mode::Normal`] so it can never land under a
+    ///   prompt or mid-Insert (see [`set_today`](Self::set_today)), and the
+    ///   buffer it leaves is parked with its edits — but it is still a switch the
+    ///   writer did not press a key for, which is why the hold is announced.
+    /// * A sync that comes back empty-handed drops the hold and reports why
+    ///   ([`take_pending_inbox`](Self::take_pending_inbox)); `:in` asks again.
     ///
     /// [`open_oldest_inbox`]: Self::open_oldest_inbox
     pub(crate) fn open_inbox_today(&mut self) {
+        // The card's contents are unknown until the boot walk reports, and the
+        // "already on the card" guard below reads exactly that list. Opening
+        // against an empty one takes the fresh-note branch and seeds a dated
+        // stub over a note that exists — and the boot clock sync now lands
+        // inside the walk window, so this is the ordinary case, not a race.
+        if !self.files_walked {
+            self.pending_inbox = true;
+            if self.today.is_none() {
+                self.requests.push(Effect::SyncClock);
+            }
+            return;
+        }
+        // A hold resolving is a switch nobody pressed a key for, and parking
+        // carries the outgoing buffer's dirty text into RAM only: idle-save,
+        // `:w`, `:gs` and the panic scribe all write the ACTIVE buffer, so a
+        // parked one waits for eviction. Persist it here rather than let an
+        // unprompted switch put prose out of every safety net's reach.
+        if self.resolving_inbox && self.dirty && !self.path.is_empty() {
+            self.requests.push(Effect::Save {
+                path: self.path.clone(),
+                scope: self.scope,
+                contents: self.text.clone(),
+            });
+        }
         let Some(date) = self.today else {
-            self.set_notice("clock not set - :gl first");
+            self.pending_inbox = true;
+            self.requests.push(Effect::SyncClock);
             return;
         };
         let path = format!("{REPO_DIR}/_inbox/{}.md", date.iso());
@@ -806,7 +849,16 @@ impl Editor {
         spans.dedup_by(|&mut (a, b), &mut (c, d)| span_str(&blob, a, b) == span_str(&blob, c, d));
         self.file_blob = blob;
         self.file_spans = spans;
+        let first_walk = !self.files_walked;
         self.files_walked = true;
+        // A walk that arrives after `:inbox` was held completes it, on the same
+        // terms as a date arriving (see [`set_today`](Self::set_today)).
+        if first_walk && self.pending_inbox && self.today.is_some() && self.mode == Mode::Normal {
+            self.pending_inbox = false;
+            self.resolving_inbox = true;
+            self.open_inbox_today();
+            self.resolving_inbox = false;
+        }
     }
 
     /// [`set_file_list_joined`](Self::set_file_list_joined) from a `Vec` —

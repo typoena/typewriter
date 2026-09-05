@@ -73,3 +73,6 @@ hardware/pcb/**/*.net
 # Fabrication outputs: kicad-cli regenerates them from the .kicad_pcb, and the
 # board file is the record of what was sent.
 hardware/pcb/**/fab/
+
+# Agent worktrees — never part of the repo.
+.claude/worktrees/

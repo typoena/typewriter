@@ -11,8 +11,9 @@ use editor::{Editor, Effect, Scope};
 
 use super::*;
 use crate::ports::{
-    Clock, FileIndex, PushDispatch, PushOutcome, PullDispatch, PullOutcome, SetupDispatch,
-    Storage, NetOutcome, NetService, System, UpdateDispatch, UpdateOutcome,
+    Clock, ClockDispatch, ClockOutcome, FileIndex, PushDispatch, PushOutcome, PullDispatch,
+    PullOutcome, SetupDispatch, Storage, NetOutcome, NetService, System, UpdateDispatch,
+    UpdateOutcome,
 };
 use crate::render::Panel;
 
@@ -132,6 +133,7 @@ struct SyncLog {
     /// The intent of each dispatched pull, in order.
     pull_intents: Vec<PullIntent>,
     updates: u32,
+    clocks: u32,
     outcome: Option<NetOutcome>,
 }
 
@@ -142,6 +144,7 @@ struct RecSync {
     push_ret: Rc<dyn Fn() -> PushDispatch>,
     pull_ret: Rc<dyn Fn() -> PullDispatch>,
     update_ret: Rc<dyn Fn() -> UpdateDispatch>,
+    clock_ret: Rc<dyn Fn() -> ClockDispatch>,
 }
 impl RecSync {
     fn new() -> Self {
@@ -150,6 +153,7 @@ impl RecSync {
             push_ret: Rc::new(|| PushDispatch::Dispatched),
             pull_ret: Rc::new(|| PullDispatch::Dispatched),
             update_ret: Rc::new(|| UpdateDispatch::Dispatched),
+            clock_ret: Rc::new(|| ClockDispatch::Dispatched),
         }
     }
 }
@@ -169,6 +173,10 @@ impl NetService for RecSync {
         self.log.borrow_mut().updates += 1;
         (self.update_ret)()
     }
+    fn sync_clock(&self) -> ClockDispatch {
+        self.log.borrow_mut().clocks += 1;
+        (self.clock_ret)()
+    }
     fn poll_outcome(&self) -> Option<NetOutcome> {
         self.log.borrow_mut().outcome.take()
     }
@@ -178,6 +186,21 @@ struct FixedClock;
 impl Clock for FixedClock {
     fn today(&self) -> Option<editor::Date> {
         None
+    }
+    fn idle_yield(&self) {}
+}
+
+/// A wall clock the test can set mid-session, the way SNTP does on the device.
+#[derive(Clone, Default)]
+struct SettableClock(Rc<std::cell::Cell<Option<editor::Date>>>);
+impl SettableClock {
+    fn set(&self, date: editor::Date) {
+        self.0.set(Some(date));
+    }
+}
+impl Clock for SettableClock {
+    fn today(&self) -> Option<editor::Date> {
+        self.0.get()
     }
     fn idle_yield(&self) {}
 }
@@ -836,6 +859,292 @@ fn up_to_date_pull_leaves_the_tree_untouched() {
 
     assert!(storage.0.borrow().loads.is_empty(), "no reload when the tree didn't move");
     assert_eq!(*files.0.borrow(), 0, "no re-walk when the tree didn't move");
+}
+
+// ---- the clock-only sync behind `:inbox` --------------------------------
+
+/// A fixed "today" for the held-`:inbox` tests.
+const TODAY: editor::Date = editor::Date { year: 2026, month: 7, day: 18 };
+const INBOX_TODAY: &str = "/sd/repo/_inbox/2026-07-18.md";
+
+/// Build a runtime on a clock the test drives, so a date can land mid-session
+/// the way SNTP lands one on the device.
+fn runtime_on_clock(
+    ed: Editor,
+    sync: RecSync,
+    keyboard: ScriptedKeyboard,
+    clock: SettableClock,
+) -> Runtime<MockScreen> {
+    let mut ed = ed;
+    let panel = Panel::new(MockScreen, &mut ed).expect("first paint");
+    Runtime::new(
+        ed,
+        panel,
+        Box::new(keyboard),
+        Box::new(RecStorage::default()),
+        Box::new(sync),
+        Box::new(clock),
+        Box::new(PanicSystem),
+        Box::new(RecFiles::default()),
+    )
+}
+
+#[test]
+fn boot_asks_for_the_clock_when_it_is_unset() {
+    // No battery-backed RTC: a cold boot has no date, so the radio thread is
+    // asked for one unprompted — `:inbox` must not be the thing that discovers it.
+    let sync = RecSync::new();
+    let _rt = runtime(Editor::new(), RecStorage::default(), sync.clone(), RecFiles::default());
+    assert_eq!(sync.log.borrow().clocks, 1);
+    assert_eq!(sync.log.borrow().pulls, 0, "a date must cost no fetch");
+    assert_eq!(sync.log.borrow().pushes, 0);
+}
+
+#[test]
+fn boot_leaves_an_already_set_clock_alone() {
+    // A `:update` / `:setup` restart keeps the wall clock, so waking the radio
+    // again would be drain for a date we already hold.
+    let sync = RecSync::new();
+    let clock = SettableClock::default();
+    clock.set(TODAY);
+    let _rt = runtime_on_clock(Editor::new(), sync.clone(), ScriptedKeyboard::default(), clock);
+    assert_eq!(sync.log.borrow().clocks, 0);
+}
+
+#[test]
+fn sync_clock_effect_dispatches_to_the_net_thread() {
+    let sync = RecSync::new();
+    let mut rt = runtime(Editor::new(), RecStorage::default(), sync.clone(), RecFiles::default());
+    let boot = sync.log.borrow().clocks;
+    rt.service_one(Effect::SyncClock);
+    assert_eq!(sync.log.borrow().clocks, boot + 1);
+}
+
+#[test]
+fn a_held_inbox_opens_when_the_date_lands_on_an_idle_pass() {
+    // The whole fast path: `:inbox` on a cold clock holds, the SNTP-only sync
+    // sets the wall clock, and the next pass opens the dated note with no
+    // keystroke behind it — so this pass has to paint it itself.
+    let clock = SettableClock::default();
+    let keyboard = ScriptedKeyboard::default();
+    let sync = RecSync::new();
+    let mut ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    // The card's contents have to be known before `:inbox` may decide the note
+    // is new: an unwalked list would send it down the fresh-note branch.
+    ed.set_file_list(vec!["/sd/repo/notes.md".into()]);
+    let mut rt = runtime_on_clock(ed, sync.clone(), keyboard.clone(), clock.clone());
+
+    keyboard.type_line(":inbox");
+    rt.tick();
+    assert!(rt.ed.inbox_pending(), "no date yet — the request waits");
+    assert_eq!(rt.ed.path(), "/sd/repo/notes.md");
+    assert_eq!(sync.log.borrow().clocks, 2, "the boot kick, then `:inbox` asking again");
+
+    clock.set(TODAY);
+    rt.tick();
+
+    assert!(!rt.ed.inbox_pending());
+    assert_eq!(rt.ed.path(), INBOX_TODAY);
+    assert_eq!(rt.ed.text(), "# 18/07/2026\n\n");
+    assert_eq!(sync.log.borrow().pulls, 0, "and still no fetch anywhere in it");
+}
+
+#[test]
+fn a_clock_outcome_does_not_settle_a_running_sync() {
+    // The boot clock sync is dispatched without a dispatch slot, so settling one
+    // when it lands would pop the slot of a `:gs`/`:gl` that is still running —
+    // dropping the panel flag and handing back the idle-save hold-off that the
+    // pull's hash belt depends on.
+    let storage = RecStorage::default();
+    let sync = RecSync::new();
+    let mut ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    ed.handle(hal::Key::Char('i'));
+    ed.handle(hal::Key::Char('x'));
+    let mut rt = runtime(ed, storage.clone(), sync.clone(), RecFiles::default());
+    rt.service_one(Effect::Push);
+    assert!(rt.ed.syncing());
+
+    sync.log.borrow_mut().outcome = Some(NetOutcome::Clock(ClockOutcome::Synced));
+    rt.tick();
+    assert!(rt.ed.syncing(), "the push is still running");
+    assert!(rt.sync_holds_off_save(), "and still protected");
+
+    rt.last_activity = Instant::now() - Duration::from_millis(IDLE_SAVE_MS as u64 + 1);
+    rt.tick();
+    assert!(storage.0.borrow().saves.is_empty(), "so no write lands behind it");
+}
+
+#[test]
+fn a_silent_clock_sync_costs_no_repaint() {
+    // Nothing about a successful boot clock sync is visible, and `show_notice`
+    // has no change detection — reporting it as settled would spend a full-panel
+    // partial (~630ms of drive, one of 64 ghosting slots) on every boot.
+    let clock = SettableClock::default();
+    let screen = CountingScreen::default();
+    let sync = RecSync::new();
+    let mut ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    ed.set_file_list(Vec::new());
+    let panel = Panel::new(screen.clone(), &mut ed).expect("first paint");
+    let mut rt = Runtime::new(
+        ed,
+        panel,
+        Box::new(ScriptedKeyboard::default()),
+        Box::new(RecStorage::default()),
+        Box::new(sync.clone()),
+        Box::new(clock.clone()),
+        Box::new(PanicSystem),
+        Box::new(RecFiles::default()),
+    );
+    rt.tick();
+    let before = *screen.0.borrow();
+
+    sync.log.borrow_mut().outcome = Some(NetOutcome::Clock(ClockOutcome::Synced));
+    rt.tick();
+    assert_eq!(*screen.0.borrow(), before, "a silent outcome paints nothing");
+}
+
+#[test]
+fn a_held_inbox_waits_for_the_card_walk_before_deciding_the_note_is_new() {
+    // The boot clock lands inside the walk window, so the "already on the card"
+    // guard would be answered from an empty list: `:inbox` would seed a dated
+    // stub over the note the writer filled this morning.
+    let clock = SettableClock::default();
+    let keyboard = ScriptedKeyboard::default();
+    let storage = RecStorage::default().with_body(INBOX_TODAY, "this morning's prose");
+    let mut ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    let panel = Panel::new(MockScreen, &mut ed).expect("first paint");
+    let mut rt = Runtime::new(
+        ed,
+        panel,
+        Box::new(keyboard.clone()),
+        Box::new(storage.clone()),
+        Box::new(RecSync::new()),
+        Box::new(clock.clone()),
+        Box::new(PanicSystem),
+        Box::new(WalkFiles(RefCell::new(Some(INBOX_TODAY.to_string())))),
+    );
+
+    keyboard.type_line(":inbox");
+    rt.tick();
+    clock.set(TODAY);
+    rt.tick();
+    assert_eq!(rt.ed.path(), INBOX_TODAY, "the walk landed, so the note resolves");
+    assert_eq!(
+        storage.0.borrow().loads,
+        vec![INBOX_TODAY.to_string()],
+        "loaded from the card, not seeded over"
+    );
+    assert_eq!(rt.ed.text(), "this morning's prose", "the writer's text, not a stub");
+}
+
+#[test]
+fn the_note_a_held_inbox_opens_paints_itself() {
+    // No keystroke is behind this open, so nothing else in the pass would paint
+    // it: the note would sit invisible behind the buffer the writer kept until
+    // they happened to press a key.
+    let clock = SettableClock::default();
+    let keyboard = ScriptedKeyboard::default();
+    let screen = CountingScreen::default();
+    let mut ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    ed.set_file_list(vec!["/sd/repo/notes.md".into()]);
+    let panel = Panel::new(screen.clone(), &mut ed).expect("first paint");
+    let mut rt = Runtime::new(
+        ed,
+        panel,
+        Box::new(keyboard.clone()),
+        Box::new(RecStorage::default()),
+        Box::new(RecSync::new()),
+        Box::new(clock.clone()),
+        Box::new(PanicSystem),
+        Box::new(RecFiles::default()),
+    );
+
+    keyboard.type_line(":inbox");
+    rt.tick();
+    let before = *screen.0.borrow();
+
+    clock.set(TODAY);
+    rt.tick();
+
+    assert_eq!(rt.ed.path(), INBOX_TODAY);
+    assert_eq!(*screen.0.borrow(), before + 1, "the note has to reach the panel unprompted");
+}
+
+#[test]
+fn a_failed_clock_outcome_releases_the_hold_over_the_net_channel() {
+    // The same failure as `settle_clock`'s, taken through the arm that actually
+    // receives it — a hold left standing here waits on a date nothing will send.
+    let clock = SettableClock::default();
+    let keyboard = ScriptedKeyboard::default();
+    let ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    let mut rt = runtime_on_clock(ed, RecSync::new(), keyboard.clone(), clock);
+
+    keyboard.type_line(":inbox");
+    rt.tick();
+    assert!(rt.ed.inbox_pending());
+
+    rt.handle_net_outcome(NetOutcome::Clock(ClockOutcome::Failed("clock: no wifi".into())));
+
+    assert!(!rt.ed.inbox_pending());
+    assert_eq!(rt.ed.path(), "/sd/repo/notes.md", "and the writer keeps their buffer");
+}
+
+#[test]
+fn a_failed_clock_sync_speaks_only_to_a_held_inbox() {
+    let clock = SettableClock::default();
+    let keyboard = ScriptedKeyboard::default();
+    let mut rt =
+        runtime_on_clock(Editor::new(), RecSync::new(), keyboard.clone(), clock);
+
+    // Nobody asked: the boot kick's failure must not open an offline session on
+    // a network error.
+    assert!(rt.settle_clock(ClockOutcome::Failed("clock: no wifi".into())).is_none());
+
+    keyboard.type_line(":inbox");
+    rt.tick();
+    assert!(rt.ed.inbox_pending());
+    assert_eq!(
+        rt.settle_clock(ClockOutcome::Failed("clock: no wifi".into())).as_deref(),
+        Some("clock: no wifi"),
+    );
+    assert!(!rt.ed.inbox_pending(), "the hold is dropped, not left to a stale date");
+}
+
+#[test]
+fn a_dead_net_thread_releases_the_held_inbox() {
+    // Nothing is ever going to report back, so a hold would sit there for the
+    // rest of the session waiting on a date that cannot arrive.
+    let sync = RecSync { clock_ret: Rc::new(|| ClockDispatch::ThreadDown), ..RecSync::new() };
+    let keyboard = ScriptedKeyboard::default();
+    let mut rt =
+        runtime_on_clock(Editor::new(), sync, keyboard.clone(), SettableClock::default());
+
+    keyboard.type_line(":inbox");
+    rt.tick();
+
+    assert!(!rt.ed.inbox_pending(), "a hold nothing can resolve must not be kept");
+}
+
+#[test]
+fn a_successful_clock_sync_announces_nothing_of_its_own() {
+    // The date is the whole message, and it travels through `Clock::today`.
+    let mut rt = runtime(Editor::new(), RecStorage::default(), RecSync::new(), RecFiles::default());
+    assert!(rt.settle_clock(ClockOutcome::Synced).is_none());
+}
+
+#[test]
+fn a_clock_outcome_settles_no_buffers_and_no_walk() {
+    // Unlike a pull, an SNTP sync never touches the working copy.
+    let storage = RecStorage::default().with_body("/sd/repo/notes.md", "on-card");
+    let files = RecFiles::default();
+    let ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, "in-buffer".into());
+    let mut rt = runtime(ed, storage.clone(), RecSync::new(), files.clone());
+
+    rt.handle_net_outcome(NetOutcome::Clock(ClockOutcome::Synced));
+
+    assert_eq!(rt.ed.text(), "in-buffer");
+    assert!(storage.0.borrow().loads.is_empty());
+    assert_eq!(*files.0.borrow(), 0);
 }
 
 #[test]
