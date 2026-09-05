@@ -51,7 +51,7 @@ pub(crate) use snippets::*;
 
 pub use buffers::{LOCAL_DIR, REPO_DIR};
 pub use markdown::publish_retarget_links;
-pub use prefs::{Prefs, PREFS_PATH};
+pub use prefs::{is_hidden_folder, Prefs, PREFS_PATH};
 pub use render::{CH, CW};
 pub use snippets::{Snippet, Snippets, SNIPPETS_PATH};
 

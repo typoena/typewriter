@@ -103,6 +103,29 @@ pub struct Prefs {
     /// that clones the repo. The `>` palette doesn't cycle it (free-form, not a
     /// preset) — hand-edit it here.
     pub timezone: String,
+    /// Folders the device hides from view, as a comma-separated list
+    /// (`hidden_folders = "_archive,attachments"`). A **visibility filter, not a
+    /// sync rule**: hidden folders still pull, push and sit intact on the card —
+    /// they only stop appearing in the file palette, the link picker, the
+    /// `> new file` folder completions and `:oldest`. Excluding them from git was
+    /// rejected: the working copy would diverge from the remote and the next push
+    /// could delete them upstream.
+    ///
+    /// An entry matches a run of **consecutive whole path segments** anywhere
+    /// under either scope root, ASCII-case-insensitively (FAT names on the card
+    /// are): `_archive` hides `repo/_archive/x.md` *and* `repo/notes/_archive/x.md`,
+    /// `notes/_archive` only the latter, while `_archives/` and a file named
+    /// `_archive.md` are untouched. Hiding is not sealing — a `gf` link into a
+    /// hidden folder opens it, `> new file` on an existing hidden name switches to
+    /// it rather than clobbering it, Ctrl+Tab still reaches one you have opened,
+    /// and a palette query that names the folder lists its files (typing
+    /// `_archive` is an explicit request, not browsing).
+    ///
+    /// Honoured by the core, so an edit applies to the next keystroke; the
+    /// firmware's card walk also prunes these folders before descending them, so
+    /// a big archive costs no walk time. The `>` palette doesn't cycle it
+    /// (free-form, not a preset) — hand-edit it here.
+    pub hidden_folders: String,
 }
 
 impl Default for Prefs {
@@ -120,6 +143,7 @@ impl Default for Prefs {
             companion: true,
             face: "random".into(),
             timezone: String::new(),
+            hidden_folders: String::new(),
         }
     }
 }
@@ -181,6 +205,7 @@ impl Prefs {
                 }
                 "face" => p.face = val.trim_matches('"').to_string(),
                 "timezone" => p.timezone = val.trim_matches('"').to_string(),
+                "hidden_folders" => p.hidden_folders = val.trim_matches('"').to_string(),
                 _ => {}
             }
         }
@@ -212,7 +237,11 @@ impl Prefs {
              # mood — neutral, anticipation, curious, determined, zen, note.\n\
              face = \"{}\"\n\
              # POSIX TZ (e.g. CET-1CEST,M3.5.0,M10.5.0/3); empty = UTC.\n\
-             timezone = \"{}\"\n",
+             timezone = \"{}\"\n\
+             # Folders hidden from the palette, link picker and completions —\n\
+             # comma-separated, matched on whole path segments at any depth. They\n\
+             # still sync (see Prefs::hidden_folders).\n\
+             hidden_folders = \"{}\"\n",
             self.save_on_idle,
             self.format_on_save,
             self.line_numbers,
@@ -225,8 +254,66 @@ impl Prefs {
             self.companion,
             self.face,
             self.timezone,
+            self.hidden_folders,
         )
     }
+
+    /// Whether `path` (an absolute card path) sits inside a folder
+    /// [`hidden_folders`](Prefs::hidden_folders) names — the visibility filter
+    /// the browse surfaces apply. Only the folder part is matched, so a *file*
+    /// named `_archive.md` is not a hidden folder and stays listed.
+    pub fn hides_file(&self, path: &str) -> bool {
+        let dir = path.rsplit_once('/').map_or("", |(dir, _)| dir);
+        is_hidden_folder(dir, &self.hidden_folders)
+    }
+
+    /// Whether `query` names one of the
+    /// [`hidden_folders`](Prefs::hidden_folders) entries outright (as an
+    /// ASCII-case-insensitive substring) — the escape hatch that keeps an
+    /// explicit request from being swallowed: typing `_archive` in the palette,
+    /// or as a `> new file` path, lifts the filter for that keystroke, because
+    /// naming a folder is not browsing it.
+    pub fn query_reveals_hidden(&self, query: &str) -> bool {
+        if self.hidden_folders.is_empty() || query.is_empty() {
+            return false;
+        }
+        let q = query.to_ascii_lowercase();
+        self.hidden_folders.split(',').any(|entry| {
+            let entry = entry.trim().trim_matches('/').to_ascii_lowercase();
+            !entry.is_empty() && q.contains(&entry)
+        })
+    }
+}
+
+/// Whether the folder at `dir` (an absolute card path) is covered by
+/// `hidden_folders` — a comma-separated entry list in the
+/// [`Prefs::hidden_folders`] form, where the matching rule is stated. Standalone
+/// so the firmware's card walk can prune a hidden folder before descending it
+/// without carrying a whole [`Prefs`].
+pub fn is_hidden_folder(dir: &str, hidden_folders: &str) -> bool {
+    if hidden_folders.is_empty() {
+        return false;
+    }
+    hidden_folders.split(',').any(|entry| segment_run(dir, entry))
+}
+
+/// Whether `entry`'s segments appear as a run of consecutive whole segments of
+/// `dir`. Anchored at a segment start (offset 0, or one past a `/`) and ended by
+/// a `/` or the path's end, so an entry never matches mid-segment and `_archive`
+/// never matches `_archives`. An empty entry (`"a,,b"`, a trailing comma) matches
+/// nothing rather than everything.
+fn segment_run(dir: &str, entry: &str) -> bool {
+    let entry = entry.trim().trim_matches('/');
+    if entry.is_empty() {
+        return false;
+    }
+    core::iter::once(0)
+        .chain(dir.match_indices('/').map(|(i, _)| i + 1))
+        .any(|start| {
+            let rest = crate::substr(dir, start..).as_bytes();
+            rest.get(..entry.len()).is_some_and(|head| head.eq_ignore_ascii_case(entry.as_bytes()))
+                && matches!(rest.get(entry.len()), None | Some(b'/'))
+        })
 }
 
 /// Parse a TOML boolean literal, or `None` for anything else (so a typo leaves

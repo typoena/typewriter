@@ -1,4 +1,5 @@
-//! Preferences (`.typoena.toml`) and the live gutter toggle.
+//! Preferences (`.typoena.toml`), the live gutter toggle, and the
+//! `hidden_folders` visibility filter.
 
 use super::*;
 
@@ -74,6 +75,7 @@ fn prefs_to_toml_round_trips_through_parse() {
         companion: false,
         face: "curious".into(),
         timezone: "CET-1CEST,M3.5.0,M10.5.0/3".into(),
+        hidden_folders: "_archive,attachments".into(),
     };
     assert_eq!(Prefs::parse(&p.to_toml()), p);
 }
@@ -147,4 +149,139 @@ fn draw_with_line_numbers_off_does_not_panic() {
     let mut e = Editor::with_text("alpha\nbeta\ngamma".into());
     e.prefs.line_numbers = false;
     let _ = e.draw(true);
+}
+
+/// A palette editor over `files` with `_archive` hidden.
+fn hiding_archive(files: &[&str]) -> Editor {
+    let mut e = palette_editor(files);
+    e.prefs.hidden_folders = "_archive".into();
+    e
+}
+
+#[test]
+fn prefs_parse_reads_hidden_folders_and_defaults_to_none() {
+    assert_eq!(Prefs::default().hidden_folders, "");
+    let p = Prefs::parse("hidden_folders = \"_archive, attachments\"\n");
+    assert_eq!(p.hidden_folders, "_archive, attachments");
+    // Emitted by to_toml, so the list rides `:gs` to every device.
+    assert!(Prefs::default().to_toml().contains("hidden_folders = \"\""));
+}
+
+#[test]
+fn a_hidden_folder_entry_matches_whole_segments_at_any_depth() {
+    let p = Prefs { hidden_folders: "_archive".into(), ..Prefs::default() };
+    assert!(p.hides_file("/sd/repo/_archive/old.md"));
+    // Any depth, and in both scopes.
+    assert!(p.hides_file("/sd/repo/notes/_archive/old.md"));
+    assert!(p.hides_file("/sd/local/_archive/old.md"));
+    // FAT names are case-insensitive, so the match is too.
+    assert!(p.hides_file("/sd/repo/_Archive/old.md"));
+    // Near misses: a longer folder name, a partial segment, a *file* of that
+    // name (the entry names folders), and an unrelated note.
+    assert!(!p.hides_file("/sd/repo/_archives/old.md"));
+    assert!(!p.hides_file("/sd/repo/my_archive/old.md"));
+    assert!(!p.hides_file("/sd/repo/_archive.md"));
+    assert!(!p.hides_file("/sd/repo/notes/old.md"));
+}
+
+#[test]
+fn a_multi_segment_hidden_entry_needs_consecutive_segments() {
+    let p = Prefs { hidden_folders: "notes/_archive".into(), ..Prefs::default() };
+    assert!(p.hides_file("/sd/repo/notes/_archive/old.md"));
+    assert!(!p.hides_file("/sd/repo/_archive/old.md"));
+    assert!(!p.hides_file("/sd/repo/notes/drafts/_archive/old.md"));
+}
+
+#[test]
+fn empty_hidden_folder_entries_hide_nothing() {
+    // A stray or trailing comma must not read as "hide everything".
+    let p = Prefs { hidden_folders: " , ".into(), ..Prefs::default() };
+    assert!(!p.hides_file("/sd/repo/notes.md"));
+    assert!(!p.hides_file("/sd/repo/_archive/old.md"));
+}
+
+#[test]
+fn a_hidden_folders_files_stay_off_the_palette_list() {
+    let mut e = hiding_archive(&["/sd/repo/notes.md", "/sd/repo/_archive/old.md"]);
+    e.handle(Key::Palette);
+    assert_eq!(palette_labels(&e), vec!["repo/notes.md"]);
+    // A query that only matches the hidden note leaves the list empty…
+    send(&mut e, "old");
+    assert!(palette_labels(&e).is_empty());
+    // …while the card still knows the file: hiding is a view filter, not a
+    // deletion, and the note keeps syncing.
+    assert!(e.file_list_contains("/sd/repo/_archive/old.md"));
+}
+
+#[test]
+fn naming_a_hidden_folder_in_the_palette_lists_it_again() {
+    let mut e = hiding_archive(&["/sd/repo/notes.md", "/sd/repo/_archive/old.md"]);
+    e.handle(Key::Palette);
+    send(&mut e, "_archive");
+    assert_eq!(palette_labels(&e), vec!["repo/_archive/old.md"]);
+}
+
+#[test]
+fn hidden_folders_are_not_offered_as_new_file_folders() {
+    let e = hiding_archive(&["/sd/repo/_archive/old.md", "/sd/repo/notes/a.md"]);
+    assert_eq!(e.folder_completions("repo/"), vec!["repo/notes/".to_string()]);
+    // Typing the folder's own name is an explicit request, so it completes.
+    assert_eq!(e.folder_completions("repo/_archive"), vec!["repo/_archive/".to_string()]);
+}
+
+#[test]
+fn oldest_skips_a_hidden_inbox() {
+    let mut e = palette_editor(&["/sd/repo/_inbox/2026-01-01.md"]);
+    e.prefs.hidden_folders = "_inbox".into();
+    ex(&mut e, "oldest");
+    assert_eq!(e.notice.as_deref(), Some("inbox empty"));
+    assert!(e.take_effects().is_empty());
+}
+
+#[test]
+fn a_hidden_note_still_opens_when_named_exactly() {
+    // `> new file` on an existing hidden name switches to it rather than
+    // clobbering it with an empty buffer — the exact-path lookup deliberately
+    // ignores the filter.
+    let mut e = hiding_archive(&["/sd/repo/_archive/old.md"]);
+    e.handle(Key::Palette);
+    send(&mut e, ">new");
+    e.handle(Key::Enter);
+    e.handle(Key::DeleteLine);
+    send(&mut e, "repo/_archive/old");
+    e.handle(Key::Enter);
+    assert_eq!(
+        e.take_effects(),
+        vec![Effect::Load { path: "/sd/repo/_archive/old.md".into(), scope: Scope::Tracked }]
+    );
+}
+
+#[test]
+fn gf_follows_a_link_into_a_hidden_folder() {
+    let mut e = Editor::with_file(
+        "/sd/repo/notes.md".into(),
+        Scope::Tracked,
+        "see [old](_archive/old.md)".into(),
+    );
+    e.prefs.hidden_folders = "_archive".into();
+    e.caret = 6;
+    send(&mut e, "gf");
+    assert_eq!(
+        e.take_effects(),
+        vec![Effect::Load { path: "/sd/repo/_archive/old.md".into(), scope: Scope::Tracked }]
+    );
+}
+
+#[test]
+fn publish_still_retargets_links_inside_a_hidden_folder() {
+    // Hiding a folder must not leave its links pointing at a renamed file.
+    let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    e.prefs.hidden_folders = "_archive".into();
+    e.set_file_list(vec!["/sd/repo/_archive/old.md".into(), "/sd/repo/notes.md".into()]);
+    ex(&mut e, "publish");
+    assert!(matches!(
+        e.take_effects().as_slice(),
+        [Effect::Rename { retarget, .. }]
+            if *retarget == vec!["/sd/repo/_archive/old.md".to_string()]
+    ));
 }

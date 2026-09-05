@@ -390,16 +390,21 @@ impl Editor {
     /// top, everything else browsable alphabetically below. A non-empty query keeps
     /// only fuzzy matches and stable-sorts them by score, so equal scores keep
     /// their MRU/base position. See [`fuzzy_score`].
+    ///
+    /// Folders named by [`Prefs::hidden_folders`] are left out
+    /// ([`visible_files`](Self::visible_files)) unless the query names one, which
+    /// lists it again.
     pub(crate) fn palette_matches(&self) -> Vec<usize> {
+        let reveal = self.prefs.query_reveals_hidden(&self.palette_query);
         let mut order: Vec<usize> = Vec::with_capacity(self.file_count());
         for r in &self.recent {
-            if let Some(i) = (0..self.file_count()).find(|&i| self.file_at(i) == r) {
+            if let Some(i) = self.visible_files(reveal).find(|&i| self.file_at(i) == r) {
                 order.push(i);
             }
         }
         // Only the MRU prefix can already hold an index, so scan just that.
         let recents = order.len();
-        for i in 0..self.file_count() {
+        for i in self.visible_files(reveal) {
             if !order.get(..recents).unwrap_or_default().contains(&i) {
                 order.push(i);
             }
@@ -593,6 +598,9 @@ impl Editor {
     /// top level, which exist even when empty. An exact match to the stem is
     /// excluded (that is the "back to what you typed" slot
     /// [`new_file_complete`](Self::new_file_complete) adds separately). Sorted.
+    ///
+    /// A [`Prefs::hidden_folders`] folder contributes nothing unless `stem` names
+    /// it — the same reveal-on-naming rule the file list follows.
     pub(crate) fn folder_completions(&self, stem: &str) -> Vec<String> {
         let (dir, partial) = match stem.rfind('/') {
             Some(i) => (crate::substr(stem, ..=i), crate::substr(stem, i + 1..)),
@@ -607,7 +615,7 @@ impl Editor {
                 }
             }
         }
-        for i in 0..self.file_count() {
+        for i in self.visible_files(self.prefs.query_reveals_hidden(stem)) {
             let label = palette_label(self.file_at(i));
             let Some(head) = label.as_bytes().get(..dir.len()) else { continue };
             if !head.eq_ignore_ascii_case(dir.as_bytes()) {

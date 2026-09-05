@@ -163,7 +163,7 @@ holds = "Software stack layer by layer with measured costs; annotated repo layou
 [[doc]]
 path = "docs/reference/typoena-toml.md"
 nodes = ["config"]
-holds = "Per-key reference for .typoena.toml: save_on_idle, format_on_save, line_numbers, open_last_on_boot, theme, font, auto_sync."
+holds = "Per-key reference for .typoena.toml: save_on_idle, format_on_save, line_numbers, open_last_on_boot, theme, font, auto_sync, hidden_folders (visibility filter, matching rule, why it never touches git sync)."
 
 [[doc]]
 path = "docs/reference/typoena-snippets.md"
