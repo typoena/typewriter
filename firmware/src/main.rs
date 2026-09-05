@@ -19,6 +19,7 @@ use firmware::drivers::system_esp::EspSystem;
 use firmware::infrastructure::file_index::EspFileWalk;
 use firmware::infrastructure::net::NetService;
 use firmware::infrastructure::panic_scribe;
+use firmware::infrastructure::sd_log;
 use firmware::infrastructure::storage_sd::{SdStorage, Storage, CONF_PATH, NOTES};
 
 /// Injected by build.rs so serial output identifies the exact build.
@@ -28,9 +29,13 @@ fn main() -> anyhow::Result<()> {
     // Required once before any esp-idf-svc call; some runtime patches
     // only link if this symbol is referenced. See esp-idf-template#71.
     esp_idf_svc::sys::link_patches();
-    esp_idf_svc::log::EspLogger::initialize_default();
+    // Tees the serial log to the card (see `sd_log`); the flusher starts once
+    // the mount exists, and everything logged before then is buffered.
+    sd_log::init();
 
-    log::info!("Typoena — modal editor (vim modes), {BUILD_TAG}");
+    // On the card too (`sd_log::DIAG`): it is the session separator in a
+    // rotating log, and it names the build the rest of the lines came from.
+    log::info!(target: sd_log::DIAG, "Typoena — modal editor (vim modes), {BUILD_TAG}");
 
     let peripherals = Peripherals::take()?;
     let pins = peripherals.pins;
@@ -65,6 +70,7 @@ fn main() -> anyhow::Result<()> {
     // SD after the EPD, against the doc's SD-first boot order: a dead panel
     // can't explain a missing card. Fatal-by-design rationale: `boot_storage`.
     let storage = boot_storage(&mut epd);
+    sd_log::start();
 
     // Before the wizard gate — first-boot setup types on this keyboard.
     usb_kbd::start()?;
@@ -268,10 +274,9 @@ fn main() -> anyhow::Result<()> {
 /// run in a state where the next save could destroy it. A missing REPO is not
 /// fatal — the wizard gate in `main` enters first-boot setup instead.
 fn boot_storage(epd: &mut Epd) -> Storage {
-    // The firmware shares this mount with the net thread, and libgit2 keeps the
-    // pack + idx descriptors open across a push — that overruns the editor's
-    // tight 4-FD budget, so mount with the 16-FD one (persistence.rs,
-    // MAX_FILES_GIT).
+    // The only production mount, so its budget is the editor's as well as the
+    // net thread's: libgit2 keeps the pack + idx descriptors open across a sync,
+    // which overruns a tight budget. See `storage_sd::MAX_FILES_GIT`.
     match Storage::mount_for_git() {
         Ok(s) => s,
         Err(e) => boot_halt(epd, "SD card not ready", &format!("{e:#}")),

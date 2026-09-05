@@ -33,8 +33,20 @@
  * Single git thread, so plain statics like the rest of this file. Best
  * effort: any failure just falls back to a full handshake.
  *
+ * THIRD DELTA (2026-09-06): socket fd leak in mbedtls_stream_close(). The
+ * vendored code is `if (st->connected && (ret = ssl_teardown(st->ssl)) != 0)
+ * return -1;`, which returns BEFORE `git_stream_close(st->io)`. The only other
+ * exit is mbedtls_stream_free(), and its git_stream_free(st->io) lands in
+ * socket_free(), which frees the struct without closing the socket — only
+ * socket_close() does that. ssl_teardown fails whenever mbedtls_ssl_close_notify
+ * errors, the normal outcome when the peer has already reset, so a flaky sync
+ * leaked one lwip fd per attempt until reboot (lwip's default cap is 10). Delta:
+ * keep the teardown result in a local, always fall through to the close, return
+ * the teardown error if there was one. The failures are counted and logged
+ * (grep `ssl_teardown failed`) so the bench can see how often that branch runs.
+ *
  * Keep this file in lockstep with the vendored one on submodule bumps (diff
- * against it; the deltas must stay these two hunks).
+ * against it; the deltas must stay these three hunks).
  */
 
 #include "streams/mbedtls.h"
@@ -42,6 +54,9 @@
 #ifdef GIT_MBEDTLS
 
 #include <ctype.h>
+#include <stdint.h>
+
+#include "esp_log.h"
 
 #include "runtime.h"
 #include "stream.h"
@@ -395,19 +410,40 @@ static ssize_t mbedtls_stream_read(git_stream *stream, void *data, size_t len)
 	return ret;
 }
 
+/* Teardowns that failed this power session. mbedtls_ssl_close_notify errors
+ * routinely when the peer already reset (a flaky sync), so a rising count is
+ * normal; it is here because that branch used to leak a socket fd. */
+static uint32_t g_teardown_failures;
+
+/* Read from Rust (net.rs) so the count rides the per-sync `odb inventory` line
+ * to the SD log; ESP_LOGW below is serial-only. */
+uint32_t esp_tls_teardown_failures(void)
+{
+	return g_teardown_failures;
+}
+
 static int mbedtls_stream_close(git_stream *stream)
 {
 	mbedtls_stream *st = (mbedtls_stream *) stream;
-	int ret = 0;
+	int teardown = 0, ret;
 
 	save_session(st);
 
-	if (st->connected && (ret = ssl_teardown(st->ssl)) != 0)
-		return -1;
-
+	if (st->connected)
+		teardown = ssl_teardown(st->ssl);
+	/* ssl_teardown frees the context either way, so the stream is never
+	 * connected again after this point. */
 	st->connected = false;
 
-	return st->owned ? git_stream_close(st->io) : 0;
+	if (teardown != 0) {
+		g_teardown_failures++;
+		ESP_LOGW("typoena-tls", "stream_close: ssl_teardown failed (%d), socket closed anyway, failures=%u",
+			teardown, (unsigned)g_teardown_failures);
+	}
+
+	ret = st->owned ? git_stream_close(st->io) : 0;
+
+	return teardown != 0 ? -1 : ret;
 }
 
 static void mbedtls_stream_free(git_stream *stream)

@@ -37,11 +37,15 @@ pub fn arm(rt: *const (), snap: Snap) {
     std::panic::set_hook(Box::new(move |info| {
         // Report first — the flush below is best-effort and may itself fail.
         prev(info);
-        let Some(&(ui_thread, rt, snap)) = SCRIBE.get() else { return };
+        let Some(&(ui_thread, rt, snap)) = SCRIBE.get() else {
+            crate::infrastructure::sd_log::flush_blocking();
+            return;
+        };
         // A panic on any other thread (net, file walk, USB pumps) can't have
         // corrupted the buffer, and reading the editor from here would race
         // the still-running UI thread — skip; the last save stands.
         if std::thread::current().id() != ui_thread {
+            crate::infrastructure::sd_log::flush_blocking();
             return;
         }
         if let Some((path, text)) = snap(rt as *const ()) {
@@ -52,5 +56,10 @@ pub fn arm(rt: *const (), snap: Snap) {
                 Err(e) => log::error!("panic scribe: dump FAILED ({e})"),
             }
         }
+        // Last, not first: the dump is the data-preserving step and must not
+        // queue behind the flusher's FatFS lock (a net thread mid-pack-write
+        // holds it for hundreds of ms, and the task watchdog does not wait).
+        // Flushing here also carries the dump's own outcome line to the card.
+        crate::infrastructure::sd_log::flush_blocking();
     }));
 }

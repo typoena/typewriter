@@ -114,13 +114,20 @@ const SETUP_MARKER: &str = "/sd/.typoena-setup";
 /// resume.
 pub const LOCAL_DIR: &str = "/sd/local";
 
-/// VFS open-file budget for the editor path: it opens only a note and its
-/// `*.tmp`, so a tight budget keeps FatFS's per-file buffers off the heap.
+/// VFS open-file budget for a card that only ever holds a note and its `*.tmp`
+/// open — the bench binaries (`sd_bench`, `qc`). A tight budget keeps FatFS's
+/// per-file buffers off the heap.
 const MAX_FILES_EDITOR: i32 = 4;
-/// VFS open-file budget for the git tooling. libgit2 keeps the pack + `.idx`
-/// (and commit-graph) descriptors open for the repo's lifetime and opens loose
-/// objects on top, so a `read_tree` walk overruns [`MAX_FILES_EDITOR`] with a
-/// "no free file descriptors" error. Matches the flash-FAT git binaries' 16.
+/// VFS open-file budget of the ONE production mount ([`Storage::mount_for_git`],
+/// from `main`), so this is the shared editor + net-thread pool, not just git's.
+/// libgit2 keeps one descriptor per pack it reads (plus `.idx`/commit-graph) open
+/// for the `Repository`'s lifetime and opens loose objects on top, so a
+/// [`MAX_FILES_EDITOR`]-sized pool fails with "no free file descriptors".
+///
+/// The budget is not roomy: a downloading `:gl` peaks near 10 of the 16 (packs +
+/// the indexer's two + a working-copy write + the UI's open), and the pack term
+/// grows by one per downloading pull because the device never repacks. That is
+/// why `tune_libgit2` caps libgit2's open-pack count — see its docs.
 const MAX_FILES_GIT: i32 = 16;
 
 /// A mounted SD card. Holds the live card handle for its lifetime; v0.1 never
@@ -178,8 +185,9 @@ impl Storage {
     }
 
     /// Like [`Storage::mount`], but with the larger [`MAX_FILES_GIT`] open-file
-    /// budget the git tooling (bench / sync) needs — libgit2 holds several
-    /// descriptors open at once, which the editor's default budget can't cover.
+    /// budget — libgit2 holds several descriptors open at once, which the tight
+    /// budget can't cover. The firmware's only mount, so the editor shares this
+    /// pool with the net thread.
     pub fn mount_for_git() -> Result<Self> {
         Self::mount_with_max_files(MAX_FILES_GIT)
     }
@@ -357,10 +365,56 @@ impl Storage {
             // `save_path` guarantees that terminator, this load and that save form an
             // identity round-trip for any device-written file (which always ends in
             // '\n') — no strip needed, and none wanted.
-            Ok(_) => fs::read_to_string(path).with_context(|| format!("reading {path}")),
+            Ok(m) => fs::read_to_string(path)
+                .map_err(|e| {
+                    self.log_load_failure(path, "open+read", &e, m.len() as i64);
+                    e
+                })
+                .with_context(|| format!("reading {path}")),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
-            Err(e) => Err(e).with_context(|| format!("stat {path}")),
+            Err(e) => {
+                self.log_load_failure(path, "stat", &e, -1);
+                Err(e).with_context(|| format!("stat {path}"))
+            }
         }
+    }
+
+    /// One diagnostic line for a load that already failed — never on a
+    /// keystroke, and never on the NotFound arm above (a missing file is a
+    /// normal `Ok(String::new())`, so "can't open" can only ever mean one of the
+    /// causes this line separates):
+    ///
+    /// | reading | conclusion |
+    /// |---|---|
+    /// | `errno=23`/`24` and `probe_open` fails the same way | the shared 16-slot FatFS pool is empty ([`MAX_FILES_GIT`]) |
+    /// | `errno=23`/`24` but `probe_open=None` | not pool exhaustion — this file only |
+    /// | `errno=5`, or `volume=Err` | the FAT volume itself is gone; only a remount clears it |
+    /// | `errno=12` with `largest_internal` in the low tens of KB | the per-open LFN + fast-seek allocations failed |
+    /// | `errno=2` | impossible by construction, and therefore itself news |
+    ///
+    /// `probe_open` is a second, tiny open attempted *only* because we already
+    /// failed: `/sd/typoena.conf` exists on every provisioned card by
+    /// construction (the boot gate reads it, the wizard writes it), so it
+    /// distinguishes "this file" from "no descriptors left". `.err()` drops the
+    /// `File`, so the probe holds nothing open.
+    fn log_load_failure(&self, path: &str, stage: &str, e: &std::io::Error, len: i64) {
+        use esp_idf_svc::sys::{
+            heap_caps_get_free_size, heap_caps_get_largest_free_block, MALLOC_CAP_INTERNAL,
+        };
+        let probe = fs::File::open(CONF_PATH).err().and_then(|p| p.raw_os_error());
+        // SAFETY: plain reads of the allocator's counters, valid at any time.
+        let (free, internal, largest) = unsafe {
+            (
+                sys::esp_get_free_heap_size(),
+                heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+                heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
+            )
+        };
+        log::error!(
+            "load_path FAILED path={path} stage={stage} errno={:?} kind={:?} len={len} probe_open={probe:?} heap: free={free} internal={internal} largest_internal={largest}",
+            e.raw_os_error(),
+            e.kind(),
+        );
     }
 
     /// Atomically persist `contents` to `notes.md`. Thin wrapper over
@@ -398,23 +452,16 @@ impl Storage {
             }
         }
         let tmp = format!("{path}.tmp");
-        {
-            let mut f = fs::File::create(&tmp)
-                .with_context(|| format!("create {tmp} (does its directory exist?)"))?;
-            f.write_all(contents.as_bytes())
-                .with_context(|| format!("write {tmp}"))?;
-            // Insert a final newline only if the buffer lacks one (POSIX text
-            // convention; keeps git from flagging "No newline at end of file").
-            // The lint pass terminates the buffer itself (`format_markdown`), so
-            // this catches the writes that skip it — idle saves, `format_on_save`
-            // off, prefs/marker files. Guarded, so the file mirrors the buffer's
-            // trailing newlines exactly: one blank line stays one, never doubled.
-            if !contents.ends_with('\n') {
-                f.write_all(b"\n")
-                    .with_context(|| format!("write final newline to {tmp}"))?;
-            }
-            // FatFS f_sync — flush the tmp fully before it can replace the target.
-            f.sync_all().with_context(|| format!("fsync {tmp}"))?;
+        // Sweep a partial tmp on any failure before the target is touched.
+        // [`Storage::recover`] only reconciles `notes.md.tmp`, so every other
+        // note's orphan would sit on the card — and in the palette, since `.tmp`
+        // is a suffix, not the dot prefix the walk filters. Safe: the target is
+        // still intact here, which is exactly the case recover would have called
+        // `DiscardedTmp` anyway; the load-bearing `PromotedTmp` case only arises
+        // after the tmp write succeeded.
+        if let Err(e) = Self::write_tmp(&tmp, contents) {
+            let _ = fs::remove_file(&tmp);
+            return Err(e);
         }
         // FatFS f_rename won't overwrite, so unlink the target first (tolerate a
         // missing target: the first-ever save has nothing to remove).
@@ -425,6 +472,28 @@ impl Storage {
         }
         fs::rename(&tmp, path).with_context(|| format!("rename {tmp} -> {path}"))?;
         Ok(())
+    }
+
+    /// Write `contents` to `tmp` and fsync it. Split out of
+    /// [`Storage::atomic_write`] so every failure between `create` and `f_sync`
+    /// funnels through one error path the caller can clean up after.
+    fn write_tmp(tmp: &str, contents: &str) -> Result<()> {
+        let mut f = fs::File::create(tmp)
+            .with_context(|| format!("create {tmp} (does its directory exist?)"))?;
+        f.write_all(contents.as_bytes())
+            .with_context(|| format!("write {tmp}"))?;
+        // Insert a final newline only if the buffer lacks one (POSIX text
+        // convention; keeps git from flagging "No newline at end of file").
+        // The lint pass terminates the buffer itself (`format_markdown`), so
+        // this catches the writes that skip it — idle saves, `format_on_save`
+        // off, prefs/marker files. Guarded, so the file mirrors the buffer's
+        // trailing newlines exactly: one blank line stays one, never doubled.
+        if !contents.ends_with('\n') {
+            f.write_all(b"\n")
+                .with_context(|| format!("write final newline to {tmp}"))?;
+        }
+        // FatFS f_sync — flush the tmp fully before it can replace the target.
+        f.sync_all().with_context(|| format!("fsync {tmp}"))
     }
 
     /// Persist the device conf (wizard `WriteConf`). Same atomic swap as

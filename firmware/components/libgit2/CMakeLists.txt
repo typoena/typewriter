@@ -43,8 +43,9 @@ file(GLOB LG2_SRCS
 )
 # streams/mbedtls.c is replaced by our patched copy: its wrap() error path
 # double-freed the socket stream (tlsf abort on device when ssl_setup failed
-# under memory pressure). See esp_mbedtls_stream.c's header for the one-hunk
-# delta; keep the copy in lockstep on submodule bumps.
+# under memory pressure), it had no TLS session resumption, and its close() path
+# leaked a socket fd. See esp_mbedtls_stream.c's header for the deltas; keep the
+# copy in lockstep on submodule bumps.
 list(REMOVE_ITEM LG2_SRCS "${LG2}/src/libgit2/streams/mbedtls.c")
 
 list(APPEND LG2_SRCS
@@ -54,7 +55,7 @@ list(APPEND LG2_SRCS
     "${LG2}/src/util/hash/mbedtls.c"   # SHA1 + SHA256 via mbedtls
     "${CMAKE_CURRENT_LIST_DIR}/esp_map.c"    # p_mmap via malloc+read (no <sys/mman.h>)
     "${CMAKE_CURRENT_LIST_DIR}/esp_stubs.c"  # getuid/readlink/utimes/... stubs
-    "${CMAKE_CURRENT_LIST_DIR}/esp_mbedtls_stream.c"  # streams/mbedtls.c + double-free fix
+    "${CMAKE_CURRENT_LIST_DIR}/esp_mbedtls_stream.c"  # streams/mbedtls.c + our deltas
     # NOTE: unix/map.c replaced by esp_map.c — picolibc has no <sys/mman.h>.
     # NOTE: unix/process.c deliberately excluded — needs fork()/sys/wait.h,
     # only used by the SSH-exec transport we don't enable.
@@ -78,7 +79,9 @@ idf_component_register(
         "${LG2}/deps/xdiff"
         "${LG2}/deps/pcre"
         "${LG2}/deps/zlib"
-    REQUIRES mbedtls lwip pthread vfs newlib
+    # `log` is one of esp-idf's common requirements already; named explicitly
+    # because esp_mbedtls_stream.c includes esp_log.h.
+    REQUIRES mbedtls lwip pthread vfs newlib log
 )
 
 # PCRE (bundled regex backend) compile-time config — copied from libgit2-sys's
