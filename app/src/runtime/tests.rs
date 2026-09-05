@@ -632,7 +632,8 @@ fn up_to_date_pull_leaves_the_tree_untouched() {
 const TODAY: editor::Date = editor::Date { year: 2026, month: 7, day: 18 };
 const INBOX_TODAY: &str = "/sd/repo/_inbox/2026-07-18.md";
 
-/// Build a runtime on a clock the test drives, and hand back both.
+/// Build a runtime on a clock the test drives, so a date can land mid-session
+/// the way SNTP lands one on the device.
 fn runtime_on_clock(
     ed: Editor,
     sync: RecSync,
@@ -708,6 +709,57 @@ fn a_held_inbox_opens_when_the_date_lands_on_an_idle_pass() {
     assert_eq!(rt.ed.path(), INBOX_TODAY);
     assert_eq!(rt.ed.text(), "# 18/07/2026\n\n");
     assert_eq!(sync.log.borrow().pulls, 0, "and still no fetch anywhere in it");
+}
+
+#[test]
+fn the_note_a_held_inbox_opens_paints_itself() {
+    // No keystroke is behind this open, so nothing else in the pass would paint
+    // it: the note would sit invisible behind the buffer the writer kept until
+    // they happened to press a key.
+    let clock = SettableClock::default();
+    let keyboard = ScriptedKeyboard::default();
+    let screen = CountingScreen::default();
+    let mut ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    let panel = Panel::new(screen.clone(), &mut ed).expect("first paint");
+    let mut rt = Runtime::new(
+        ed,
+        panel,
+        Box::new(keyboard.clone()),
+        Box::new(RecStorage::default()),
+        Box::new(RecSync::new()),
+        Box::new(clock.clone()),
+        Box::new(PanicSystem),
+        Box::new(RecFiles::default()),
+    );
+
+    keyboard.type_line(":inbox");
+    rt.tick();
+    let before = *screen.0.borrow();
+
+    clock.set(TODAY);
+    rt.tick();
+
+    assert_eq!(rt.ed.path(), INBOX_TODAY);
+    assert_eq!(*screen.0.borrow(), before + 1, "the note has to reach the panel unprompted");
+}
+
+#[test]
+fn a_failed_clock_outcome_releases_the_hold_over_the_net_channel() {
+    // The same failure as `settle_clock`'s, taken through the arm that actually
+    // receives it — a hold left standing here waits on a date nothing will send.
+    let clock = SettableClock::default();
+    let keyboard = ScriptedKeyboard::default();
+    let ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    let mut rt = runtime_on_clock(ed, RecSync::new(), keyboard.clone(), clock);
+
+    keyboard.type_line(":inbox");
+    rt.tick();
+    assert!(rt.ed.inbox_pending());
+
+    rt.handle_net_outcome(NetOutcome::Clock(ClockOutcome::Failed("clock: no wifi".into())));
+
+    assert!(!rt.ed.inbox_pending());
+    assert_eq!(rt.ed.path(), "/sd/repo/notes.md", "and the writer keeps their buffer");
 }
 
 #[test]
