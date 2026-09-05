@@ -33,6 +33,12 @@ use crate::render::{FocusTimer, Panel};
 /// mid-sentence pause.
 const IDLE_SAVE_MS: u128 = 1500;
 
+/// How long the idle-save hold-off (see [`Runtime::idle_step`]) honours a sync
+/// it never saw an outcome for. Far past any real push/pull, but bounded: a git
+/// thread that died without reporting must not leave the save-on-idle safety
+/// net off for the rest of the session.
+const SYNC_HOLDOFF_MS: u128 = 120_000;
+
 /// The editor run loop: owns the editor, the panel, and the injected ports.
 pub struct Runtime<S: Screen> {
     ed: Editor,
@@ -60,6 +66,11 @@ pub struct Runtime<S: Screen> {
     /// read by the idle branch's kbd-flag repaint).
     kbd: bool,
     kbd_changed: bool,
+    /// When a dispatched push/pull/update was handed to the git thread, while
+    /// its outcome is still outstanding — `None` once it lands. Gates both the
+    /// idle-save hold-off in [`idle_step`](Self::idle_step) and the panel's
+    /// `Syncing` flag, and is capped at [`SYNC_HOLDOFF_MS`] for the hold-off.
+    net_in_flight: Option<Instant>,
     /// Absolute paths of an in-flight [`PullIntent::Discard`], captured from
     /// the unsynced card at dispatch. Consumed when the pull outcome lands, to
     /// evict the resident buffers whose text the discard threw away. Empty
@@ -103,6 +114,7 @@ impl<S: Screen> Runtime<S> {
             last_kbd,
             kbd: last_kbd,
             kbd_changed: false,
+            net_in_flight: None,
             pending_discard: Vec::new(),
         }
     }
@@ -151,8 +163,26 @@ impl<S: Screen> Runtime<S> {
         self.kbd_changed = self.kbd != self.last_kbd;
         self.last_kbd = self.kbd;
 
+        // A git operation reports here on *every* pass, not only an idle one: a
+        // batch repaint is most of a second of e-paper drive, so at typing speed
+        // the idle branch below is never reached and a sync's progress lines and
+        // terminal outcome would sit in the queue until the writer stopped —
+        // reading as a cancelled pull. Strictly after `drain_keys` (every key
+        // clears the notice this is about to set) and after `service_effects` (a
+        // queued Save carries text snapshotted before a pull moved the tree).
+        // Exactly one outcome per pass: the backend already coalesces a progress
+        // burst to its newest line and lets a terminal outcome win, and two
+        // settles in one pass would each want their own paint.
+        let settled = match self.net.poll_outcome() {
+            Some(outcome) => {
+                self.handle_net_outcome(outcome);
+                true
+            }
+            None => false,
+        };
+
         if keys == 0 {
-            self.idle_step();
+            self.idle_step(settled);
             return;
         }
 
@@ -204,10 +234,13 @@ impl<S: Screen> Runtime<S> {
                 self.panel.full_refresh_on_switch(&self.ed);
             }
             // Non-blocking: the ~10 s push never stalls the editor; the outcome
-            // returns via `poll_outcome` in the idle branch. The Save that
-            // preceded this in the batch already persisted the buffer.
+            // returns via `poll_outcome` in `tick`. The Save that preceded this
+            // in the batch already persisted the buffer.
             Effect::Push => match self.net.push() {
-                PushDispatch::Dispatched => self.ed.set_notice("syncing..."),
+                PushDispatch::Dispatched => {
+                    self.set_net_in_flight(true);
+                    self.ed.set_notice("syncing...")
+                }
                 PushDispatch::ThreadDown => self.ed.set_notice("sync: git thread down"),
             },
             Effect::Pull(intent) => {
@@ -227,7 +260,10 @@ impl<S: Screen> Runtime<S> {
                         .collect();
                 }
                 match self.net.pull(intent) {
-                    PullDispatch::Dispatched => self.ed.set_notice("pulling..."),
+                    PullDispatch::Dispatched => {
+                        self.set_net_in_flight(true);
+                        self.ed.set_notice("pulling...")
+                    }
                     // Unpushed saves: name them and ask. The card's answer
                     // re-queues Pull with Commit or Discard.
                     PullDispatch::NeedsConfirm(files) => self.ed.show_unsynced(files),
@@ -278,11 +314,14 @@ impl<S: Screen> Runtime<S> {
             }
             // Non-blocking, like Push: the multi-second download + flash runs on
             // the radio-owning thread while the editor keeps running; the terminal
-            // outcome returns via `poll_outcome` in the idle branch. `:update` was
+            // outcome returns via `poll_outcome` in `tick`. `:update` was
             // gated on a clean buffer set in the editor, so the eventual reboot on
             // success (see `handle_net_outcome`) can't strand unsaved edits.
             Effect::Update => match self.net.update() {
-                UpdateDispatch::Dispatched => self.ed.set_notice("checking for update..."),
+                UpdateDispatch::Dispatched => {
+                    self.set_net_in_flight(true);
+                    self.ed.set_notice("checking for update...")
+                }
                 UpdateDispatch::ThreadDown => self.ed.set_notice("update: git thread down"),
             },
             Effect::FocusStart => self.focus.start(self.ed.word_count()),
@@ -293,16 +332,26 @@ impl<S: Screen> Runtime<S> {
     /// The idle branch: the same sequence and ordering as the old inline loop.
     /// Each rung that paints returns early (the old `continue`); `save_on_idle`
     /// deliberately falls through to the longevity/caret tail.
-    fn idle_step(&mut self) {
+    ///
+    /// `settled` says whether [`tick`](Self::tick) handled a net outcome this
+    /// pass, whose notice still needs a paint of its own — a key batch folds it
+    /// into the repaint it was already doing, an idle pass has to pay for it.
+    fn idle_step(&mut self, settled: bool) {
         // Focus mode: a running block that has reached its length drops the rest
         // card at this typing pause.
         if self.panel.rest_if_due(&mut self.ed, &self.focus, self.last_activity) {
             return;
         }
-        // A finished git operation reports its outcome here (it ran on the git
-        // thread while we idled).
-        if let Some(outcome) = self.net.poll_outcome() {
-            self.handle_net_outcome(outcome);
+        // The git outcome `tick` settled this pass: paint its notice. Behind a
+        // full-screen card (the rest curtain, the `:about` splash or the `:help`
+        // reference) the panel is masked, so the state is settled and the notice
+        // waits for the writer to leave the card. Returns either way — the rungs
+        // below must not run on an outcome pass (chiefly the idle-save, which is
+        // the very write a pull's apply pass would refuse).
+        if settled {
+            if !matches!(self.ed.mode(), Mode::Rest | Mode::About | Mode::Help) {
+                self.panel.show_notice(&mut self.ed);
+            }
             return;
         }
         // A finished background file walk (boot or post-pull) feeds the palette;
@@ -324,9 +373,21 @@ impl<S: Screen> Runtime<S> {
         // the exact set of paths it is displaying, and a save landing behind it
         // would journal a file the list never showed — so a confirmed discard
         // would take one more file than the writer agreed to.
+        //
+        // Held off likewise while a sync is in flight, for the same reason one
+        // step later: the backend has already folded the journal into a
+        // pre-fetch commit, and its apply pass refuses the *whole* pull if a
+        // file it is about to overwrite no longer hashes to what HEAD recorded.
+        // So an idle-save landing mid-pull cancels it — and, having marked the
+        // buffer clean, would let the post-pull reload in `handle_net_outcome`
+        // overwrite the edits it just persisted. The buffer stays RAM-dirty
+        // instead, which is what makes those edits win there; the panic scribe
+        // still covers the window, and `idle_saved` is cleared by the next
+        // keystroke, so the first pause after the outcome saves normally.
         if !self.idle_saved
             && self.ed.prefs().save_on_idle
             && !self.ed.showing_unsynced()
+            && !self.sync_holds_off_save()
             && self.ed.dirty()
             && !self.ed.path().is_empty()
             && self.last_activity.elapsed().as_millis() >= IDLE_SAVE_MS
@@ -351,11 +412,37 @@ impl<S: Screen> Runtime<S> {
         }
     }
 
+    /// Mark a dispatched sync in flight, or settle it: the idle-save hold-off
+    /// and the panel's `Syncing` flag move together, so the writer's evidence
+    /// that a sync is running is exactly the state that protects it.
+    fn set_net_in_flight(&mut self, on: bool) {
+        self.net_in_flight = on.then(Instant::now);
+        self.ed.set_syncing(on);
+    }
+
+    /// Whether the idle-save rung must stand down for an in-flight sync — see
+    /// that rung for why, and [`SYNC_HOLDOFF_MS`] for why it expires.
+    fn sync_holds_off_save(&self) -> bool {
+        self.net_in_flight.is_some_and(|t| t.elapsed().as_millis() < SYNC_HOLDOFF_MS)
+    }
+
     /// Handle a finished sync operation's outcome: settle the notice, and (for a
     /// pull that moved the working copy) reload the stale active buffer and
     /// re-walk the palette. The dirty-journal settlement already happened inside
     /// the sync backend before this returned.
+    ///
+    /// Settles only — it never paints. The caller owns that: a key batch folds
+    /// the new notice into the repaint it was already doing, and an idle pass
+    /// paints it in [`idle_step`](Self::idle_step). Painting here would cost a
+    /// second whole-panel area partial (~630 ms of drive and another of the
+    /// 64-partial ghosting budget) on every keystroke that carries an outcome.
     fn handle_net_outcome(&mut self, outcome: NetOutcome) {
+        // Every variant but a progress line is terminal, and only a terminal one
+        // frees the idle-save and drops the panel flag: the operation is still
+        // running behind a `Progress`.
+        if !matches!(outcome, NetOutcome::Progress(_)) {
+            self.set_net_in_flight(false);
+        }
         let notice = match outcome {
             NetOutcome::Push(o) => push_notice(&o),
             NetOutcome::Pull(o) => {
@@ -418,13 +505,6 @@ impl<S: Screen> Runtime<S> {
             NetOutcome::Progress(line) => line,
         };
         self.ed.set_notice(notice);
-        // Behind a full-screen card (the rest curtain, the `:about` splash or the
-        // `:help` reference) the panel is masked: settle the state but defer the
-        // repaint — the notice shows when the writer leaves the card.
-        if matches!(self.ed.mode(), Mode::Rest | Mode::About | Mode::Help) {
-            return;
-        }
-        self.panel.show_notice(&mut self.ed);
     }
 
     /// Settle the resident buffers after a confirmed discard rolled `paths`

@@ -5,6 +5,7 @@
 use std::cell::RefCell;
 use std::convert::Infallible;
 use std::rc::Rc;
+use std::time::Duration;
 
 use editor::{Editor, Effect, Scope};
 
@@ -216,6 +217,11 @@ impl FileIndex for WalkFiles {
 #[derive(Clone, Default)]
 struct ScriptedKeyboard(Rc<RefCell<std::collections::VecDeque<hal::Key>>>);
 impl ScriptedKeyboard {
+    /// Queue one keystroke, so the next `tick` takes the key-batch branch.
+    fn press(&self, key: hal::Key) {
+        self.0.borrow_mut().push_back(key);
+    }
+
     /// Queue `s` followed by Enter (an ex command, e.g. `:pub`).
     fn type_line(&self, s: &str) {
         let mut q = self.0.borrow_mut();
@@ -253,6 +259,29 @@ fn runtime(
     )
 }
 
+/// Build a runtime that can be *typed at*, over a screen that counts its
+/// paints: the two things the default `runtime` above can't do, and both needed
+/// to prove an outcome rides the key batch's own repaint.
+fn typing_runtime(
+    ed: Editor,
+    screen: CountingScreen,
+    keyboard: ScriptedKeyboard,
+    sync: RecSync,
+) -> Runtime<CountingScreen> {
+    let mut ed = ed;
+    let panel = Panel::new(screen, &mut ed).expect("first paint");
+    Runtime::new(
+        ed,
+        panel,
+        Box::new(keyboard),
+        Box::new(RecStorage::default()),
+        Box::new(sync),
+        Box::new(FixedClock),
+        Box::new(PanicSystem),
+        Box::new(RecFiles::default()),
+    )
+}
+
 #[test]
 fn file_stem_strips_dir_and_extension() {
     assert_eq!(file_stem("/sd/repo/notes.md"), "notes");
@@ -283,6 +312,116 @@ fn an_in_flight_progress_line_settles_nothing() {
     assert_eq!(rt.ed.text(), "in-buffer", "the buffer must not be re-read mid-push");
     assert!(storage.0.borrow().loads.is_empty(), "no load belongs to a non-terminal line");
     assert_eq!(*files.0.borrow(), 0, "the palette re-walk waits for the outcome");
+}
+
+#[test]
+fn a_net_outcome_lands_on_a_typing_pass() {
+    // A pass that drains a key never reaches the idle sequence, and a batch
+    // repaint is most of a second — so at ordinary typing speed nearly every
+    // pass drains one. Poll only there and a pull's outcome waits in the queue
+    // until the writer stops, which reads as a pull that never ran.
+    let sync = RecSync::new();
+    sync.log.borrow_mut().outcome = Some(NetOutcome::Pull(PullOutcome::UpToDate));
+    let keyboard = ScriptedKeyboard::default();
+    keyboard.press(hal::Key::Char('i'));
+    let ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, "body".into());
+    let mut rt = typing_runtime(ed, CountingScreen::default(), keyboard, sync.clone());
+
+    rt.tick();
+
+    assert!(sync.log.borrow().outcome.is_none(), "the outcome must be drained while typing");
+    assert_eq!(rt.ed.notice(), Some("up to date"), "and reach the panel on that same pass");
+}
+
+#[test]
+fn an_outcome_arriving_mid_batch_costs_no_extra_repaint() {
+    // The settle must fold into the repaint the batch was already doing: a
+    // second whole-panel pass is ~630 ms of drive and another of the 64-partial
+    // ghosting budget, for every keystroke that happens to carry an outcome.
+    let sync = RecSync::new();
+    sync.log.borrow_mut().outcome = Some(NetOutcome::Push(PushOutcome::Pushed("abc123".into())));
+    let keyboard = ScriptedKeyboard::default();
+    keyboard.press(hal::Key::Char('i'));
+    let screen = CountingScreen::default();
+    let ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, "body".into());
+    let mut rt = typing_runtime(ed, screen.clone(), keyboard.clone(), sync);
+
+    let before = *screen.0.borrow();
+    rt.tick();
+    let with_outcome = *screen.0.borrow() - before;
+    assert_eq!(rt.ed.notice(), Some("synced abc123"));
+
+    // The same pass again with an empty queue: the batch repaint on its own.
+    keyboard.press(hal::Key::Char('x'));
+    rt.tick();
+    let batch_only = *screen.0.borrow() - before - with_outcome;
+
+    assert_eq!(with_outcome, batch_only, "the notice rode the batch's own repaint");
+}
+
+#[test]
+fn a_dispatched_sync_shows_a_panel_sign_typing_cannot_clear() {
+    // The `pulling...` snackbar dies on the very next keystroke, so it cannot be
+    // the evidence that a sync is running. The panel flag is.
+    let keyboard = ScriptedKeyboard::default();
+    let sync = RecSync::new();
+    let ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, "body".into());
+    let mut rt = typing_runtime(ed, CountingScreen::default(), keyboard.clone(), sync.clone());
+    rt.service_one(Effect::Pull(PullIntent::Ask));
+    assert_eq!(rt.ed.notice(), Some("pulling..."));
+    assert!(rt.ed.syncing(), "a dispatched pull raises the flag");
+
+    keyboard.press(hal::Key::Char('i'));
+    rt.tick();
+    assert_eq!(rt.ed.notice(), None, "the snackbar is gone with the keystroke");
+    assert!(rt.ed.syncing(), "the flag is not");
+
+    sync.log.borrow_mut().outcome = Some(NetOutcome::Pull(PullOutcome::LocalAhead));
+    rt.tick();
+    assert!(!rt.ed.syncing(), "and the outcome lowers it");
+}
+
+#[test]
+fn a_progress_line_leaves_the_sync_flag_up() {
+    // Only a terminal outcome ends the operation; a status line means it is
+    // still running, so the flag — and the idle-save hold-off with it — stands.
+    let mut rt = runtime(Editor::new(), RecStorage::default(), RecSync::new(), RecFiles::default());
+    rt.service_one(Effect::Push);
+    rt.handle_net_outcome(NetOutcome::Progress("sending 3/7".into()));
+    assert!(rt.ed.syncing(), "a progress line is not the end of the push");
+    rt.handle_net_outcome(NetOutcome::Push(PushOutcome::UpToDate));
+    assert!(!rt.ed.syncing());
+}
+
+#[test]
+fn the_idle_save_is_held_off_until_a_pull_settles() {
+    // An idle-save landing mid-pull rewrites a file the backend already folded
+    // into its pre-fetch commit, and the pull's apply pass then refuses the
+    // whole thing — the writer's "typing cancelled my pull". The write has to
+    // wait for the outcome, then land normally at the next pause.
+    let storage = RecStorage::default();
+    let sync = RecSync::new();
+    let mut ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    ed.handle(hal::Key::Char('i'));
+    ed.handle(hal::Key::Char('x'));
+    assert!(ed.dirty());
+    let mut rt = runtime(ed, storage.clone(), sync.clone(), RecFiles::default());
+    rt.service_one(Effect::Pull(PullIntent::Ask));
+
+    rt.last_activity = Instant::now() - Duration::from_millis(IDLE_SAVE_MS as u64 + 1);
+    rt.tick();
+    assert!(storage.0.borrow().saves.is_empty(), "no write may land mid-pull");
+    assert!(rt.ed.dirty(), "the buffer stays dirty, which is what makes its edits win");
+
+    sync.log.borrow_mut().outcome = Some(NetOutcome::Pull(PullOutcome::UpToDate));
+    rt.tick(); // settles the outcome and paints its notice
+    rt.last_activity = Instant::now() - Duration::from_millis(IDLE_SAVE_MS as u64 + 1);
+    rt.tick();
+    assert_eq!(
+        storage.0.borrow().saves,
+        vec![("/sd/repo/notes.md".to_string(), "x".to_string())],
+        "the safety net resumes at the first pause after the outcome"
+    );
 }
 
 #[test]

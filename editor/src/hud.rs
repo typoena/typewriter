@@ -22,9 +22,9 @@ impl Editor {
     /// * **File** (top-anchored): the active file name, then the word count with
     ///   a trailing `*` when the buffer has unsaved edits.
     /// * **Sync** (below the file tier, after a gap): a `Local` flag when the
-    ///   buffer never leaves the device (`Tracked` is the silent default), and
-    ///   beneath it the transient push/pull/save `notice` ("snackbar") when one
-    ///   is present.
+    ///   buffer never leaves the device (`Tracked` is the silent default) and a
+    ///   `Syncing` flag while a push/pull is in flight, and beneath them the
+    ///   transient push/pull/save `notice` ("snackbar") when one is present.
     /// * **Vim** (bottom-anchored): the focus marker, the mode indicator +
     ///   pending-command echo, and a keyboard-disconnect flag / snippet hint just
     ///   above the mode line.
@@ -79,16 +79,24 @@ impl Editor {
             .infallible();
 
         // ── Sync tier ────────────────────────────────────────────────────────
-        // One blank row below the file tier. `Tracked` is the default and syncs
-        // normally, so it stays silent; only a `Local` buffer — which never
-        // leaves the device (`:gs` is refused) — earns a persistent flag. The
-        // row is reserved either way: `scope_y` anchors both the notice and the
-        // companion-collision math below, so the snackbar sits at a stable
-        // height regardless of scope. There is no ahead/behind state to show:
-        // push/pull results only ever arrive as the transient notice below.
+        // One blank row below the file tier, holding the two persistent flags.
+        // `Tracked` is the default and syncs normally, so it stays silent; only
+        // a `Local` buffer — which never leaves the device (`:gs` is refused) —
+        // earns a flag, and `Syncing` stands for as long as a dispatched
+        // push/pull is in flight (see [`Editor::syncing`]). Both share the one
+        // row, so the row is reserved either way: `scope_y` anchors the notice
+        // and the companion-collision math below, which therefore sit at a
+        // stable height whatever the flags say. There is no ahead/behind state
+        // to show — a *finished* push/pull reports as the notice below.
         let scope_y = words_y + 2 * PANEL_CH;
-        if self.scope == Scope::Local {
-            Text::with_baseline("Local", Point::new(PANEL_X, scope_y), style, Baseline::Top)
+        let flags = match (self.scope == Scope::Local, self.syncing) {
+            (true, true) => "Local Syncing",
+            (true, false) => "Local",
+            (false, true) => "Syncing",
+            (false, false) => "",
+        };
+        if !flags.is_empty() {
+            Text::with_baseline(flags, Point::new(PANEL_X, scope_y), style, Baseline::Top)
                 .draw(f)
                 .infallible();
         }

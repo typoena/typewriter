@@ -1941,7 +1941,7 @@ impl app::NetService for NetService {
     }
 
     fn poll_outcome(&self) -> Option<app::NetOutcome> {
-        // Coalesce progress: the UI drains one message per idle pass and paints
+        // Coalesce progress: the UI drains one message per loop pass and paints
         // it, so a burst that queued while it was busy elsewhere would otherwise
         // replay line by line — at a full-panel partial each — and trail the
         // terminal notice with stale counts. Keep only the newest line, and let a

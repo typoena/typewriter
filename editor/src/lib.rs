@@ -370,6 +370,14 @@ pub struct Editor {
     /// (save/push result). Shown until the next keystroke dismisses it
     /// (cleared in [`Editor::handle`]); `None` means nothing to show.
     notice: Option<String>,
+    /// Whether a network operation the host dispatched is still in flight,
+    /// drawn as a persistent `Syncing` flag in the panel's sync tier. Its own
+    /// field rather than a [`notice`](Self::notice) precisely because the
+    /// snackbar is cleared by the next keystroke: a writer who keeps typing
+    /// through a push or pull would otherwise be left with no sign that one is
+    /// running. Fed by the host at dispatch and at the outcome — only it knows
+    /// when the git thread is done.
+    syncing: bool,
     /// Editor preferences (mirrors [`PREFS_PATH`]). Held here so the palette `>`
     /// command mode can toggle them live; the host reads the file at boot and
     /// applies it via [`set_prefs`](Self::set_prefs), and reads it back for the
@@ -570,6 +578,7 @@ impl Editor {
             shown_words: 0,
             keyboard_present: false,
             notice: None,
+            syncing: false,
             prefs: Prefs::default(),
             register: String::new(),
             register_linewise: false,
@@ -771,6 +780,24 @@ impl Editor {
     /// its `:` command effect handlers.
     pub fn set_notice(&mut self, msg: impl Into<String>) {
         self.notice = Some(msg.into());
+    }
+
+    /// The notice the panel's snackbar row currently shows, or `None`.
+    pub fn notice(&self) -> Option<&str> {
+        self.notice.as_deref()
+    }
+
+    /// Flag a dispatched network operation as in flight, or settle it — the
+    /// panel keeps its `Syncing` row up in between (see
+    /// [`syncing`](Self::syncing)).
+    pub fn set_syncing(&mut self, on: bool) {
+        self.syncing = on;
+    }
+
+    /// Whether a network operation is in flight, as last fed via
+    /// [`set_syncing`](Self::set_syncing).
+    pub fn syncing(&self) -> bool {
+        self.syncing
     }
 
     /// The current preferences. The host reads this for the keys it honours
