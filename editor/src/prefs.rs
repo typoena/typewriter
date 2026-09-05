@@ -110,6 +110,11 @@ pub struct Prefs {
     /// reachable. An entry matches a run of consecutive whole path segments below
     /// a scope root, ASCII-case-insensitively (FAT names on the card are).
     ///
+    /// A trailing `*` is a prefix match on one segment and a leading `!` is an
+    /// exception that wins wherever it sits, so `"_*,!_inbox"` hides every
+    /// underscore folder but the inbox. Dot-folders need no entry — the card
+    /// walk never indexes them.
+    ///
     /// Applied when a browse list is shown, never when the card index is built —
     /// see [`visible_files`](Editor::visible_files) for the invariant that
     /// keeps the exact-path guards honest.
@@ -279,6 +284,19 @@ impl Prefs {
     }
 }
 
+/// Whether one whole path segment matches one pattern segment,
+/// ASCII-case-insensitively. A trailing `*` makes it a prefix match (`_*` covers
+/// `_archive` and `_drafts`), and is the only wildcard: a bare name is exact.
+fn segment_matches(seg: &str, pat: &str) -> bool {
+    match pat.strip_suffix('*') {
+        Some(prefix) => seg
+            .as_bytes()
+            .get(..prefix.len())
+            .is_some_and(|head| head.eq_ignore_ascii_case(prefix.as_bytes())),
+        None => seg.eq_ignore_ascii_case(pat),
+    }
+}
+
 /// Whether the folder at `dir` (scope-root-relative) is covered by
 /// `hidden_folders` — a comma-separated entry list in the
 /// [`Prefs::hidden_folders`] form, where the matching rule is stated.
@@ -286,14 +304,27 @@ fn is_hidden_folder(dir: &str, hidden_folders: &str) -> bool {
     if hidden_folders.is_empty() {
         return false;
     }
-    hidden_folders.split(',').any(|entry| segment_run(dir, entry))
+    let mut hidden = false;
+    for entry in hidden_folders.split(',') {
+        match entry.trim().strip_prefix('!') {
+            // An exception wins wherever it sits in the list, so the order of
+            // `_*,!_inbox` never has to be reasoned about.
+            Some(kept) => {
+                if segment_run(dir, kept) {
+                    return false;
+                }
+            }
+            None => hidden |= segment_run(dir, entry),
+        }
+    }
+    hidden
 }
 
 /// Whether `entry`'s segments appear as a run of consecutive whole segments of
-/// `dir`. Anchored at a segment start (offset 0, or one past a `/`) and ended by
-/// a `/` or the path's end, so an entry never matches mid-segment and `_archive`
-/// never matches `_archives`. An empty entry (`"a,,b"`, a trailing comma) matches
-/// nothing rather than everything.
+/// `dir`, anchored at a segment start, so an entry never matches mid-segment and
+/// `_archive` never matches `_archives`. An empty entry (`"a,,b"`, a trailing
+/// comma) matches nothing rather than everything. Allocation-free: this runs per
+/// file per palette keystroke.
 fn segment_run(dir: &str, entry: &str) -> bool {
     let entry = entry.trim().trim_matches('/');
     if entry.is_empty() {
@@ -302,9 +333,8 @@ fn segment_run(dir: &str, entry: &str) -> bool {
     core::iter::once(0)
         .chain(dir.match_indices('/').map(|(i, _)| i + 1))
         .any(|start| {
-            let rest = crate::substr(dir, start..).as_bytes();
-            rest.get(..entry.len()).is_some_and(|head| head.eq_ignore_ascii_case(entry.as_bytes()))
-                && matches!(rest.get(entry.len()), None | Some(b'/'))
+            let mut segs = crate::substr(dir, start..).split('/');
+            entry.split('/').all(|pat| segs.next().is_some_and(|seg| segment_matches(seg, pat)))
         })
 }
 

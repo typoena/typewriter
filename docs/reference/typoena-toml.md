@@ -162,7 +162,7 @@ Rationale for the `"10m"` default:
 Folders the device keeps out of sight, comma-separated:
 
 ```toml
-hidden_folders = "_archive,attachments"
+hidden_folders = "_*,!_inbox"
 ```
 
 A **visibility filter, not a sync rule.** Their files still pull, still push, and
@@ -178,6 +178,15 @@ depth under either scope root, case-insensitively (the card's FAT names are):
 | ---------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
 | `_archive`       | `repo/_archive/old.md`, `repo/notes/_archive/old.md`, `local/_archive/x.md` | `repo/_archives/old.md`, `repo/my_archive/old.md`, the file `repo/_archive.md` |
 | `notes/_archive` | `repo/notes/_archive/old.md`                                             | `repo/_archive/old.md`, `repo/notes/drafts/_archive/old.md`                      |
+| `_*`             | every folder whose name starts with `_`, at any depth                     | `repo/my_todo/x.md` — the prefix has to start the segment                       |
+| `!_inbox`        | nothing; it **keeps** `_inbox` visible against a wildcard that covers it   | —                                                                               |
+
+A trailing `*` is the only wildcard, and matches a prefix of one segment. A
+leading `!` marks an exception, and it wins wherever it sits in the list, so
+`"_*,!_inbox"` and `"!_inbox,_*"` mean the same thing.
+
+Dot-folders need no entry: the card walk never indexes anything whose name starts
+with `.`, so `.git`, `.claude` and friends are already absent from every list.
 
 **Hiding is not sealing.** A hidden note stays reachable when you ask for it by
 name, because the filter governs browsing, not existence:

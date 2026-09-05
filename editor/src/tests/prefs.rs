@@ -290,6 +290,37 @@ fn a_hidden_folders_file_stays_in_the_index_pub_walks() {
 }
 
 #[test]
+fn a_trailing_star_hides_a_whole_family_of_folders() {
+    let p = Prefs { hidden_folders: "_*".into(), ..Prefs::default() };
+    assert!(p.hides_file("/sd/repo/_archive/old.md"));
+    assert!(p.hides_file("/sd/repo/_drafts/wip.md"));
+    assert!(p.hides_file("/sd/repo/notes/_todo/x.md"), "at any depth, like a bare entry");
+    assert!(!p.hides_file("/sd/repo/notes.md"), "an unprefixed folder is untouched");
+    assert!(!p.hides_file("/sd/repo/archive/old.md"), "the prefix has to be there");
+    assert!(!p.hides_file("/sd/repo/my_todo/x.md"), "and has to start the segment");
+}
+
+#[test]
+fn a_bang_entry_keeps_one_folder_out_of_a_wildcard() {
+    // The whole point of the pair: hide the underscore folders, keep the inbox.
+    let p = Prefs { hidden_folders: "_*,!_inbox".into(), ..Prefs::default() };
+    assert!(p.hides_file("/sd/repo/_archive/old.md"));
+    assert!(p.hides_file("/sd/repo/_drafts/wip.md"));
+    assert!(!p.hides_file("/sd/repo/_inbox/2026-09-06.md"), "the exception wins");
+    // Order must not matter, so the writer never has to reason about it.
+    let flipped = Prefs { hidden_folders: "!_inbox,_*".into(), ..Prefs::default() };
+    assert!(!flipped.hides_file("/sd/repo/_inbox/2026-09-06.md"));
+    assert!(flipped.hides_file("/sd/repo/_archive/old.md"));
+}
+
+#[test]
+fn a_starred_entry_still_matches_whole_segments_in_a_run() {
+    let p = Prefs { hidden_folders: "notes/_*".into(), ..Prefs::default() };
+    assert!(p.hides_file("/sd/repo/notes/_todo/x.md"));
+    assert!(!p.hides_file("/sd/repo/_todo/x.md"), "the run has to start at `notes`");
+}
+
+#[test]
 fn a_scope_root_segment_is_not_a_hidden_folder_entry() {
     // Entries match below the scope root, so the `sd`, `repo` and `local`
     // segments every card path carries cannot be turned into a blanket hide.
