@@ -133,8 +133,17 @@ fn walk_files(dir: &std::path::Path, depth: usize, out: &mut String, count: &mut
         log::warn!("file walk: {} exceeds depth {WALK_MAX_DEPTH}, skipped", dir.display());
         return;
     }
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
+    let entries = match std::fs::read_dir(dir) {
+        Ok(e) => e,
+        // A missing root is normal (`/sd/local` before the first scratch note),
+        // but anything else — notably ENFILE, "no free file descriptors" —
+        // truncates the palette with no other trace. At most a handful of lines
+        // per walk, and walks only run at boot and after a pull.
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return,
+        Err(e) => {
+            log::warn!("file walk: read_dir {} FAILED ({e}) — subtree skipped", dir.display());
+            return;
+        }
     };
     // Keep the dirent's own file type — a per-entry `metadata()` stat re-walks
     // the directory by path every time (~32ms/file on the SD card). But the type

@@ -63,6 +63,7 @@ use git2::{
 use app::Phase;
 
 use crate::drivers::wifi_esp::connect_wifi;
+use crate::infrastructure::sd_log::DIAG;
 use crate::infrastructure::storage_sd::{LOCAL_DIR, REPO_DIR};
 
 // Baked in at build time from firmware/.env (see build.rs). Empty when unset.
@@ -197,6 +198,17 @@ pub fn tune_libgit2() {
         }
         if let Err(e) = git2::opts::set_mwindow_mapped_limit(1536 * 1024) {
             log::error!("set_mwindow_mapped_limit failed ({e}); first pack access may OOM");
+        }
+        // Bound the OPEN-PACK descriptor count. libgit2's default is 0 =
+        // unlimited, so its LRU-close path never runs and every pack the odb
+        // touches holds an fd until the Repository drops. Against the shared
+        // 16-slot mount (storage_sd::MAX_FILES_GIT) that is the one term of the
+        // budget that grows without bound: a downloading `:gl` writes a new pack
+        // and the device never repacks. 4 leaves slack for the indexer's two.
+        // Behaviour-safe — a closed pack is reopened on demand, so the cost is a
+        // reopen, not a correctness change.
+        if let Err(e) = git2::opts::set_mwindow_file_limit(4) {
+            log::error!("set_mwindow_file_limit failed ({e}); packs keep their fds until the repo closes");
         }
         // Odb cache cap (see ODB_CACHE_MAX_BYTES). git2 0.20 wraps only the
         // per-object-type limit, not the total, so this one is a raw call.
@@ -784,6 +796,7 @@ fn push_once(paths: &BTreeSet<String>, progress: &dyn Fn(Phase)) -> Result<PushO
         free_heap(),
         internal_free_heap()
     );
+    log_odb_inventory();
     let repo = Repository::open(REPO_DIR).with_context(|| {
         format!("opening git repo at {REPO_DIR} — provision the card with a clone (just init) whose origin is your remote")
     })?;
@@ -1276,6 +1289,7 @@ fn pull_once(req: &PullRequest, progress: &dyn Fn(Phase)) -> Result<PullOutcome>
         free_heap(),
         internal_free_heap()
     );
+    log_odb_inventory();
     let repo = Repository::open(REPO_DIR).with_context(|| {
         format!("opening git repo at {REPO_DIR} — provision the card with a clone (just init) whose origin is your remote")
     })?;
@@ -1783,6 +1797,37 @@ fn internal_free_heap() -> u32 {
     unsafe { sys::heap_caps_get_free_size(sys::MALLOC_CAP_INTERNAL) as u32 }
 }
 
+/// The two accumulating terms of the FD budget, once per sync (never per
+/// keystroke): how many packs the odb can hold descriptors for, against the cap
+/// `tune_libgit2` set, and how often TLS teardown took the branch that used to
+/// leak a socket. One pack arrives per downloading `:gl` and nothing ever
+/// repacks, so a count that climbs session over session next to a `load_path
+/// FAILED … errno=23` is the descriptor-exhaustion story in two lines.
+fn log_odb_inventory() {
+    let packs = fs::read_dir(format!("{REPO_DIR}/.git/objects/pack"))
+        .map(|d| {
+            d.flatten()
+                .filter(|e| {
+                    let p = e.path();
+                    p.extension().and_then(|x| x.to_str()) == Some("pack")
+                })
+                .count()
+        })
+        .unwrap_or(0);
+    // SAFETY: reads a libgit2 global and a C file-static counter; the net thread
+    // is the only caller and `tune_libgit2` has already run on it.
+    let (limit, tls_teardown_failures) = unsafe {
+        (
+            git2::opts::get_mwindow_file_limit().unwrap_or(0),
+            esp_tls_teardown_failures(),
+        )
+    };
+    log::info!(
+        target: DIAG,
+        "odb inventory: {packs} pack(s), mwindow_file_limit={limit}, tls_teardown_failures={tls_teardown_failures}"
+    );
+}
+
 fn min_free_heap() -> u32 {
     unsafe { sys::esp_get_minimum_free_heap_size() }
 }
@@ -1794,6 +1839,11 @@ unsafe extern "C" {
     /// (mwindow windows AND whole-file pack .idx maps) is a real PSRAM malloc
     /// there, so this splits map memory from everything else git allocates.
     fn esp_map_stats(hits: *mut u32, misses: *mut u32, read_kb: *mut u32, cached_kb: *mut u32);
+
+    /// TLS teardowns whose `close_notify` errored this power session
+    /// (`components/libgit2/esp_mbedtls_stream.c`). Routine when the peer resets
+    /// first; tracked because that branch used to leak the socket fd.
+    fn esp_tls_teardown_failures() -> u32;
 }
 
 /// The p_mmap emulation's cumulative counters: (mappings created, KB read).
