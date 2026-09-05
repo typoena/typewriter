@@ -9,6 +9,32 @@ _Generated from the commit history with [git-cliff](https://git-cliff.org)._
 ## Firmware
 
 
+### [0.10.0] — 2026-09-05
+#### Added
+- **hardware:** Add routed mainboard PCB with gerbers
+- **tooling:** Enforce trailing newline on saved files
+- **editor:** Terminate formatted buffer with trailing newline
+- **sync:** List unsynced saves on :gl with commit or discard
+- **palette:** Jump half a card on Ctrl-d/Ctrl-u
+- **sync:** Report real push and pull phases on the panel
+- **hardware:** Add mainboard v2 schematic — single-board PCBA with power management
+- **pcb:** Import and place all 98 footprints
+- **pcb:** Route the mainboard and add the design checker
+- **pcb:** Generate the fabrication outputs from a script
+- **pcb:** Ready the dev board for fabrication
+- **pcb:** Cost-optimize the dev board for JLCPCB
+- **palette:** List the fleeting-note commands in the > palette
+- **help:** Add a paged :help command reference card
+
+#### Fixed
+- **editor:** Terminate buffer on Cmd+S mid-Insert without reflowing
+- **pcb:** Align the 5V feedback divider across schematic, BOM and notes
+- **pcb:** Tighten the pulsed-current loops
+- **pcb:** Clear the silkscreen collisions and the In2.Cu ground zone
+- **pcb:** Reroute around the relocated J5 and stitch the loose ground
+- **pcb:** Move the 5V feedback divider off the discontinued 68k
+- **pcb:** Turn the VBUS TVS the right way round on both boards
+
 ### [0.9.0] — 2026-08-01
 #### Added
 - **app:** Paint a publishing clue before the card-wide retarget
