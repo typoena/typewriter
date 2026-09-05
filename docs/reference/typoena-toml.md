@@ -74,6 +74,12 @@ of writing. It is a **safety net, not an action**:
   [format_on_save](#format_on_save) note for why.
 - Fires **once per typing burst**; a failed save doesn't retry-storm (it's kept
   in RAM and re-attempted on the next burst, or on `:w`).
+- **Stands down while a sync is in flight**, for a repo file only. A pull
+  refuses outright if a file it is about to write no longer hashes to what HEAD
+  recorded, so an idle save landing mid-pull would cancel the pull it collides
+  with. The buffer stays dirty (the panic scribe still covers the window) and
+  the first pause after the outcome saves normally. A `/sd/local` note is
+  outside the repo, so it keeps saving throughout.
 
 ### `format_on_save`
 

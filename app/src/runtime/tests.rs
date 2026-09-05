@@ -425,6 +425,102 @@ fn the_idle_save_is_held_off_until_a_pull_settles() {
 }
 
 #[test]
+fn a_second_syncs_outcome_does_not_settle_the_first() {
+    // The git thread takes an unbounded request queue, so a `:gl` dispatched
+    // behind a `:gs` overlaps it. If the push's outcome lifted the hold-off, the
+    // idle-save would fire straight into the pull this branch exists to protect.
+    let storage = RecStorage::default();
+    let sync = RecSync::new();
+    let mut ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    ed.handle(hal::Key::Char('i'));
+    ed.handle(hal::Key::Char('x'));
+    let mut rt = runtime(ed, storage.clone(), sync.clone(), RecFiles::default());
+    rt.service_one(Effect::Push);
+    rt.service_one(Effect::Pull(PullIntent::Ask));
+
+    sync.log.borrow_mut().outcome = Some(NetOutcome::Push(PushOutcome::UpToDate));
+    rt.tick();
+    assert!(rt.ed.syncing(), "the pull is still running, so the flag stands");
+
+    rt.last_activity = Instant::now() - Duration::from_millis(IDLE_SAVE_MS as u64 + 1);
+    rt.tick();
+    assert!(storage.0.borrow().saves.is_empty(), "no write may land mid-pull");
+
+    sync.log.borrow_mut().outcome = Some(NetOutcome::Pull(PullOutcome::UpToDate));
+    rt.tick();
+    assert!(!rt.ed.syncing(), "the last outcome lowers it");
+}
+
+#[test]
+fn a_sync_that_goes_silent_gives_the_safety_net_back() {
+    // A git thread that dies without reporting must not hold the save-on-idle
+    // net off — nor leave the panel claiming a sync — for the rest of the
+    // session. Flag and hold-off lift together.
+    let storage = RecStorage::default();
+    let mut ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    ed.handle(hal::Key::Char('i'));
+    ed.handle(hal::Key::Char('x'));
+    let mut rt = runtime(ed, storage.clone(), RecSync::new(), RecFiles::default());
+    rt.service_one(Effect::Pull(PullIntent::Ask));
+    assert!(rt.ed.syncing());
+
+    rt.net_in_flight = [Instant::now() - Duration::from_millis(SYNC_HOLDOFF_MS as u64 + 1)]
+        .into_iter()
+        .collect();
+    rt.last_activity = Instant::now() - Duration::from_millis(IDLE_SAVE_MS as u64 + 1);
+    rt.tick();
+    assert!(!rt.ed.syncing(), "the panel stops claiming a sync it cannot finish");
+    assert_eq!(
+        storage.0.borrow().saves,
+        vec![("/sd/repo/notes.md".to_string(), "x".to_string())],
+        "and the safety net is back"
+    );
+}
+
+#[test]
+fn a_progress_line_keeps_a_slow_sync_from_expiring() {
+    // The bound is silence, not duration: a fetch that keeps reporting keeps its
+    // hold-off however long it runs.
+    let storage = RecStorage::default();
+    let mut ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    ed.handle(hal::Key::Char('i'));
+    ed.handle(hal::Key::Char('x'));
+    let mut rt = runtime(ed, storage.clone(), RecSync::new(), RecFiles::default());
+    rt.service_one(Effect::Pull(PullIntent::Ask));
+
+    rt.net_in_flight = [Instant::now() - Duration::from_millis(SYNC_HOLDOFF_MS as u64 - 10)]
+        .into_iter()
+        .collect();
+    rt.handle_net_outcome(NetOutcome::Progress("receiving 40%".into()));
+    rt.last_activity = Instant::now() - Duration::from_millis(IDLE_SAVE_MS as u64 + 1);
+    rt.tick();
+    assert!(rt.ed.syncing(), "proof of life refreshed the deadline");
+    assert!(storage.0.borrow().saves.is_empty(), "so the hold-off still stands");
+}
+
+#[test]
+fn a_local_note_keeps_saving_through_a_sync() {
+    // A `/sd/local` note lives outside the repo: the pull's hash belt never
+    // reads it and the dirty journal never records it, so holding its idle-save
+    // off would spend the safety net and buy nothing.
+    let storage = RecStorage::default();
+    let mut ed = Editor::with_file("/sd/local/idea.md".into(), Scope::Local, String::new());
+    ed.handle(hal::Key::Char('i'));
+    ed.handle(hal::Key::Char('x'));
+    let mut rt = runtime(ed, storage.clone(), RecSync::new(), RecFiles::default());
+    rt.service_one(Effect::Pull(PullIntent::Ask));
+    assert!(rt.ed.syncing(), "the sync is running");
+
+    rt.last_activity = Instant::now() - Duration::from_millis(IDLE_SAVE_MS as u64 + 1);
+    rt.tick();
+    assert_eq!(
+        storage.0.borrow().saves,
+        vec![("/sd/local/idea.md".to_string(), "x".to_string())],
+        "the local note is saved anyway"
+    );
+}
+
+#[test]
 fn pull_notice_covers_every_variant() {
     assert_eq!(pull_notice(&PullOutcome::Pulled("abc".into())), "pulled abc");
     assert_eq!(pull_notice(&PullOutcome::Rebased("def".into())), "rebased def - :gs to push");
