@@ -784,7 +784,7 @@ fn ensure_wifi(
     nvs: &mut Option<EspDefaultNvsPartition>,
     progress: &dyn Fn(Phase),
 ) -> Result<u128> {
-    if wifi.as_mut().is_some_and(|w| w.is_connected().unwrap_or(false)) {
+    if wifi.as_ref().is_some_and(|w| w.is_connected().unwrap_or(false)) {
         return Ok(0);
     }
     let t = Instant::now();
@@ -824,6 +824,12 @@ fn ensure_clock(clock_synced: &mut bool, progress: &dyn Fn(Phase)) -> Result<u12
 /// stop. No trust store, no libgit2, no handshake with the remote — this exists
 /// so `:inbox` can date a fleeting note in the seconds a join and an SNTP packet
 /// take instead of the tens a pull takes. Silent by design (see the request arm).
+///
+/// The clock is a once-per-power-cycle fact, so a warm request answers without
+/// touching the radio at all, and the association this one opens is closed again
+/// on the way out ([`park_wifi`]) — the request arrives unprompted at every cold
+/// boot, and a station held up for a whole session of typing is battery spent on
+/// a date already read.
 fn clock_cycle(
     sys_loop: &EspSystemEventLoop,
     wifi: &mut Option<BlockingWifi<EspWifi<'static>>>,
@@ -831,11 +837,44 @@ fn clock_cycle(
     nvs: &mut Option<EspDefaultNvsPartition>,
     clock_synced: &mut bool,
 ) -> Result<()> {
+    if *clock_synced {
+        return Ok(());
+    }
+    if wifi_ssid().is_empty() {
+        bail!("Wi-Fi not provisioned — run :setup / the installer first");
+    }
     let silent = |_: Phase| {};
-    let wifi_ms = ensure_wifi(sys_loop, wifi, modem, nvs, &silent)?;
-    let clock_ms = ensure_clock(clock_synced, &silent)?;
-    log::info!("clock sync — wifi {wifi_ms}ms, sntp {clock_ms}ms");
+    let wifi_ms = match ensure_wifi(sys_loop, wifi, modem, nvs, &silent) {
+        Ok(ms) => ms,
+        Err(e) => {
+            park_wifi(wifi);
+            return Err(e);
+        }
+    };
+    let sntp = ensure_clock(clock_synced, &silent);
+    // Only ever what this cycle woke: a station a `:gs` brought up belongs to
+    // that session's git work, and stopping it under the next push would cost a
+    // re-join mid-sync.
+    if wifi_ms > 0 {
+        park_wifi(wifi);
+    }
+    let clock_ms = sntp?;
+    log::info!("clock-only sync — wifi {wifi_ms}ms, sntp {clock_ms}ms");
     Ok(())
+}
+
+/// Stop the station, keeping the driver. [`ensure_wifi`] re-associates against
+/// it on the next request that needs the wire, so this costs a later `:gs` the
+/// same join a cold one already pays. Never fatal — by the time it runs, the
+/// clock it woke the radio for has either landed or failed on its own.
+fn park_wifi(wifi: &mut Option<BlockingWifi<EspWifi<'static>>>) {
+    let Some(w) = wifi.as_mut() else {
+        return;
+    };
+    match w.stop() {
+        Ok(()) => log::info!("radio parked; next :gs/:gl re-joins"),
+        Err(e) => log::warn!("could not park the radio: {e}"),
+    }
 }
 
 /// Open `/sd/repo`, commit the working tree on the current branch, and push.
