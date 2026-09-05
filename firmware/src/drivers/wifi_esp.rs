@@ -1,12 +1,16 @@
-//! Shared networking helpers.
+//! Shared networking helpers: joining the AP, and setting the wall clock over
+//! SNTP once we are on it.
 //!
-//! Extracted from the near-identical `connect_wifi` copies that lived in the
-//! wifi_tls / git_push / git_sync spikes. The single copy adds the resilience
-//! the spikes lacked: a bounded retry with exponential backoff around
-//! association + DHCP.
+//! Every caller that touches the radio needs both, in that order — the net
+//! thread's `:gs`/`:gl`/`:update`/`:inbox` cycles, the onboarding wizard, and the
+//! `wifi_tls` bench bin — so both live here rather than once per caller. Neither
+//! is feature-gated: `wifi_tls` builds without libgit2.
 
-use anyhow::{Context, Result};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+
+use anyhow::{bail, Context, Result};
 use esp_idf_svc::hal::delay::FreeRtos;
+use esp_idf_svc::sntp::{EspSntp, SyncStatus};
 use esp_idf_svc::wifi::{AuthMethod, BlockingWifi, ClientConfiguration, Configuration, EspWifi};
 
 /// Association + DHCP attempts before giving up. The first attempt after a
@@ -76,4 +80,47 @@ fn associate_once(wifi: &mut BlockingWifi<EspWifi<'_>>) -> Result<()> {
     wifi.connect().context("Wi-Fi association failed")?;
     wifi.wait_netif_up().context("DHCP / netif never came up")?;
     Ok(())
+}
+
+/// SNTP first-sync budget. Home networks resolve pool.ntp.org and answer well
+/// within this; failing past it is a real problem worth surfacing rather than
+/// waiting out.
+pub const SNTP_TIMEOUT: Duration = Duration::from_secs(20);
+
+/// Kick off SNTP and block until the wall clock is real. Must run on the thread
+/// that owns the radio, after the AP join.
+///
+/// Everything downstream depends on it: TLS checks cert validity against wall
+/// time, a git commit signs a timestamp, and `:inbox` dates the fleeting note —
+/// there is no battery-backed RTC, so the clock boots at the epoch every power
+/// cycle. A `Completed` status alone is not enough (it can settle on a clock
+/// that never moved), so the seconds are re-checked against a date safely in the
+/// past before we call it synced.
+pub fn sync_clock() -> Result<()> {
+    let sntp = EspSntp::new_default()?;
+    log::info!("SNTP started, waiting for first sync…");
+    let start = Instant::now();
+    while sntp.get_sync_status() != SyncStatus::Completed {
+        if start.elapsed() >= SNTP_TIMEOUT {
+            bail!("SNTP did not sync within {SNTP_TIMEOUT:?}");
+        }
+        FreeRtos::delay_ms(100);
+    }
+    let unix = now_unix();
+    // 2023-11-14. Anything below means the clock never actually advanced, and
+    // TLS would reject on validity while a commit would carry a 1970 date.
+    if unix < 1_700_000_000 {
+        bail!("clock still at {unix} after SNTP — refusing TLS/commit with a bad wall clock");
+    }
+    log::info!("clock synced — unix {unix}");
+    Ok(())
+}
+
+/// Current wall-clock seconds since the Unix epoch (meaningful after
+/// [`sync_clock`]).
+pub fn now_unix() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
 }

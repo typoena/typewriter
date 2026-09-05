@@ -64,6 +64,18 @@ pub enum UpdateDispatch {
     ThreadDown,
 }
 
+/// What dispatching a clock-only sync ([`editor::Effect::SyncClock`]) did. The
+/// sync itself is Wi-Fi + SNTP and nothing else — no fetch, no TLS handshake to
+/// the git remote — so it is the cheapest thing the radio thread can be asked
+/// to do, and what lets `:inbox` date a note without paying for a pull.
+pub enum ClockDispatch {
+    /// Handed to the radio thread; the result arrives later via
+    /// [`NetService::poll_outcome`].
+    Dispatched,
+    /// The backend is gone (thread down); nothing will report back.
+    ThreadDown,
+}
+
 /// A completed push, mirrored from the git transport into a git-free shape so
 /// the app layer stays pure.
 pub enum PushOutcome {
@@ -98,11 +110,23 @@ pub enum UpdateOutcome {
     Failed(String),
 }
 
+/// A completed clock-only sync. Carries no date: the wall clock is the transport
+/// here, and the loop reads the day back through [`Clock::today`] as it does
+/// every pass.
+pub enum ClockOutcome {
+    /// The wall clock now holds a real date (it may already have held one — an
+    /// ask that found the clock set is a success, not a special case).
+    Synced,
+    /// No date — a ready-to-show reason string (no Wi-Fi, SNTP timed out).
+    Failed(String),
+}
+
 /// The outcome of a finished background operation on the radio-owning thread.
 pub enum NetOutcome {
     Push(PushOutcome),
     Pull(PullOutcome),
     Update(UpdateOutcome),
+    Clock(ClockOutcome),
     /// A short status line from an operation still in flight — the panel's only
     /// sign of life through the multi-second grind (`syncing...` otherwise sits
     /// unchanged from dispatch to outcome). Non-terminal: it settles nothing, so
@@ -116,13 +140,14 @@ pub enum NetOutcome {
 }
 
 /// Everything the radio-owning background thread does: the git push/pull
-/// transport (plus the dirty-path journal that gates it) and firmware update
-/// over the air. All three share the one thread because the device has a single
-/// Wi-Fi modem the editor loop cannot reclaim — so they multiplex over one
-/// dispatch/outcome channel rather than each owning a radio. Fire-and-forget:
-/// [`push`](NetService::push) / [`pull`](NetService::pull) /
-/// [`update`](NetService::update) dispatch, and the result returns later via
-/// [`poll_outcome`](NetService::poll_outcome). The backend owns the dirty
+/// transport (plus the dirty-path journal that gates it), firmware update over
+/// the air, and the clock-only sync `:inbox` needs for today's date. They share
+/// the one thread because the device has a single Wi-Fi modem the editor loop
+/// cannot reclaim — so they multiplex over one dispatch/outcome channel rather
+/// than each owning a radio. Fire-and-forget: [`push`](NetService::push) /
+/// [`pull`](NetService::pull) / [`update`](NetService::update) /
+/// [`sync_clock`](NetService::sync_clock) dispatch, and the result returns later
+/// via [`poll_outcome`](NetService::poll_outcome). The backend owns the dirty
 /// journal — it takes the pending paths on push (and on a committing pull)
 /// and settles them when the outcome lands — so the app layer never touches it.
 pub trait NetService {
@@ -141,6 +166,12 @@ pub trait NetService {
     /// the rollback is local and already done by then, so those paths are
     /// genuinely no longer dirty.
     fn pull(&self, intent: PullIntent) -> PullDispatch;
+    /// Dispatch a clock-only sync: join Wi-Fi and run SNTP, nothing else. The
+    /// cheap half of a sync's bring-up (no fetch, no git, no TLS to the remote),
+    /// so a writer who only needs today's date pays seconds instead of the tens
+    /// a pull costs. Reports back via [`ClockOutcome`]. The loop dispatches one
+    /// unprompted at boot and one per `:inbox` that finds the clock unset.
+    fn sync_clock(&self) -> ClockDispatch;
     /// Dispatch a firmware-update check: fetch the latest release, and if it is
     /// newer than the running image, download it into the inactive OTA slot and
     /// make that the boot target. Reports back via [`UpdateOutcome`] — the caller
@@ -153,7 +184,8 @@ pub trait NetService {
 
 /// The wall clock and the idle CPU-yield the loop needs. `today` is `None` until
 /// the clock is trustworthy — there is no battery-backed RTC, so it sits at the
-/// epoch until the first sync sets it (see [`editor::Date`]).
+/// epoch until SNTP sets it this power cycle (see [`editor::Date`]); the loop
+/// asks for that through [`NetService::sync_clock`].
 pub trait Clock {
     /// Today's calendar day, or `None` while the clock is unset.
     fn today(&self) -> Option<Date>;

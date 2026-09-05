@@ -136,8 +136,9 @@ fn main() -> anyhow::Result<()> {
     }
     let (boot_path, boot_scope, saved) = boot_note(&mut epd, &storage, &prefs);
 
-    // The net thread owns the Wi-Fi stack, brought up lazily on the first
-    // request, so the radio stays off until you sync or update.
+    // The net thread owns the Wi-Fi stack, brought up lazily on its first
+    // request. On a cold clock that request is the runtime's own boot kick a
+    // moment from now (`Runtime::new`), which dates `:inbox` without a fetch.
     let (net_tx, net_rx) = {
         use firmware::infrastructure::net::{run_net_service, NetOutcome, NetRequest, GIT_STACK};
 
@@ -148,7 +149,7 @@ fn main() -> anyhow::Result<()> {
             .stack_size(GIT_STACK)
             .spawn(move || run_net_service(modem, sys_loop, nvs, req_rx, res_tx))?;
         log::info!(
-            "net thread up ({} KB stack); Wi-Fi comes up on the first :gs/:gl/:update",
+            "net thread up ({} KB stack); Wi-Fi comes up on its first request",
             GIT_STACK / 1024
         );
         (req_tx, res_rx)

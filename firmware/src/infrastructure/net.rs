@@ -1,9 +1,10 @@
 //! The net thread — the sole owner of the Wi-Fi modem, and the transport behind
 //! everything the editor does over the wire: git push (`:gs`) and pull
-//! (`:gl`), plus firmware update (`:update`, whose logic lives in the sibling
-//! [`crate::infrastructure::ota`] module — this file only dispatches to it).
+//! (`:gl`), firmware update (`:update`, whose logic lives in the sibling
+//! [`crate::infrastructure::ota`] module — this file only dispatches to it), and
+//! the clock-only sync that dates a fleeting note ([`NetRequest::Clock`]).
 //! One thread because there is one radio the editor loop can never reclaim, so
-//! all three multiplex over a single [`NetRequest`]/[`NetOutcome`] channel and
+//! they all multiplex over a single [`NetRequest`]/[`NetOutcome`] channel and
 //! back the app's [`app::NetService`] port. Most of what follows is the git
 //! machinery; the OTA hop is [`NetRequest::Update`] → [`update_cycle`].
 //!
@@ -45,14 +46,12 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::rc::Rc;
 use std::sync::mpsc::{Receiver, Sender};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Result};
 use esp_idf_svc::eventloop::EspSystemEventLoop;
-use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::modem::Modem;
 use esp_idf_svc::nvs::EspDefaultNvsPartition;
-use esp_idf_svc::sntp::{EspSntp, SyncStatus};
 use esp_idf_svc::sys;
 use esp_idf_svc::wifi::{BlockingWifi, EspWifi};
 use git2::{
@@ -62,7 +61,7 @@ use git2::{
 
 use app::Phase;
 
-use crate::drivers::wifi_esp::connect_wifi;
+use crate::drivers::wifi_esp::{connect_wifi, now_unix, sync_clock};
 use crate::infrastructure::storage_sd::{LOCAL_DIR, REPO_DIR};
 
 // Baked in at build time from firmware/.env (see build.rs). Empty when unset.
@@ -161,10 +160,6 @@ const GITHUB_ROOTS_PEM: &str = include_str!("../bin/github_roots.pem");
 /// CA bundle on the card root — outside `/sd/repo`, so it's never staged.
 const CA_BUNDLE_PATH: &str = "/sd/ca.pem";
 
-/// SNTP first-sync budget (same as Spike 6): required before TLS (cert validity)
-/// and before committing (signature timestamp).
-const SNTP_TIMEOUT: Duration = Duration::from_secs(20);
-
 /// Stack for the dedicated net thread. The init→push chain measured ~67 KB;
 /// keep the proven 96 KB (see git_push.rs / postmortem #3). Wi-Fi association
 /// now also runs here, but it's shallow next to libgit2's path-buffer nesting.
@@ -221,6 +216,12 @@ pub enum NetRequest {
     /// version and the manifest URL are known to the firmware. Rides this thread
     /// because it already owns the Wi-Fi modem, not because it touches git.
     Update,
+    /// Set the wall clock, and nothing else: join the AP and run SNTP, no fetch,
+    /// no libgit2, no TLS handshake to the remote. The cheapest thing this thread
+    /// does, and the reason `:inbox` can date a note without paying for a pull.
+    /// The UI sends one unprompted at boot and one per `:inbox` that finds the
+    /// clock still at the epoch.
+    Clock,
 }
 
 /// A request to push. The UI task has already saved every dirty buffer to
@@ -256,6 +257,7 @@ pub enum NetOutcome {
     Push(PushOutcome),
     Pull(PullOutcome),
     Update(UpdateOutcome),
+    Clock(ClockOutcome),
     /// A non-terminal status line for the panel from an operation still running
     /// (see [`app::NetOutcome::Progress`]). Sent from inside the transport's own
     /// progress callbacks, so it shares this channel rather than owning one —
@@ -311,6 +313,17 @@ pub enum UpdateOutcome {
     /// Something failed (a missing newer release is *not* a failure — that is
     /// `UpToDate`); short reason for the panel, full error logged. The running
     /// slot is untouched, so the device keeps booting the current image.
+    Failed(String),
+}
+
+/// Result of a clock-only sync. Carries no time: the wall clock itself is the
+/// result, and the UI reads the day back through [`app::Clock`].
+pub enum ClockOutcome {
+    /// The wall clock holds a real date now. A request that found it already
+    /// synced this session lands here too — that is a success, not a special case.
+    Synced,
+    /// No date; short reason for the panel, full error logged. Shown only if an
+    /// `:inbox` was waiting on it (the boot request is unprompted).
     Failed(String),
 }
 
@@ -380,6 +393,18 @@ pub fn run_net_service(
                     Err(e) => {
                         log::error!("❌ :gl failed: {e:?}");
                         PullOutcome::Failed(short_reason("pull", &e))
+                    }
+                },
+            ),
+            // No progress lines: most of these are the unprompted boot request,
+            // and a phase line costs a full-panel partial to announce work the
+            // writer never asked for.
+            NetRequest::Clock => NetOutcome::Clock(
+                match clock_cycle(&sys_loop, &mut wifi, &mut modem, &mut nvs, &mut clock_synced) {
+                    Ok(()) => ClockOutcome::Synced,
+                    Err(e) => {
+                        log::error!("❌ clock sync failed: {e:?}");
+                        ClockOutcome::Failed(short_reason("clock", &e))
                     }
                 },
             ),
@@ -708,10 +733,15 @@ fn update_cycle(
     Ok(outcome)
 }
 
-/// Bring Wi-Fi + wall clock + TLS trust store up, each once per session; a
-/// warm call is a no-op. Shared by push and pull, on the net thread. Logs
-/// one timing line whenever any step actually ran (the session's first
-/// operation pays them all; every later one skips straight to git).
+/// Bring Wi-Fi + wall clock + TLS trust store up, each once per session; a warm
+/// call is a no-op. Shared by push, pull and update, on the net thread. Logs one
+/// timing line whenever any step actually ran (the session's first git operation
+/// pays them all; every later one skips straight to git).
+///
+/// Each step reports only when it actually runs: a warm operation skips all
+/// three, and a line for a 0 ms phase would cost a full-panel partial to say
+/// nothing. Cold, they are ~3.65 s / ~2.1 s / ~0.3 s — the longest silent stretch
+/// a sync has, which is why they are three lines and not one.
 fn ensure_online(
     sys_loop: &EspSystemEventLoop,
     wifi: &mut Option<BlockingWifi<EspWifi<'static>>>,
@@ -721,37 +751,8 @@ fn ensure_online(
     tls_ready: &mut bool,
     progress: &dyn Fn(Phase),
 ) -> Result<()> {
-    // Each step reports only when it actually runs: a warm operation skips all
-    // three, and a line for a 0 ms phase would cost a full-panel partial to say
-    // nothing. Cold, they are ~3.65 s / ~2.1 s / ~0.3 s — the longest silent
-    // stretch a sync has, which is why they are three lines and not one.
-    let wifi_ms = if wifi.is_none() {
-        let t = Instant::now();
-        progress(Phase::JoiningWifi);
-        log::info!("first git op — bringing Wi-Fi up; free heap {}", free_heap());
-        let m = modem.take().expect("modem taken once");
-        let n = nvs.take().expect("nvs taken once");
-        let mut w = BlockingWifi::wrap(
-            EspWifi::new(m, sys_loop.clone(), Some(n))?,
-            sys_loop.clone(),
-        )?;
-        connect_wifi(&mut w, wifi_ssid(), wifi_pass()).context("connecting Wi-Fi")?;
-        let ip = w.wifi().sta_netif().get_ip_info()?;
-        log::info!("Wi-Fi up — IP {}", ip.ip);
-        *wifi = Some(w);
-        t.elapsed().as_millis()
-    } else {
-        0u128
-    };
-    let clock_ms = if !*clock_synced {
-        let t = Instant::now();
-        progress(Phase::SettingClock);
-        sync_clock()?;
-        *clock_synced = true;
-        t.elapsed().as_millis()
-    } else {
-        0
-    };
+    let wifi_ms = ensure_wifi(sys_loop, wifi, modem, nvs, progress)?;
+    let clock_ms = ensure_clock(clock_synced, progress)?;
     let tls_ms = if !*tls_ready {
         let t = Instant::now();
         progress(Phase::VerifyingTls);
@@ -764,6 +765,76 @@ fn ensure_online(
     if wifi_ms + clock_ms + tls_ms > 0 {
         log::info!("online — wifi {wifi_ms}ms, clock {clock_ms}ms, tls {tls_ms}ms");
     }
+    Ok(())
+}
+
+/// Associate with the AP unless we already are. Returns the milliseconds it
+/// cost, 0 when the session was already on the network.
+///
+/// The `EspWifi` driver is built once — it swallows the modem and the NVS
+/// partition, and neither comes back — but it is then kept whatever the
+/// association does. A bring-up that fails must leave a driver a later request
+/// can retry against: the clock sync runs unprompted at boot, so with the modem
+/// merely spent, one boot out of Wi-Fi range would cost the whole session its
+/// radio (and a `:gs` an hour later would have nothing left to join with).
+fn ensure_wifi(
+    sys_loop: &EspSystemEventLoop,
+    wifi: &mut Option<BlockingWifi<EspWifi<'static>>>,
+    modem: &mut Option<Modem<'static>>,
+    nvs: &mut Option<EspDefaultNvsPartition>,
+    progress: &dyn Fn(Phase),
+) -> Result<u128> {
+    if wifi.as_mut().is_some_and(|w| w.is_connected().unwrap_or(false)) {
+        return Ok(0);
+    }
+    let t = Instant::now();
+    progress(Phase::JoiningWifi);
+    if wifi.is_none() {
+        log::info!("bringing the Wi-Fi driver up; free heap {}", free_heap());
+        let m = modem.take().context("Wi-Fi modem already spent")?;
+        let n = nvs.take().context("NVS partition already spent")?;
+        *wifi = Some(BlockingWifi::wrap(
+            EspWifi::new(m, sys_loop.clone(), Some(n))?,
+            sys_loop.clone(),
+        )?);
+    }
+    let Some(w) = wifi.as_mut() else {
+        bail!("Wi-Fi driver missing right after building it");
+    };
+    connect_wifi(w, wifi_ssid(), wifi_pass()).context("connecting Wi-Fi")?;
+    let ip = w.wifi().sta_netif().get_ip_info()?;
+    log::info!("Wi-Fi up — IP {}", ip.ip);
+    Ok(t.elapsed().as_millis())
+}
+
+/// Set the wall clock over SNTP unless this session already did. Returns the
+/// milliseconds it cost, 0 when warm. Needs Wi-Fi up first.
+fn ensure_clock(clock_synced: &mut bool, progress: &dyn Fn(Phase)) -> Result<u128> {
+    if *clock_synced {
+        return Ok(0);
+    }
+    let t = Instant::now();
+    progress(Phase::SettingClock);
+    sync_clock()?;
+    *clock_synced = true;
+    Ok(t.elapsed().as_millis())
+}
+
+/// The cheap half of [`ensure_online`]: join the AP and set the wall clock, then
+/// stop. No trust store, no libgit2, no handshake with the remote — this exists
+/// so `:inbox` can date a fleeting note in the seconds a join and an SNTP packet
+/// take instead of the tens a pull takes. Silent by design (see the request arm).
+fn clock_cycle(
+    sys_loop: &EspSystemEventLoop,
+    wifi: &mut Option<BlockingWifi<EspWifi<'static>>>,
+    modem: &mut Option<Modem<'static>>,
+    nvs: &mut Option<EspDefaultNvsPartition>,
+    clock_synced: &mut bool,
+) -> Result<()> {
+    let silent = |_: Phase| {};
+    let wifi_ms = ensure_wifi(sys_loop, wifi, modem, nvs, &silent)?;
+    let clock_ms = ensure_clock(clock_synced, &silent)?;
+    log::info!("clock sync — wifi {wifi_ms}ms, sntp {clock_ms}ms");
     Ok(())
 }
 
@@ -1711,26 +1782,6 @@ fn auth_callbacks<'a>() -> RemoteCallbacks<'a> {
     cbs
 }
 
-/// Kick off SNTP and block until first sync. Required before TLS (cert validity)
-/// and before committing (signature timestamp). Mirrors Spike 6 / the spike.
-fn sync_clock() -> Result<()> {
-    let sntp = EspSntp::new_default()?;
-    log::info!("SNTP started, waiting for first sync…");
-    let start = Instant::now();
-    while sntp.get_sync_status() != SyncStatus::Completed {
-        if start.elapsed() >= SNTP_TIMEOUT {
-            bail!("SNTP did not sync within {SNTP_TIMEOUT:?} — TLS + commit time would be wrong");
-        }
-        FreeRtos::delay_ms(100);
-    }
-    let unix = now_unix();
-    if unix < 1_700_000_000 {
-        bail!("clock still at {unix} after SNTP — refusing TLS/commit with a bad wall clock");
-    }
-    log::info!("clock synced — unix {unix}");
-    Ok(())
-}
-
 /// Write the embedded GitHub root CAs to the card and point libgit2's mbedTLS
 /// stream at them. Must run before any TLS. Mirrors the spike, but writes to the
 /// card root (`/sd/ca.pem`) instead of flash-FAT.
@@ -1761,14 +1812,6 @@ fn short(oid: git2::Oid) -> String {
     let mut s = oid.to_string();
     s.truncate(8);
     s
-}
-
-/// Current wall-clock seconds since the Unix epoch (valid after SNTP).
-fn now_unix() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0)
 }
 
 fn free_heap() -> u32 {
@@ -1940,6 +1983,14 @@ impl app::NetService for NetService {
         }
     }
 
+    fn sync_clock(&self) -> app::ClockDispatch {
+        // Touches neither the working copy nor the dirty journal.
+        match self.tx.send(NetRequest::Clock) {
+            Ok(()) => app::ClockDispatch::Dispatched,
+            Err(_) => app::ClockDispatch::ThreadDown,
+        }
+    }
+
     fn poll_outcome(&self) -> Option<app::NetOutcome> {
         // Coalesce progress: the UI drains one message per idle pass and paints
         // it, so a burst that queued while it was busy elsewhere would otherwise
@@ -1955,6 +2006,12 @@ impl app::NetService for NetService {
             }
         };
         Some(match outcome {
+            // Nothing to settle: the wall clock is the result, and the UI reads
+            // it back through `app::Clock` on its next pass.
+            NetOutcome::Clock(o) => app::NetOutcome::Clock(match o {
+                ClockOutcome::Synced => app::ClockOutcome::Synced,
+                ClockOutcome::Failed(reason) => app::ClockOutcome::Failed(reason),
+            }),
             NetOutcome::Update(o) => app::NetOutcome::Update(match o {
                 // OTA settles no dirty journal; just mirror the outcome across
                 // the app boundary.
