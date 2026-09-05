@@ -16,6 +16,7 @@ mod dot_repeat;
 mod visual;
 mod buffers;
 mod inbox;
+mod help;
 mod palette;
 mod prefs;
 mod snippets;

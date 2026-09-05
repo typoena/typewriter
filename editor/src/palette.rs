@@ -86,6 +86,7 @@ pub(crate) enum PaletteCmd {
     NewFile,
     Inbox,
     Oldest,
+    Help,
     AddLink,
     FollowLink,
     Format,
@@ -125,6 +126,7 @@ impl PaletteCmd {
             PaletteCmd::NewFile | PaletteCmd::AddLink => CmdKind::Param,
             PaletteCmd::Inbox
             | PaletteCmd::Oldest
+            | PaletteCmd::Help
             | PaletteCmd::FollowLink
             | PaletteCmd::Format
             | PaletteCmd::Push
@@ -138,10 +140,11 @@ impl PaletteCmd {
 
 /// The palette command list, in display order (empty `>` query shows them all):
 /// the actions first, the settings after.
-pub(crate) const PALETTE_CMDS: [PaletteCmd; 21] = [
+pub(crate) const PALETTE_CMDS: [PaletteCmd; 22] = [
     PaletteCmd::NewFile,
     PaletteCmd::Inbox,
     PaletteCmd::Oldest,
+    PaletteCmd::Help,
     PaletteCmd::AddLink,
     PaletteCmd::FollowLink,
     PaletteCmd::Format,
@@ -441,6 +444,7 @@ impl Editor {
             PaletteCmd::NewFile => "new file...".to_string(),
             PaletteCmd::Inbox => "new fleeting note".to_string(),
             PaletteCmd::Oldest => "oldest fleeting note".to_string(),
+            PaletteCmd::Help => "help".to_string(),
             PaletteCmd::AddLink => "add local link...".to_string(),
             PaletteCmd::FollowLink => "follow link".to_string(),
             PaletteCmd::Format => "format".to_string(),
@@ -498,6 +502,7 @@ impl Editor {
                     // The `:inbox` / `:oldest` pair, spelled out for browsing.
                     PaletteCmd::Inbox => self.open_inbox_today(),
                     PaletteCmd::Oldest => self.open_oldest_inbox(),
+                    PaletteCmd::Help => self.show_help(),
                     PaletteCmd::Format => {
                         self.format_buffer();
                         self.set_notice("formatted");
@@ -685,6 +690,7 @@ impl Editor {
             PaletteCmd::NewFile
             | PaletteCmd::Inbox
             | PaletteCmd::Oldest
+            | PaletteCmd::Help
             | PaletteCmd::AddLink
             | PaletteCmd::FollowLink
             | PaletteCmd::Format

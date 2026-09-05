@@ -275,16 +275,20 @@ impl<S: Screen> Panel<S> {
         // below (guardrail 1); read live so a bench toggle takes effect at once.
         let fast_partial = ed.prefs().fast_partial;
 
-        // A full-screen card (the rest curtain, or the `:about` splash) swapping
-        // to or from the editor is a big ink change: force a clean full refresh so
-        // it doesn't ghost. Rest only ever *leaves* through here (the focus timer
-        // drops it in via `rest_if_due`); `:about` both enters and leaves by
-        // keystroke, so either of its transitions counts. Checked before the
-        // render (the keys are already applied, so both modes are known) so that
-        // a frame headed for a FULL refresh can carry Typo's next pool humor.
-        let was_card = prev_mode == Mode::Rest || prev_mode == Mode::About;
-        let is_card = ed.mode() == Mode::About;
-        if was_card != is_card {
+        // A full-screen card (the rest curtain, the `:about` splash or the
+        // `:help` reference) swapping to or from the editor is a big ink change:
+        // force a clean full refresh so it doesn't ghost. Rest only ever
+        // *leaves* through here (the focus timer drops it in via `rest_if_due`);
+        // `:about` and `:help` both enter and leave by keystroke, so either of
+        // their transitions counts — and a `:help` page turn rewrites nearly the
+        // whole card, so every batch that lands on it is full-refreshed too.
+        // Checked before the render (the keys are already applied, so both modes
+        // are known) so that a frame headed for a FULL refresh can carry Typo's
+        // next pool humor.
+        let card = |m| matches!(m, Mode::Rest | Mode::About | Mode::Help);
+        let was_card = card(prev_mode);
+        let is_card = matches!(ed.mode(), Mode::About | Mode::Help);
+        if was_card != is_card || ed.mode() == Mode::Help {
             self.force_full = true;
         }
         if self.force_full {

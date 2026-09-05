@@ -27,6 +27,7 @@ use keymap::Key;
 mod buffers;
 mod editing;
 mod fuzzy;
+mod help;
 mod hud;
 mod markdown;
 mod motions;
@@ -41,6 +42,7 @@ mod visual;
 pub(crate) use buffers::*;
 pub(crate) use editing::*;
 pub(crate) use fuzzy::*;
+pub(crate) use help::*;
 pub(crate) use markdown::*;
 pub(crate) use palette::*;
 pub(crate) use prefs::*;
@@ -89,6 +91,11 @@ pub enum Mode {
     /// swallowed but `Enter`/`q`/`Esc`, which return to Normal. See
     /// [`Editor::about_key`].
     About,
+    /// The `:help` card: a full-screen, paged command reference (like
+    /// [`About`](Mode::About), but with more than one screenful). Read-only —
+    /// space/`j`/`k` turn the page, `Enter`/`q`/`Esc` return to Normal. See
+    /// [`Editor::help_key`].
+    Help,
     /// A destructive command is waiting for a `y`/`n` answer (`:delete`,
     /// `:reboot`, `:setup`, or `:gl`'s discard-unsynced-and-pull). Modal like
     /// [`Rest`](Mode::Rest): every key is
@@ -512,6 +519,9 @@ pub struct Editor {
     /// First visible row of the [`unsynced`](Self::unsynced) list — `j`/`k`
     /// scroll it when the journal outgrows the card.
     unsynced_scroll: usize,
+    /// Which page of the [`Mode::Help`] card is showing. Reset to 0 by
+    /// [`show_help`](Self::show_help), so the card always opens at the top.
+    help_page: usize,
     /// Today's date, fed by the host each key batch ([`set_today`](Self::set_today))
     /// from its real-time clock. `None` until the host has a trustworthy date (see
     /// [`Date`]); `:inbox` needs it to name/date the note and refuses while it is
@@ -593,6 +603,7 @@ impl Editor {
             pending_confirm: None,
             unsynced: Vec::new(),
             unsynced_scroll: 0,
+            help_page: 0,
             today: None,
             version: String::new(),
         }
@@ -872,6 +883,13 @@ impl Editor {
             return;
         }
 
+        // The help card is the same kind of full-screen modal as `:about`, and
+        // its paging keys (space/`j`/`k`) must not reach the buffer behind it.
+        if self.mode == Mode::Help {
+            self.help_key(key);
+            return;
+        }
+
         // The unsynced card is modal for the same reason as Confirm, and needs
         // the guard even harder: it is deciding the fate of the dirty journal,
         // so a Cmd+S slipping past would add a file to the set the card is
@@ -952,6 +970,7 @@ impl Editor {
             // All resolved before dispatch (above); listed for exhaustiveness.
             Mode::Rest => self.rest_key(key),
             Mode::About => self.about_key(key),
+            Mode::Help => self.help_key(key),
             Mode::Confirm => self.confirm_key(key),
             Mode::Unsynced => self.unsynced_key(key),
         }
@@ -1438,6 +1457,7 @@ impl Editor {
             "reboot" => self.request_reboot(),
             "update" => self.request_update(),
             "about" => self.show_about(),
+            "help" | "h" => self.show_help(),
             "focus" => self.toggle_focus(),
             "focusdebug" => self.toggle_focus_debug(),
             _ => {}

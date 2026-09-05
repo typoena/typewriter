@@ -210,6 +210,7 @@ impl Editor {
                 // these are never reached; listed for exhaustiveness.
                 Mode::Rest => "REST",
                 Mode::About => "ABOUT",
+                Mode::Help => "HELP",
                 Mode::Confirm => "CONFIRM",
                 Mode::Unsynced => "UNSYNCED",
                 // Guarded out above; a stale label beats a panic if that drifts.
@@ -301,6 +302,44 @@ impl Editor {
 
         centre(f, "Made with love by Julien Calixte & Emmanuel Colas", HEIGHT as i32 - 3 * CH);
         centre(f, "Enter or q to leave", HEIGHT as i32 - 2 * CH);
+    }
+
+    /// The `:help` card ([`Mode::Help`]): the command reference, one authored
+    /// page at a time — a title with the page counter, the page's rows, and the
+    /// paging hint pinned to the bottom row. Painted black-on-white like the
+    /// other cards; the caller's dark-theme invert flips it. The rows are laid
+    /// out on a fixed gloss column ([`HELP_GLOSS_COL`]) and the whole block is
+    /// centred on the widest line of *this* page, so a page turn doesn't shift
+    /// the text sideways within a page.
+    pub(crate) fn draw_help_card(&self, f: &mut Frame) {
+        f.clear_white();
+        let style = MonoTextStyle::new(&FONT_10X20, BinaryColor::On);
+        let draw = |f: &mut Frame, text: &str, x: i32, y: i32| {
+            Text::with_baseline(text, Point::new(x, y), style, Baseline::Top)
+                .draw(f)
+                .infallible();
+        };
+        let centre = |f: &mut Frame, text: &str, y: i32| {
+            let x = (WIDTH as i32 - text.chars().count() as i32 * CW) / 2;
+            draw(f, text, x, y);
+        };
+
+        let rows = self.help_rows().get(..HELP_ROWS).unwrap_or(self.help_rows());
+        let line = |(keys, gloss): &HelpRow| {
+            if gloss.is_empty() {
+                keys.to_string()
+            } else {
+                format!("{keys:<HELP_GLOSS_COL$}{gloss}")
+            }
+        };
+        let width = rows.iter().map(|r| line(r).chars().count()).max().unwrap_or(0);
+        let x = (WIDTH as i32 - width as i32 * CW) / 2;
+
+        centre(f, &self.help_page_label(), 0);
+        for (i, row) in rows.iter().enumerate() {
+            draw(f, &line(row), x, (i as i32 + 1) * CH);
+        }
+        centre(f, "space next page - k back - q to leave", (ROWS as i32 - 1) * CH);
     }
 
     /// The transient `:` command line, drawn at body size (FONT_10X20) along the

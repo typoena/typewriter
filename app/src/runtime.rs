@@ -418,10 +418,10 @@ impl<S: Screen> Runtime<S> {
             NetOutcome::Progress(line) => line,
         };
         self.ed.set_notice(notice);
-        // Behind a full-screen card (the rest curtain or the `:about` splash) the
-        // panel is masked: settle the state but defer the repaint — the notice
-        // shows when the writer leaves the card.
-        if matches!(self.ed.mode(), Mode::Rest | Mode::About) {
+        // Behind a full-screen card (the rest curtain, the `:about` splash or the
+        // `:help` reference) the panel is masked: settle the state but defer the
+        // repaint — the notice shows when the writer leaves the card.
+        if matches!(self.ed.mode(), Mode::Rest | Mode::About | Mode::Help) {
             return;
         }
         self.panel.show_notice(&mut self.ed);

@@ -324,17 +324,17 @@ impl Editor {
     /// background `:gs` push has taken the heap to the floor — a failed
     /// framebuffer alloc aborts the whole app (the 2026-07-13 OOM).
     pub fn draw_into(&mut self, out: &mut Frame, cursor_on: bool) {
-        // The full-screen cards (the focus-mode break and the `:about` splash)
-        // mask the whole screen: draw the card instead of the editor, then apply
+        // The full-screen cards (the focus-mode break, the `:about` splash and
+        // the `:help` reference) mask the whole screen: draw the card instead of the editor, then apply
         // the theme flip so a dark theme turns the white card into the black one.
         // Nothing else (layout, scroll, panel) runs — the buffer stays hidden
         // behind the curtain.
-        if matches!(self.mode, Mode::Rest | Mode::About) {
+        if matches!(self.mode, Mode::Rest | Mode::About | Mode::Help) {
             let mut f = std::mem::replace(out, Frame::empty());
-            if self.mode == Mode::About {
-                self.draw_about_card(&mut f);
-            } else {
-                self.draw_rest_card(&mut f);
+            match self.mode {
+                Mode::About => self.draw_about_card(&mut f),
+                Mode::Help => self.draw_help_card(&mut f),
+                _ => self.draw_rest_card(&mut f),
             }
             if self.prefs.theme == "dark" {
                 f.invert();
