@@ -9,7 +9,8 @@
 //!   adapters.
 //! - [`infrastructure`] — adapters that fulfil the `app` ports over libraries
 //!   and protocols: SD/FAT storage, the git push transport, the background
-//!   file index, and the onboarding wizard's hardware I/O.
+//!   file index, the card-side log mirror, and the onboarding wizard's
+//!   hardware I/O.
 //!
 //! The hardware and application frontiers themselves are the separate `hal` and
 //! `app` crates (compiler-enforced, host-testable); the render engine
