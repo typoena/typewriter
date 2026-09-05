@@ -41,6 +41,7 @@ works with no config present.
 | `theme`             | string | `"light"` | `light` / `dark`                    | Panel colour polarity. `dark` inverts the whole frame to white-on-black.                                               |
 | `font`              | string | `"default"` | `default` / `jetbrains-mono` / `dejavu-sans-mono` / `cascadia-mono` / `mononoki` / `fira-code` / `courier-prime` / `ibm-plex-mono` / `space-mono` / `hack` | The body font the editor writes in. All families render into the same 10×20 cell, so switching never moves the grid.   |
 | `auto_sync`         | string | `"10m"`   | `2m` / `5m` / `10m` / `15m` / `30m` | Max-staleness cap for opportunistic auto-push. **Value only — no behaviour yet** (rides v0.10, with the sleep work). |
+| `hidden_folders`    | string | `""`      | any comma-separated folder list     | Folders kept out of the palette, the link picker, folder completion and `:oldest`. They still sync.                  |
 
 The **Options** column is what the palette rotates through on **Enter**; a
 boolean is just the two-option case. Hand-editing a string key can still set any
@@ -161,6 +162,55 @@ with the sleep work in v0.10, so cycling the interval today changes what will be
 honoured _then_, not now.
 Rationale for the `"10m"` default:
 [`tradeoff-curves/wifi-auto-sync.md`](../record/tradeoff-curves/wifi-auto-sync.md).
+
+### `hidden_folders`
+
+Folders the device keeps out of sight, comma-separated:
+
+```toml
+hidden_folders = "_*,!_inbox"
+```
+
+A **visibility filter, not a sync rule.** Their files still pull, still push, and
+sit intact on the card — they only stop appearing in the file palette, the
+`> add local link` picker, the `> new file` folder completions and `:oldest`.
+Excluding them from git was rejected outright: the device's working copy would
+diverge from the remote, and the next `:gs` could delete them upstream.
+
+**Matching** — an entry matches a run of consecutive whole path segments, at any
+depth under either scope root, case-insensitively (the card's FAT names are):
+
+| Entry            | Hides                                                                    | Leaves alone                                                                    |
+| ---------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| `_archive`       | `repo/_archive/old.md`, `repo/notes/_archive/old.md`, `local/_archive/x.md` | `repo/_archives/old.md`, `repo/my_archive/old.md`, the file `repo/_archive.md` |
+| `notes/_archive` | `repo/notes/_archive/old.md`                                             | `repo/_archive/old.md`, `repo/notes/drafts/_archive/old.md`                      |
+| `_*`             | every folder whose name starts with `_`, at any depth                     | `repo/my_todo/x.md` — the prefix has to start the segment                       |
+| `!_inbox`        | nothing; it **keeps** `_inbox` visible against a wildcard that covers it   | —                                                                               |
+
+A trailing `*` is the only wildcard, and matches a prefix of one segment. A
+leading `!` marks an exception, and it wins wherever it sits in the list, so
+`"_*,!_inbox"` and `"!_inbox,_*"` mean the same thing.
+
+Dot-folders need no entry: the card walk never indexes anything whose name starts
+with `.`, so `.git`, `.claude` and friends are already absent from every list.
+
+**Hiding is not sealing.** A hidden note stays reachable when you ask for it by
+name, because the filter governs browsing, not existence:
+
+- typing the folder's name in the palette (`_archive`) lists its files again —
+  and so does typing it as a `> new file` path;
+- `gf` follows a link into a hidden folder;
+- `> new file` on an existing hidden name **switches to that note** rather than
+  starting an empty buffer over it;
+- `Ctrl-Tab` still reaches one you have opened this session;
+- `:pub` still retargets links written inside a hidden folder.
+
+The card walk still indexes every file, hidden or not: the guards that stop
+`> new file` and `:inbox` from writing over a note that already exists ask that
+one list whether a path is on the card, and an index with holes in it answers
+"no" for a file that is right there. Hiding is applied when the list is shown,
+never when it is built. Free-form, so the `>` palette does not cycle it — edit it
+here, and reboot to apply (prefs are read once at boot).
 
 ## Editing it
 

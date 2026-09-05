@@ -613,7 +613,9 @@ impl Editor {
                 // we just don't know its contents. Self-corrects: the idle
                 // branch repaints when the walk lands.
                 "(reading card...)"
-            } else if self.file_spans.is_empty() {
+            } else if self.visible_files(false).next().is_none() {
+                // Nothing listable: an empty card, or one whose every file sits in
+                // a `hidden_folders` folder.
                 "(no files on card)"
             } else {
                 "(no match)"

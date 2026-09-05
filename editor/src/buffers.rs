@@ -581,7 +581,8 @@ impl Editor {
     /// any time.
     pub(crate) fn open_oldest_inbox(&mut self) {
         let prefix = format!("{REPO_DIR}/_inbox/");
-        let oldest = (0..self.file_count())
+        let oldest = self
+            .visible_files(false)
             .map(|i| self.file_at(i))
             .find(|p| p.starts_with(&prefix) && p.ends_with(".md"))
             .map(str::to_string);
@@ -739,6 +740,23 @@ impl Editor {
     /// How many files the palette knows about.
     pub(crate) fn file_count(&self) -> usize {
         self.file_spans.len()
+    }
+
+    /// The file indices a **browse** surface may show, in the sorted base order:
+    /// every known path except the ones a [`Prefs::hidden_folders`] entry covers.
+    /// `reveal_hidden` lifts the filter for a query that names a hidden folder
+    /// ([`Prefs::query_reveals_hidden`]).
+    ///
+    /// The card walk indexes every file, hidden or not, and the full
+    /// [`file_spans`](Editor::file_spans) list stays authoritative for
+    /// exact-path work — [`file_list_contains`](Self::file_list_contains) (so
+    /// `:inbox` / `> new file` still *switch to* a hidden note instead of
+    /// clobbering it with an empty buffer) and the
+    /// [`publish_active`](Self::publish_active) retarget list (so links inside a
+    /// hidden folder are still repointed). Hiding governs listing, not existence.
+    pub(crate) fn visible_files(&self, reveal_hidden: bool) -> impl Iterator<Item = usize> + '_ {
+        (0..self.file_count())
+            .filter(move |&i| reveal_hidden || !self.prefs.hides_file(self.file_at(i)))
     }
 
     /// Insert `path` into the palette's file list, keeping the spans sorted and

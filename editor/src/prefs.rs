@@ -103,6 +103,22 @@ pub struct Prefs {
     /// that clones the repo. The `>` palette doesn't cycle it (free-form, not a
     /// preset) — hand-edit it here.
     pub timezone: String,
+    /// Folders the device hides from view, comma-separated
+    /// (`hidden_folders = "_archive,attachments"`) — a **visibility filter, not a
+    /// sync rule**, and not a seal either: see
+    /// [the reference](../../docs/reference/typoena-toml.md) for what stays
+    /// reachable. An entry matches a run of consecutive whole path segments below
+    /// a scope root, ASCII-case-insensitively (FAT names on the card are).
+    ///
+    /// A trailing `*` is a prefix match on one segment and a leading `!` is an
+    /// exception that wins wherever it sits, so `"_*,!_inbox"` hides every
+    /// underscore folder but the inbox. Dot-folders need no entry — the card
+    /// walk never indexes them.
+    ///
+    /// Applied when a browse list is shown, never when the card index is built —
+    /// see [`visible_files`](Editor::visible_files) for the invariant that
+    /// keeps the exact-path guards honest.
+    pub hidden_folders: String,
 }
 
 impl Default for Prefs {
@@ -120,6 +136,7 @@ impl Default for Prefs {
             companion: true,
             face: "random".into(),
             timezone: String::new(),
+            hidden_folders: String::new(),
         }
     }
 }
@@ -181,6 +198,7 @@ impl Prefs {
                 }
                 "face" => p.face = val.trim_matches('"').to_string(),
                 "timezone" => p.timezone = val.trim_matches('"').to_string(),
+                "hidden_folders" => p.hidden_folders = val.trim_matches('"').to_string(),
                 _ => {}
             }
         }
@@ -212,7 +230,11 @@ impl Prefs {
              # mood — neutral, anticipation, curious, determined, zen, note.\n\
              face = \"{}\"\n\
              # POSIX TZ (e.g. CET-1CEST,M3.5.0,M10.5.0/3); empty = UTC.\n\
-             timezone = \"{}\"\n",
+             timezone = \"{}\"\n\
+             # Folders hidden from the palette, link picker and completions —\n\
+             # comma-separated, matched on whole path segments at any depth. They\n\
+             # still sync (see Prefs::hidden_folders).\n\
+             hidden_folders = \"{}\"\n",
             self.save_on_idle,
             self.format_on_save,
             self.line_numbers,
@@ -225,8 +247,95 @@ impl Prefs {
             self.companion,
             self.face,
             self.timezone,
+            self.hidden_folders,
         )
     }
+
+    /// Whether `path` (an absolute card path) sits inside a folder
+    /// [`hidden_folders`](Prefs::hidden_folders) names — the visibility filter
+    /// the browse surfaces apply. Only the folder part is matched, so a *file*
+    /// named `_archive.md` is not a hidden folder and stays listed.
+    pub fn hides_file(&self, path: &str) -> bool {
+        let dir = path.rsplit_once('/').map_or("", |(dir, _)| dir);
+        // Match below the scope root only: `/sd/repo/x.md` must not be hidden by
+        // an entry of `sd`, `repo` or `local`.
+        let rel = dir
+            .strip_prefix(crate::buffers::REPO_DIR)
+            .or_else(|| dir.strip_prefix(crate::buffers::LOCAL_DIR))
+            .unwrap_or(dir);
+        is_hidden_folder(rel.trim_start_matches('/'), &self.hidden_folders)
+    }
+
+    /// Whether `query` names one of the
+    /// [`hidden_folders`](Prefs::hidden_folders) entries outright (as an
+    /// ASCII-case-insensitive substring) — the escape hatch that keeps an
+    /// explicit request from being swallowed: typing `_archive` in the palette,
+    /// or as a `> new file` path, lifts the filter for that keystroke, because
+    /// naming a folder is not browsing it.
+    pub fn query_reveals_hidden(&self, query: &str) -> bool {
+        if self.hidden_folders.is_empty() || query.is_empty() {
+            return false;
+        }
+        let q = query.to_ascii_lowercase();
+        self.hidden_folders.split(',').any(|entry| {
+            let entry = entry.trim().trim_matches('/').to_ascii_lowercase();
+            !entry.is_empty() && q.contains(&entry)
+        })
+    }
+}
+
+/// Whether one whole path segment matches one pattern segment,
+/// ASCII-case-insensitively. A trailing `*` makes it a prefix match (`_*` covers
+/// `_archive` and `_drafts`), and is the only wildcard: a bare name is exact.
+fn segment_matches(seg: &str, pat: &str) -> bool {
+    match pat.strip_suffix('*') {
+        Some(prefix) => seg
+            .as_bytes()
+            .get(..prefix.len())
+            .is_some_and(|head| head.eq_ignore_ascii_case(prefix.as_bytes())),
+        None => seg.eq_ignore_ascii_case(pat),
+    }
+}
+
+/// Whether the folder at `dir` (scope-root-relative) is covered by
+/// `hidden_folders` — a comma-separated entry list in the
+/// [`Prefs::hidden_folders`] form, where the matching rule is stated.
+fn is_hidden_folder(dir: &str, hidden_folders: &str) -> bool {
+    if hidden_folders.is_empty() {
+        return false;
+    }
+    let mut hidden = false;
+    for entry in hidden_folders.split(',') {
+        match entry.trim().strip_prefix('!') {
+            // An exception wins wherever it sits in the list, so the order of
+            // `_*,!_inbox` never has to be reasoned about.
+            Some(kept) => {
+                if segment_run(dir, kept) {
+                    return false;
+                }
+            }
+            None => hidden |= segment_run(dir, entry),
+        }
+    }
+    hidden
+}
+
+/// Whether `entry`'s segments appear as a run of consecutive whole segments of
+/// `dir`, anchored at a segment start, so an entry never matches mid-segment and
+/// `_archive` never matches `_archives`. An empty entry (`"a,,b"`, a trailing
+/// comma) matches nothing rather than everything. Allocation-free: this runs per
+/// file per palette keystroke.
+fn segment_run(dir: &str, entry: &str) -> bool {
+    let entry = entry.trim().trim_matches('/');
+    if entry.is_empty() {
+        return false;
+    }
+    core::iter::once(0)
+        .chain(dir.match_indices('/').map(|(i, _)| i + 1))
+        .any(|start| {
+            let mut segs = crate::substr(dir, start..).split('/');
+            entry.split('/').all(|pat| segs.next().is_some_and(|seg| segment_matches(seg, pat)))
+        })
 }
 
 /// Parse a TOML boolean literal, or `None` for anything else (so a typo leaves
