@@ -190,10 +190,12 @@ name, because the filter governs browsing, not existence:
 - `Ctrl-Tab` still reaches one you have opened this session;
 - `:pub` still retargets links written inside a hidden folder.
 
-The firmware's card walk skips these folders before descending them, so a big
-archive costs no walk time at boot; the editor filters the list it is handed as
-well, so a hand-edit applies to the next keystroke. Free-form, so the `>` palette
-does not cycle it — edit it here.
+The card walk still indexes every file, hidden or not: the guards that stop
+`> new file` and `:inbox` from writing over a note that already exists ask that
+one list whether a path is on the card, and an index with holes in it answers
+"no" for a file that is right there. Hiding is applied when the list is shown,
+never when it is built. Free-form, so the `>` palette does not cycle it — edit it
+here, and reboot to apply (prefs are read once at boot).
 
 ## Editing it
 

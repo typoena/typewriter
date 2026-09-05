@@ -747,7 +747,8 @@ impl Editor {
     /// `reveal_hidden` lifts the filter for a query that names a hidden folder
     /// ([`Prefs::query_reveals_hidden`]).
     ///
-    /// The full [`file_spans`](Editor::file_spans) list stays authoritative for
+    /// The card walk indexes every file, hidden or not, and the full
+    /// [`file_spans`](Editor::file_spans) list stays authoritative for
     /// exact-path work — [`file_list_contains`](Self::file_list_contains) (so
     /// `:inbox` / `> new file` still *switch to* a hidden note instead of
     /// clobbering it with an empty buffer) and the

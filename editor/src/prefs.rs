@@ -103,28 +103,16 @@ pub struct Prefs {
     /// that clones the repo. The `>` palette doesn't cycle it (free-form, not a
     /// preset) — hand-edit it here.
     pub timezone: String,
-    /// Folders the device hides from view, as a comma-separated list
-    /// (`hidden_folders = "_archive,attachments"`). A **visibility filter, not a
-    /// sync rule**: hidden folders still pull, push and sit intact on the card —
-    /// they only stop appearing in the file palette, the link picker, the
-    /// `> new file` folder completions and `:oldest`. Excluding them from git was
-    /// rejected: the working copy would diverge from the remote and the next push
-    /// could delete them upstream.
+    /// Folders the device hides from view, comma-separated
+    /// (`hidden_folders = "_archive,attachments"`) — a **visibility filter, not a
+    /// sync rule**, and not a seal either: see
+    /// [the reference](../../docs/reference/typoena-toml.md) for what stays
+    /// reachable. An entry matches a run of consecutive whole path segments below
+    /// a scope root, ASCII-case-insensitively (FAT names on the card are).
     ///
-    /// An entry matches a run of **consecutive whole path segments** anywhere
-    /// under either scope root, ASCII-case-insensitively (FAT names on the card
-    /// are): `_archive` hides `repo/_archive/x.md` *and* `repo/notes/_archive/x.md`,
-    /// `notes/_archive` only the latter, while `_archives/` and a file named
-    /// `_archive.md` are untouched. Hiding is not sealing — a `gf` link into a
-    /// hidden folder opens it, `> new file` on an existing hidden name switches to
-    /// it rather than clobbering it, Ctrl+Tab still reaches one you have opened,
-    /// and a palette query that names the folder lists its files (typing
-    /// `_archive` is an explicit request, not browsing).
-    ///
-    /// Honoured by the core, so an edit applies to the next keystroke; the
-    /// firmware's card walk also prunes these folders before descending them, so
-    /// a big archive costs no walk time. The `>` palette doesn't cycle it
-    /// (free-form, not a preset) — hand-edit it here.
+    /// Applied when a browse list is shown, never when the card index is built —
+    /// see [`visible_files`](Editor::visible_files) for the invariant that
+    /// keeps the exact-path guards honest.
     pub hidden_folders: String,
 }
 
@@ -264,7 +252,13 @@ impl Prefs {
     /// named `_archive.md` is not a hidden folder and stays listed.
     pub fn hides_file(&self, path: &str) -> bool {
         let dir = path.rsplit_once('/').map_or("", |(dir, _)| dir);
-        is_hidden_folder(dir, &self.hidden_folders)
+        // Match below the scope root only: `/sd/repo/x.md` must not be hidden by
+        // an entry of `sd`, `repo` or `local`.
+        let rel = dir
+            .strip_prefix(crate::buffers::REPO_DIR)
+            .or_else(|| dir.strip_prefix(crate::buffers::LOCAL_DIR))
+            .unwrap_or(dir);
+        is_hidden_folder(rel.trim_start_matches('/'), &self.hidden_folders)
     }
 
     /// Whether `query` names one of the
@@ -285,12 +279,10 @@ impl Prefs {
     }
 }
 
-/// Whether the folder at `dir` (an absolute card path) is covered by
+/// Whether the folder at `dir` (scope-root-relative) is covered by
 /// `hidden_folders` — a comma-separated entry list in the
-/// [`Prefs::hidden_folders`] form, where the matching rule is stated. Standalone
-/// so the firmware's card walk can prune a hidden folder before descending it
-/// without carrying a whole [`Prefs`].
-pub fn is_hidden_folder(dir: &str, hidden_folders: &str) -> bool {
+/// [`Prefs::hidden_folders`] form, where the matching rule is stated.
+fn is_hidden_folder(dir: &str, hidden_folders: &str) -> bool {
     if hidden_folders.is_empty() {
         return false;
     }

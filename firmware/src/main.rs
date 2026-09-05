@@ -198,7 +198,7 @@ fn main() -> anyhow::Result<()> {
 
     // AFTER the first editor frame: the seconds-long readdir over SPI would
     // otherwise starve the boot-critical SD reads and delay the first paint.
-    let files = EspFileWalk::new(ed.prefs().hidden_folders.clone());
+    let files = EspFileWalk::new();
     files.request_rewalk();
 
     // Every adapter below runs on this single UI task, so `Rc` (not `Arc`) is enough.

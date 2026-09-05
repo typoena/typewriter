@@ -257,6 +257,53 @@ fn a_hidden_note_still_opens_when_named_exactly() {
 }
 
 #[test]
+fn inbox_opens_todays_hidden_note_instead_of_clobbering_it() {
+    // The whole point of the walk indexing hidden folders: `:inbox`'s
+    // "already on the card — switch to it" guard reads the file list, so a
+    // pruned list would send it down the create branch and the idle save would
+    // write a fresh stub over a note the writer filled this morning.
+    const TODAY: Date = Date { year: 2026, month: 7, day: 18 };
+    const NOTE: &str = "/sd/repo/_inbox/2026-07-18.md";
+    let mut e = palette_editor(&[NOTE]);
+    e.prefs.hidden_folders = "_inbox".into();
+    e.set_today(Some(TODAY));
+    ex(&mut e, "inbox");
+    assert_eq!(
+        e.take_effects(),
+        vec![Effect::Load { path: NOTE.into(), scope: Scope::Tracked }],
+        "the existing note is loaded, not replaced"
+    );
+    assert!(!e.dirty(), "nothing was seeded over it");
+}
+
+#[test]
+fn a_hidden_folders_file_stays_in_the_index_pub_walks() {
+    // `:pub` builds its retarget list, and its destination-exists guard, from
+    // the file list. A hidden file missing from it means a link that dangles
+    // once the target grows its `.pub` tail — and a `.pub.md` overwritten
+    // because the guard could not see it.
+    let e = hiding_archive(&["/sd/repo/notes.md", "/sd/repo/_archive/old.md"]);
+    assert!(
+        (0..e.file_count()).any(|i| e.file_at(i) == "/sd/repo/_archive/old.md"),
+        "a hidden file stays in the index :pub walks"
+    );
+}
+
+#[test]
+fn a_scope_root_segment_is_not_a_hidden_folder_entry() {
+    // Entries match below the scope root, so the `sd`, `repo` and `local`
+    // segments every card path carries cannot be turned into a blanket hide.
+    for entry in ["repo", "sd", "local"] {
+        let p = Prefs { hidden_folders: entry.into(), ..Prefs::default() };
+        assert!(!p.hides_file("/sd/repo/notes.md"), "`{entry}` must not hide the whole card");
+        assert!(!p.hides_file("/sd/local/idea.md"), "`{entry}` must not hide local either");
+    }
+    // The same word one level down is a normal entry and still hides.
+    let p = Prefs { hidden_folders: "repo".into(), ..Prefs::default() };
+    assert!(p.hides_file("/sd/repo/repo/x.md"));
+}
+
+#[test]
 fn gf_follows_a_link_into_a_hidden_folder() {
     let mut e = Editor::with_file(
         "/sd/repo/notes.md".into(),

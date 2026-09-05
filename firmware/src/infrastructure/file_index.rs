@@ -18,23 +18,24 @@ use crate::infrastructure::storage_sd::{LOCAL_DIR, REPO_DIR};
 pub struct EspFileWalk {
     tx: Sender<String>,
     rx: Receiver<String>,
-    /// The boot value of [`editor::Prefs::hidden_folders`]: folders the walk
-    /// never descends, so a hidden archive costs no walk time. The editor
-    /// filters the list it is fed as well, which is what makes a hand-edited
-    /// pref apply without a rewalk.
-    hidden_folders: String,
 }
 
 impl EspFileWalk {
-    pub fn new(hidden_folders: String) -> Self {
+    pub fn new() -> Self {
         let (tx, rx) = channel();
-        Self { tx, rx, hidden_folders }
+        Self { tx, rx }
+    }
+}
+
+impl Default for EspFileWalk {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
 impl app::FileIndex for EspFileWalk {
     fn request_rewalk(&self) {
-        spawn_file_walk(self.tx.clone(), self.hidden_folders.clone());
+        spawn_file_walk(self.tx.clone());
     }
     fn poll_result(&self) -> Option<String> {
         self.rx.try_recv().ok()
@@ -48,14 +49,14 @@ impl app::FileIndex for EspFileWalk {
 /// during the first on-device pull (2026-07-14). The blob is seeded past the
 /// 16 KB SPIRAM-malloc threshold so it and its growth reallocs land in PSRAM.
 /// The editor sorts and dedupes span-side.
-fn enumerate_files(hidden_folders: &str) -> String {
+fn enumerate_files() -> String {
     let start = std::time::Instant::now();
     // 64 KB seed: comfortably past the 16 KB SPIRAM threshold and roomy enough
     // that a ~1100-file tree never reallocs.
     let mut out = String::with_capacity(64 * 1024);
     let mut count = 0usize;
     for dir in [REPO_DIR, LOCAL_DIR] {
-        walk_files(std::path::Path::new(dir), 0, &mut out, &mut count, hidden_folders);
+        walk_files(std::path::Path::new(dir), 0, &mut out, &mut count);
     }
     log::info!("file walk: {count} files in {}ms", start.elapsed().as_millis());
     out
@@ -76,7 +77,7 @@ fn enumerate_files(hidden_folders: &str) -> String {
 /// walk ended (8684 ms): a ~3.3 s type-to-ink lag. Pinning to Core1 keeps the
 /// walk off the UI core entirely (the main task is CPU0-pinned by default); the
 /// priority floor is belt-and-braces should the scheduler ever float it to Core0.
-fn spawn_file_walk(tx: Sender<String>, hidden_folders: String) {
+fn spawn_file_walk(tx: Sender<String>) {
     // Background-task scheduling for the spawn below. `..Default::default()` keeps
     // the esp-idf-version-specific fields (e.g. `stack_alloc_caps` on IDF ≥ 5.3)
     // at their defaults. Explicit 16 KB stack: the default pthread stack (4 KB) is
@@ -98,7 +99,7 @@ fn spawn_file_walk(tx: Sender<String>, hidden_folders: String) {
         .stack_size(16 * 1024)
         .spawn(move || {
             let dram_before = internal_free_heap();
-            let files = enumerate_files(&hidden_folders);
+            let files = enumerate_files();
             let dram_after = internal_free_heap();
             log::info!(
                 "file list: internal heap {dram_before} -> {dram_after} ({} KB consumed), blob {} KB",
@@ -126,14 +127,8 @@ const WALK_MAX_DEPTH: usize = 8;
 /// Recursive helper for [`enumerate_files`]: push `dir`'s files onto `out`, then
 /// descend. Reads each directory fully before recursing, so only one FatFS
 /// directory handle is open at a time regardless of depth — relevant on the
-/// FD-bounded SD mount. A folder `hidden_folders` covers is never descended.
-fn walk_files(
-    dir: &std::path::Path,
-    depth: usize,
-    out: &mut String,
-    count: &mut usize,
-    hidden_folders: &str,
-) {
+/// FD-bounded SD mount.
+fn walk_files(dir: &std::path::Path, depth: usize, out: &mut String, count: &mut usize) {
     if depth > WALK_MAX_DEPTH {
         log::warn!("file walk: {} exceeds depth {WALK_MAX_DEPTH}, skipped", dir.display());
         return;
@@ -179,10 +174,7 @@ fn walk_files(
                 *count += 1;
             }
         } else if is_dir {
-            if path.to_str().is_some_and(|p| editor::is_hidden_folder(p, hidden_folders)) {
-                continue;
-            }
-            walk_files(&path, depth + 1, out, count, hidden_folders);
+            walk_files(&path, depth + 1, out, count);
         }
     }
 }

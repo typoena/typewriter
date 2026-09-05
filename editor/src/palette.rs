@@ -398,7 +398,14 @@ impl Editor {
         let reveal = self.prefs.query_reveals_hidden(&self.palette_query);
         let mut order: Vec<usize> = Vec::with_capacity(self.file_count());
         for r in &self.recent {
-            if let Some(i) = self.visible_files(reveal).find(|&i| self.file_at(i) == r) {
+            // Identity first, visibility on the single hit: testing every file's
+            // folder against the pref for every MRU entry is MRU_MAX x file_count
+            // segment scans per keystroke, and `palette_len` runs this again on
+            // each arrow key.
+            let hit = (0..self.file_count())
+                .find(|&i| self.file_at(i) == r)
+                .filter(|&i| reveal || !self.prefs.hides_file(self.file_at(i)));
+            if let Some(i) = hit {
                 order.push(i);
             }
         }
