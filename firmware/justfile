@@ -144,10 +144,16 @@ changelog:
 # it. Builds the production image, converts the ELF to the app image the device
 # streams into its inactive slot (espflash save-image → esp-idf app format), then:
 #   1. uploads it to a Gitea release tagged `firmware-v<ver>` (via the `tea` CLI),
-#   2. writes the 6-byte latest.txt into the site's public/firmware/, and
+#   2. writes the 6-byte latest.txt into the site's public/firmware/,
 #   3. regenerates CHANGELOG.md (`just changelog`) so the site's /changelog page
-#      and this release's notes both reflect the new version.
+#      and this release's notes both reflect the new version, and
+#   4. commits and pushes those two site files, which is what deploys them.
 # The binary never touches git — only the version pointer + changelog on the site.
+#
+# Step 4 is part of the recipe because the release is unreachable without it: the
+# device reads latest.txt from the site, so a release left undeployed is one no
+# device can see. It stages those two paths only — the site repo carries unrelated
+# drafts that a publish must not sweep into a deploy.
 #
 # The device (baked base https://typoena.dev/firmware) GETs latest.txt for the
 # version, then requests typoena-<ver>.bin, which nginx 302-redirects to the Gitea
@@ -162,7 +168,9 @@ changelog:
 # the remote's HEAD, so an unpushed bump would tag the old commit. With no
 # bump arg the version is used as-is (re-publish / manual-bump flow): then
 # BUMP [package].version, commit, and push yourself first.
-# Needs the `tea` CLI logged in to git.apoena.dev (`tea logins list`).
+# Needs the `tea` CLI logged in to git.apoena.dev. `tea logins list` shows the row
+# even when its token has expired — the failure only surfaces at the release step,
+# as "invalid username, password or token", after the build has already run.
 # Publish the firmware as a Gitea release + update the typoena.dev pointer; optional patch/minor/major bump.
 publish-firmware bump="":
     #!/usr/bin/env bash
@@ -240,10 +248,23 @@ publish-firmware bump="":
     # Point the device's update pointer at this version (tiny file, stays on site).
     dir="$site/public/firmware"; mkdir -p "$dir"
     printf '%s\n' "$ver" > "$dir/latest.txt"
+    # Ship the pointer. This is the step that makes the release reachable: the
+    # device reads latest.txt from the site, so a release nobody deploys is a
+    # release no device can see (0.9.0 shipped, 0.10.0 did not). Only these two
+    # paths are staged — the site repo carries unrelated drafts, and a publish
+    # must never sweep them into a deploy.
+    if git -C "$site" diff --quiet -- public/firmware/latest.txt src/changelog.md; then
+        echo "pointer + changelog already match $ver — nothing to deploy"
+    else
+        git -C "$site" add public/firmware/latest.txt src/changelog.md
+        git -C "$site" commit -m "firmware: release $ver"
+        git -C "$site" push
+        echo "deployed the pointer — Coolify redeploys typoena.dev from this push"
+    fi
     echo ""
-    echo "✅ published $tag to Gitea, set latest.txt = $ver, and regenerated the changelog"
-    echo "deploy the pointer + changelog (the device won't see $ver until this ships):"
-    echo "  git -C \"$site\" add public/firmware/latest.txt src/changelog.md && git -C \"$site\" commit -m \"firmware: release $ver\" && git -C \"$site\" push"
+    echo "✅ published $tag to Gitea, set latest.txt = $ver, regenerated the changelog, deployed the pointer"
+    echo "confirm the device can see it (allow a moment for the redeploy):"
+    echo "  curl -s https://typoena.dev/firmware/latest.txt   # expect $ver"
 
 # flash + monitor the ALREADY-BUILT firmware — no cargo, no rebuild. Flashes
 # whatever `build` last produced. Same espflash flags as the cargo runner in
