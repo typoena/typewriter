@@ -222,6 +222,34 @@ fn naming_a_hidden_folder_in_the_palette_lists_it_again() {
 }
 
 #[test]
+fn a_wildcard_entry_is_named_by_the_folder_it_hides() {
+    // The escape hatch has to survive the entry that hides a whole family: under
+    // `_*` the writer never types the entry itself, only the folder's real name.
+    let p = Prefs { hidden_folders: "_*,!_inbox".into(), ..Prefs::default() };
+    assert!(p.query_reveals_hidden("_archive"));
+    assert!(p.query_reveals_hidden("repo/_drafts/wip"));
+    assert!(p.query_reveals_hidden("_"), "revealed as the prefix is typed");
+    // Whole segments only: an underscore mid-word is not the name of a folder,
+    // and treating it as one would unhide the entire family on any such query.
+    assert!(!p.query_reveals_hidden("my_note"));
+    assert!(!p.query_reveals_hidden("notes"));
+    // An exception entry reveals nothing on its own — with only `!_inbox` there
+    // is no filter to lift, since nothing is hidden.
+    let kept = Prefs { hidden_folders: "!_inbox".into(), ..Prefs::default() };
+    assert!(!kept.query_reveals_hidden("_inbox"));
+}
+
+#[test]
+fn naming_a_wildcard_hidden_folder_lists_it_again_end_to_end() {
+    let mut e = palette_editor(&["/sd/repo/notes.md", "/sd/repo/_archive/old.md"]);
+    e.prefs.hidden_folders = "_*".into();
+    e.handle(Key::Palette);
+    assert_eq!(palette_labels(&e), vec!["repo/notes.md"]);
+    send(&mut e, "_archive");
+    assert_eq!(palette_labels(&e), vec!["repo/_archive/old.md"]);
+}
+
+#[test]
 fn hidden_folders_are_not_offered_as_new_file_folders() {
     let e = hiding_archive(&["/sd/repo/_archive/old.md", "/sd/repo/notes/a.md"]);
     assert_eq!(e.folder_completions("repo/"), vec!["repo/notes/".to_string()]);

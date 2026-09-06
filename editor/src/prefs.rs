@@ -9,10 +9,11 @@
 pub const PREFS_PATH: &str = "/sd/repo/.typoena.toml";
 
 /// Editor preferences, mirroring the git-tracked [`PREFS_PATH`] TOML. The host
-/// reads the file at boot and applies it with [`Editor::set_prefs`]; the palette
-/// `>` command mode toggles a pref live and queues an [`Effect::SavePrefs`] to
-/// write the change back. Every key falls back to the [`Default`] below, so a
-/// missing, empty, or partial file still yields a full, usable `Prefs`.
+/// reads the file at boot and applies it with [`Editor::set_prefs`], and again
+/// whenever a pull moves the card under us; the palette `>` command mode toggles
+/// a pref live and queues an [`Effect::SavePrefs`] to write the change back.
+/// Every key falls back to the [`Default`] below, so a missing, empty, or partial
+/// file still yields a full, usable `Prefs`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Prefs {
     /// Auto-save the active buffer on the idle typing-pause, so `:w` becomes
@@ -266,21 +267,26 @@ impl Prefs {
         is_hidden_folder(rel.trim_start_matches('/'), &self.hidden_folders)
     }
 
-    /// Whether `query` names one of the
-    /// [`hidden_folders`](Prefs::hidden_folders) entries outright (as an
-    /// ASCII-case-insensitive substring) — the escape hatch that keeps an
-    /// explicit request from being swallowed: typing `_archive` in the palette,
-    /// or as a `> new file` path, lifts the filter for that keystroke, because
-    /// naming a folder is not browsing it.
+    /// Whether `query` names a folder [`hidden_folders`](Prefs::hidden_folders)
+    /// hides — the escape hatch that keeps an explicit request from being
+    /// swallowed: typing `_archive` in the palette, or as a `> new file` path,
+    /// lifts the filter for that keystroke, because naming a folder is not
+    /// browsing it.
+    ///
+    /// Matched with the same whole-segment rule as
+    /// [`hides_file`](Prefs::hides_file), so a `_*` entry is named by any segment
+    /// it would hide (`_archive`, and `_` as it is being typed) but never by an
+    /// underscore inside a word (`my_note`) — a substring test here would let one
+    /// wildcard entry reveal everything it hides on any query containing `_`. A
+    /// `!` exception hides nothing, so it has nothing to reveal.
     pub fn query_reveals_hidden(&self, query: &str) -> bool {
         if self.hidden_folders.is_empty() || query.is_empty() {
             return false;
         }
-        let q = query.to_ascii_lowercase();
-        self.hidden_folders.split(',').any(|entry| {
-            let entry = entry.trim().trim_matches('/').to_ascii_lowercase();
-            !entry.is_empty() && q.contains(&entry)
-        })
+        self.hidden_folders
+            .split(',')
+            .filter(|entry| !entry.trim().starts_with('!'))
+            .any(|entry| segment_run(query.trim_matches('/'), entry))
     }
 }
 
