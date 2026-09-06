@@ -1392,10 +1392,13 @@ fn update_tracking(repo: &Repository, branch: &str, tip: Oid) -> Result<()> {
 /// The fast-forward is apply-then-ref-move, and the apply is a tree-to-tree diff
 /// ([`apply_tree_diff`]) rather than a working-copy checkout; the ref moves last,
 /// so a power-pull mid-apply re-runs identically. Its rehash belt refuses to
-/// clobber a file edited behind git's back (e.g. desktop edits made directly on
-/// the card — deliberately never committed by the device since the splice
-/// landed); after the pre-fetch commit the card matches HEAD, so in normal use
-/// nothing trips it.
+/// clobber a file edited behind git's back; after the pre-fetch commit the card
+/// matches HEAD, so a device-side save never trips it.
+///
+/// An edit the journal never saw would, though — and a refusal cannot clear
+/// itself, so it would refuse forever. Drift found after the fetch
+/// ([`drifted_paths`]) is therefore committed too, which keeps the card's bytes
+/// and leaves the rebase to replant them.
 fn pull_once(req: &PullRequest, progress: &dyn Fn(Phase)) -> Result<PullOutcome> {
     let paths = &req.paths;
     log::info!(
@@ -1516,6 +1519,32 @@ fn pull_once(req: &PullRequest, progress: &dyn Fn(Phase)) -> Result<PullOutcome>
         internal_free_heap()
     );
 
+    // A working-copy file can differ from HEAD with the journal knowing nothing
+    // about it — a card seeded on a computer, a desktop edit made straight onto
+    // it. The belt in the apply would then refuse this pull and every later one,
+    // since a refusal changes nothing that would clear it, and its advice to
+    // resolve on a computer is exactly what `:gl` is not allowed to require.
+    //
+    // So fold that drift into a local commit, the same answer the pre-fetch step
+    // gives a journaled save: the bytes on the card are what get committed (the
+    // belt exists to keep them, and last-writer-wins is this sync's rule), the
+    // rebase below replants them onto origin, and `:gs` finishes it. Costs one
+    // extra hash of the paths this pull would touch — O(changed), and the belt
+    // inside the apply still guards the writes, including the post-rebase ones
+    // this pre-pass never sees.
+    let drifted = drifted_paths(&tree_diff(&repo, head, theirs)?)?;
+    if !drifted.is_empty() {
+        log::warn!(
+            "pull: {} working-copy path(s) differ from HEAD with no journal record ({}) — committing them locally so the pull is not refused",
+            drifted.len(),
+            drifted.iter().map(String::as_str).collect::<Vec<_>>().join(", ")
+        );
+        if let Some(committed) = stage_and_commit(&repo, &drifted)? {
+            log::info!("pull: folded the drift into {}", short(committed));
+            head = committed;
+        }
+    }
+
     if !repo
         .graph_descendant_of(theirs, head)
         .context("descendant check (fast-forward)")?
@@ -1604,6 +1633,53 @@ fn pull_once(req: &PullRequest, progress: &dyn Fn(Phase)) -> Result<PullOutcome>
     Ok(PullOutcome::Pulled(short(theirs)))
 }
 
+/// The `a`..`b` tree-to-tree diff both the belt and the apply work from.
+fn tree_diff<'r>(repo: &'r Repository, a: Oid, b: Oid) -> Result<git2::Diff<'r>> {
+    let a_tree = repo.find_commit(a)?.tree().context("old tree")?;
+    let b_tree = repo.find_commit(b)?.tree().context("new tree")?;
+    repo.diff_tree_to_tree(Some(&a_tree), Some(&b_tree), None)
+        .context("diffing trees")
+}
+
+/// The paths in `diff` whose working copy no longer hashes to the OLD tree's
+/// blob — the files an apply would clobber, edited behind git's back. Returned
+/// repo-relative and sorted, ready for [`stage_and_commit`].
+///
+/// A missing file is not drift (nothing to clobber), and an Added delta has
+/// nothing on disk to protect. Media paths are skipped for the same reason the
+/// apply skips them: hashing one means materializing the whole blob in RAM.
+fn drifted_paths(diff: &git2::Diff<'_>) -> Result<BTreeSet<String>> {
+    use git2::Delta;
+
+    let mut drifted = BTreeSet::new();
+    for d in diff.deltas() {
+        let (old, path) = match d.status() {
+            Delta::Modified | Delta::Typechange | Delta::Deleted => {
+                (d.old_file().id(), d.old_file().path())
+            }
+            _ => continue,
+        };
+        let Some(rel) = path.and_then(|p| p.to_str()) else {
+            continue;
+        };
+        if is_media_path(rel) {
+            continue;
+        }
+        match fs::read(format!("{REPO_DIR}/{rel}")) {
+            Ok(bytes) => {
+                let disk = Oid::hash_object(ObjectType::Blob, &bytes)
+                    .with_context(|| format!("hashing {rel}"))?;
+                if disk != old {
+                    drifted.insert(rel.to_string());
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(e).with_context(|| format!("reading {rel}")),
+        }
+    }
+    Ok(drifted)
+}
+
 /// Bring the working copy from `head`'s tree to `theirs`' tree by applying the
 /// tree-to-tree diff directly: write each added/modified blob, unlink each
 /// deleted path, and touch nothing else. Returns the number of files changed.
@@ -1622,16 +1698,15 @@ fn pull_once(req: &PullRequest, progress: &dyn Fn(Phase)) -> Result<PullOutcome>
 /// desktop edits directly on the card) must not be clobbered. Device-side
 /// saves are already covered by the pre-fetch commit in [`pull_once`].
 ///
-/// Two consequences of diffing *commits* rather than the working copy, both hit
-/// on the bench with `.typoena.toml` (2026-09-06):
-/// - A path the two trees agree on is never written, so a working copy that
-///   drifted on such a path stays drifted through every later pull. The host
-///   re-reads the prefs file after a pull for exactly this reason
-///   (`Runtime::reload_prefs`).
-/// - Once a drifted path *does* land in a diff, the belt refuses every pull until
-///   the drift is resolved — and a drift the dirty journal never recorded has no
-///   on-device way out, so the writer is told to use a computer, which the
-///   `:gl`-is-self-sufficient rule otherwise forbids.
+/// A consequence of diffing *commits* rather than the working copy, hit on the
+/// bench with `.typoena.toml` (2026-09-06): a path the two trees agree on is
+/// never written, so a working copy that drifted on such a path stays drifted
+/// through every later pull. The host re-reads the prefs file after a pull for
+/// exactly this reason (`Runtime::reload_prefs`).
+///
+/// A refusal here is therefore self-perpetuating — nothing about it clears the
+/// drift — which is why [`pull_once`] commits any drift it finds before calling
+/// this, and why reaching the `bail!` means a path it could not fold.
 ///
 /// Writes are unlink + tmp + rename (FAT f_rename won't overwrite), so a
 /// power-pull mid-apply leaves at worst a `.gltmp` orphan with the ref NOT
@@ -1646,41 +1721,15 @@ fn pull_once(req: &PullRequest, progress: &dyn Fn(Phase)) -> Result<PullOutcome>
 fn apply_tree_diff(repo: &Repository, head: Oid, theirs: Oid) -> Result<usize> {
     use git2::Delta;
 
-    let head_tree = repo.find_commit(head)?.tree().context("HEAD tree")?;
-    let their_tree = repo.find_commit(theirs)?.tree().context("target tree")?;
-    let diff = repo
-        .diff_tree_to_tree(Some(&head_tree), Some(&their_tree), None)
-        .context("diffing HEAD..origin trees")?;
+    let diff = tree_diff(repo, head, theirs)?;
 
-    // Pass 1 — verify: refuse before the first write if any file we are about
-    // to replace or remove was hand-edited (content no longer matches the old
-    // blob). A missing file is fine (nothing to clobber).
-    for d in diff.deltas() {
-        let (old, path) = match d.status() {
-            Delta::Modified | Delta::Typechange => {
-                (d.old_file().id(), d.old_file().path())
-            }
-            Delta::Deleted => (d.old_file().id(), d.old_file().path()),
-            _ => continue, // Added: nothing on disk to protect
-        };
-        let Some(rel) = path.and_then(|p| p.to_str()) else {
-            continue;
-        };
-        if is_media_path(rel) {
-            continue;
-        }
-        let abs = format!("{REPO_DIR}/{rel}");
-        match fs::read(&abs) {
-            Ok(bytes) => {
-                let disk = Oid::hash_object(ObjectType::Blob, &bytes)
-                    .with_context(|| format!("hashing {rel}"))?;
-                if disk != old {
-                    bail!("local change in {rel} — pull refused (edit made behind git; resolve on a computer)");
-                }
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(e) => return Err(e).with_context(|| format!("reading {rel}")),
-        }
+    // Pass 1 — verify: refuse before the first write if any file we are about to
+    // replace or remove was edited behind git's back. `pull_once` normally clears
+    // this by committing the drift first, so reaching it here means a path it
+    // could not fold, and a write would lose the only copy of those bytes.
+    let drifted = drifted_paths(&diff)?;
+    if let Some(rel) = drifted.iter().next() {
+        bail!("local change in {rel} — pull refused (edit made behind git; resolve on a computer)");
     }
 
     // Pass 2 — apply.
