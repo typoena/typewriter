@@ -1110,6 +1110,72 @@ fn add_link_to_a_non_resident_target_queues_a_read_then_inserts() {
 }
 
 #[test]
+fn a_written_link_lands_in_insert_with_the_title_selected() {
+    let mut e = palette_editor(&[]);
+    e.insert_link_loaded("/sd/repo/deep-work.md", Some("# Deep work\n"));
+    assert_eq!(e.text(), "[Deep work](deep-work.md)");
+    assert_eq!(e.mode(), Mode::Insert);
+    // The suggested title is highlighted, caret resting at its end.
+    assert_eq!(e.placeholder, Some((1, 10)));
+    assert_eq!(e.highlight_span(), Some((1, 10, false)));
+    assert_eq!(e.caret, 10);
+    // One stop past the closing paren, so Tab leaves the link behind.
+    assert_eq!(e.snippet_stops, vec![25]);
+}
+
+#[test]
+fn typing_over_a_selected_link_title_replaces_it_and_undo_brings_it_back() {
+    let mut e = palette_editor(&[]);
+    e.insert_link_loaded("/sd/repo/deep-work.md", Some("# Deep work\n"));
+    for c in "ce texte".chars() {
+        e.handle(Key::Char(c));
+    }
+    assert_eq!(e.text(), "[ce texte](deep-work.md)");
+    assert_eq!(e.placeholder, None);
+    // The stop tracked the shorter title, so Tab still lands past the link.
+    e.handle(Key::Char('\t'));
+    assert_eq!(e.caret, e.text().len());
+    // Undo restores the suggestion the editor wrote, not the bare buffer.
+    e.handle(Key::Escape);
+    e.handle(Key::Char('u'));
+    assert_eq!(e.text(), "[Deep work](deep-work.md)");
+}
+
+#[test]
+fn tab_over_a_selected_link_title_keeps_it_and_jumps_past_the_link() {
+    let mut e = palette_editor(&[]);
+    e.insert_link_loaded("/sd/repo/deep-work.md", Some("# Deep work\n"));
+    e.handle(Key::Char('\t'));
+    assert_eq!(e.text(), "[Deep work](deep-work.md)");
+    assert_eq!(e.placeholder, None);
+    assert_eq!(e.caret, 25);
+    assert_eq!(e.mode(), Mode::Insert);
+}
+
+#[test]
+fn backspace_over_a_selected_link_title_clears_just_the_title() {
+    let mut e = palette_editor(&[]);
+    e.insert_link_loaded("/sd/repo/deep-work.md", Some("# Deep work\n"));
+    e.handle(Key::Backspace);
+    // The whole suggestion goes, and nothing beyond it.
+    assert_eq!(e.text(), "[](deep-work.md)");
+    assert_eq!(e.caret, 1);
+    assert_eq!(e.placeholder, None);
+}
+
+#[test]
+fn escape_over_a_selected_link_title_keeps_it() {
+    let mut e = palette_editor(&[]);
+    e.insert_link_loaded("/sd/repo/deep-work.md", Some("# Deep work\n"));
+    e.handle(Key::Escape);
+    assert_eq!(e.text(), "[Deep work](deep-work.md)");
+    assert_eq!(e.mode(), Mode::Normal);
+    assert_eq!(e.placeholder, None);
+    // The session ended with the mode change: Tab is a tab again.
+    assert!(e.snippet_stops.is_empty());
+}
+
+#[test]
 fn add_link_title_falls_back_to_the_friendly_filename() {
     let mut e = palette_editor(&[]);
     e.insert_link_loaded("/sd/repo/standup-notes.md", None);

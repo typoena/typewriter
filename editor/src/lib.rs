@@ -523,6 +523,13 @@ pub struct Editor {
     /// shift by the edit's length delta (they are all at/after the caret), so they
     /// track the text; Tab pops the next one, and leaving Insert clears them.
     snippet_stops: Vec<usize>,
+    /// Live overtype placeholder: the byte range of a suggestion the editor just
+    /// wrote for you — the link title from `:link` / `> add local link`. It paints
+    /// reverse-video like a Visual selection, and the first thing typed over it
+    /// replaces the whole range; Tab, Esc or any other key keeps the text and only
+    /// drops the highlight. Insert-mode only, and torn down with the snippet
+    /// session on leaving Insert.
+    placeholder: Option<(usize, usize)>,
     /// Snapshot of the snippet name inline Tab would expand right now (the word
     /// before the caret is a prefix), or `None`. Refreshed by
     /// [`refresh_stats`](Self::refresh_stats) on the typing pause — the same
@@ -645,6 +652,7 @@ impl Editor {
             new_file_completion: None,
             snippets: Vec::new(),
             snippet_stops: Vec::new(),
+            placeholder: None,
             snippet_hint: None,
             companion_mood: typo::Mood::Neutral,
             milestone: 0,
@@ -1095,12 +1103,14 @@ impl Editor {
             Mode::Unsynced => self.unsynced_key(key),
         }
 
-        // A snippet tab-stop session lives only in Insert. Leaving Insert — Esc,
-        // or any mode change — ends it (the buffer is then just text, so Tab
-        // inserts a tab again). The natural end (Tab past the last stop) already
-        // empties `snippet_stops` while still in Insert.
-        if !self.snippet_stops.is_empty() && self.mode != Mode::Insert {
+        // A snippet tab-stop session and an overtype placeholder both live only
+        // in Insert. Leaving Insert — Esc, or any mode change — ends them (the
+        // buffer is then just text, so Tab inserts a tab again). The natural end
+        // (Tab past the last stop) already empties `snippet_stops` while still in
+        // Insert.
+        if self.mode != Mode::Insert {
             self.snippet_stops.clear();
+            self.placeholder = None;
         }
 
         // Cmd-p / Cmd-Shift-p mid-change (e.g. during an insert session) aborts
@@ -1177,50 +1187,56 @@ impl Editor {
         // kept in step with any edit at the caret (below).
         let session = !self.snippet_stops.is_empty();
         let len_before = self.text.len();
-        match key {
-            Key::Char('\t') if session => self.snippet_advance(),
-            // Tab expands a snippet if the word before the caret is a prefix;
-            // otherwise it inserts spaces as before.
-            Key::Char('\t') => {
-                if !self.try_expand_snippet() {
-                    self.insert_str(TAB);
+        // A live overtype placeholder ends here: `take_placeholder` deletes the
+        // suggestion when this key means "replace it", and returns `true` when
+        // the key was spent doing so (the delete family) rather than falling
+        // through to be applied at the now-empty spot.
+        if !self.take_placeholder(key) {
+            match key {
+                Key::Char('\t') if session => self.snippet_advance(),
+                // Tab expands a snippet if the word before the caret is a prefix;
+                // otherwise it inserts spaces as before.
+                Key::Char('\t') => {
+                    if !self.try_expand_snippet() {
+                        self.insert_str(TAB);
+                    }
                 }
-            }
-            Key::Char(c) => self.insert_char(c),
-            Key::Enter => self.insert_newline(),
-            Key::Backspace => self.backspace(),
-            Key::DeleteWord => self.delete_word_before(),
-            Key::DeleteLine => self.delete_to_line_start(),
-            // Half-page scroll and the Ctrl-n/Ctrl-p line motions are navigation
-            // gestures — Normal/View only. In Insert they're a no-op rather than
-            // yanking the caret off the text you're typing. Redo (Ctrl-r) is
-            // likewise ignored here.
-            Key::HalfPageDown | Key::HalfPageUp | Key::Redo | Key::Down | Key::Up
-            | Key::FocusContinue | Key::FocusQuit => {}
-            // Cmd-S and Ctrl-Tab (press and release) are resolved in `handle`
-            // before mode dispatch (so they act without leaving Insert);
-            // unreachable here, but the match is exhaustive.
-            Key::Save | Key::CycleRecent | Key::CycleCommit => {}
-            // Cmd-p / Cmd-Shift-p work from every mode: act like Esc (ending the
-            // insert session, caret onto the last inserted char), then open the
-            // palette — the file list, or `>` command mode for Cmd-Shift-p.
-            // Closing it lands in Normal, as Esc would have.
-            Key::Palette | Key::CommandPalette => {
-                self.mode = Mode::Normal;
-                if self.caret > self.line_start(self.caret) {
-                    self.caret = self.prev_char(self.caret);
+                Key::Char(c) => self.insert_char(c),
+                Key::Enter => self.insert_newline(),
+                Key::Backspace => self.backspace(),
+                Key::DeleteWord => self.delete_word_before(),
+                Key::DeleteLine => self.delete_to_line_start(),
+                // Half-page scroll and the Ctrl-n/Ctrl-p line motions are navigation
+                // gestures — Normal/View only. In Insert they're a no-op rather than
+                // yanking the caret off the text you're typing. Redo (Ctrl-r) is
+                // likewise ignored here.
+                Key::HalfPageDown | Key::HalfPageUp | Key::Redo | Key::Down | Key::Up
+                | Key::FocusContinue | Key::FocusQuit => {}
+                // Cmd-S and Ctrl-Tab (press and release) are resolved in `handle`
+                // before mode dispatch (so they act without leaving Insert);
+                // unreachable here, but the match is exhaustive.
+                Key::Save | Key::CycleRecent | Key::CycleCommit => {}
+                // Cmd-p / Cmd-Shift-p work from every mode: act like Esc (ending the
+                // insert session, caret onto the last inserted char), then open the
+                // palette — the file list, or `>` command mode for Cmd-Shift-p.
+                // Closing it lands in Normal, as Esc would have.
+                Key::Palette | Key::CommandPalette => {
+                    self.mode = Mode::Normal;
+                    if self.caret > self.line_start(self.caret) {
+                        self.caret = self.prev_char(self.caret);
+                    }
+                    if key == Key::CommandPalette {
+                        self.open_command_palette();
+                    } else {
+                        self.open_palette();
+                    }
                 }
-                if key == Key::CommandPalette {
-                    self.open_command_palette();
-                } else {
-                    self.open_palette();
-                }
-            }
-            Key::Escape => {
-                self.mode = Mode::Normal;
-                // vim drops the caret onto the last inserted char.
-                if self.caret > self.line_start(self.caret) {
-                    self.caret = self.prev_char(self.caret);
+                Key::Escape => {
+                    self.mode = Mode::Normal;
+                    // vim drops the caret onto the last inserted char.
+                    if self.caret > self.line_start(self.caret) {
+                        self.caret = self.prev_char(self.caret);
+                    }
                 }
             }
         }
@@ -1235,6 +1251,27 @@ impl Editor {
                 }
             }
         }
+    }
+
+
+    /// First key over a live [`placeholder`](Self::placeholder), applying the
+    /// overtype rule: a typed character or a delete key replaces the whole
+    /// suggestion, anything else (Tab, Esc, a palette chord) keeps it and merely
+    /// drops the highlight. Returns `true` when the key was fully spent clearing
+    /// the range — a delete key has nothing left to do, while a typed character
+    /// still has to be inserted at the freed spot. Its own
+    /// [`checkpoint`](Self::checkpoint) so undo restores the suggestion the
+    /// editor wrote, separately from the link insertion that offered it.
+    fn take_placeholder(&mut self, key: Key) -> bool {
+        let Some((s, e)) = self.placeholder.take() else { return false };
+        let delete = matches!(key, Key::Backspace | Key::DeleteWord | Key::DeleteLine);
+        if !delete && !matches!(key, Key::Char(c) if c != '\t') {
+            return false;
+        }
+        self.checkpoint();
+        self.text.replace_range(s..e, "");
+        self.caret = s;
+        delete
     }
 
     fn normal_key(&mut self, key: Key) {
@@ -1834,6 +1871,7 @@ impl Editor {
         self.mode = Mode::Rest;
         self.dot_recording = None;
         self.snippet_stops.clear();
+        self.placeholder = None;
     }
 
     /// Dispatch a key in [`Mode::Rest`]. The break masks the whole screen, so

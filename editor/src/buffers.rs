@@ -454,7 +454,8 @@ impl Editor {
     }
 
     /// Reset the transient per-keystroke input state (mode, pending operator,
-    /// visual anchor, command line) on a buffer swap, so nothing leaks across.
+    /// visual anchor, overtype placeholder, command line) on a buffer swap, so
+    /// nothing leaks across.
     /// The register and `.` history are deliberately left alone — they are global
     /// (vim-like), so a yank in one file pastes in another.
     pub(crate) fn reset_active_input(&mut self) {
@@ -467,6 +468,7 @@ impl Editor {
         self.milestone = crate::milestone_floor(self.word_count());
         self.mode = Mode::Normal;
         self.visual_anchor = None;
+        self.placeholder = None;
         self.cmdline.clear();
         self.reset_pending();
     }

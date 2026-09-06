@@ -114,6 +114,17 @@ impl Editor {
         }
     }
 
+    /// The span the render pass paints reverse-video: the Visual selection, or —
+    /// in Insert — a live overtype [`placeholder`](Editor::placeholder), which
+    /// borrows the same affordance because it means the same thing (this text is
+    /// what the next keystroke acts on). `(start, end, linewise)`.
+    pub(crate) fn highlight_span(&self) -> Option<(usize, usize, bool)> {
+        if self.in_visual() {
+            return Some(self.visual_span());
+        }
+        self.placeholder.map(|(s, e)| (s, e, false))
+    }
+
     /// Copy the selection into the unnamed register (linewise from `V`, charwise
     /// otherwise), leave the caret at the selection start, and return to Normal.
     pub(crate) fn visual_yank(&mut self) {

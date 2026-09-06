@@ -403,11 +403,11 @@ impl Editor {
             }
         }
 
-        // Visual selection: reverse-video the selected cells (black fill, glyphs
-        // redrawn white). A second pass so the text loop above stays untouched;
-        // on a 1-bit panel this inversion is the only selection affordance.
-        if self.in_visual() {
-            let (ss, se, lw) = self.visual_span();
+        // Visual selection (and the Insert-mode overtype placeholder): reverse-video
+        // the selected cells (black fill, glyphs redrawn white). A second pass so
+        // the text loop above stays untouched; on a 1-bit panel this inversion is
+        // the only selection affordance.
+        if let Some((ss, se, lw)) = self.highlight_span() {
             let inv = MonoTextStyle::new(body, BinaryColor::Off);
             for (vis, line) in visible.iter().enumerate() {
                 let y = vis as i32 * CH;

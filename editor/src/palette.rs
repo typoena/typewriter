@@ -880,6 +880,12 @@ impl Editor {
     /// for a resident target, or by the host servicing
     /// [`Effect::LoadLinkTarget`]. One undo group; a path with spaces is wrapped
     /// in `<>` so the link survives a markdown parser.
+    ///
+    /// Lands in Insert with the title as a live
+    /// [`placeholder`](Editor::placeholder) — the borrowed heading is a
+    /// suggestion, so it comes up selected and the first thing typed replaces it —
+    /// and one snippet stop past the closing paren, so Tab leaves the link behind
+    /// and carries on writing the sentence.
     pub fn insert_link_loaded(&mut self, path: &str, contents: Option<&str>) {
         let title = contents.and_then(first_heading).map(str::to_string).unwrap_or_else(|| {
             friendly_filename(path.rsplit('/').next().unwrap_or(path))
@@ -887,7 +893,17 @@ impl Editor {
         let rel = relative_link_path(&self.path, path);
         let target = if rel.contains(' ') { format!("<{rel}>") } else { rel };
         self.checkpoint();
+        let open = self.caret;
         self.insert_str(&format!("[{title}]({target})"));
+        let end = self.caret;
+        let title_span = (open + 1, open + 1 + title.len());
+        // Caret at the title's end, outside the highlight: the bar sits against
+        // the selection like a Visual caret, and Esc leaves it exactly where a
+        // writer keeping the suggested title would want to keep typing from.
+        self.caret = title_span.1;
+        self.placeholder = (title_span.0 < title_span.1).then_some(title_span);
+        self.snippet_stops = vec![end];
+        self.mode = Mode::Insert;
     }
 
     /// Row count of the palette's current result list, whichever sigil is active —
