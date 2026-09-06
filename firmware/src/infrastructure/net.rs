@@ -1381,23 +1381,21 @@ fn update_tracking(repo: &Repository, branch: &str, tip: Oid) -> Result<()> {
 /// the commit half of `:gs` without the push): that makes `:gl` self-sufficient
 /// — the ff/rebase below replants the commit onto origin so a plain `:gs`
 /// finishes it, no computer needed — and, because the working copy now matches
-/// the new HEAD, the SAFE belt can't fight a device-side save. The UI has
+/// the new HEAD, the rehash belt can't fight a device-side save. The UI has
 /// already confirmed this commit (it is user-visible). Empty `paths` is a plain
 /// fetch.
 ///
 /// `req.discard` swaps that fold for [`discard_paths`] — the confirmed "throw
 /// it away and pull" answer. Either way the card ends matching HEAD before the
-/// fetch, which is what keeps the SAFE checkout below quiet.
+/// fetch, which is what keeps the rehash belt below quiet.
 ///
-/// The fast-forward is checkout-then-ref-move, with a **SAFE** checkout: it
-/// refuses to overwrite a working-copy file whose content differs from HEAD's.
-/// After the pre-fetch commit the card matches HEAD, so in normal use nothing
-/// conflicts; the belt catches files edited behind git's back (e.g. desktop
-/// edits made directly on the card — deliberately never committed by the device
-/// since the splice landed). One FAT caveat, matching push's index-avoidance:
-/// the splice never updates the index, so its stat cache is stale and SAFE
-/// re-hashes each file the pull wants to change — fine for a few notes, and
-/// still O(changed), never O(tree).
+/// The fast-forward is apply-then-ref-move, and the apply is a tree-to-tree diff
+/// ([`apply_tree_diff`]) rather than a working-copy checkout; the ref moves last,
+/// so a power-pull mid-apply re-runs identically. Its rehash belt refuses to
+/// clobber a file edited behind git's back (e.g. desktop edits made directly on
+/// the card — deliberately never committed by the device since the splice
+/// landed); after the pre-fetch commit the card matches HEAD, so in normal use
+/// nothing trips it.
 fn pull_once(req: &PullRequest, progress: &dyn Fn(Phase)) -> Result<PullOutcome> {
     let paths = &req.paths;
     log::info!(
@@ -1618,11 +1616,22 @@ fn pull_once(req: &PullRequest, progress: &dyn Fn(Phase)) -> Result<PullOutcome>
 /// oom-during-sync.md). The tree-to-tree diff skips identical subtree OIDs
 /// wholesale, so diff and apply are both O(changed).
 ///
-/// Safety belt (SAFE's rehash, kept O(changed)): before touching anything,
+/// Safety belt (a rehash, kept O(changed)): before touching anything,
 /// any to-be-overwritten/deleted file whose disk content no longer hashes to
 /// the OLD tree's blob aborts the pull — edits made behind git's back (e.g.
 /// desktop edits directly on the card) must not be clobbered. Device-side
 /// saves are already covered by the pre-fetch commit in [`pull_once`].
+///
+/// Two consequences of diffing *commits* rather than the working copy, both hit
+/// on the bench with `.typoena.toml` (2026-09-06):
+/// - A path the two trees agree on is never written, so a working copy that
+///   drifted on such a path stays drifted through every later pull. The host
+///   re-reads the prefs file after a pull for exactly this reason
+///   (`Runtime::reload_prefs`).
+/// - Once a drifted path *does* land in a diff, the belt refuses every pull until
+///   the drift is resolved — and a drift the dirty journal never recorded has no
+///   on-device way out, so the writer is told to use a computer, which the
+///   `:gl`-is-self-sufficient rule otherwise forbids.
 ///
 /// Writes are unlink + tmp + rename (FAT f_rename won't overwrite), so a
 /// power-pull mid-apply leaves at worst a `.gltmp` orphan with the ref NOT
