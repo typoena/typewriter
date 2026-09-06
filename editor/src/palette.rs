@@ -87,6 +87,7 @@ pub(crate) enum PaletteCmd {
     Inbox,
     Oldest,
     Help,
+    About,
     AddLink,
     FollowLink,
     Format,
@@ -127,6 +128,7 @@ impl PaletteCmd {
             PaletteCmd::Inbox
             | PaletteCmd::Oldest
             | PaletteCmd::Help
+            | PaletteCmd::About
             | PaletteCmd::FollowLink
             | PaletteCmd::Format
             | PaletteCmd::Push
@@ -140,11 +142,12 @@ impl PaletteCmd {
 
 /// The palette command list, in display order (empty `>` query shows them all):
 /// the actions first, the settings after.
-pub(crate) const PALETTE_CMDS: [PaletteCmd; 22] = [
+pub(crate) const PALETTE_CMDS: [PaletteCmd; 23] = [
     PaletteCmd::NewFile,
     PaletteCmd::Inbox,
     PaletteCmd::Oldest,
     PaletteCmd::Help,
+    PaletteCmd::About,
     PaletteCmd::AddLink,
     PaletteCmd::FollowLink,
     PaletteCmd::Format,
@@ -457,6 +460,7 @@ impl Editor {
             PaletteCmd::Inbox => "new fleeting note".to_string(),
             PaletteCmd::Oldest => "oldest fleeting note".to_string(),
             PaletteCmd::Help => "help".to_string(),
+            PaletteCmd::About => "about".to_string(),
             PaletteCmd::AddLink => "add local link...".to_string(),
             PaletteCmd::FollowLink => "follow link".to_string(),
             PaletteCmd::Format => "format".to_string(),
@@ -515,6 +519,7 @@ impl Editor {
                     PaletteCmd::Inbox => self.open_inbox_today(),
                     PaletteCmd::Oldest => self.open_oldest_inbox(),
                     PaletteCmd::Help => self.show_help(),
+                    PaletteCmd::About => self.show_about(),
                     PaletteCmd::Format => {
                         self.format_buffer();
                         self.set_notice("formatted");
@@ -706,6 +711,7 @@ impl Editor {
             | PaletteCmd::Inbox
             | PaletteCmd::Oldest
             | PaletteCmd::Help
+            | PaletteCmd::About
             | PaletteCmd::AddLink
             | PaletteCmd::FollowLink
             | PaletteCmd::Format

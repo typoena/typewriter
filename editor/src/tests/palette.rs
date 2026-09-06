@@ -461,6 +461,17 @@ fn setup_palette_command_requests_the_wizard() {
 }
 
 #[test]
+fn about_palette_command_raises_the_splash() {
+    // `> about` fuzzy-ranks the About action first; Enter closes the palette
+    // straight onto the read-only splash, no confirm in between.
+    let mut e = palette_type(&["/sd/repo/notes.md"], ">about");
+    let matches = e.palette_command_matches();
+    assert_eq!(PALETTE_CMDS[matches[0]], PaletteCmd::About);
+    e.handle(Key::Enter);
+    assert_eq!(e.mode(), Mode::About);
+}
+
+#[test]
 fn reboot_palette_command_requests_a_restart() {
     // `> reboot` fuzzy-ranks the Reboot action first; Enter (clean buffer) closes
     // the palette into the confirm prompt, and `y` queues the restart.

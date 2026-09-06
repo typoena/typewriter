@@ -1608,10 +1608,10 @@ impl Editor {
         self.enter_confirm(Confirm::Update, "check for firmware update? y/n");
     }
 
-    /// `:about` — raise the full-screen splash ([`Mode::About`]) with the product
+    /// `:about` / `> about` — raise the full-screen splash ([`Mode::About`]) with the product
     /// name and running firmware version (injected by the host via
     /// [`set_version`](Self::set_version)). Read-only; `Enter`/`q`/`Esc` leave.
-    fn show_about(&mut self) {
+    pub(crate) fn show_about(&mut self) {
         self.mode = Mode::About;
     }
 
