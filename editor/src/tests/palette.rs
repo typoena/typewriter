@@ -461,6 +461,47 @@ fn setup_palette_command_requests_the_wizard() {
 }
 
 #[test]
+fn commands_are_findable_by_their_colon_name() {
+    // The palette labels are writer-facing prose, so a query typed from the `:`
+    // vocabulary used to match nothing at all: "inbox" needs a `b`, and there is
+    // no `b` in "new fleeting note".
+    for (query, want) in [
+        (">inbox", PaletteCmd::Inbox),
+        (">in", PaletteCmd::Inbox),
+        (">enew", PaletteCmd::NewFile),
+        (">fmt", PaletteCmd::Format),
+        (">gs", PaletteCmd::Push),
+        (">gf", PaletteCmd::FollowLink),
+    ] {
+        let e = palette_type(&["/sd/repo/notes.md"], query);
+        let matches = e.palette_command_matches();
+        assert_eq!(
+            matches.first().map(|&i| PALETTE_CMDS[i]),
+            Some(want),
+            "{query} should rank {want:?} first"
+        );
+    }
+}
+
+#[test]
+fn a_label_query_still_finds_the_command() {
+    // The alias is additive: the prose spelling must keep working.
+    for (query, want) in [
+        (">fleeting", PaletteCmd::Inbox),
+        (">push", PaletteCmd::Push),
+        (">new file", PaletteCmd::NewFile),
+    ] {
+        let e = palette_type(&["/sd/repo/notes.md"], query);
+        let matches = e.palette_command_matches();
+        assert_eq!(
+            matches.first().map(|&i| PALETTE_CMDS[i]),
+            Some(want),
+            "{query} should rank {want:?} first"
+        );
+    }
+}
+
+#[test]
 fn about_palette_command_raises_the_splash() {
     // `> about` fuzzy-ranks the About action first; Enter closes the palette
     // straight onto the read-only splash, no confirm in between.

@@ -120,6 +120,23 @@ pub(crate) enum CmdKind {
 }
 
 impl PaletteCmd {
+    /// The `:` spelling a writer reaches for when the palette label says it
+    /// differently — `:inbox` against "new fleeting note", `:gs` against "push".
+    /// Matched alongside the label ([`Editor::palette_command_matches`]) so the
+    /// two vocabularies find the same entry: the label stays writer-facing prose
+    /// and the command name still works as a query. Empty where the label already
+    /// contains the name (`about`, `help`, `setup`, `reboot`, `oldest`).
+    fn alias(self) -> &'static str {
+        match self {
+            PaletteCmd::Inbox => "inbox",
+            PaletteCmd::NewFile => "enew",
+            PaletteCmd::Format => "fmt",
+            PaletteCmd::Push => "gs",
+            PaletteCmd::FollowLink => "gf",
+            _ => "",
+        }
+    }
+
     /// The command's dispatch shape, which decides what Enter does in
     /// [`Editor::palette_run_command`].
     fn kind(self) -> CmdKind {
@@ -492,7 +509,15 @@ impl Editor {
         let mut scored: Vec<(usize, i32)> = PALETTE_CMDS
             .iter()
             .enumerate()
-            .filter_map(|(i, &cmd)| fuzzy_score(filter, &self.command_label(cmd)).map(|s| (i, s)))
+            .filter_map(|(i, &cmd)| {
+                // Best of the two spellings; None sorts below Some, so a command
+                // found only by its `:` name still ranks on that score.
+                let label = fuzzy_score(filter, &self.command_label(cmd));
+                let alias = (!cmd.alias().is_empty())
+                    .then(|| fuzzy_score(filter, cmd.alias()))
+                    .flatten();
+                label.max(alias).map(|s| (i, s))
+            })
             .collect();
         scored.sort_by_key(|&(_, s)| core::cmp::Reverse(s));
         scored.into_iter().map(|(i, _)| i).collect()
