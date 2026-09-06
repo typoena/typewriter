@@ -19,7 +19,7 @@ use std::collections::VecDeque;
 use std::time::Instant;
 
 use display::Frame;
-use editor::{Editor, Effect, Mode, NetFlag, PullIntent, Scope, PREFS_PATH, REPO_DIR};
+use editor::{Editor, Effect, Mode, NetFlag, Prefs, PullIntent, Scope, PREFS_PATH, REPO_DIR};
 use hal::{Keyboard, Screen};
 
 use crate::ports::{
@@ -547,6 +547,11 @@ impl<S: Screen> Runtime<S> {
                 let moved_working_copy =
                     matches!(o, PullOutcome::Pulled(_) | PullOutcome::Rebased(_));
                 let notice = pull_notice(&o);
+                // Either way the card changed under us, so `.typoena.toml` may
+                // have too — re-read it before anything else reads a pref.
+                if moved_working_copy || !discarded.is_empty() {
+                    self.reload_prefs();
+                }
                 if !discarded.is_empty() && !moved_working_copy {
                     // The discard alone changed the card, so the palette's file
                     // list is stale even though the pull moved nothing.
@@ -666,6 +671,31 @@ impl<S: Screen> Runtime<S> {
                 self.ed.set_notice("save FAILED - retry :w");
             }
         }
+    }
+
+    /// Re-read [`PREFS_PATH`] and install it, after a pull's apply (or a confirmed
+    /// discard) rewrote the card. Boot is not the only time preferences arrive: a
+    /// pull carries whatever was edited on a computer, and the palette writes this
+    /// whole struct back out from RAM ([`Effect::SavePrefs`]), so a boot-time copy
+    /// left in place here does not merely lag — the next `>` toggle serializes it
+    /// over the pulled values, and the pull that would repair the card never
+    /// comes, because the tree-to-tree apply only writes paths two commits
+    /// disagree on.
+    ///
+    /// A read failure keeps the current preferences rather than resetting them to
+    /// [`Prefs::default`]: a card with no prefs file is a normal card, and a
+    /// transient SD error must not silently undo the writer's settings.
+    fn reload_prefs(&mut self) {
+        let Ok(src) = self.storage.load_path(PREFS_PATH) else {
+            log::info!("post-pull: no readable {PREFS_PATH} — preferences unchanged");
+            return;
+        };
+        let prefs = Prefs::parse(&src);
+        if prefs == *self.ed.prefs() {
+            return;
+        }
+        log::info!("post-pull: preferences reloaded from {PREFS_PATH} — {prefs:?}");
+        self.ed.set_prefs(prefs);
     }
 
     /// Persist the preferences file after a palette `>` command changed a pref.

@@ -885,9 +885,9 @@ impl Editor {
         &self.prefs
     }
 
-    /// Apply the preferences the host read from [`PREFS_PATH`] at boot. Called
-    /// before the first render so `line_numbers` shapes the first frame. A live
-    /// change later comes from the palette `>` commands, not this.
+    /// Apply the preferences the host read from [`PREFS_PATH`]: before the first
+    /// render, so `line_numbers` shapes the first frame, and again whenever a pull
+    /// rewrites the file (the host's `reload_prefs` holds the why).
     pub fn set_prefs(&mut self, prefs: Prefs) {
         self.prefs = prefs;
     }

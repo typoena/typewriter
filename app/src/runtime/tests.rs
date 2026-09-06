@@ -784,7 +784,11 @@ fn a_confirmed_discard_evicts_the_buffers_it_threw_away() {
 
     rt.handle_net_outcome(NetOutcome::Pull(PullOutcome::UpToDate));
 
-    assert_eq!(storage.0.borrow().loads, vec!["/sd/repo/notes.md".to_string()]);
+    assert_eq!(
+        storage.0.borrow().loads,
+        vec!["/sd/repo/notes.md".to_string(), editor::PREFS_PATH.to_string()],
+        "the roll-back can have restored the prefs file too, so it is re-read"
+    );
     assert_eq!(rt.ed.text(), "last-synced", "the buffer must show the rolled-back file");
     assert!(!rt.ed.dirty(), "the reloaded buffer must be clean");
     assert_eq!(*files.0.borrow(), 1, "a discard changes the card, so the palette re-walks");
@@ -846,8 +850,54 @@ fn pull_that_moves_the_tree_reloads_active_and_rewalks() {
 
     rt.handle_net_outcome(NetOutcome::Pull(PullOutcome::Pulled("abc".into())));
 
-    assert_eq!(storage.0.borrow().loads, vec!["/sd/repo/notes.md".to_string()]);
+    assert_eq!(
+        storage.0.borrow().loads,
+        vec![editor::PREFS_PATH.to_string(), "/sd/repo/notes.md".to_string()],
+        "the pulled prefs are read before the buffer that renders under them"
+    );
     assert_eq!(*files.0.borrow(), 1, "palette should be re-walked after a moving pull");
+}
+
+#[test]
+fn a_moving_pull_installs_the_prefs_it_pulled() {
+    // The whole point: a pref edited on a computer takes effect on the pull, not
+    // one reboot later (`Runtime::reload_prefs` for what a stale copy costs).
+    let storage = RecStorage::default()
+        .with_body(editor::PREFS_PATH, "hidden_folders = \"_*,!_inbox\"\nline_numbers = false\n");
+    let ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, "old".into());
+    let mut rt = runtime(ed, storage, RecSync::new(), RecFiles::default());
+    assert_eq!(rt.ed.prefs().hidden_folders, "", "boot default");
+
+    rt.handle_net_outcome(NetOutcome::Pull(PullOutcome::Pulled("abc".into())));
+
+    assert_eq!(rt.ed.prefs().hidden_folders, "_*,!_inbox");
+    assert!(!rt.ed.prefs().line_numbers, "every key rides the reload, not just the new one");
+}
+
+#[test]
+fn a_pull_that_moved_nothing_leaves_the_prefs_alone() {
+    // No apply ran, so the card's prefs file is the one already in RAM. Reading it
+    // again would cost an SD read on every auto-sync tick for nothing.
+    let storage = RecStorage::default();
+    let mut rt = runtime(Editor::new(), storage.clone(), RecSync::new(), RecFiles::default());
+
+    rt.handle_net_outcome(NetOutcome::Pull(PullOutcome::UpToDate));
+
+    assert!(storage.0.borrow().loads.is_empty());
+}
+
+#[test]
+fn an_unreadable_prefs_file_keeps_the_running_preferences() {
+    // A card with no prefs file is normal, and an SD hiccup must not silently
+    // reset the writer's settings to the defaults mid-session.
+    let storage = RecStorage::default().with_missing(editor::PREFS_PATH);
+    let mut ed = Editor::new();
+    ed.set_prefs(editor::Prefs { hidden_folders: "_archive".into(), ..Default::default() });
+    let mut rt = runtime(ed, storage, RecSync::new(), RecFiles::default());
+
+    rt.handle_net_outcome(NetOutcome::Pull(PullOutcome::Pulled("abc".into())));
+
+    assert_eq!(rt.ed.prefs().hidden_folders, "_archive");
 }
 
 #[test]
