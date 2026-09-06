@@ -50,6 +50,51 @@ fn drop_clean_parked_keeps_only_dirty_buffers() {
 }
 
 #[test]
+fn an_update_says_updating_not_syncing() {
+    // `:update` reboots the device when it lands, so the row must not read like
+    // an ordinary push — the writer should be able to tell what is running from
+    // the panel alone, since the snackbar that said so is gone at the first
+    // keystroke.
+    let mut e = over("hello");
+    e.set_net_flag(Some(NetFlag::Syncing));
+    let syncing = e.draw(true).bytes().to_vec();
+    e.set_net_flag(Some(NetFlag::Updating));
+    let updating = e.draw(true).bytes().to_vec();
+    assert_ne!(syncing, updating, "the two states must not render the same row");
+}
+
+#[test]
+fn a_held_inbox_shows_on_the_panel_until_it_resolves() {
+    // The clock sync it waits for flies no flag, and the hold ends in a buffer
+    // switch nobody pressed a key for. Without a row, a writer who types after
+    // `:inbox` has no way to tell it is still coming.
+    let mut e = over("hello");
+    let quiet = e.draw(true).bytes().to_vec();
+    ex(&mut e, "inbox");
+    assert!(e.inbox_pending(), "no date and no walk yet");
+    let held = e.draw(true).bytes().to_vec();
+    assert_ne!(held, quiet, "a held :inbox has to be visible");
+
+    // A keystroke clears the snackbar but must not clear the row.
+    e.handle(Key::Char('x'));
+    assert_eq!(e.notice(), None);
+    assert_ne!(e.draw(true).bytes().to_vec(), quiet, "typing must not hide it");
+}
+
+#[test]
+fn a_net_operation_outranks_a_held_inbox_on_the_shared_row() {
+    // One row, two possible claimants. The net operation wins: it is the one
+    // that also holds off the idle-save.
+    let mut e = over("hello");
+    ex(&mut e, "inbox");
+    assert_eq!(e.activity(), Some(NetFlag::Inbox));
+    e.set_net_flag(Some(NetFlag::Syncing));
+    assert_eq!(e.activity(), Some(NetFlag::Syncing), "the sync owns the row while it runs");
+    e.set_net_flag(None);
+    assert_eq!(e.activity(), Some(NetFlag::Inbox), "and the hold gets it back");
+}
+
+#[test]
 fn the_syncing_flag_owns_the_reserved_sync_row_and_nothing_else() {
     // The in-flight flag has to sit on the row `scope_y` already reserves: the
     // snackbar under it and the face-collision math both key off that row, so
@@ -57,7 +102,7 @@ fn the_syncing_flag_owns_the_reserved_sync_row_and_nothing_else() {
     let mut e = over("hello");
     e.set_notice("pulling...");
     let quiet = e.draw(true).bytes().to_vec();
-    e.set_syncing(true);
+    e.set_net_flag(Some(NetFlag::Syncing));
     let flagged = e.draw(true).bytes().to_vec();
 
     let row = |bytes: &[u8], y: usize| {

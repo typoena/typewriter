@@ -82,21 +82,28 @@ impl Editor {
         // One blank row below the file tier, holding the two persistent flags.
         // `Tracked` is the default and syncs normally, so it stays silent; only
         // a `Local` buffer — which never leaves the device (`:gs` is refused) —
-        // earns a flag, and `Syncing` stands for as long as a dispatched
-        // push/pull is in flight (see [`Editor::syncing`]). Both share the one
-        // row, so the row is reserved either way: `scope_y` anchors the notice
-        // and the companion-collision math below, which therefore sit at a
-        // stable height whatever the flags say. There is no ahead/behind state
-        // to show — a *finished* push/pull reports as the notice below.
+        // earns a flag, and the activity word stands for as long as the work is
+        // outstanding (see [`Editor::activity`]). Both share the one row, so the
+        // row is reserved either way: `scope_y` anchors the notice and the
+        // companion-collision math below, which therefore sit at a stable height
+        // whatever the flags say. There is no ahead/behind state to show — a
+        // *finished* push/pull reports as the notice below.
+        //
+        // Widest combination is `Local Updating` at 14 of the 15 columns.
         let scope_y = words_y + 2 * PANEL_CH;
-        let flags = match (self.scope == Scope::Local, self.syncing) {
-            (true, true) => "Local Syncing",
-            (true, false) => "Local",
-            (false, true) => "Syncing",
-            (false, false) => "",
+        let activity = match self.activity() {
+            Some(NetFlag::Syncing) => "Syncing",
+            Some(NetFlag::Updating) => "Updating",
+            Some(NetFlag::Inbox) => "Inbox",
+            None => "",
+        };
+        let flags = match (self.scope == Scope::Local, activity) {
+            (true, "") => "Local".to_string(),
+            (true, word) => format!("Local {word}"),
+            (false, word) => word.to_string(),
         };
         if !flags.is_empty() {
-            Text::with_baseline(flags, Point::new(PANEL_X, scope_y), style, Baseline::Top)
+            Text::with_baseline(&flags, Point::new(PANEL_X, scope_y), style, Baseline::Top)
                 .draw(f)
                 .infallible();
         }

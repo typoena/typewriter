@@ -138,6 +138,22 @@ fn cancelled_discard_returns_to_the_card_not_out_of_the_pull() {
 }
 
 #[test]
+fn a_prose_letter_no_longer_abandons_the_pull() {
+    // `n` and `q` used to cancel here alongside Esc — undocumented, and both
+    // ordinary letters. A reflexive keystroke dropped the pull and said so in a
+    // notice the next keystroke wiped, which is the worst of both: the sync is
+    // gone and nothing on screen admits it.
+    for key in ['n', 'q'] {
+        let mut e = with_unsynced_card();
+        assert_eq!(e.mode(), Mode::Unsynced);
+        e.handle(Key::Char(key));
+        assert_eq!(e.mode(), Mode::Unsynced, "`{key}` must not leave the card");
+        assert!(!e.unsynced().is_empty(), "nor drop what it lists");
+        assert_eq!(e.notice(), None, "and it claims nothing happened");
+    }
+}
+
+#[test]
 fn unsynced_card_escape_cancels_the_pull() {
     let mut e = with_unsynced_card();
     e.handle(Key::Escape);

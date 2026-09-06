@@ -392,16 +392,16 @@ fn a_dispatched_sync_shows_a_panel_sign_typing_cannot_clear() {
     let mut rt = typing_runtime(ed, CountingScreen::default(), keyboard.clone(), sync.clone());
     rt.service_one(Effect::Pull(PullIntent::Ask));
     assert_eq!(rt.ed.notice(), Some("pulling..."));
-    assert!(rt.ed.syncing(), "a dispatched pull raises the flag");
+    assert!(rt.ed.net_flag().is_some(), "a dispatched pull raises the flag");
 
     keyboard.press(hal::Key::Char('i'));
     rt.tick();
     assert_eq!(rt.ed.notice(), None, "the snackbar is gone with the keystroke");
-    assert!(rt.ed.syncing(), "the flag is not");
+    assert!(rt.ed.net_flag().is_some(), "the flag is not");
 
     sync.log.borrow_mut().outcome = Some(NetOutcome::Pull(PullOutcome::LocalAhead));
     rt.tick();
-    assert!(!rt.ed.syncing(), "and the outcome lowers it");
+    assert!(rt.ed.net_flag().is_none(), "and the outcome lowers it");
 }
 
 #[test]
@@ -411,9 +411,9 @@ fn a_progress_line_leaves_the_sync_flag_up() {
     let mut rt = runtime(Editor::new(), RecStorage::default(), RecSync::new(), RecFiles::default());
     rt.service_one(Effect::Push);
     rt.handle_net_outcome(NetOutcome::Progress("sending 3/7".into()));
-    assert!(rt.ed.syncing(), "a progress line is not the end of the push");
+    assert!(rt.ed.net_flag().is_some(), "a progress line is not the end of the push");
     rt.handle_net_outcome(NetOutcome::Push(PushOutcome::UpToDate));
-    assert!(!rt.ed.syncing());
+    assert!(rt.ed.net_flag().is_none());
 }
 
 #[test]
@@ -463,7 +463,7 @@ fn a_second_syncs_outcome_does_not_settle_the_first() {
 
     sync.log.borrow_mut().outcome = Some(NetOutcome::Push(PushOutcome::UpToDate));
     rt.tick();
-    assert!(rt.ed.syncing(), "the pull is still running, so the flag stands");
+    assert!(rt.ed.net_flag().is_some(), "the pull is still running, so the flag stands");
 
     rt.last_activity = Instant::now() - Duration::from_millis(IDLE_SAVE_MS as u64 + 1);
     rt.tick();
@@ -471,7 +471,7 @@ fn a_second_syncs_outcome_does_not_settle_the_first() {
 
     sync.log.borrow_mut().outcome = Some(NetOutcome::Pull(PullOutcome::UpToDate));
     rt.tick();
-    assert!(!rt.ed.syncing(), "the last outcome lowers it");
+    assert!(rt.ed.net_flag().is_none(), "the last outcome lowers it");
 }
 
 #[test]
@@ -485,14 +485,15 @@ fn a_sync_that_goes_silent_gives_the_safety_net_back() {
     ed.handle(hal::Key::Char('x'));
     let mut rt = runtime(ed, storage.clone(), RecSync::new(), RecFiles::default());
     rt.service_one(Effect::Pull(PullIntent::Ask));
-    assert!(rt.ed.syncing());
+    assert!(rt.ed.net_flag().is_some());
 
-    rt.net_in_flight = [Instant::now() - Duration::from_millis(SYNC_HOLDOFF_MS as u64 + 1)]
-        .into_iter()
-        .collect();
+    rt.net_in_flight =
+        [(Instant::now() - Duration::from_millis(SYNC_HOLDOFF_MS as u64 + 1), NetFlag::Syncing)]
+            .into_iter()
+            .collect();
     rt.last_activity = Instant::now() - Duration::from_millis(IDLE_SAVE_MS as u64 + 1);
     rt.tick();
-    assert!(!rt.ed.syncing(), "the panel stops claiming a sync it cannot finish");
+    assert!(rt.ed.net_flag().is_none(), "the panel stops claiming a sync it cannot finish");
     assert_eq!(
         storage.0.borrow().saves,
         vec![("/sd/repo/notes.md".to_string(), "x".to_string())],
@@ -511,13 +512,14 @@ fn a_progress_line_keeps_a_slow_sync_from_expiring() {
     let mut rt = runtime(ed, storage.clone(), RecSync::new(), RecFiles::default());
     rt.service_one(Effect::Pull(PullIntent::Ask));
 
-    rt.net_in_flight = [Instant::now() - Duration::from_millis(SYNC_HOLDOFF_MS as u64 - 10)]
-        .into_iter()
-        .collect();
+    rt.net_in_flight =
+        [(Instant::now() - Duration::from_millis(SYNC_HOLDOFF_MS as u64 - 10), NetFlag::Syncing)]
+            .into_iter()
+            .collect();
     rt.handle_net_outcome(NetOutcome::Progress("receiving 40%".into()));
     rt.last_activity = Instant::now() - Duration::from_millis(IDLE_SAVE_MS as u64 + 1);
     rt.tick();
-    assert!(rt.ed.syncing(), "proof of life refreshed the deadline");
+    assert!(rt.ed.net_flag().is_some(), "proof of life refreshed the deadline");
     assert!(storage.0.borrow().saves.is_empty(), "so the hold-off still stands");
 }
 
@@ -532,7 +534,7 @@ fn a_local_note_keeps_saving_through_a_sync() {
     ed.handle(hal::Key::Char('x'));
     let mut rt = runtime(ed, storage.clone(), RecSync::new(), RecFiles::default());
     rt.service_one(Effect::Pull(PullIntent::Ask));
-    assert!(rt.ed.syncing(), "the sync is running");
+    assert!(rt.ed.net_flag().is_some(), "the sync is running");
 
     rt.last_activity = Instant::now() - Duration::from_millis(IDLE_SAVE_MS as u64 + 1);
     rt.tick();
@@ -962,11 +964,11 @@ fn a_clock_outcome_does_not_settle_a_running_sync() {
     ed.handle(hal::Key::Char('x'));
     let mut rt = runtime(ed, storage.clone(), sync.clone(), RecFiles::default());
     rt.service_one(Effect::Push);
-    assert!(rt.ed.syncing());
+    assert!(rt.ed.net_flag().is_some());
 
     sync.log.borrow_mut().outcome = Some(NetOutcome::Clock(ClockOutcome::Synced));
     rt.tick();
-    assert!(rt.ed.syncing(), "the push is still running");
+    assert!(rt.ed.net_flag().is_some(), "the push is still running");
     assert!(rt.sync_holds_off_save(), "and still protected");
 
     rt.last_activity = Instant::now() - Duration::from_millis(IDLE_SAVE_MS as u64 + 1);

@@ -19,7 +19,7 @@ use std::collections::VecDeque;
 use std::time::Instant;
 
 use display::Frame;
-use editor::{Editor, Effect, Mode, PullIntent, Scope, PREFS_PATH, REPO_DIR};
+use editor::{Editor, Effect, Mode, NetFlag, PullIntent, Scope, PREFS_PATH, REPO_DIR};
 use hal::{Keyboard, Screen};
 
 use crate::ports::{
@@ -78,7 +78,7 @@ pub struct Runtime<S: Screen> {
     /// a repo buffer, holds off the idle-save in [`idle_step`](Self::idle_step)
     /// — the writer's evidence that a sync is running is exactly the state that
     /// protects it.
-    net_in_flight: VecDeque<Instant>,
+    net_in_flight: VecDeque<(Instant, NetFlag)>,
     /// Absolute paths of an in-flight [`PullIntent::Discard`], captured from
     /// the unsynced card at dispatch. Consumed when the pull outcome lands, to
     /// evict the resident buffers whose text the discard threw away. Empty
@@ -268,7 +268,7 @@ impl<S: Screen> Runtime<S> {
             // in the batch already persisted the buffer.
             Effect::Push => match self.net.push() {
                 PushDispatch::Dispatched => {
-                    self.mark_net_dispatched();
+                    self.mark_net_dispatched(NetFlag::Syncing);
                     self.ed.set_notice("syncing...")
                 }
                 PushDispatch::ThreadDown => self.ed.set_notice("sync: git thread down"),
@@ -291,7 +291,7 @@ impl<S: Screen> Runtime<S> {
                 }
                 match self.net.pull(intent) {
                     PullDispatch::Dispatched => {
-                        self.mark_net_dispatched();
+                        self.mark_net_dispatched(NetFlag::Syncing);
                         self.ed.set_notice("pulling...")
                     }
                     // Unpushed saves: name them and ask. The card's answer
@@ -349,7 +349,7 @@ impl<S: Screen> Runtime<S> {
             // success (see `handle_net_outcome`) can't strand unsaved edits.
             Effect::Update => match self.net.update() {
                 UpdateDispatch::Dispatched => {
-                    self.mark_net_dispatched();
+                    self.mark_net_dispatched(NetFlag::Updating);
                     self.ed.set_notice("checking for update...")
                 }
                 UpdateDispatch::ThreadDown => self.ed.set_notice("update: git thread down"),
@@ -461,17 +461,25 @@ impl<S: Screen> Runtime<S> {
         }
     }
 
-    /// Record a dispatched sync, whose outcome is now outstanding.
-    fn mark_net_dispatched(&mut self) {
-        self.net_in_flight.push_back(Instant::now());
-        self.ed.set_syncing(true);
+    /// Record a dispatched net operation, whose outcome is now outstanding. The
+    /// panel reports the OLDEST one still running, so a `:gl` queued behind an
+    /// `:update` does not relabel the row the writer is watching.
+    fn mark_net_dispatched(&mut self, flag: NetFlag) {
+        self.net_in_flight.push_back((Instant::now(), flag));
+        self.show_oldest_dispatch();
+    }
+
+    /// Point the panel's activity row at the oldest outstanding operation, or
+    /// clear it when none is left.
+    fn show_oldest_dispatch(&mut self) {
+        self.ed.set_net_flag(self.net_in_flight.front().map(|&(_, flag)| flag));
     }
 
     /// Settle the oldest outstanding sync. The flag drops only once the last
     /// one has landed, so an outcome never lifts a sibling's protection.
     fn settle_net_dispatch(&mut self) {
         self.net_in_flight.pop_front();
-        self.ed.set_syncing(!self.net_in_flight.is_empty());
+        self.show_oldest_dispatch();
     }
 
     /// Drop any sync that has gone silent past [`SYNC_HOLDOFF_MS`]. Flag and
@@ -480,10 +488,10 @@ impl<S: Screen> Runtime<S> {
     /// finish, nor the idle-save standing down for it.
     fn expire_silent_dispatches(&mut self) {
         let before = self.net_in_flight.len();
-        self.net_in_flight.retain(|t| t.elapsed().as_millis() < SYNC_HOLDOFF_MS);
+        self.net_in_flight.retain(|(t, _)| t.elapsed().as_millis() < SYNC_HOLDOFF_MS);
         if self.net_in_flight.len() != before {
             log::warn!("sync silent past {SYNC_HOLDOFF_MS}ms: hold-off lifted");
-            self.ed.set_syncing(!self.net_in_flight.is_empty());
+            self.show_oldest_dispatch();
         }
     }
 
@@ -511,7 +519,7 @@ impl<S: Screen> Runtime<S> {
             // Proof of life for the oldest outstanding operation, so a slow
             // fetch keeps its hold-off (see `expire_silent_dispatches`).
             NetOutcome::Progress(_) => {
-                if let Some(t) = self.net_in_flight.front_mut() {
+                if let Some((t, _)) = self.net_in_flight.front_mut() {
                     *t = Instant::now();
                 }
             }

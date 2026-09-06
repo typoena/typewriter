@@ -187,6 +187,25 @@ pub enum Scope {
     Local,
 }
 
+/// What the panel's persistent activity row is reporting. A long operation whose
+/// only sign is the snackbar is invisible the moment the writer types, and they
+/// cannot tell "still running" from "I cancelled it" — so anything that runs
+/// past a keystroke earns a row here instead.
+///
+/// The clock-only sync is deliberately absent: it is dispatched unasked at boot
+/// and reports nothing, so a row for it would be noise. What it holds up — an
+/// `:inbox` waiting for a date — gets [`Inbox`](NetFlag::Inbox) instead, because
+/// that one ends in a buffer switch the writer did not press a key for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NetFlag {
+    /// A push or pull (`:gs` / `:gl`).
+    Syncing,
+    /// An OTA firmware update (`:update`), which ends in a reboot.
+    Updating,
+    /// An `:inbox` held until the clock (and the card walk) can date its note.
+    Inbox,
+}
+
 /// A calendar day, fed by the host from its real-time clock
 /// ([`set_today`](Editor::set_today)) — the pure core has no clock of its own.
 /// `:inbox` uses it to name and title today's fleeting note. The host passes
@@ -384,7 +403,7 @@ pub struct Editor {
     /// through a push or pull would otherwise be left with no sign that one is
     /// running. Fed by the host at dispatch and at the outcome — only it knows
     /// when the git thread is done.
-    syncing: bool,
+    net_flag: Option<NetFlag>,
     /// Editor preferences (mirrors [`PREFS_PATH`]). Held here so the palette `>`
     /// command mode can toggle them live; the host reads the file at boot and
     /// applies it via [`set_prefs`](Self::set_prefs), and reads it back for the
@@ -594,7 +613,7 @@ impl Editor {
             shown_words: 0,
             keyboard_present: false,
             notice: None,
-            syncing: false,
+            net_flag: None,
             prefs: Prefs::default(),
             register: String::new(),
             register_linewise: false,
@@ -838,17 +857,25 @@ impl Editor {
         self.notice.as_deref()
     }
 
-    /// Flag a dispatched network operation as in flight, or settle it — the
-    /// panel keeps its `Syncing` row up in between (see
-    /// [`syncing`](Self::syncing)).
-    pub fn set_syncing(&mut self, on: bool) {
-        self.syncing = on;
+    /// Flag a dispatched network operation as in flight, or settle it (`None`) —
+    /// the panel keeps the matching row up in between (see [`NetFlag`]).
+    pub fn set_net_flag(&mut self, flag: Option<NetFlag>) {
+        self.net_flag = flag;
     }
 
-    /// Whether a network operation is in flight, as last fed via
-    /// [`set_syncing`](Self::set_syncing).
-    pub fn syncing(&self) -> bool {
-        self.syncing
+    /// The network operation in flight, as last fed via
+    /// [`set_net_flag`](Self::set_net_flag).
+    pub fn net_flag(&self) -> Option<NetFlag> {
+        self.net_flag
+    }
+
+    /// What the panel's activity row shows: a dispatched net operation, else a
+    /// held `:inbox`. One home for the row, so the two states can never both
+    /// claim it. A net operation wins — it is the one that also holds off the
+    /// idle-save, and a held `:inbox` normally waits on a clock sync that flies
+    /// no flag of its own.
+    pub(crate) fn activity(&self) -> Option<NetFlag> {
+        self.net_flag.or(self.pending_inbox.then_some(NetFlag::Inbox))
     }
 
     /// The current preferences. The host reads this for the keys it honours
@@ -1677,7 +1704,11 @@ impl Editor {
             Key::Char('k') | Key::Up => {
                 self.unsynced_scroll = self.unsynced_scroll.saturating_sub(1)
             }
-            Key::Escape | Key::Char('n') | Key::Char('q') => {
+            // Esc only, and it is the one key the card advertises. `n`/`q` used
+            // to cancel here too: ordinary prose letters that silently abandon a
+            // pull, leaving a notice the next keystroke wipes — so a reflexive
+            // burst of typing could drop the sync with no trace it ever ran.
+            Key::Escape => {
                 self.mode = Mode::Normal;
                 self.unsynced.clear();
                 self.set_notice("pull cancelled");
