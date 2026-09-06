@@ -59,11 +59,29 @@ pub fn run_update(progress: &dyn Fn(Phase)) -> Result<Option<String>> {
         return Ok(None);
     }
 
+    if !has_update_slot() {
+        bail!("no OTA slot - reflash over USB");
+    }
+
     let url = format!("{}/typoena-{latest}.bin", update_base_url());
     let written =
         download_and_install(&url, progress).with_context(|| format!("installing {latest}"))?;
     log::info!("OTA — installed {latest} ({written} bytes); new slot is the boot target");
     Ok(Some(latest))
+}
+
+/// Whether this device has a second app slot to receive an update.
+///
+/// `:update` needs the dual A/B layout (`partitions-ota.csv`). A device still on
+/// the single `factory` partition — what the dev `just flash` path writes — has
+/// nowhere to put a new image, and it cannot grow a slot while running: that is
+/// the one-time USB migration `just flash-ota` exists for. esp-idf only
+/// discovers the absence at `esp_ota_begin`, i.e. AFTER a ~2.5 MB download, so
+/// we probe up front and fail in a second with something actionable.
+fn has_update_slot() -> bool {
+    // Null `configured` asks esp-idf to pick the slot itself; NULL back means
+    // the partition table has no ota_0/ota_1 at all.
+    !unsafe { esp_idf_svc::sys::esp_ota_get_next_update_partition(core::ptr::null()) }.is_null()
 }
 
 /// GET `<base>/latest` and return the trimmed version line. The manifest is

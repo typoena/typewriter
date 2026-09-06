@@ -1863,9 +1863,16 @@ fn install_tls_trust_store() -> Result<()> {
 /// prefixed with the operation ("sync" / "pull"). The full chain is logged
 /// separately; the editor clamps this to the panel width.
 fn short_reason(op: &str, e: &anyhow::Error) -> String {
-    let full = format!("{e}");
+    // The ROOT cause, not the outermost context. Our `.context(...)` strings are
+    // gerund phrases naming the step ("installing 0.11.0", "connecting Wi-Fi"),
+    // so reporting the outer layer renders every failure as a progress line the
+    // writer waits on forever. The root is the thing that actually broke.
+    let full = format!("{}", e.root_cause());
     let first = full.lines().next().unwrap_or("failed");
-    format!("{op}: {}", first.chars().take(24).collect::<String>())
+    // "FAILED" so a glance can never read it as status; the panel word-wraps this
+    // over at most NOTICE_MAX_LINES x PANEL_COLS, and `{e:?}` above has already
+    // put the whole chain in the log and on the card.
+    format!("{op} FAILED: {}", first.chars().take(40).collect::<String>())
 }
 
 /// First 8 hex chars of an OID, for readable logs and the panel.
