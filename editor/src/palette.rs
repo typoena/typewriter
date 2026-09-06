@@ -835,15 +835,25 @@ impl Editor {
         self.insert_snippet(&body);
     }
 
-    /// Switch the open palette into the link-pick step: the same file list and
-    /// fuzzy filter as bare `Cmd-P`, but Enter inserts a markdown link to the
-    /// selection at the caret instead of opening it. Reached only from
-    /// [`palette_run_command`](Self::palette_run_command), so the palette is
-    /// already open.
+    /// Switch the *already open* palette into the link-pick step: the same file
+    /// list and fuzzy filter as bare `Cmd-P`, but Enter inserts a markdown link
+    /// to the selection at the caret instead of opening it. Reached from
+    /// [`palette_run_command`](Self::palette_run_command); `:link` comes in
+    /// through [`open_link_pick`](Self::open_link_pick), which opens the palette
+    /// first.
     pub(crate) fn begin_link_pick_step(&mut self) {
         self.palette_step = PaletteStep::PickLink;
         self.palette_query.clear();
         self.palette_sel = 0;
+    }
+
+    /// `:link` — open the palette straight into the link-pick step, so writing a
+    /// link is one gesture from the `:` line instead of `Cmd-Shift-P` then
+    /// `add local link`. Same surface either way: Backspace on the empty query
+    /// still falls back to the `>` list.
+    pub(crate) fn open_link_pick(&mut self) {
+        self.mode = Mode::Palette;
+        self.begin_link_pick_step();
     }
 
     /// Enter in the link-pick step: insert `[title](relative-path)` for the

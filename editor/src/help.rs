@@ -54,6 +54,7 @@ pub(crate) const HELP_PAGES: [&[HelpRow]; 3] = [
         ("i  a  o", "insert, append, open a line"),
         ("Esc", "back to Normal"),
         ("/  n  N", "search, next match, previous"),
+        (":link", "insert a link to a note"),
         ("gf", "follow the link under the caret"),
         ("gr", "read-only scroll mode"),
         ("gs  gl", "push, pull"),

@@ -1049,6 +1049,25 @@ fn add_link_command_opens_the_file_pick_step() {
 }
 
 #[test]
+fn link_command_opens_the_pick_step_and_enter_writes_the_link() {
+    let mut e = palette_editor(&["/sd/repo/deep-work.md"]);
+    ex(&mut e, "link");
+    assert_eq!(e.mode(), Mode::Palette);
+    assert_eq!(e.palette_step, PaletteStep::PickLink);
+    assert_eq!(e.palette_query, "");
+    // Same pick surface as `> add local link`: filter, then Enter inserts.
+    for c in "deep".chars() {
+        e.handle(Key::Char(c));
+    }
+    e.handle(Key::Enter);
+    assert_eq!(e.mode(), Mode::Normal);
+    assert_eq!(
+        e.take_effects(),
+        vec![Effect::LoadLinkTarget { path: "/sd/repo/deep-work.md".into() }]
+    );
+}
+
+#[test]
 fn add_link_to_a_resident_target_inserts_title_and_relative_path() {
     // The target is the active buffer — resident, heading read from RAM.
     let mut e = Editor::with_file(

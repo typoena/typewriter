@@ -1568,6 +1568,7 @@ impl Editor {
             "delete" | "d" => self.request_delete(),
             "settings" => self.open_command_palette(),
             "fmt" => self.format_buffer(),
+            "link" => self.open_link_pick(),
             "pub" | "publish" => self.publish_active(),
             "w" | "wq" | "x" => self.write_active(),
             // fmt → save → push, shared with the `>` push command.
