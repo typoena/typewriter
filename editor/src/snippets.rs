@@ -19,8 +19,7 @@ pub struct Snippet {
     /// The word that triggers inline Tab-expansion.
     pub prefix: String,
     /// Literal body text with `$1..$n`/`$0` stops. `${n:label}` placeholders are
-    /// stripped to bare `$n` at parse time (no completion popup to show a label,
-    /// no overtype model to fill it) — see [`strip_stop_labels`].
+    /// stripped to bare `$n` at parse time — see [`strip_stop_labels`].
     pub body: String,
     /// Human description; the `$` palette fuzzy-matches and shows it. Empty if the
     /// JSON entry omits it.
@@ -83,10 +82,9 @@ impl Snippets {
 }
 
 /// Rewrite `${n:label}` (and `${n}`) tab stops to a bare `$n`, leaving plain
-/// `$n`/`$0` and every other `$` untouched. The editor has no completion popup to
-/// surface a label and no selection/overtype model to fill one, so the label is
-/// only noise to delete — dropping it is what lets a Zed snippet file with
-/// `${1:Titre}` load unchanged. Byte-indexed but UTF-8-safe: it only ever indexes
+/// `$n`/`$0` and every other `$` untouched. A stop is a position, not a default
+/// value: the body never carries the label's text into the buffer, so dropping it
+/// is what lets a Zed snippet file with `${1:Titre}` load unchanged. Byte-indexed but UTF-8-safe: it only ever indexes
 /// the ASCII `$ { } :` and digits; any multi-byte char is copied whole.
 pub(crate) fn strip_stop_labels(body: &str) -> String {
     let b = body.as_bytes();
