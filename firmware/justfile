@@ -66,7 +66,13 @@ flash-ota: build
 _flash-prod-image monitor="no" require_rollback="no":
     #!/usr/bin/env bash
     set -euo pipefail
-    boot=$(ls target/xtensa-esp32s3-espidf/release/build/esp-idf-sys-*/out/build/bootloader/bootloader.bin 2>/dev/null | head -1 || true)
+    # -t (newest first), NOT plain ls: a tree accumulates one esp-idf-sys-<hash>
+    # dir per sdkconfig/feature combination ever built, each with its OWN
+    # bootloader, and alphabetical-first picks whichever hash sorts lowest — a
+    # months-stale bootloader built from a different sdkconfig. `build` runs
+    # immediately before every caller, so newest-mtime is the one that matches
+    # the image being flashed.
+    boot=$(ls -t target/xtensa-esp32s3-espidf/release/build/esp-idf-sys-*/out/build/bootloader/bootloader.bin 2>/dev/null | head -1 || true)
     mon=""
     if [ "{{monitor}}" = "yes" ]; then mon="--monitor"; fi
     if [ -z "${boot:-}" ]; then
