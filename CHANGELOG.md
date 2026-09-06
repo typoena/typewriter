@@ -9,6 +9,15 @@ _Generated from the commit history with [git-cliff](https://git-cliff.org)._
 ## Firmware
 
 
+### [0.13.0] — 2026-09-06
+#### Added
+- **palette:** Drop the repo/ prefix from the file list
+
+#### Fixed
+- **prefs:** Apply the preferences a pull brought in
+- **prefs:** Let a wildcard hidden folder be named in the palette
+- **sync:** Commit drift the journal missed instead of refusing every pull
+
 ### [0.12.1] — 2026-09-06
 #### Fixed
 - **flash:** Pick the bootloader from this build, not the oldest hash
