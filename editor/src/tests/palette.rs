@@ -502,6 +502,20 @@ fn a_label_query_still_finds_the_command() {
 }
 
 #[test]
+fn the_list_hides_repo_but_keeps_local() {
+    use crate::palette::{palette_display, palette_label};
+    // Unmarked = tracked; `local/` stays a visible tag on the exception.
+    assert_eq!(palette_display("/sd/repo/notes.md"), "notes.md");
+    assert_eq!(palette_display("/sd/repo/_archive/old.md"), "_archive/old.md");
+    assert_eq!(palette_display("/sd/local/journal.md"), "local/journal.md");
+    // A file literally named `repo...` in local scope keeps its name.
+    assert_eq!(palette_display("/sd/local/report.md"), "local/report.md");
+    // The matching/round-trip label is untouched — `repo` still filters, and
+    // `relative_link_path` still has a scope to name.
+    assert_eq!(palette_label("/sd/repo/notes.md"), "repo/notes.md");
+}
+
+#[test]
 fn about_palette_command_raises_the_splash() {
     // `> about` fuzzy-ranks the About action first; Enter closes the palette
     // straight onto the read-only splash, no confirm in between.

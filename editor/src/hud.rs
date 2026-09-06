@@ -647,7 +647,7 @@ impl Editor {
                 } else {
                     // Prettify the basename only (`friendly_filename`), keeping any
                     // scope/dir prefix as-is so the date check anchors on the name.
-                    let raw = palette_label(self.file_at(idx));
+                    let raw = palette_display(self.file_at(idx));
                     let pretty = match raw.rsplit_once('/') {
                         Some((dir, base)) => format!("{dir}/{}", friendly_filename(base)),
                         None => friendly_filename(raw),

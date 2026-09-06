@@ -9,6 +9,11 @@ _Generated from the commit history with [git-cliff](https://git-cliff.org)._
 ## Firmware
 
 
+### [0.12.1] — 2026-09-06
+#### Fixed
+- **flash:** Pick the bootloader from this build, not the oldest hash
+- **palette:** Find commands by their : name, not just their label
+
 ### [0.12.0] — 2026-09-06
 #### Added
 - **hud:** Say which operation is running, not just that one is

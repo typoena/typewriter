@@ -13,6 +13,25 @@ pub(crate) fn palette_label(path: &str) -> &str {
     path.strip_prefix("/sd/").unwrap_or(path)
 }
 
+/// What the palette list actually paints: [`palette_label`] with the tracked
+/// scope's `repo/` dropped, so the common case is just the file and `local/`
+/// stays a visible tag on the exception (unmarked = tracked).
+///
+/// Display only. Matching, folder completion and [`relative_link_path`] keep the
+/// full label: `repo` still filters to tracked files, a completion still
+/// prefills a typeable path, and a link written from an unnamed scratch still
+/// names its scope — which a bare label could not, since `resolve_path` reads a
+/// bare name against the *current* scope.
+pub(crate) fn palette_display(path: &str) -> &str {
+    let label = palette_label(path);
+    // Derived from REPO_DIR rather than spelled again, so the two can't drift.
+    let tag = palette_label(REPO_DIR);
+    label
+        .strip_prefix(tag)
+        .and_then(|rest| rest.strip_prefix('/'))
+        .unwrap_or(label)
+}
+
 /// Display-friendly rendering of a file's **basename**: drop a trailing `.md`
 /// (markdown), keep a leading `YYYY-MM-DD` date intact (its hyphens are date
 /// structure, not word gaps), and turn the remaining hyphens into spaces. Purely
