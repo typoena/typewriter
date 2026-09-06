@@ -124,6 +124,12 @@ pub struct Panel<S: Screen> {
     /// both RAM banks, since a partial that died mid-transfer may have desynced
     /// them.
     force_full: bool,
+    /// [`Editor::switches`] as of the frame on the glass. A file switch rewrites
+    /// every glyph in the writing column, and no partial waveform clears that
+    /// much ink — the outgoing note stays behind the incoming one as faded lines.
+    /// So a repaint carrying a different reading takes a FULL refresh, whatever
+    /// the ghosting budget says.
+    shown_switch: u32,
     /// Monotonic refresh counter, for the serial trace.
     updates: u32,
     /// Typo's post-flash **shuffle bag** ([`typo::POOL`]): a random permutation of
@@ -167,6 +173,7 @@ impl<S: Screen> Panel<S> {
             partials_since_full: 0,
             cursor_shown: true,
             force_full: false,
+            shown_switch: ed.switches(),
             updates: 0,
             rng: Self::HUMOR_SEED,
             bag: typo::POOL,
@@ -252,12 +259,27 @@ impl<S: Screen> Panel<S> {
     }
 
 
+    /// Adopt the freshly painted frame as the one on the glass, and record the
+    /// swap count it was drawn under — the reading [`switched`](Self::switched)
+    /// compares against. Every successful paint ends here.
+    fn commit_frame(&mut self, ed: &Editor) {
+        std::mem::swap(&mut self.shown, &mut self.back);
+        self.shown_switch = ed.switches();
+    }
+
+    /// Whether the frame about to be painted belongs to a different note than the
+    /// one on the panel — see [`shown_switch`](Self#structfield.shown_switch) for
+    /// why that forces a FULL refresh.
+    fn switched(&self, ed: &Editor) -> bool {
+        ed.switches() != self.shown_switch
+    }
+
     /// Repaint after a batch of keystrokes. Renders the editor into `back`, then
     /// paints only the band that changed: a purely additive Insert edit (no
     /// cursor, no scroll) takes the fast windowed partial; anything else —
     /// deletes, caret moves, scrolling, mode switches — takes a clean area
-    /// partial; a `force_full` recovery or leaving the Rest curtain takes a FULL
-    /// refresh. `prev_mode` is the mode captured before the batch (to detect
+    /// partial; a file switch, a `force_full` recovery or leaving the Rest curtain
+    /// takes a FULL refresh. `prev_mode` is the mode captured before the batch (to detect
     /// leaving Rest); `keys` is only for the trace. On a paint failure the frame
     /// is dropped and `force_full` is armed for the next paint — never fatal, the
     /// buffer is the source of truth and safe in RAM.
@@ -275,6 +297,9 @@ impl<S: Screen> Panel<S> {
         // below (guardrail 1); read live so a bench toggle takes effect at once.
         let fast_partial = ed.prefs().fast_partial;
 
+        // A file switch — `gf`, a palette pick, Ctrl+Tab, `:inbox` — is the other
+        // whole-column ink change, and takes the same flash (see `shown_switch`).
+        //
         // A full-screen card (the rest curtain, the `:about` splash or the
         // `:help` reference) swapping to or from the editor is a big ink change:
         // force a clean full refresh so it doesn't ghost. Rest only ever
@@ -288,7 +313,7 @@ impl<S: Screen> Panel<S> {
         let card = |m| matches!(m, Mode::Rest | Mode::About | Mode::Help);
         let was_card = card(prev_mode);
         let is_card = matches!(ed.mode(), Mode::About | Mode::Help);
-        if was_card != is_card || ed.mode() == Mode::Help {
+        if was_card != is_card || ed.mode() == Mode::Help || self.switched(ed) {
             self.force_full = true;
         }
         if self.force_full {
@@ -358,7 +383,7 @@ impl<S: Screen> Panel<S> {
             self.updates,
             ed.mode()
         );
-        std::mem::swap(&mut self.shown, &mut self.back);
+        self.commit_frame(ed);
         self.cursor_shown = ed.mode() != Mode::Insert;
     }
 
@@ -396,7 +421,7 @@ impl<S: Screen> Panel<S> {
         }
         self.partials_since_full = 0;
         log::info!("focus: rest after {el} ms ({words} words); {} ms", t0.elapsed().as_millis());
-        std::mem::swap(&mut self.shown, &mut self.back);
+        self.commit_frame(ed);
         self.cursor_shown = true;
         true
     }
@@ -412,7 +437,7 @@ impl<S: Screen> Panel<S> {
             self.force_full = true;
             return true;
         }
-        std::mem::swap(&mut self.shown, &mut self.back);
+        self.commit_frame(ed);
         self.cursor_shown = true;
         true
     }
@@ -422,15 +447,32 @@ impl<S: Screen> Panel<S> {
     /// through the (usually closed) palette overlay, so a no-op area partial
     /// would be a pointless ~630 ms panel drive. Caret visibility is preserved
     /// (not forced on), so this can't reveal a debounced Insert caret early.
+    ///
+    /// The one switch no keystroke drives also lands here — an `:inbox` the clock
+    /// only just unblocked — so a frame belonging to another note takes the FULL
+    /// refresh it would have got through [`render_batch`](Self::render_batch),
+    /// Typo's next humor and all.
     pub fn repaint_if_changed(&mut self, ed: &mut Editor) -> bool {
+        let switched = self.switched(ed);
+        if switched {
+            self.companion_pool_mood(ed);
+        }
         ed.draw_into(&mut self.back, self.cursor_shown);
         if changed_rows(self.shown.bytes(), self.back.bytes()).is_some() {
-            if let Err(e) = self.screen.display_frame_partial_window(self.back.bytes(), 0, HEIGHT) {
+            let result = if switched {
+                self.screen.display_frame(self.back.bytes())
+            } else {
+                self.screen.display_frame_partial_window(self.back.bytes(), 0, HEIGHT)
+            };
+            if let Err(e) = result {
                 log::warn!("palette repaint FAILED ({e}); full refresh next");
                 self.force_full = true;
                 return true;
             }
-            std::mem::swap(&mut self.shown, &mut self.back);
+            if switched {
+                self.partials_since_full = 0;
+            }
+            self.commit_frame(ed);
         }
         true
     }
@@ -449,7 +491,7 @@ impl<S: Screen> Panel<S> {
             self.force_full = true;
             return true;
         }
-        std::mem::swap(&mut self.shown, &mut self.back);
+        self.commit_frame(ed);
         self.cursor_shown = true;
         log::info!("keyboard {}", if kbd { "connected" } else { "disconnected" });
         true
@@ -463,20 +505,6 @@ impl<S: Screen> Panel<S> {
             FULL_REFRESH_EVERY_FAST
         } else {
             FULL_REFRESH_EVERY
-        }
-    }
-
-    /// Piggyback a panel-cleaning full refresh onto a palette file-switch. A switch
-    /// already repaints the whole writing column and reads as "loading a document",
-    /// so it is a free moment to launder accumulated ghosting — masking the ~2 s
-    /// flash behind an expected transition instead of spending it on a standalone
-    /// idle pass. Only once ghosting has built past half the longevity budget, so
-    /// rapid browsing right after a clean pass stays on the fast area partial.
-    /// The runtime calls this right after servicing an `Effect::Load`, before the
-    /// switch repaint runs through [`render_batch`](Self::render_batch).
-    pub fn full_refresh_on_switch(&mut self, ed: &Editor) {
-        if self.partials_since_full >= self.full_budget(ed) / 2 {
-            self.force_full = true;
         }
     }
 
@@ -527,7 +555,7 @@ impl<S: Screen> Panel<S> {
             if cleaning { " +clean" } else { "" },
             t0.elapsed().as_millis()
         );
-        std::mem::swap(&mut self.shown, &mut self.back);
+        self.commit_frame(ed);
         self.cursor_shown = true;
         true
     }
@@ -552,7 +580,7 @@ impl<S: Screen> Panel<S> {
             log::warn!("caret repaint FAILED ({e}); full refresh next");
             self.force_full = true;
         } else {
-            std::mem::swap(&mut self.shown, &mut self.back);
+            self.commit_frame(ed);
             self.cursor_shown = true;
             log::info!("caret shown");
         }
@@ -625,7 +653,7 @@ pub fn erase_bbox(a: &[u8], b: &[u8], y0: u16, y1: u16) -> Option<(u16, u16, u16
 #[cfg(test)]
 mod tests {
     use super::*;
-    use editor::Prefs;
+    use editor::{Prefs, Scope};
     use hal::Key;
     use std::cell::RefCell;
     use std::convert::Infallible;
@@ -730,16 +758,43 @@ mod tests {
     }
 
     #[test]
-    fn file_switch_promotes_to_a_full_refresh_only_once_ghosting_has_accumulated() {
-        let (mut panel, ed, _log) = insert_panel(false);
-        // Just below half the budget: a switch stays on the fast area partial.
-        panel.partials_since_full = FULL_REFRESH_EVERY / 2 - 1;
-        panel.full_refresh_on_switch(&ed);
-        assert!(!panel.force_full, "light ghosting: no gratuitous full refresh on switch");
-        // At half the budget: use the masked moment to launder the panel.
-        panel.partials_since_full = FULL_REFRESH_EVERY / 2;
-        panel.full_refresh_on_switch(&ed);
-        assert!(panel.force_full, "accumulated ghosting: switch promotes to a full refresh");
+    fn a_file_switch_takes_a_full_refresh_on_a_spotless_panel() {
+        // No partial clears a whole column of text: without the flash the outgoing
+        // note stays on the glass under the incoming one. So the switch flashes
+        // even with zero ghosting accumulated, and resets the longevity counter.
+        let (mut panel, mut ed, log) = insert_panel(false);
+        ed.handle(Key::Escape);
+        panel.render_batch(&mut ed, Mode::Insert, 1);
+        panel.partials_since_full = 0;
+        log.borrow_mut().clear();
+
+        ed.install_loaded("/sd/repo/other.md".into(), Scope::Tracked, "other note\n".into());
+        panel.render_batch(&mut ed, Mode::Normal, 1);
+        assert_eq!(log.borrow().clone(), ["full"], "a switch must not ghost the outgoing note");
+        assert_eq!(panel.partials_since_full, 0);
+        assert!(!panel.switched(&ed), "the switch is settled once its frame is on the glass");
+
+        // And an ordinary edit in the note now on the glass is back to a partial.
+        log.borrow_mut().clear();
+        ed.handle(Key::Char('x'));
+        panel.render_batch(&mut ed, Mode::Normal, 1);
+        assert_eq!(log.borrow().clone(), ["partial"], "no switch, no flash");
+    }
+
+    #[test]
+    fn an_unblocked_inbox_switch_flashes_even_though_no_key_drove_it() {
+        // The `:inbox` note a mid-session clock unblocks is painted by
+        // `repaint_if_changed`, off the keystroke path — same whole-column swap,
+        // same FULL refresh.
+        let (mut panel, mut ed, log) = insert_panel(false);
+        ed.handle(Key::Escape);
+        panel.render_batch(&mut ed, Mode::Insert, 1);
+        log.borrow_mut().clear();
+
+        ed.install_loaded("/sd/repo/_inbox/2026-06-15.md".into(), Scope::Tracked, "# 2026-06-15\n".into());
+        assert!(panel.repaint_if_changed(&mut ed));
+        assert_eq!(log.borrow().clone(), ["full"]);
+        assert_eq!(panel.partials_since_full, 0);
     }
 
     #[test]

@@ -458,6 +458,10 @@ impl Editor {
     /// The register and `.` history are deliberately left alone — they are global
     /// (vim-like), so a yank in one file pastes in another.
     pub(crate) fn reset_active_input(&mut self) {
+        // Both swap paths ([`activate`](Self::activate),
+        // [`set_active`](Self::set_active)) end here, so the swap counter the
+        // render engine watches advances here and nowhere else.
+        self.switches = self.switches.wrapping_add(1);
         // Re-baseline the milestone ladder to the incoming text, so a switch to
         // an already-long file never celebrates thresholds it was loaded past.
         self.milestone = crate::milestone_floor(self.word_count());

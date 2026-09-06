@@ -56,12 +56,14 @@ impl hal::Keyboard for PresentKeyboard {
     }
 }
 
-/// A screen that counts partial-window paints (the kbd-flag repaint path).
+/// A screen that counts paints of either kind, so a test can assert that a
+/// state change reached the panel without caring which waveform carried it.
 #[derive(Clone, Default)]
 struct CountingScreen(Rc<RefCell<u32>>);
 impl hal::Screen for CountingScreen {
     type Error = Infallible;
     fn display_frame(&mut self, _fb: &[u8]) -> Result<(), Infallible> {
+        *self.0.borrow_mut() += 1;
         Ok(())
     }
     fn display_frame_partial_window(

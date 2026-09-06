@@ -586,6 +586,12 @@ pub struct Editor {
     /// file never celebrates 5k, and hovering around a threshold (delete below,
     /// type back over) never re-fires. See [`check_milestone`](Self::check_milestone).
     milestone: usize,
+    /// Counts buffer swaps — every time a *different* note becomes the active
+    /// buffer (a load, a parked restore, a fresh `:enew`). Deliberately not a
+    /// rename: `:pub` gives the active buffer a new path while the same text
+    /// stays on the glass. The render engine watches it to spot the whole-column
+    /// ink change a switch is, which no partial waveform can clear.
+    switches: u32,
 }
 
 
@@ -642,6 +648,7 @@ impl Editor {
             snippet_hint: None,
             companion_mood: typo::Mood::Neutral,
             milestone: 0,
+            switches: 0,
             pomodoro_on: false,
             rest_stats: None,
             focus_debug: false,
@@ -699,6 +706,14 @@ impl Editor {
     /// Absolute path of the active buffer (empty for an unnamed scratch buffer).
     pub fn path(&self) -> &str {
         &self.path
+    }
+
+    /// How many buffer swaps this session has seen — see
+    /// [`switches`](Self#structfield.switches). Only ever compared for equality:
+    /// a reading that differs from the one a frame was painted under means a
+    /// different note is on the way in.
+    pub fn switches(&self) -> u32 {
+        self.switches
     }
 
     /// The active buffer's [`Scope`]. The host hides/greys `Ctrl-G` in Local.

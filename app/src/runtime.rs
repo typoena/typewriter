@@ -256,13 +256,7 @@ impl<S: Screen> Runtime<S> {
     fn service_one(&mut self, effect: Effect) {
         match effect {
             Effect::Save { path, contents, .. } => self.save_buffer(&path, &contents),
-            Effect::Load { path, scope } => {
-                self.open_buffer(path, scope);
-                // A file-switch repaints the whole column anyway — piggyback a
-                // panel-cleaning full refresh here if ghosting has built up, so the
-                // flash hides behind the "loading a document" transition.
-                self.panel.full_refresh_on_switch(&self.ed);
-            }
+            Effect::Load { path, scope } => self.open_buffer(path, scope),
             // Non-blocking: the ~10 s push never stalls the editor; the outcome
             // returns via `poll_outcome` in `tick`. The Save that preceded this
             // in the batch already persisted the buffer.
