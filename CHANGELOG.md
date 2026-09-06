@@ -9,6 +9,10 @@ _Generated from the commit history with [git-cliff](https://git-cliff.org)._
 ## Firmware
 
 
+### [0.13.1] — 2026-09-06
+#### Fixed
+- **render:** Full-refresh a file switch so the outgoing note stops ghosting
+
 ### [0.13.0] — 2026-09-06
 #### Added
 - **palette:** Drop the repo/ prefix from the file list
