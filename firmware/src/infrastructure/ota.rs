@@ -184,6 +184,22 @@ fn is_newer(candidate: &str, current: &str) -> bool {
     parts(candidate) > parts(current)
 }
 
+/// Whether the running image is still in the bootloader's pending-verify state
+/// — i.e. this is the first boot after an OTA `:update` and nothing has
+/// confirmed the image yet.
+///
+/// Read at boot, before the splash, so the panel can warn that a reset right now
+/// rolls the device back (see `Frame::confirming_update`). Any failure to read
+/// the slot answers `false`: the warning is a courtesy, and a boot must never
+/// hinge on it. Goes `false` for the rest of the session once
+/// [`mark_running_firmware_valid`] confirms the slot.
+pub fn running_slot_pending_verify() -> bool {
+    EspOta::new()
+        .and_then(|ota| ota.get_running_slot())
+        .map(|slot| slot.state == SlotState::Unverified)
+        .unwrap_or(false)
+}
+
 /// Confirm the running firmware is healthy so the bootloader keeps it.
 ///
 /// With rollback enabled (`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE`), an image

@@ -100,18 +100,38 @@ impl Frame {
     /// holds it across the whole reboot and the wordmark simply carries over into
     /// the boot splash — the restart reads as one continuous motion, not a freeze.
     pub fn reboot() -> Self {
+        Self::branded("restarting...")
+    }
+
+    /// The boot splash for the first boot after an OTA `:update`, shown in place
+    /// of [`splash`](Self::splash) while the new image is still in the
+    /// bootloader's pending-verify state.
+    ///
+    /// That state is the one window where a reset actually costs something: the
+    /// image is confirmed only once boot reaches cursor-ready
+    /// (`ota::mark_running_firmware_valid`), and a reset before then rolls the
+    /// device back to the previous slot and marks this one aborted — silently,
+    /// and without retrying. The subtitle is the only warning the writer gets, so
+    /// it names both the state and the ask.
+    pub fn confirming_update() -> Self {
+        Self::branded("confirming update - keep powered")
+    }
+
+    /// The brand lockup with one subtitle line near the bottom edge, well clear
+    /// of the centred wordmark (baseline ≈ HEIGHT/2), with room for one
+    /// FONT_10X20 line. Shared by every screen that is "the splash, plus a word
+    /// about what is happening".
+    fn branded(subtitle: &str) -> Self {
         let mut f = Self::new_white();
         f.draw_brand();
 
-        // A subtitle near the bottom edge, well clear of the centred wordmark
-        // (baseline ≈ HEIGHT/2), with room for one FONT_10X20 line.
         let char_style = MonoTextStyle::new(&FONT_10X20, BinaryColor::On);
         let text_style = TextStyleBuilder::new()
             .alignment(Alignment::Center)
             .baseline(Baseline::Middle)
             .build();
         Text::with_text_style(
-            "restarting...",
+            subtitle,
             Point::new(WIDTH as i32 / 2, HEIGHT as i32 - 18),
             char_style,
             text_style,
@@ -124,7 +144,7 @@ impl Frame {
 
     /// Draw the brand lockup — Typo at 3× over the lowercase "typoena" wordmark,
     /// centred on the panel — onto this frame. Shared by [`splash`](Self::splash)
-    /// and [`reboot`](Self::reboot) so the boot and restart screens are
+    /// and [`branded`](Self::branded) so the boot and restart screens are
     /// pixel-identical bar the subtitle, keeping a `:reboot` visually seamless
     /// into boot.
     ///

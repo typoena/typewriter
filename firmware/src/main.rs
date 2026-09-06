@@ -65,7 +65,17 @@ fn main() -> anyhow::Result<()> {
     // Async: the ~2.2 s full-refresh waveform runs while the SD mounts and the
     // note loads below. It writes both RAM banks, so it doubles as the baseline;
     // the first editor render waits it out (`wait_ready`) and replaces it.
-    epd.display_frame_async(Frame::splash().bytes())?;
+    //
+    // On the first boot after an OTA the splash carries a "keep powered" warning:
+    // until `mark_running_firmware_valid` runs at cursor-ready, a reset rolls the
+    // device back to the previous slot for good. Probed before the paint because
+    // this frame is the only one on screen for that whole window.
+    let splash = if firmware::infrastructure::ota::running_slot_pending_verify() {
+        Frame::confirming_update()
+    } else {
+        Frame::splash()
+    };
+    epd.display_frame_async(splash.bytes())?;
 
     // SD after the EPD, against the doc's SD-first boot order: a dead panel
     // can't explain a missing card. Fatal-by-design rationale: `boot_storage`.
