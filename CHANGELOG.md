@@ -9,6 +9,15 @@ _Generated from the commit history with [git-cliff](https://git-cliff.org)._
 ## Firmware
 
 
+### [0.12.0] — 2026-09-06
+#### Added
+- **hud:** Say which operation is running, not just that one is
+- **palette:** List about next to help in the > commands
+- **ota:** Warn on the splash while a new image is unconfirmed
+
+#### Fixed
+- **ota:** Report why an update failed instead of a progress line
+
 ### [0.11.0] — 2026-09-05
 #### Added
 - **prefs:** Hide folders from the device with hidden_folders
