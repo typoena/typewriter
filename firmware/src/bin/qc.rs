@@ -32,16 +32,20 @@ use embedded_graphics::primitives::{Line, PrimitiveStyle, Rectangle};
 use embedded_graphics::text::Text;
 
 use display::{Frame, HEIGHT, WIDTH};
+use firmware::drivers::bq25896::Bq25896;
 use firmware::drivers::keyboard_usb as usb_kbd;
+use firmware::drivers::power_esp::Rails;
 use firmware::drivers::screen_epd::Epd;
 use firmware::infrastructure::storage_sd::Storage;
 
 // ─── PCB-specific config — fill from the schematic ───────────────────────────
 
-/// Charger status pin (`CHRG`, open-drain, low = charging) if wired to a GPIO.
-/// `None` → the charger is a manual multimeter check and its test reports SKIP.
-/// The spec suggests GPIO21. See `docs/bench-qc.md` prerequisite #2.
-const CHARGER_CHRG_PIN: Option<i32> = None;
+/// `PWR_SENSE` — the power button, active-low through its 10 kΩ series
+/// resistor. Read with the internal pull-up, exactly as the firmware does.
+const PWR_SENSE_PIN: i32 = 21;
+
+/// Seconds to wait for the operator to press the power button in check #7.
+const BUTTON_TIMEOUT_S: u64 = 20;
 
 /// GPIOs that should be electrically **isolated** on the PCB (no bus, no device)
 /// — the short/open scan drives each and reads the rest for solder bridges.
@@ -139,6 +143,17 @@ fn main() -> Result<()> {
     let pins = peripherals.pins;
     let mut report = Report::default();
 
+    // Rails before everything: the uSD's 3V3 and the keyboard's 5 V are off
+    // until their enables go high, so checks #4 and #5 would test dead hardware.
+    // A failure here is a NOK for the whole board, not for one subsystem.
+    // Bound for the whole of `main`: dropping it returns the enables to their
+    // pulldowns and the rails die under the checks below.
+    let rails = Rails::bring_up(pins.gpio40, pins.gpio41, pins.gpio38);
+    match &rails {
+        Ok(_) => report.add("Rails", Verdict::Ok, "uSD 3V3 + keyboard 5V + button LED driven high"),
+        Err(e) => report.add("Rails", Verdict::Nok, format!("enable pins failed: {e:?}")),
+    }
+
     // BOOT button (GPIO0) — the operator-confirm input for visual checks.
     let mut boot: BootButton = PinDriver::input(pins.gpio0, Pull::Up)?;
 
@@ -175,8 +190,9 @@ fn main() -> Result<()> {
     // ── #6 Wi-Fi ──────────────────────────────────────────────────────────────
     check_wifi(peripherals.modem, &mut report);
 
-    // ── #7 Charger / battery ────────────────────────────────────────────────
-    check_charger(&mut report);
+    // ── #7 Charger / battery + power button ─────────────────────────────────
+    check_charger(peripherals.i2c0, pins.gpio17, pins.gpio18, &mut report);
+    check_power_button(&mut report, &mut boot);
 
     // ── #8 GPIO short/open scan ───────────────────────────────────────────────
     check_gpio_scan(&mut report);
@@ -367,25 +383,98 @@ fn check_wifi(modem: esp_idf_svc::hal::modem::Modem, report: &mut Report) {
     }
 }
 
-// ─── Charger / battery (#7) ─────────────────────────────────────────────────────
+// ─── Charger / battery + power button (#7) ─────────────────────────────────────
 
-fn check_charger(report: &mut Report) {
-    let Some(pin) = CHARGER_CHRG_PIN else {
-        report.add(
-            "Charger",
-            Verdict::Skip,
-            "no CHRG pin wired — manual: unplug USB, device should stay alive on battery",
-        );
-        return;
+/// Talk to the BQ25896 over I2C: the one check that proves the charge port, the
+/// cell and the power path in a single read. A chip that answers is a chip whose
+/// SDA/SCL joints are good and whose supply is up; the voltages it reports then
+/// say whether the cell is on its connector and whether a charger is plugged in.
+fn check_charger(
+    i2c: esp_idf_svc::hal::i2c::I2C0<'static>,
+    sda: esp_idf_svc::hal::gpio::Gpio17<'static>,
+    scl: esp_idf_svc::hal::gpio::Gpio18<'static>,
+    report: &mut Report,
+) {
+    use esp_idf_svc::hal::i2c::{config::Config as I2cConfig, I2cDriver};
+
+    let bus = match I2cDriver::new(i2c, sda, scl, &I2cConfig::new().baudrate(400.kHz().into())) {
+        Ok(b) => b,
+        Err(e) => {
+            report.add("Charger", Verdict::Nok, format!("I2C bring-up failed: {e:?}"));
+            return;
+        }
     };
-    set_input_pull(pin, sys::gpio_pull_mode_t_GPIO_PULLUP_ONLY);
+    let mut chip = match Bq25896::new(bus) {
+        Ok(c) => c,
+        Err(e) => {
+            report.add(
+                "Charger",
+                Verdict::Nok,
+                format!("no answer at 0x6B ({e:?}) — check SDA 17 / SCL 18 and the 3V3 pull-ups"),
+            );
+            return;
+        }
+    };
+    if let Err(e) = chip.start_conversion() {
+        report.add("Charger", Verdict::Nok, format!("ADC start failed: {e:?}"));
+        return;
+    }
+    // One sweep is specified to land inside a second.
+    for _ in 0..40 {
+        FreeRtos::delay_ms(50);
+        if chip.conversion_done().unwrap_or(false) {
+            break;
+        }
+    }
+    match chip.telemetry() {
+        Ok(t) => {
+            // A cell that is absent or on a dead connector reads as the charger's
+            // own floor, not as a plausible LiPo.
+            let verdict = if t.vbat_mv < 2500 { Verdict::Nok } else { Verdict::Ok };
+            report.add(
+                "Charger",
+                verdict,
+                format!(
+                    "VBAT {} mV, SYS {} mV, VBUS {}, charge {} mA, {:?}",
+                    t.vbat_mv,
+                    t.vsys_mv,
+                    t.vbus_mv.map_or_else(|| "none".to_string(), |v| format!("{v} mV")),
+                    t.ichg_ma,
+                    t.state
+                ),
+            );
+        }
+        Err(e) => report.add("Charger", Verdict::Nok, format!("telemetry read failed: {e:?}")),
+    }
+}
+
+/// The power button and its LED — the two off-board parts of the power block,
+/// and the only ones no other check touches. The LED has been lit since the
+/// rails came up, so the operator confirms it in the same breath as the press.
+fn check_power_button(report: &mut Report, boot: &mut BootButton) {
+    set_input_pull(PWR_SENSE_PIN, sys::gpio_pull_mode_t_GPIO_PULLUP_ONLY);
     FreeRtos::delay_ms(5);
-    let charging = unsafe { sys::gpio_get_level(pin) } == 0;
-    report.add(
-        "Charger",
-        Verdict::Ok,
-        format!("CHRG read: {}", if charging { "charging" } else { "not charging / done" }),
-    );
+    // Idle high: the contact is open and the pull-up owns the pin. Low here is a
+    // short on the pigtail or a button wired the wrong way round.
+    if unsafe { sys::gpio_get_level(PWR_SENSE_PIN) } == 0 {
+        report.add("Power button", Verdict::Nok, "PWR_SENSE reads low with nothing pressed");
+        return;
+    }
+    log::info!("press the power button (up to {BUTTON_TIMEOUT_S}s)…");
+    let start = Instant::now();
+    loop {
+        if unsafe { sys::gpio_get_level(PWR_SENSE_PIN) } == 0 {
+            report.add("Power button", Verdict::Ok, "PWR_SENSE pulled low by the press");
+            break;
+        }
+        if start.elapsed().as_secs() >= BUTTON_TIMEOUT_S {
+            report.add("Power button", Verdict::Nok, "no press seen — check J2 and the 10k series");
+            break;
+        }
+        FreeRtos::delay_ms(20);
+    }
+    let led = confirm(boot, "is the button LED lit? tap=yes / hold=no");
+    report.add("Button LED", led, "lit since the rails came up");
 }
 
 // ─── GPIO short/open scan (#8) ──────────────────────────────────────────────────
