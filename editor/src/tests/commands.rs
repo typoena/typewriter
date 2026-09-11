@@ -303,22 +303,70 @@ fn reboot_command_refuses_an_unsaved_unnamed_buffer() {
 }
 
 #[test]
-fn update_command_requests_an_ota_check_when_clean() {
+fn update_command_checks_without_a_prompt() {
+    // The check only asks the manifest a question, so `:update` dispatches it
+    // straight away — the y/n belongs to the install.
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
     ex(&mut e, "update");
-    assert_eq!(e.mode(), Mode::Confirm, "expected the update confirm prompt");
-    assert!(e.take_effects().is_empty(), "must not act before confirmation");
+    assert_eq!(e.mode(), Mode::Normal);
+    assert_eq!(kinds(&e.take_effects()), vec![Kind::UpdateCheck]);
+}
+
+#[test]
+fn an_available_release_prompts_before_installing() {
+    let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    e.offer_update("0.15.0".into());
+    assert_eq!(e.mode(), Mode::Confirm, "expected the install confirm prompt");
+    assert!(
+        e.notice.as_deref().unwrap_or_default().contains("0.15.0"),
+        "the prompt must name the version, got {:?}",
+        e.notice
+    );
+    assert!(e.take_effects().is_empty(), "must not download before confirmation");
     confirm(&mut e);
-    assert_eq!(kinds(&e.take_effects()), vec![Kind::Update]);
+    assert_eq!(kinds(&e.take_effects()), vec![Kind::UpdateInstall]);
+}
+
+#[test]
+fn a_confirmed_install_saves_a_buffer_dirtied_since_the_check() {
+    // The check ran on the radio thread while the writer kept typing, so the
+    // clean state `:update` saw is not what the install inherits — the save must
+    // be queued ahead of it, as `:reboot` does.
+    let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    ex(&mut e, "update");
+    e.take_effects();
+    e.handle(Key::Char('i'));
+    send(&mut e, "hi");
+    e.handle(Key::Escape);
+    e.offer_update("0.15.0".into());
+    confirm(&mut e);
+    assert_eq!(kinds(&e.take_effects()), vec![Kind::Save, Kind::UpdateInstall]);
+}
+
+#[test]
+fn an_offer_never_seizes_the_keyboard_mid_word() {
+    // The outcome lands seconds after `:update`, so a writer can be back in
+    // Insert — the offer must not turn the `y` of a word into an install.
+    let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    e.handle(Key::Char('i'));
+    e.offer_update("0.15.0".into());
+    assert_eq!(e.mode(), Mode::Insert);
+    assert!(
+        e.notice.as_deref().unwrap_or_default().contains("0.15.0"),
+        "expected a notice naming the version, got {:?}",
+        e.notice
+    );
+    send(&mut e, "yes");
+    assert!(e.take_effects().is_empty(), "typing must not install firmware");
 }
 
 #[test]
 fn update_prompt_cancels_on_any_other_key() {
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
-    ex(&mut e, "update");
+    e.offer_update("0.15.0".into());
     e.handle(Key::Char('n'));
     assert_eq!(e.mode(), Mode::Normal);
-    assert!(e.take_effects().is_empty(), "cancelled :update must queue nothing");
+    assert!(e.take_effects().is_empty(), "a cancelled install must queue nothing");
     assert!(
         e.notice.as_deref().unwrap_or_default().contains("cancelled"),
         "expected a cancellation notice, got {:?}",
@@ -328,8 +376,8 @@ fn update_prompt_cancels_on_any_other_key() {
 
 #[test]
 fn update_command_is_refused_with_unsaved_changes() {
-    // Dirty the buffer, then `:update` — the post-install reboot would lose the
-    // edit, so it refuses with a notice and queues nothing (mirrors `:setup`).
+    // Dirty the buffer, then `:update` — the flow ends in a reboot that would
+    // lose the edit, so it refuses at the ask rather than at the offer.
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
     e.handle(Key::Char('i'));
     send(&mut e, "hi");

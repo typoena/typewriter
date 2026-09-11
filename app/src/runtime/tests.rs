@@ -134,7 +134,8 @@ struct SyncLog {
     pulls: u32,
     /// The intent of each dispatched pull, in order.
     pull_intents: Vec<PullIntent>,
-    updates: u32,
+    update_checks: u32,
+    update_installs: Vec<String>,
     clocks: u32,
     outcome: Option<NetOutcome>,
 }
@@ -171,8 +172,12 @@ impl NetService for RecSync {
         drop(log);
         (self.pull_ret)()
     }
-    fn update(&self) -> UpdateDispatch {
-        self.log.borrow_mut().updates += 1;
+    fn check_update(&self) -> UpdateDispatch {
+        self.log.borrow_mut().update_checks += 1;
+        (self.update_ret)()
+    }
+    fn install_update(&self, version: String) -> UpdateDispatch {
+        self.log.borrow_mut().update_installs.push(version);
         (self.update_ret)()
     }
     fn sync_clock(&self) -> ClockDispatch {
@@ -1202,11 +1207,29 @@ fn a_clock_outcome_settles_no_buffers_and_no_walk() {
 }
 
 #[test]
-fn update_effect_dispatches_to_sync() {
+fn update_check_effect_dispatches_to_sync() {
     let sync = RecSync::new();
     let mut rt = runtime(Editor::new(), RecStorage::default(), sync.clone(), RecFiles::default());
-    rt.service_one(Effect::Update);
-    assert_eq!(sync.log.borrow().updates, 1);
+    rt.service_one(Effect::UpdateCheck);
+    assert_eq!(sync.log.borrow().update_checks, 1);
+}
+
+#[test]
+fn install_effect_carries_the_version_the_check_offered() {
+    let sync = RecSync::new();
+    let mut rt = runtime(Editor::new(), RecStorage::default(), sync.clone(), RecFiles::default());
+    rt.service_one(Effect::UpdateInstall("0.15.0".into()));
+    assert_eq!(sync.log.borrow().update_installs, vec!["0.15.0".to_string()]);
+}
+
+#[test]
+fn an_available_release_prompts_instead_of_installing() {
+    // The check is terminal: nothing is downloaded until the writer says yes.
+    let sync = RecSync::new();
+    let mut rt = runtime(Editor::new(), RecStorage::default(), sync.clone(), RecFiles::default());
+    rt.handle_net_outcome(NetOutcome::Update(UpdateOutcome::Available("0.15.0".into())));
+    assert_eq!(rt.ed.mode(), editor::Mode::Confirm);
+    assert!(sync.log.borrow().update_installs.is_empty());
 }
 
 #[test]

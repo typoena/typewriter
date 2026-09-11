@@ -52,10 +52,10 @@ pub enum PullDispatch {
     ThreadDown,
 }
 
-/// What dispatching a firmware update (`:update`) did. The "is a newer release
-/// available" question needs the network, so it is answered later in
-/// [`UpdateOutcome`], not here — dispatch only reports whether the request
-/// reached the background thread.
+/// What dispatching either half of a firmware update — the check or the
+/// confirmed install — did. The "is a newer release available" question needs
+/// the network, so it is answered later in [`UpdateOutcome`], not here; dispatch
+/// only reports whether the request reached the background thread.
 pub enum UpdateDispatch {
     /// Handed to the background thread; the result arrives later via
     /// [`NetService::poll_outcome`].
@@ -95,8 +95,13 @@ pub enum PullOutcome {
     Failed(String),
 }
 
-/// A completed firmware update (`:update`).
+/// A completed half of a firmware update — one of these settles a
+/// [`check`](NetService::check_update), the other a
+/// [`install`](NetService::install_update).
 pub enum UpdateOutcome {
+    /// The check found a newer release. Carries its version; nothing has been
+    /// downloaded, and the caller raises the install prompt naming it.
+    Available(String),
     /// A newer image was fetched and written to the inactive OTA slot, which is
     /// now the boot target. Carries the new version string for the notice; the
     /// caller paints it and reboots into the new firmware.
@@ -172,11 +177,16 @@ pub trait NetService {
     /// a pull costs. Reports back via [`ClockOutcome`]. The loop dispatches one
     /// unprompted at boot and one per `:inbox` that finds the clock unset.
     fn sync_clock(&self) -> ClockDispatch;
-    /// Dispatch a firmware-update check: fetch the latest release, and if it is
-    /// newer than the running image, download it into the inactive OTA slot and
-    /// make that the boot target. Reports back via [`UpdateOutcome`] — the caller
-    /// reboots on [`Installed`](UpdateOutcome::Installed).
-    fn update(&self) -> UpdateDispatch;
+    /// Dispatch a firmware-update check: read the release manifest and compare
+    /// it against the running image. Downloads nothing and touches no OTA slot —
+    /// it answers [`Available`](UpdateOutcome::Available) or
+    /// [`UpToDate`](UpdateOutcome::UpToDate), and the install is a separate ask.
+    fn check_update(&self) -> UpdateDispatch;
+    /// Dispatch the confirmed install of `version`: download that release into
+    /// the inactive OTA slot and make that the boot target. Reports back via
+    /// [`UpdateOutcome`] — the caller reboots on
+    /// [`Installed`](UpdateOutcome::Installed).
+    fn install_update(&self, version: String) -> UpdateDispatch;
     /// Non-blocking poll for a finished operation. The backend has already
     /// settled the dirty journal by the time this returns.
     fn poll_outcome(&self) -> Option<NetOutcome>;

@@ -118,7 +118,7 @@ pub enum Mode {
 /// alongside the mode (as [`rest_stats`](Editor::rest_stats) rides with
 /// [`Mode::Rest`]) so [`confirm_key`](Editor::confirm_key) knows what a `y`
 /// should run and what a cancel should say.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Confirm {
     /// `:delete` / `:d` — unlink the current file from the card.
     Delete,
@@ -126,10 +126,14 @@ pub(crate) enum Confirm {
     Reboot,
     /// `:setup` — reboot into the onboarding wizard.
     Setup,
-    /// `:update` — download and install a firmware update over the air (then
-    /// reboot into it). Gated behind a confirm because it moves the device to new
-    /// firmware and restarts it. On `y` the editor queues [`Effect::Update`].
-    Update,
+    /// A newer firmware release exists — download and install it over the air,
+    /// then reboot into it. Carries the version the check reported, so the
+    /// install fetches exactly the release the prompt named. This is the only
+    /// gate on the update flow: the check ([`Effect::UpdateCheck`]) asks the
+    /// manifest a question and changes nothing, while a `y` here moves the
+    /// device to new firmware and restarts it. On `y` the editor queues
+    /// [`Effect::UpdateInstall`].
+    UpdateInstall(String),
     /// `d` on the unsynced card ([`Mode::Unsynced`]) — throw the listed saves
     /// away and pull. The second of two deliberate steps: the card already
     /// named every file, this confirms the count. On `y` the editor queues
@@ -327,15 +331,23 @@ pub enum Effect {
     /// of this, so the host flushes them before the reset); a dirty *unnamed*
     /// scratch buffer has nowhere to save and blocks the reboot instead.
     Reboot,
-    /// `:update` (or `> update`) — check for a newer firmware release and, if one
-    /// exists, download it over the air into the inactive OTA slot and reboot into
-    /// it. Runs on the same radio-owning background thread as [`Push`](Effect::Push)
+    /// `:update` (or `> update`) — ask the release manifest whether a newer
+    /// firmware exists. Downloads nothing and touches no OTA slot: a newer
+    /// release comes back as [`UpdateOutcome::Available`], which the host hands
+    /// to [`offer_update`](Editor::offer_update) to raise the install prompt.
+    /// Runs on the same radio-owning background thread as [`Push`](Effect::Push)
     /// (the editor can't reclaim the modem), so it is fire-and-forget: dispatch
-    /// shows `updating...`, and the terminal outcome (installed → reboot, already
-    /// current, or failed) returns later like a sync outcome. Only queued when no
-    /// buffer is dirty ([`any_dirty`](Editor::any_dirty)) — the post-install reboot
-    /// would lose unsaved edits — so it is gated exactly like [`Setup`](Effect::Setup).
-    Update,
+    /// shows `updating...` and the outcome returns later like a sync outcome.
+    /// Only queued when no buffer is dirty ([`any_dirty`](Editor::any_dirty)) —
+    /// the flow ends in a reboot that would lose unsaved edits, and refusing at
+    /// the ask beats refusing at the offer.
+    UpdateCheck,
+    /// The confirmed install: download the release named here into the inactive
+    /// OTA slot and reboot into it. Queued only from [`Confirm::UpdateInstall`],
+    /// behind the editor's own save of every named dirty buffer — the check ran
+    /// seconds ago and the writer kept typing, so the clean-buffer state
+    /// [`UpdateCheck`](Effect::UpdateCheck) saw is not the state this inherits.
+    UpdateInstall(String),
     /// `:inbox` with no trustworthy date — bring the wall clock up (Wi-Fi +
     /// SNTP only, no fetch and no git) so the fleeting note can be dated. Rides
     /// the same radio-owning thread as [`Push`](Effect::Push) and is
@@ -1648,17 +1660,56 @@ impl Editor {
         self.enter_confirm(Confirm::Reboot, "reboot? y/n");
     }
 
-    /// `:update` / `> update` — check for and install a firmware update over the
-    /// air, behind a y/n prompt. Refuses up front while anything is unsaved: the
-    /// install ends in a reboot that drops the in-RAM buffers, so — like
-    /// [`request_setup`](Self::request_setup) — we never prompt for an update we'd
-    /// then have to block. Save with `:w` first.
+    /// `:update` / `> update` — ask whether a newer firmware release exists. The
+    /// check itself needs no confirm: it is a question to the manifest, and
+    /// typing `:update` already answered "do you want to ask?". The y/n comes
+    /// later, from [`offer_update`](Self::offer_update), and guards the part that
+    /// actually moves the device to new firmware.
+    ///
+    /// Refuses up front while anything is unsaved: the flow ends in a reboot that
+    /// drops the in-RAM buffers, so — like [`request_setup`](Self::request_setup)
+    /// — we never start an update we'd then have to block. Save with `:w` first.
     pub(crate) fn request_update(&mut self) {
         if self.any_dirty() {
             self.set_notice("unsaved changes - :w first");
             return;
         }
-        self.enter_confirm(Confirm::Update, "check for firmware update? y/n");
+        self.requests.push(Effect::UpdateCheck);
+    }
+
+    /// The host calls this when an [`UpdateCheck`](Effect::UpdateCheck) found a
+    /// newer release: raise the y/n that names the version. Nothing has been
+    /// downloaded yet — the install is a second dispatch, queued only on `y`.
+    ///
+    /// Unlike every other confirm, this one arrives from a background outcome
+    /// seconds after the command that asked for it, so it must not seize keys
+    /// aimed somewhere else: only Normal is free to answer a y/n. In Insert the
+    /// `y` of a word would install firmware, and a [`Mode::Confirm`] already on
+    /// screen has its own pending action that our prompt would answer. Those
+    /// land as a notice naming the version instead — `:update` re-asks, and the
+    /// radio is warm by then.
+    pub fn offer_update(&mut self, version: String) {
+        if self.mode != Mode::Normal {
+            self.set_notice(format!("firmware {version} available - :update"));
+            return;
+        }
+        let prompt = format!("install firmware {version}? y/n");
+        self.enter_confirm(Confirm::UpdateInstall(version), prompt);
+    }
+
+    /// The confirmed install: auto-save every *named* dirty buffer so those
+    /// [`Save`](Effect::Save)s are queued ahead of
+    /// [`UpdateInstall`](Effect::UpdateInstall) and the host flushes them before
+    /// the device reboots into the new image — the same contract as
+    /// [`do_reboot`](Self::do_reboot). Unlike the reboot's, this guard is live:
+    /// `:update` refused a dirty buffer, but the check ran on the radio thread
+    /// while the writer kept typing, so a buffer can have gone dirty since.
+    fn do_update_install(&mut self, version: String) {
+        if !self.try_save_all_dirty() {
+            self.set_notice("unnamed buffer - name it first");
+            return;
+        }
+        self.requests.push(Effect::UpdateInstall(version));
     }
 
     /// `:about` / `> about` — raise the full-screen splash ([`Mode::About`]) with the product
@@ -1917,7 +1968,7 @@ impl Editor {
                 Some(Confirm::Delete) => self.delete_current(),
                 Some(Confirm::Reboot) => self.do_reboot(),
                 Some(Confirm::Setup) => self.requests.push(Effect::Setup),
-                Some(Confirm::Update) => self.requests.push(Effect::Update),
+                Some(Confirm::UpdateInstall(v)) => self.do_update_install(v),
                 // The host reads `unsynced` while servicing this, so the list
                 // is cleared by the outcome, not here.
                 Some(Confirm::PullDiscard) => self.requests.push(Effect::Pull(PullIntent::Discard)),
@@ -1930,7 +1981,7 @@ impl Editor {
             self.set_notice(match what {
                 Some(Confirm::Reboot) => "reboot cancelled",
                 Some(Confirm::Setup) => "setup cancelled",
-                Some(Confirm::Update) => "update cancelled",
+                Some(Confirm::UpdateInstall(_)) => "update cancelled",
                 _ => "delete cancelled",
             });
         }

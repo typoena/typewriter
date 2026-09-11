@@ -58,7 +58,7 @@ Latency breakdown for a cold push:
 | --- | --- |
 | `:setup` | Reboot into the onboarding wizard, prefilled from the card, behind a y/n confirm. Refuses up front while anything is unsaved — the reboot would lose it. Spec: [`../plan/v0.9-onboarding-wizard.md`](../plan/v0.9-onboarding-wizard.md). |
 | `:reboot` | Restart the device, behind a y/n confirm. Auto-saves named dirty buffers on confirm and paints a "restarting…" screen before resetting. An *unnamed* dirty scratch has nowhere to save to, so it blocks with a notice instead of prompting. |
-| `:update` | Over-the-air firmware update: fetch a newer image into the inactive A/B slot and reboot into it. Refuses while the buffer is dirty — the post-install reboot would lose the edit. |
+| `:update` | Over-the-air firmware update. The check runs unprompted (it only asks the release manifest what exists); a newer release raises a y/n naming the version, and only that confirm fetches the image into the inactive A/B slot and reboots into it. Confirming auto-saves named dirty buffers first, as `:reboot` does. Refuses at the ask while the buffer is dirty — the flow ends in a reboot that would lose the edit. |
 | `:about` | Full-screen splash with the running firmware version. Read-only: every key but `Enter`/`q`/`Esc` is swallowed. |
 | `:settings` | Open the `>` command palette. |
 

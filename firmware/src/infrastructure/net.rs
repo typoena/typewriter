@@ -6,7 +6,8 @@
 //! One thread because there is one radio the editor loop can never reclaim, so
 //! they all multiplex over a single [`NetRequest`]/[`NetOutcome`] channel and
 //! back the app's [`app::NetService`] port. Most of what follows is the git
-//! machinery; the OTA hop is [`NetRequest::Update`] → [`update_cycle`].
+//! machinery; the OTA hop is [`NetRequest::UpdateCheck`] /
+//! [`NetRequest::UpdateInstall`] → [`update_cycle`].
 //!
 //! Graduated from the `src/bin/git_sync.rs` spike (milestone #2A, hardware-
 //! verified 2026-07-07). The spike proved `open` + fast-forward `push` over
@@ -231,11 +232,17 @@ pub enum NetRequest {
     Push(PushRequest),
     /// `:gl` — fetch, then fast-forward or rebase (the download half).
     Pull(PullRequest),
-    /// `:update` — check for a newer firmware release and, if one exists, stream
-    /// it into the inactive OTA slot over HTTPS. Carries nothing: the running
-    /// version and the manifest URL are known to the firmware. Rides this thread
-    /// because it already owns the Wi-Fi modem, not because it touches git.
-    Update,
+    /// `:update` — ask the release manifest whether a newer firmware exists.
+    /// Carries nothing: the running version and the manifest URL are known to
+    /// the firmware. Downloads nothing; the UI turns an
+    /// [`UpdateOutcome::Available`] into a y/n and sends [`UpdateInstall`] back.
+    /// Rides this thread because it already owns the Wi-Fi modem, not because it
+    /// touches git.
+    UpdateCheck,
+    /// The confirmed install: stream the named release into the inactive OTA
+    /// slot over HTTPS and make it the boot target. Carries the version the
+    /// check reported, so the image written is the one the writer said yes to.
+    UpdateInstall(String),
     /// Set the wall clock, and nothing else: join the AP and run SNTP, no fetch,
     /// no libgit2, no TLS handshake to the remote. The cheapest thing this thread
     /// does, and the reason `:inbox` can date a note without paying for a pull.
@@ -324,6 +331,10 @@ pub enum PullOutcome {
 /// snackbar. Not a git operation — it shares this channel only because the OTA
 /// download runs on the same Wi-Fi-owning thread.
 pub enum UpdateOutcome {
+    /// The check found a newer release; carries its version. Nothing has been
+    /// downloaded — the UI prompts, and a `y` comes back as
+    /// [`NetRequest::UpdateInstall`].
+    Available(String),
     /// A newer image was written to the inactive OTA slot, which is now the boot
     /// target. Carries the new version string; the UI reboots into it.
     Installed(String),
@@ -428,23 +439,26 @@ pub fn run_net_service(
                     }
                 },
             ),
-            NetRequest::Update => NetOutcome::Update(
-                match update_cycle(
-                    &sys_loop,
-                    &mut wifi,
-                    &mut modem,
-                    &mut nvs,
-                    &mut clock_synced,
-                    &mut tls_ready,
-                    &progress,
-                ) {
-                    Ok(o) => o,
-                    Err(e) => {
-                        log::error!("❌ :update failed: {e:?}");
-                        UpdateOutcome::Failed(short_reason("update", &e))
-                    }
-                },
-            ),
+            NetRequest::UpdateCheck => NetOutcome::Update(settle_update(update_cycle(
+                &sys_loop,
+                &mut wifi,
+                &mut modem,
+                &mut nvs,
+                &mut clock_synced,
+                &mut tls_ready,
+                &progress,
+                UpdateJob::Check,
+            ))),
+            NetRequest::UpdateInstall(version) => NetOutcome::Update(settle_update(update_cycle(
+                &sys_loop,
+                &mut wifi,
+                &mut modem,
+                &mut nvs,
+                &mut clock_synced,
+                &mut tls_ready,
+                &progress,
+                UpdateJob::Install(version),
+            ))),
         };
         if tx.send(msg).is_err() {
             break;
@@ -719,12 +733,22 @@ fn pull_cycle(
     Ok(outcome)
 }
 
-/// One firmware-update check (`:update`): ensure connectivity, then hand off to
-/// the OTA module, which compares the running version against the release
-/// manifest and — only if it is newer — streams the image into the inactive OTA
-/// slot. Always needs the network (the whole point is asking what the latest
-/// release is). Reuses the net thread's Wi-Fi + clock bring-up; it needs no git
-/// config (no remote/token), only Wi-Fi.
+/// Which half of `:update` a cycle runs. Both need the same Wi-Fi bring-up and
+/// report on the same channel; they differ only in what they ask the OTA module.
+enum UpdateJob {
+    /// Read the manifest and compare versions. Writes nothing.
+    Check,
+    /// Download the named release into the inactive OTA slot.
+    Install(String),
+}
+
+/// One half of a firmware update (`:update`): ensure connectivity, then hand off
+/// to the OTA module. Always needs the network (the whole point is asking the
+/// release host something). Reuses the net thread's Wi-Fi + clock bring-up; it
+/// needs no git config (no remote/token), only Wi-Fi.
+// The bring-up handles push and pull also thread through (see `push_cycle`),
+// plus this cycle's own job.
+#[allow(clippy::too_many_arguments)]
 fn update_cycle(
     sys_loop: &EspSystemEventLoop,
     wifi: &mut Option<BlockingWifi<EspWifi<'static>>>,
@@ -733,6 +757,7 @@ fn update_cycle(
     clock_synced: &mut bool,
     tls_ready: &mut bool,
     progress: &dyn Fn(Phase),
+    job: UpdateJob,
 ) -> Result<UpdateOutcome> {
     if wifi_ssid().is_empty() {
         bail!("Wi-Fi not provisioned — run :setup / the installer first");
@@ -741,16 +766,38 @@ fn update_cycle(
     ensure_online(sys_loop, wifi, modem, nvs, clock_synced, tls_ready, progress)?;
 
     let t_ota = Instant::now();
-    let outcome = match crate::infrastructure::ota::run_update(progress)? {
-        Some(version) => UpdateOutcome::Installed(version),
-        None => UpdateOutcome::UpToDate(crate::infrastructure::ota::FW_VERSION.to_string()),
+    let (what, outcome) = match job {
+        UpdateJob::Check => (
+            "check",
+            match crate::infrastructure::ota::check_for_update()? {
+                Some(version) => UpdateOutcome::Available(version),
+                None => UpdateOutcome::UpToDate(crate::infrastructure::ota::FW_VERSION.to_string()),
+            },
+        ),
+        UpdateJob::Install(version) => {
+            crate::infrastructure::ota::install_update(&version, progress)?;
+            ("download", UpdateOutcome::Installed(version))
+        }
     };
     log::info!(
-        ":update timing — ota(check+download) {}ms, total {}ms",
+        ":update timing — ota({what}) {}ms, total {}ms",
         t_ota.elapsed().as_millis(),
         t_total.elapsed().as_millis(),
     );
     Ok(outcome)
+}
+
+/// Fold either half's `Result` into the outcome the UI shows: the failure path
+/// is the same for both — log the chain, hand the panel a short reason, and
+/// leave the running slot alone.
+fn settle_update(result: Result<UpdateOutcome>) -> UpdateOutcome {
+    match result {
+        Ok(o) => o,
+        Err(e) => {
+            log::error!("❌ :update failed: {e:?}");
+            UpdateOutcome::Failed(short_reason("update", &e))
+        }
+    }
 }
 
 /// Bring Wi-Fi + wall clock + TLS trust store up, each once per session; a warm
@@ -2137,9 +2184,16 @@ impl app::NetService for NetService {
         }
     }
 
-    fn update(&self) -> app::UpdateDispatch {
+    fn check_update(&self) -> app::UpdateDispatch {
         // No dirty journal to snapshot — OTA doesn't touch the working copy.
-        match self.tx.send(NetRequest::Update) {
+        match self.tx.send(NetRequest::UpdateCheck) {
+            Ok(()) => app::UpdateDispatch::Dispatched,
+            Err(_) => app::UpdateDispatch::ThreadDown,
+        }
+    }
+
+    fn install_update(&self, version: String) -> app::UpdateDispatch {
+        match self.tx.send(NetRequest::UpdateInstall(version)) {
             Ok(()) => app::UpdateDispatch::Dispatched,
             Err(_) => app::UpdateDispatch::ThreadDown,
         }
@@ -2177,6 +2231,7 @@ impl app::NetService for NetService {
             NetOutcome::Update(o) => app::NetOutcome::Update(match o {
                 // OTA settles no dirty journal; just mirror the outcome across
                 // the app boundary.
+                UpdateOutcome::Available(v) => app::UpdateOutcome::Available(v),
                 UpdateOutcome::Installed(v) => app::UpdateOutcome::Installed(v),
                 UpdateOutcome::UpToDate(v) => app::UpdateOutcome::UpToDate(v),
                 UpdateOutcome::Failed(reason) => app::UpdateOutcome::Failed(reason),

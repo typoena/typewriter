@@ -44,14 +44,16 @@ fn update_base_url() -> &'static str {
     option_env!("TW_UPDATE_BASE_URL").unwrap_or(DEFAULT_UPDATE_BASE_URL)
 }
 
-/// Check for a newer release and, if one exists, download + install it into the
-/// inactive OTA slot (which `complete()` then sets as the boot target).
+/// Ask the release manifest whether a newer image exists. Reads one short URL
+/// and writes nothing — no download, no OTA slot touched — so it is safe to run
+/// unprompted; `install` is the half that earns a confirm.
 ///
-/// Returns `Ok(Some(version))` when a newer image was installed (the caller
-/// reboots into it), `Ok(None)` when the running firmware is already current,
-/// and `Err` on any transport/flash failure — in which case the running slot is
-/// untouched and the device keeps booting the current image.
-pub fn run_update(progress: &dyn Fn(Phase)) -> Result<Option<String>> {
+/// Returns `Ok(Some(version))` when the release is newer than the running image,
+/// `Ok(None)` when the device is already current, and `Err` on a transport
+/// failure. The slot probe lives here rather than in `install` so a device with
+/// nowhere to put an image says so in a second, instead of offering an install
+/// it could only refuse.
+pub fn check_for_update() -> Result<Option<String>> {
     let latest = fetch_latest_version().context("checking the latest release")?;
     log::info!("OTA — running {FW_VERSION}, latest available {latest}");
 
@@ -63,11 +65,21 @@ pub fn run_update(progress: &dyn Fn(Phase)) -> Result<Option<String>> {
         bail!("no OTA slot - reflash over USB");
     }
 
-    let url = format!("{}/typoena-{latest}.bin", update_base_url());
-    let written =
-        download_and_install(&url, progress).with_context(|| format!("installing {latest}"))?;
-    log::info!("OTA — installed {latest} ({written} bytes); new slot is the boot target");
     Ok(Some(latest))
+}
+
+/// Download `version` into the inactive OTA slot and make it the boot target
+/// (`complete()`). The caller reboots into it.
+///
+/// Takes the version the check reported rather than re-reading the manifest, so
+/// the image installed is the one the writer said yes to. On `Err` the running
+/// slot is untouched and the device keeps booting the current image.
+pub fn install_update(version: &str, progress: &dyn Fn(Phase)) -> Result<()> {
+    let url = format!("{}/typoena-{version}.bin", update_base_url());
+    let written =
+        download_and_install(&url, progress).with_context(|| format!("installing {version}"))?;
+    log::info!("OTA — installed {version} ({written} bytes); new slot is the boot target");
+    Ok(())
 }
 
 /// Whether this device has a second app slot to receive an update.

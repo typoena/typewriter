@@ -336,15 +336,25 @@ impl<S: Screen> Runtime<S> {
                 self.panel.blit_full(&Frame::reboot());
                 self.system.reboot();
             }
-            // Non-blocking, like Push: the multi-second download + flash runs on
-            // the radio-owning thread while the editor keeps running; the terminal
-            // outcome returns via `poll_outcome` in `tick`. `:update` was
-            // gated on a clean buffer set in the editor, so the eventual reboot on
-            // success (see `handle_net_outcome`) can't strand unsaved edits.
-            Effect::Update => match self.net.update() {
+            // Non-blocking, like Push: the manifest fetch runs on the radio-owning
+            // thread while the editor keeps running, and the outcome returns via
+            // `poll_outcome` in `tick`. A newer release comes back as `Available`
+            // and raises the install prompt; nothing is downloaded yet.
+            Effect::UpdateCheck => match self.net.check_update() {
                 UpdateDispatch::Dispatched => {
                     self.mark_net_dispatched(NetFlag::Updating);
                     self.ed.set_notice("checking for update...")
+                }
+                UpdateDispatch::ThreadDown => self.ed.set_notice("update: git thread down"),
+            },
+            // The confirmed install. Non-blocking too: the multi-second download +
+            // flash runs on the same thread, and the reboot on success (see
+            // `handle_net_outcome`) can't strand unsaved edits — the editor saved
+            // every named dirty buffer into this same batch, ahead of us.
+            Effect::UpdateInstall(version) => match self.net.install_update(version.clone()) {
+                UpdateDispatch::Dispatched => {
+                    self.mark_net_dispatched(NetFlag::Updating);
+                    self.ed.set_notice(format!("installing {version}..."))
                 }
                 UpdateDispatch::ThreadDown => self.ed.set_notice("update: git thread down"),
             },
@@ -575,6 +585,12 @@ impl<S: Screen> Runtime<S> {
                 notice
             }
             NetOutcome::Update(o) => match o {
+                // The check is terminal on its own: the install is a second
+                // dispatch, and only a `y` on this prompt makes it.
+                UpdateOutcome::Available(ver) => {
+                    self.ed.offer_update(ver);
+                    return true;
+                }
                 UpdateOutcome::Installed(ver) => {
                     // The new image is written and is now the boot slot. Paint the
                     // notice with a blocking full refresh (visible before the
