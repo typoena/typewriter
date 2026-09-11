@@ -457,8 +457,8 @@ impl<S: Screen> Runtime<S> {
         if self.panel.kbd_repaint(&mut self.ed, self.kbd_changed, self.kbd) {
             return;
         }
-        // A button press carries no keystroke, so nothing else would paint what
-        // it had to say.
+        // A power event carries no keystroke, so nothing else would paint what it
+        // had to say.
         if std::mem::take(&mut self.power_noticed) {
             self.panel.show_notice(&mut self.ed);
             return;
@@ -515,27 +515,19 @@ impl<S: Screen> Runtime<S> {
     }
 
     /// Route one [`PowerEvent`]. Both shutdown causes go through the editor's
-    /// [`request_power_off`](Editor::request_power_off), so the button and a flat
-    /// cell save and refuse on exactly the same terms; the notices are painted by
-    /// the idle branch, which `power_noticed` sends there.
+    /// [`request_power_off`](Editor::request_power_off), so the switch and a flat
+    /// cell save on exactly the same terms; the notices are painted by the idle
+    /// branch, which `power_noticed` sends there.
     fn handle_power_event(&mut self, event: PowerEvent) {
         self.power_noticed = true;
         match event {
-            PowerEvent::StatusAsked => {
-                let msg = match self.power.status() {
-                    Some(b) if b.charging => format!("battery {}% - charging", b.percent),
-                    Some(b) => format!("battery {}%", b.percent),
-                    None => "no battery gauge".to_string(),
-                };
-                self.ed.set_notice(msg);
-            }
             PowerEvent::Low => {
                 let pct = self.power.status().map_or(0, |b| b.percent);
                 log::warn!("battery low ({pct}%)");
                 self.ed.set_notice(format!("battery {pct}% - plug in soon"));
             }
-            PowerEvent::OffAsked => {
-                log::info!("power button held — shutting down");
+            PowerEvent::SwitchedOff => {
+                log::info!("power switch flipped off — shutting down");
                 self.ed.request_power_off();
             }
             PowerEvent::Critical => {

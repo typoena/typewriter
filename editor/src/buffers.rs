@@ -14,6 +14,11 @@ pub const REPO_DIR: &str = "/sd/repo";
 /// Local files live here (never pushed).
 pub const LOCAL_DIR: &str = "/sd/local";
 
+/// Where an unnamed dirty buffer is parachuted when the power switch is flipped
+/// off. Under [`LOCAL_DIR`] so it surfaces in the palette next session — a
+/// rescued scratch the writer can find, name and keep.
+pub const RESCUE_PATH: &str = "/sd/local/unsaved.md";
+
 /// Resolve a `:e`/`:enew` argument (or palette pick) to an absolute path +
 /// [`Scope`]. Everything the writer can reach lives on the card under `/sd`, so
 /// the `/sd` prefix is **optional**: `/sd/repo/x`, `/repo/x`, and `repo/x` all
@@ -141,6 +146,15 @@ pub(crate) const MAX_RESIDENT: usize = 3;
 /// bounded so the list can't grow without limit over a long session.
 pub(crate) const MRU_MAX: usize = 16;
 
+
+/// [`RESCUE_PATH`] for the `n`th unnamed dirty buffer of one shutdown.
+fn rescue_path(seen: &mut usize) -> String {
+    *seen += 1;
+    match *seen {
+        1 => RESCUE_PATH.to_string(),
+        n => format!("{LOCAL_DIR}/unsaved-{n}.md"),
+    }
+}
 
 impl Editor {
     /// The host confirms `path` was persisted; clear its dirty flag wherever that
@@ -279,6 +293,40 @@ impl Editor {
             }
         }
         true
+    }
+
+    /// Queue a save for every dirty resident buffer, as
+    /// [`try_save_all_dirty`](Self::try_save_all_dirty) does — except that this
+    /// one cannot refuse.
+    ///
+    /// The power switch has two states, and flipping it off is not a press to
+    /// reconsider: there is no second flip coming, because the level is already
+    /// high. Refusing would leave a machine whose switch reads OFF running with
+    /// nothing left that could stop it. So an unnamed dirty buffer is parachuted
+    /// to [`RESCUE_PATH`] instead of blocking the shutdown — numbered if there is
+    /// somehow more than one, so two scratches never overwrite each other.
+    pub(crate) fn save_all_dirty_for_power_off(&mut self) {
+        let mut rescued = 0;
+        if self.dirty {
+            if self.path.is_empty() {
+                let path = rescue_path(&mut rescued);
+                let contents = self.text.clone();
+                self.requests.push(Effect::Save { path, scope: Scope::Local, contents });
+            } else {
+                self.write_active();
+            }
+        }
+        for parked in &self.parked {
+            if !parked.dirty {
+                continue;
+            }
+            let (path, scope) = if parked.path.is_empty() {
+                (rescue_path(&mut rescued), Scope::Local)
+            } else {
+                (parked.path.clone(), parked.scope)
+            };
+            self.requests.push(Effect::Save { path, scope, contents: parked.text.clone() });
+        }
     }
 
     /// Switch the active buffer to `path`. If it is already resident (parked),

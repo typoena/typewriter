@@ -108,10 +108,10 @@ impl Frame {
     /// behind it: the wordmark plus "off" on screen *is* how a powered-down
     /// Typoena says so, and any other frame means it is awake.
     ///
-    /// It names the way back, because there is no other affordance: the button
-    /// is the only thing that boots the device out of deep sleep.
+    /// It names the way back, because there is no other affordance: flipping the
+    /// switch on is the only thing that boots the device out of deep sleep.
     pub fn power_off() -> Self {
-        Self::branded("off - press to wake")
+        Self::branded("off - flip the switch to wake")
     }
 
     /// The boot splash for the first boot after an OTA `:update`, shown in place

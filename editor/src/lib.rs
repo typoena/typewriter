@@ -49,7 +49,7 @@ pub(crate) use prefs::*;
 pub(crate) use render::*;
 pub(crate) use snippets::*;
 
-pub use buffers::{LOCAL_DIR, REPO_DIR};
+pub use buffers::{LOCAL_DIR, REPO_DIR, RESCUE_PATH};
 pub use markdown::publish_retarget_links;
 pub use prefs::{Prefs, PREFS_PATH};
 pub use render::{CH, CW};
@@ -360,12 +360,12 @@ pub enum Effect {
     /// of this, so the host flushes them before the reset); a dirty *unnamed*
     /// scratch buffer has nowhere to save and blocks the reboot instead.
     Reboot,
-    /// The power button, held — shut the machine down. Like
-    /// [`Reboot`](Effect::Reboot) the editor auto-saves every named dirty buffer
-    /// ahead of this, and the host paints the off card before it cuts power; the
-    /// difference is that nothing comes back up until the button is pressed
-    /// again. No y/n rides in front of it: the writer already held a physical
-    /// button for two seconds, which is the confirmation.
+    /// The power switch, flipped off — shut the machine down. Like
+    /// [`Reboot`](Effect::Reboot) the editor saves every dirty buffer ahead of
+    /// this, and the host paints the off card before it cuts power; the
+    /// difference is that nothing comes back up until the switch is flipped on
+    /// again. No y/n rides in front of it — the switch position *is* the
+    /// decision, and there is no second flip left to confirm with.
     PowerOff,
     /// `:update` (or `> update`) — ask the release manifest whether a newer
     /// firmware exists. Downloads nothing and touches no OTA slot: a newer
@@ -1795,21 +1795,16 @@ impl Editor {
         self.requests.push(Effect::Reboot);
     }
 
-    /// The power button, held past its long-press threshold — the host calls
-    /// this, then services the [`PowerOff`](Effect::PowerOff) it queues. Saves
-    /// every *named* dirty buffer first, exactly as
-    /// [`do_reboot`](Self::do_reboot) does, so the card is current before the
-    /// rails drop.
+    /// The power switch, flipped off — the host calls this, then services the
+    /// [`PowerOff`](Effect::PowerOff) it queues. Every dirty buffer is saved
+    /// first, so the card is current before the rails drop.
     ///
-    /// An unnamed dirty scratch has nowhere to save, so it refuses and stays on
-    /// — the same contract `:reboot` holds. The machine not switching off is the
-    /// lesser surprise: the text is still on the panel, and the notice says what
-    /// to do about it.
+    /// Unlike `:reboot` this **never refuses**: see
+    /// [`save_all_dirty_for_power_off`](Self::save_all_dirty_for_power_off) for
+    /// why a two-state switch leaves no room to say no, and where an unnamed
+    /// scratch goes instead.
     pub fn request_power_off(&mut self) {
-        if !self.try_save_all_dirty() {
-            self.set_notice("unnamed buffer - name it first");
-            return;
-        }
+        self.save_all_dirty_for_power_off();
         self.requests.push(Effect::PowerOff);
     }
 

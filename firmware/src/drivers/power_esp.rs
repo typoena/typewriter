@@ -1,21 +1,27 @@
 //! Power: the rails, the button, the status LED and the cell, behind
 //! [`app::Power`].
 //!
-//! The mainboard has no mechanical power switch. The 3V3 buck-boost is enabled
-//! by hardware and never turns off, so the chip is always fed — **off is the
-//! ESP32's deep sleep**, and the button is a plain GPIO the firmware reads. That
-//! is what makes every one of the pieces below load-bearing:
+//! The power switch is **latching — two states, not a press**. Closed pulls
+//! `PWR_SENSE` low and means *on*; open lets the pull-up take it high and means
+//! *off*. So the pin is a desired-state signal the firmware follows, and there is
+//! no press duration anywhere in this module.
+//!
+//! The switch cuts no power itself: the 3V3 buck-boost is enabled in hardware and
+//! never turns off, so the chip is always fed, and **off is the ESP32's deep
+//! sleep**. That is what makes each of the pieces below load-bearing:
 //!
 //! * `PWR_SENSE` is on GPIO 21 because only RTC GPIOs (0–21 on the S3) can wake
-//!   from deep sleep. The press that switches the machine on is an `ext0`
-//!   wake-up, and nothing else in the system can produce one.
+//!   from deep sleep. Flipping the switch on drives the pin low, which is the
+//!   `ext0` wake-up — and nothing else in the system can produce one. Flipping it
+//!   off leaves the pin high, which is exactly why arming `ext0` for low at the
+//!   end of the shutdown does not wake the chip straight back up.
 //! * The two switched rails come up here, not in their own drivers: the µSD's
 //!   3V3 and the keyboard's 5 V are both off by default (a pulldown on each
 //!   enable), so a card mount or a USB enumeration before [`Rails::bring_up`]
 //!   would find dead hardware.
-//! * The LED is the only feedback a press gets before the panel catches up —
-//!   e-paper needs the better part of a second, and a button that does nothing
-//!   for that long reads as broken.
+//! * The LED goes out the moment the switch reads off — e-paper needs the better
+//!   part of a second to paint the off card, and a switch that appears to do
+//!   nothing for that long reads as broken.
 //!
 //! Charge and battery numbers come from the BQ25896 over I2C ([`super::bq25896`]).
 //! A board where nothing answers on the bus still runs: `status()` stays `None`,
@@ -49,14 +55,10 @@ const ICHG_MA: u16 = 1856;
 /// the source — ICO and VINDPM find what it can actually give.
 const IINLIM_CEILING_MA: u16 = 2000;
 
-/// How long the button must be held to switch the machine off. Long enough that
-/// a knock or a brush past it cannot reach it, short enough to hold without
-/// wondering whether anything is happening.
-const LONG_PRESS_MS: u128 = 2000;
-
-/// Contact settling window. The button is a panel switch on a 10 cm pigtail, so
-/// it bounces; anything shorter than this is not a press.
-const DEBOUNCE_MS: u128 = 30;
+/// Contact settling window. The switch is a panel part on a 10 cm pigtail, so it
+/// bounces through a flip; a level has to hold this long to count as the new
+/// state.
+const DEBOUNCE_MS: u128 = 50;
 
 /// How often the charger is asked for a fresh sweep. The cell moves on a scale
 /// of minutes and each sweep costs an I2C round trip plus the chip's ADC, so
@@ -134,20 +136,19 @@ impl Rails {
     }
 }
 
-/// Where the button is in a press, as the debouncer sees it.
-enum Button {
-    /// Not pressed, and free to start one.
-    Idle,
-    /// Pressed; `since` is when the level first read low.
-    Down { since: Instant },
-    /// Held past [`LONG_PRESS_MS`] and already reported. Nothing more happens
-    /// until it is released — which, on a machine that is switching off, it
-    /// never is.
-    Reported,
-    /// Held at boot. A wake-from-sleep press is still down when the firmware
-    /// gets here, and a machine that read it as a fresh press would switch
-    /// itself back off the moment it woke.
-    WaitingForRelease,
+/// What the firmware believes the switch is saying.
+enum Switch {
+    /// Not yet believed. The pin has read *off* since boot and never *on*, which
+    /// is equally what an unplugged `J2` looks like — a bench rig, or a board
+    /// whose switch pigtail is not fitted yet. Acting on it would sleep the
+    /// machine on every boot with no switch able to wake it, so this state waits
+    /// for one *on* reading before anything can shut the machine down.
+    Unarmed,
+    /// The switch has been seen saying *on*, so it is wired and its polarity is
+    /// confirmed. A flip to *off* from here is real.
+    On,
+    /// Flipped off and reported. The shutdown is running; nothing more to say.
+    Off,
 }
 
 /// The ADC's one-shot cycle: the sweep takes up to a second, which the writing
@@ -157,8 +158,8 @@ enum Adc {
     Converting { started: Instant },
 }
 
-/// [`app::Power`] over the mainboard: `PWR_SENSE`, the BQ25896, the LED, and the
-/// deep sleep that is this machine's off state.
+/// [`app::Power`] over the mainboard: the latching switch on `PWR_SENSE`, the
+/// BQ25896, the LED, and the deep sleep that is this machine's off state.
 pub struct EspPower {
     rails: Rails,
     button_pin: PinDriver<'static, Input>,
@@ -168,7 +169,7 @@ pub struct EspPower {
     charger: Option<Bq25896<'static>>,
     /// Kept so the card is flushed and released before its rail drops.
     storage: Rc<Storage>,
-    button: Button,
+    switch: Switch,
     /// The last level the debouncer accepted, and when it changed.
     level_low: bool,
     level_since: Instant,
@@ -180,11 +181,6 @@ pub struct EspPower {
     /// Cleared when the charge recovers, so a session that plugs in and drains
     /// again is warned twice, not once.
     warned_low: bool,
-    /// Set when a long press was reported. If [`poll`](app::Power::poll) is
-    /// reached again the shutdown was refused (an unnamed dirty buffer), so the
-    /// LED goes back on — the machine is still running and must not claim
-    /// otherwise.
-    off_reported: bool,
 }
 
 impl EspPower {
@@ -196,8 +192,8 @@ impl EspPower {
     /// (see [`Bq25896::configure`]) rather than by the caller, so the settings
     /// and the driver that depends on them stay in one place.
     ///
-    /// If the button reads pressed, that press is the one that woke the machine:
-    /// it is waited out, not acted on.
+    /// The switch is read once here to decide whether it can be trusted at all:
+    /// *on* arms it, *off* does not (see [`Switch::Unarmed`]).
     pub fn new(
         rails: Rails,
         button_pin: Gpio21<'static>,
@@ -210,31 +206,34 @@ impl EspPower {
                 log::warn!("charger configure FAILED ({e}); it keeps its power-on defaults");
             }
         }
-        // The contact shorts `PWR_SENSE` to ground through 10 kΩ, so the pin
-        // needs the internal pull-up to read high when nothing is pressed.
+        // The contact shorts `PWR_SENSE` to ground through 10 kΩ, so the pin needs
+        // the internal pull-up to read high when the switch is open.
         let button_pin = PinDriver::input(button_pin, Pull::Up)?;
-        let held = button_pin.is_low();
-        if held {
-            log::info!("button still held at boot (the press that woke us) — waiting for release");
+        let on = button_pin.is_low();
+        if on {
+            log::info!("power switch reads on — armed");
+        } else {
+            log::warn!(
+                "power switch reads OFF at boot — it is either open or not wired (J2).                  Staying on until it is seen saying ON at least once."
+            );
         }
         Ok(Self {
             rails,
             button_pin,
             charger,
             storage,
-            button: if held { Button::WaitingForRelease } else { Button::Idle },
-            level_low: held,
+            switch: if on { Switch::On } else { Switch::Unarmed },
+            level_low: on,
             level_since: Instant::now(),
             adc: Adc::Idle { next: Instant::now() },
             latest: None,
             critical_run: 0,
             warned_low: false,
-            off_reported: false,
         })
     }
 
-    /// The debounced button level: `true` while pressed. A level that has not
-    /// held for [`DEBOUNCE_MS`] keeps the previous answer.
+    /// The debounced switch level: `true` while the contact is closed (*on*). A
+    /// level that has not held for [`DEBOUNCE_MS`] keeps the previous answer.
     fn debounced_low(&mut self) -> bool {
         let raw = self.button_pin.is_low();
         if raw != self.level_low {
@@ -248,39 +247,32 @@ impl EspPower {
         self.level_low
     }
 
-    /// Advance the button state machine. Returns the press event, if any.
-    fn poll_button(&mut self) -> Option<app::PowerEvent> {
-        let down = self.debounced_low();
-        match (&self.button, down) {
-            (Button::WaitingForRelease, true) => None,
-            (Button::WaitingForRelease, false) => {
-                self.button = Button::Idle;
+    /// Follow the switch. Returns [`SwitchedOff`](app::PowerEvent::SwitchedOff)
+    /// on the one edge that matters — a confirmed *on* going to *off*.
+    fn poll_switch(&mut self) -> Option<app::PowerEvent> {
+        let on = self.debounced_low();
+        match (&self.switch, on) {
+            // The first `on` reading proves the switch is wired, whatever it
+            // said at boot.
+            (Switch::Unarmed, true) => {
+                log::info!("power switch seen on — armed");
+                self.switch = Switch::On;
                 None
             }
-            (Button::Idle, true) => {
-                self.button = Button::Down { since: Instant::now() };
-                None
+            (Switch::Unarmed, false) => None,
+            (Switch::On, true) => None,
+            (Switch::On, false) => {
+                self.switch = Switch::Off;
+                // Before the save and the ~1 s panel paint: the light going out
+                // is the flip's only immediate acknowledgement.
+                self.rails.set_led(false);
+                Some(app::PowerEvent::SwitchedOff)
             }
-            (Button::Idle, false) => None,
-            (Button::Down { since }, true) => {
-                if since.elapsed().as_millis() >= LONG_PRESS_MS {
-                    self.button = Button::Reported;
-                    self.rails.set_led(false);
-                    self.off_reported = true;
-                    Some(app::PowerEvent::OffAsked)
-                } else {
-                    None
-                }
-            }
-            (Button::Down { .. }, false) => {
-                self.button = Button::Idle;
-                Some(app::PowerEvent::StatusAsked)
-            }
-            (Button::Reported, true) => None,
-            (Button::Reported, false) => {
-                self.button = Button::Idle;
-                None
-            }
+            // The shutdown owns the machine from here. A flip back to on does
+            // not cancel it — the sequence is already writing to the card, and
+            // the machine will come back on that same `on` level as an `ext0`
+            // wake a moment later.
+            (Switch::Off, _) => None,
         }
     }
 
@@ -380,16 +372,9 @@ impl EspPower {
 
 impl app::Power for EspPower {
     fn poll(&mut self) -> Option<app::PowerEvent> {
-        // Being polled after a reported long press means the loop refused the
-        // shutdown (see `Editor::request_power_off`) — the machine is still on,
-        // so put the light back. The real shutdown never comes back here.
-        if self.off_reported {
-            self.off_reported = false;
-            self.rails.set_led(true);
-        }
-        // The button first: a held button outranks anything the cell has to say,
-        // and only one event leaves per pass.
-        self.poll_button().or_else(|| self.poll_charger())
+        // The switch first: it outranks anything the cell has to say, and only
+        // one event leaves per pass.
+        self.poll_switch().or_else(|| self.poll_charger())
     }
 
     fn status(&self) -> Option<Battery> {
@@ -401,17 +386,17 @@ impl app::Power for EspPower {
         self.storage.unmount();
         self.rails.shed();
 
-        // The press that switched the machine off is very likely still down.
-        // Arming `ext0` on a pin that already reads low wakes the chip the
-        // instant it sleeps, so wait the finger out — but not forever: a stuck
-        // contact must still end in a sleep, not a spin.
+        // A flip back to on during the shutdown would leave the pin low, and
+        // arming `ext0` for low on a low pin wakes the chip the instant it
+        // sleeps — a boot loop. Wait it out, but not forever: a shorted contact
+        // must still end in a sleep, not a spin.
         let mut waited = 0;
         while self.button_pin.is_low() && waited < RELEASE_WAIT_MS {
             FreeRtos::delay_ms(10);
             waited += 10;
         }
         if waited >= RELEASE_WAIT_MS {
-            log::warn!("button still down after {RELEASE_WAIT_MS} ms — sleeping regardless");
+            log::warn!("switch reads on after {RELEASE_WAIT_MS} ms — sleeping regardless");
         }
 
         // SAFETY: three esp-idf C entry points taking a plain pin number, and
@@ -435,8 +420,8 @@ impl app::Power for EspPower {
 /// operation. Must stay an RTC GPIO (0–21 on the S3); see the module docs.
 const PIN_PWR_SENSE: i32 = 21;
 
-/// How long the shutdown waits for the button to come back up before sleeping
-/// anyway.
+/// How long the shutdown waits for a switch flipped back on mid-sequence before
+/// sleeping anyway.
 const RELEASE_WAIT_MS: u32 = 10_000;
 
 fn ms(millis: u128) -> std::time::Duration {

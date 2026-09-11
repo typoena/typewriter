@@ -65,8 +65,8 @@ Whole-build wiring reference-of-record: [hardware/wiring.md](../../hardware/wiri
 | Status LED (WS2812)         | GPIO 48 (devkit RGB)                                    |
 | Operator confirm            | **BOOT button, GPIO 0** (input, pull-up, pressed = low) |
 | Charger (BQ25896 @ 0x6B)    | I2C — SDA 17, SCL 18; `PMIC_INT` 16 (unused)            |
-| Power button (`PWR_SENSE`)  | GPIO 21, active-low, internal pull-up                   |
-| Button LED                  | GPIO 38, active-high                                    |
+| Power switch (`PWR_SENSE`)  | GPIO 21, **latching** — closed/low = on, open/high = off |
+| Switch LED                  | GPIO 38, active-high                                    |
 | Switched rails              | `SD_PWR_EN` 40, `KBD_5V_EN` 41 — both active-high       |
 
 Free for later: GPIO 1, 2, 8, 9 (ADC1), 39, 42, 47.
@@ -111,7 +111,7 @@ Ordered; each row lists the auto criteria and what a NOK points at.
 | 4   | **SD**                | mount (`format_if_mount_failed=false`); CMD59/CRC accepted; log negotiated kHz; write→read a blob byte-identical; MISO idle-high (internal pull-up is enough; log if low)                                                                                                                                                               | swap/open on 13/14/15/10; MISO low = pull-up                                         |
 | 5   | **USB-C keyboard**    | install host lib; enumerate (log VID:PID, expect 19f5:3255); claim boot iface; SET_PROTOCOL(boot)+SET_IDLE(0); poll EP 0x81. Prompt "press a key" → decode. Then "flip the connector, press again" → re-enumerate                                                                                                                       | no enum = VBUS / **CC Rp** / D+/D−; one orientation only = D pairs or CC not bridged |
 | 6   | **Wi-Fi**             | scan → ≥1 AP found (log best RSSI); if creds present, associate + SNTP                                                                                                                                                                                                                                                                  | antenna / RF                                                                         |
-| 7   | **Charger / battery** | BQ25896 answers at `0x6B`; one ADC sweep → VBAT / SYS / VBUS / charge current + charge state. VBAT under 2.5 V = no cell on the connector. Then the power button: `PWR_SENSE` idle-high, goes low on a press, and the button LED is `CONFIRM?`                                                                                          | no answer = SDA 17 / SCL 18 or the 3V3 pull-ups; no press = J2 or the 10 k series     |
+| 7   | **Charger / battery** | BQ25896 answers at `0x6B`; one ADC sweep → VBAT / SYS / VBUS / charge current + charge state. VBAT under 2.5 V = no cell on the connector. Then the power switch: the operator flips it and `PWR_SENSE` must **change** level either way (a single read cannot tell a wired switch from a shorted pigtail); the switch LED is `CONFIRM?` | no answer = SDA 17 / SCL 18 or the 3V3 pull-ups; stuck level = J2 or the 10 k series  |
 | 8   | **GPIO short/open**   | for each pin marked _isolated_ in the expected-net table: drive it high, read all other isolated pins (input pull-down) → any unexpected follower = a bridge; then float + internal pull → read level (open only inferable via the pull). Bus pins skipped (covered functionally). Log "coupling-tested" vs "pull-tested only" honestly | solder bridge between adjacent nets                                                  |
 
 ## Expected-net table (fill from the schematic)
@@ -175,7 +175,11 @@ I2C read, and the short/open scanner.
   drop with a 100 mΩ guess (`app::CELL_MILLIOHMS`). Measure it — VBAT with and
   without charge current, at a known charge — and correct the constant.
 - **Standby draw.** The design budgets ~84 µA in deep sleep. Measure it with the
-  machine switched off: anything far above means one of the shed rails did not
-  actually drop, or the panel missed its `0x10`/`0x03` deep sleep.
+  switch off: anything far above means one of the shed rails did not actually
+  drop, or the panel missed its `0x10`/`0x03` deep sleep.
+- **`PWR_SENSE` polarity at the switch.** The firmware trusts closed = on. Meter
+  the pigtail before first power-up: a switch wired to the opposite state leaves
+  the machine unarmed (it stays on and never sleeps) rather than broken, but it
+  is a confusing hour to spend.
 - **Expected-net table.** Fill the isolated/spare GPIO rows from the actual schematic
   before relying on the short/open scan (#8).

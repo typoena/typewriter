@@ -40,12 +40,12 @@ use firmware::infrastructure::storage_sd::Storage;
 
 // ─── PCB-specific config — fill from the schematic ───────────────────────────
 
-/// `PWR_SENSE` — the power button, active-low through its 10 kΩ series
-/// resistor. Read with the internal pull-up, exactly as the firmware does.
+/// `PWR_SENSE` — the latching power switch. Closed (low) = on, open (high) =
+/// off. Read with the internal pull-up, exactly as the firmware does.
 const PWR_SENSE_PIN: i32 = 21;
 
-/// Seconds to wait for the operator to press the power button in check #7.
-const BUTTON_TIMEOUT_S: u64 = 20;
+/// Seconds to wait for the operator to flip the power switch in check #7.
+const SWITCH_TIMEOUT_S: u64 = 20;
 
 /// GPIOs that should be electrically **isolated** on the PCB (no bus, no device)
 /// — the short/open scan drives each and reads the rest for solder bridges.
@@ -190,9 +190,9 @@ fn main() -> Result<()> {
     // ── #6 Wi-Fi ──────────────────────────────────────────────────────────────
     check_wifi(peripherals.modem, &mut report);
 
-    // ── #7 Charger / battery + power button ─────────────────────────────────
+    // ── #7 Charger / battery + power switch ─────────────────────────────────
     check_charger(peripherals.i2c0, pins.gpio17, pins.gpio18, &mut report);
-    check_power_button(&mut report, &mut boot);
+    check_power_switch(&mut report, &mut boot);
 
     // ── #8 GPIO short/open scan ───────────────────────────────────────────────
     check_gpio_scan(&mut report);
@@ -383,7 +383,7 @@ fn check_wifi(modem: esp_idf_svc::hal::modem::Modem, report: &mut Report) {
     }
 }
 
-// ─── Charger / battery + power button (#7) ─────────────────────────────────────
+// ─── Charger / battery + power switch (#7) ─────────────────────────────────────
 
 /// Talk to the BQ25896 over I2C: the one check that proves the charge port, the
 /// cell and the power path in a single read. A chip that answers is a chip whose
@@ -448,33 +448,39 @@ fn check_charger(
     }
 }
 
-/// The power button and its LED — the two off-board parts of the power block,
-/// and the only ones no other check touches. The LED has been lit since the
-/// rails came up, so the operator confirms it in the same breath as the press.
-fn check_power_button(report: &mut Report, boot: &mut BootButton) {
+/// The power switch and its LED — the two off-board parts of the power block,
+/// and the only ones no other check touches.
+///
+/// The switch has two states, so the fixture watches for a **change**, not a
+/// press: whichever way it starts, flipping it must move the pin. That also
+/// catches the failure a single read cannot — a pigtail shorted to ground reads
+/// a convincing "on" forever.
+fn check_power_switch(report: &mut Report, boot: &mut BootButton) {
     set_input_pull(PWR_SENSE_PIN, sys::gpio_pull_mode_t_GPIO_PULLUP_ONLY);
     FreeRtos::delay_ms(5);
-    // Idle high: the contact is open and the pull-up owns the pin. Low here is a
-    // short on the pigtail or a button wired the wrong way round.
-    if unsafe { sys::gpio_get_level(PWR_SENSE_PIN) } == 0 {
-        report.add("Power button", Verdict::Nok, "PWR_SENSE reads low with nothing pressed");
-        return;
-    }
-    log::info!("press the power button (up to {BUTTON_TIMEOUT_S}s)…");
+    let start_level = unsafe { sys::gpio_get_level(PWR_SENSE_PIN) };
+    let from = if start_level == 0 { "on" } else { "off" };
+    log::info!("flip the power switch (currently {from}, up to {SWITCH_TIMEOUT_S}s)…");
     let start = Instant::now();
     loop {
-        if unsafe { sys::gpio_get_level(PWR_SENSE_PIN) } == 0 {
-            report.add("Power button", Verdict::Ok, "PWR_SENSE pulled low by the press");
+        let level = unsafe { sys::gpio_get_level(PWR_SENSE_PIN) };
+        if level != start_level {
+            let to = if level == 0 { "on" } else { "off" };
+            report.add("Power switch", Verdict::Ok, format!("PWR_SENSE moved {from} → {to}"));
             break;
         }
-        if start.elapsed().as_secs() >= BUTTON_TIMEOUT_S {
-            report.add("Power button", Verdict::Nok, "no press seen — check J2 and the 10k series");
+        if start.elapsed().as_secs() >= SWITCH_TIMEOUT_S {
+            report.add(
+                "Power switch",
+                Verdict::Nok,
+                format!("stuck {from} — check J2, the switch and the 10k series"),
+            );
             break;
         }
         FreeRtos::delay_ms(20);
     }
-    let led = confirm(boot, "is the button LED lit? tap=yes / hold=no");
-    report.add("Button LED", led, "lit since the rails came up");
+    let led = confirm(boot, "is the switch LED lit? tap=yes / hold=no");
+    report.add("Switch LED", led, "lit since the rails came up");
 }
 
 // ─── GPIO short/open scan (#8) ──────────────────────────────────────────────────

@@ -931,8 +931,8 @@ fn publish_hands_the_host_the_non_resident_md_files() {
 }
 
 #[test]
-fn power_button_shuts_down_without_a_prompt() {
-    // The held button IS the confirmation, so unlike `:reboot` nothing is asked:
+fn flipping_the_switch_off_shuts_down_without_a_prompt() {
+    // The switch position IS the decision, so unlike `:reboot` nothing is asked:
     // one call, one PowerOff.
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
     e.request_power_off();
@@ -940,7 +940,7 @@ fn power_button_shuts_down_without_a_prompt() {
 }
 
 #[test]
-fn power_button_autosaves_a_dirty_buffer_before_cutting_power() {
+fn flipping_the_switch_off_autosaves_a_dirty_buffer_first() {
     // Same ordering contract as `:reboot`: the Save is queued ahead so the host
     // flushes it to the card before the rails drop.
     let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
@@ -952,17 +952,20 @@ fn power_button_autosaves_a_dirty_buffer_before_cutting_power() {
 }
 
 #[test]
-fn power_button_refuses_an_unsaved_unnamed_buffer() {
-    // Nowhere to save the scratch text, so the machine stays on and says why.
+fn an_unnamed_scratch_is_rescued_rather_than_blocking_the_shutdown() {
+    // A two-state switch leaves no second flip to reconsider with: refusing would
+    // strand the machine on with its switch reading OFF. The text goes to the
+    // rescue file instead, and the shutdown proceeds.
     let mut e = Editor::with_text(String::new());
     e.handle(Key::Char('i'));
     send(&mut e, "hi");
     e.handle(Key::Escape);
     e.request_power_off();
-    assert!(e.take_effects().is_empty(), "must not power off over unsaved text");
-    assert!(
-        e.notice.as_deref().unwrap_or_default().contains("unnamed"),
-        "expected an unnamed-buffer notice, got {:?}",
-        e.notice
-    );
+    let effects = e.take_effects();
+    assert_eq!(kinds(&effects), vec![Kind::Save, Kind::PowerOff]);
+    let Some(Effect::Save { path, contents, .. }) = effects.first() else {
+        panic!("expected a rescue Save, got {effects:?}");
+    };
+    assert_eq!(path, crate::RESCUE_PATH);
+    assert!(contents.contains("hi"), "the scratch text must reach the card: {contents:?}");
 }

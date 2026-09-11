@@ -220,33 +220,32 @@ pub trait System {
     fn reboot(&self) -> !;
 }
 
-/// What the power hardware has to say this pass — the button and the cell, the
+/// What the power hardware has to say this pass — the switch and the cell, the
 /// two things that can interrupt a writing session from below the firmware.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PowerEvent {
-    /// The button was tapped: report the charge on the snackbar. The only visible
-    /// effect a short press has, so it doubles as "yes, the button works".
-    StatusAsked,
-    /// The button was held past the long-press threshold: shut down.
-    OffAsked,
+    /// The power switch was flipped to off. It has two states and no press to
+    /// measure, so this is an edge, not a gesture — and there is no counterpart
+    /// event for "flipped on", because that one arrives as a boot.
+    SwitchedOff,
     /// The cell just fell under the warn threshold. Raised once per crossing, so
     /// a session spent in the twenties is warned about once, not every poll.
     Low,
     /// The cell is nearly flat. The loop shuts down on this exactly as it would
-    /// on [`OffAsked`](Self::OffAsked) — a save and an off card now beat a
+    /// on [`SwitchedOff`](Self::SwitchedOff) — a save and an off card now beat a
     /// brownout mid-write later.
     Critical,
 }
 
-/// The charger, the cell and the physical power button.
+/// The charger, the cell and the physical power switch.
 ///
-/// One port rather than three: they are one chip and one button on the board,
+/// One port rather than three: they are one chip and one switch on the board,
 /// they are polled together, and the only caller is the run loop's per-pass
 /// [`poll`](Self::poll). A board whose charger never answered on the bus still
-/// fulfils this — [`status`](Self::status) stays `None` and the button half
+/// fulfils this — [`status`](Self::status) stays `None` and the switch half
 /// keeps working.
 pub trait Power {
-    /// Poll the button and (on its own schedule) the charger. Returns at most
+    /// Poll the switch and (on its own schedule) the charger. Returns at most
     /// one event per pass; the loop calls this every iteration, so it must never
     /// block on the I2C bus for longer than a keystroke can wait.
     fn poll(&mut self) -> Option<PowerEvent>;

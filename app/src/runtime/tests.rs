@@ -1335,8 +1335,8 @@ fn power_runtime(ed: Editor, storage: RecStorage, power: ScriptedPower) -> Runti
 }
 
 #[test]
-fn a_held_button_saves_the_buffer_before_it_cuts_power() {
-    // The whole point of a soft power button: the card is current by the time the
+fn flipping_the_switch_off_saves_the_buffer_before_it_cuts_power() {
+    // The whole point of a soft power switch: the card is current by the time the
     // rails drop. The Save must land in the same pass as the shutdown, since no
     // further pass is coming.
     let storage = RecStorage::default();
@@ -1347,10 +1347,10 @@ fn a_held_button_saves_the_buffer_before_it_cuts_power() {
     ed.handle(hal::Key::Escape);
     let mut rt = power_runtime(ed, storage.clone(), power.clone());
 
-    power.queue(PowerEvent::OffAsked);
+    power.queue(PowerEvent::SwitchedOff);
     shut_down(&mut rt);
 
-    assert!(power.powered_off(), "a held button must reach the shutdown");
+    assert!(power.powered_off(), "a flipped switch must reach the shutdown");
     assert_eq!(
         storage.0.borrow().saves.first().map(|(p, _)| p.clone()),
         Some("/sd/repo/notes.md".to_string()),
@@ -1366,17 +1366,17 @@ fn shut_down(rt: &mut Runtime<MockScreen>) {
 }
 
 #[test]
-fn a_tapped_button_reports_the_charge_and_leaves_the_machine_on() {
+fn a_low_cell_warns_once_and_leaves_the_machine_on() {
     let power = ScriptedPower::default();
-    power.set_battery(editor::Battery { percent: 62, charging: true });
+    power.set_battery(editor::Battery { percent: 18, charging: false });
     let ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
     let mut rt = power_runtime(ed, RecStorage::default(), power.clone());
 
-    power.queue(PowerEvent::StatusAsked);
+    power.queue(PowerEvent::Low);
     rt.tick();
 
-    assert!(!power.powered_off(), "a tap must not switch the machine off");
-    assert_eq!(rt.ed.notice(), Some("battery 62% - charging"));
+    assert!(!power.powered_off(), "a warning must not switch the machine off");
+    assert_eq!(rt.ed.notice(), Some("battery 18% - plug in soon"));
 }
 
 #[test]
