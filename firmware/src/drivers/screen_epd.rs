@@ -218,6 +218,27 @@ impl<'d> Epd<'d> {
         Ok(())
     }
 
+    /// Deep sleep mode 2 (`0x10` / `0x03`) — the panel's ~2 µA state, entered on
+    /// the way into the machine's own deep sleep so the SSD1683 stops being the
+    /// biggest line on the standby budget.
+    ///
+    /// Mode 2 keeps nothing: the controller comes back only through a hardware
+    /// reset, so the next boot's `reset()` + `init()` is mandatory, not
+    /// optional. That costs nothing — every boot does both already. The image on
+    /// the glass is unaffected; e-paper holds it with no controller at all,
+    /// which is what makes the off card a power indicator.
+    pub fn sleep(&mut self) -> Result<(), EspError> {
+        self.wait_while_busy(3000)?;
+        // Both controllers — each half has its own charge pump, and a
+        // master-only `0x10` would leave the left one awake and drawing.
+        for target in [0x80u8, 0x00u8] {
+            self.cmd(0x10 | target)?;
+            self.data(&[0x03])?;
+        }
+        FreeRtos::delay_ms(10);
+        Ok(())
+    }
+
     /// Port of GxEPD2 `_InitDisplay` (B/W mode). The `0x20` master
     /// activations load the temperature value and LUT.
     pub fn init(&mut self) -> Result<(), EspError> {
@@ -630,6 +651,12 @@ impl hal::Screen for Epd<'_> {
         h: u16,
     ) -> Result<(), Self::Error> {
         Epd::display_frame_partial_window_fast(self, fb, y0, h)
+    }
+
+    fn sleep(&mut self) {
+        if let Err(e) = Epd::sleep(self) {
+            log::warn!("EPD deep sleep FAILED ({e}); the panel keeps its image regardless");
+        }
     }
 
     fn display_frame_clean(&mut self, fb: &[u8]) -> Result<(), Self::Error> {

@@ -598,6 +598,14 @@ impl<S: Screen> Panel<S> {
 
     /// Paint a static frame (the branded reboot splash) with a blocking full
     /// refresh, so it is on the panel before the caller calls `esp_restart`.
+    /// Put the panel into its deep sleep — the last step before the rails drop.
+    /// The frame [`blit_full`](Self::blit_full) just painted stays on the glass
+    /// with no controller behind it, which is what makes the off card readable
+    /// on a machine that is switched off.
+    pub fn sleep_screen(&mut self) {
+        self.screen.sleep();
+    }
+
     pub fn blit_full(&mut self, frame: &Frame) {
         let _ = self.screen.display_frame(frame.bytes());
     }

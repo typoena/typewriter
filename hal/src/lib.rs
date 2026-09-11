@@ -57,6 +57,13 @@ pub trait Screen {
         self.display_frame_partial_window(fb, y0, h)
     }
 
+    /// Put the panel into its own deep sleep, on the way into the machine's.
+    /// Whatever is on the glass stays there — e-paper is bistable — so this
+    /// costs the last painted frame nothing and takes the panel off the standby
+    /// budget. Defaults to a no-op: a panel with no such state, or a test
+    /// double, simply has nothing to do here.
+    fn sleep(&mut self) {}
+
     /// Like [`display_frame`](Screen::display_frame), but *laundering*: the
     /// panel's strongest ghost-scrubbing refresh, whatever that costs (on the
     /// e-paper driver, a panel re-init plus boot-grade full refresh, ~1.9 s).
