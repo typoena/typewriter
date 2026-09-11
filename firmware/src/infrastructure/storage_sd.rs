@@ -311,6 +311,25 @@ impl Storage {
         Ok(storage)
     }
 
+    /// Flush FatFS and release the card, ahead of dropping its 3V3 rail on the
+    /// way into deep sleep. Best-effort and logged, never fatal: the machine is
+    /// switching off either way, and the boot-time [`recover`](Self::recover)
+    /// already covers a card that lost power with a rename unflushed.
+    ///
+    /// The `Storage` is left holding a dead handle, so nothing may touch the
+    /// card afterwards — the only caller is the shutdown path, which sleeps the
+    /// chip a few milliseconds later.
+    pub fn unmount(&self) {
+        // SAFETY: `card` is the live handle from the mount; the mount point
+        // string is the same `MOUNT_C` it was mounted with.
+        let rc = unsafe { sys::esp_vfs_fat_sdcard_unmount(MOUNT_C.as_ptr(), self.card) };
+        if rc == sys::ESP_OK {
+            log::info!("SD unmounted at {MOUNT}");
+        } else {
+            log::warn!("SD unmount at {MOUNT} returned {rc}; powering the rail down anyway");
+        }
+    }
+
     /// The card's ceiling and negotiated SPI clock, in kHz (`(max, real)`).
     /// `real` is what SDSPI settled on after init and is the speed reads/writes
     /// actually run at — worth logging on the bench where wiring caps it.
