@@ -9,6 +9,11 @@ _Generated from the commit history with [git-cliff](https://git-cliff.org)._
 ## Firmware
 
 
+### [0.14.0] — 2026-09-06
+#### Added
+- **editor:** Add :link to write a markdown link from the file pick
+- **editor:** Select a written link's title so typing replaces it
+
 ### [0.13.1] — 2026-09-06
 #### Fixed
 - **render:** Full-refresh a file switch so the outgoing note stops ghosting
