@@ -41,7 +41,7 @@ what = "Cold boot path to cursor-ready: bootloader, PSRAM, SD mount, splash refr
 
 [[node]]
 id = "power"
-what = "Battery chain built and running (LiPo + TP4056 + boost + latching switch + soft-power latch); soft-power firmware, battery sense and sleep states unbuilt."
+what = "BQ25896 power path on the mainboard; soft power button and status LED on GPIOs, battery telemetry over I2C, and deep-sleep shutdown all in firmware. Light sleep, lid close and auto_sync unbuilt; no bench figures yet."
 
 [[node]]
 id = "keyboard"
@@ -210,7 +210,7 @@ holds = "Zero-computer provisioning flow, ':setup' as the same wizard prefilled,
 [[doc]]
 path = "docs/plan/v0.10-battery-and-sleep.md"
 nodes = ["power"]
-holds = "Power switch and power path decided 2026-07-26, and the chain is built: bench-verified that the latch gates the merged rail (off = dead on mains, on = boots from either source). Soft-power firmware, battery sense and sleep states still to build."
+holds = "BQ25896 power path, the GPIO power button and its LED, and the behaviour contract by state. Off = ESP32 deep sleep woken by ext0 on IO21; ship mode and the I2C watchdog are both refused, with reasons. Soft-power firmware is built; bench figures, light sleep, lid close and auto_sync are not."
 
 # Quality — how requirements are weighed.
 
