@@ -11,9 +11,9 @@ use editor::{Editor, Effect, Scope};
 
 use super::*;
 use crate::ports::{
-    Clock, ClockDispatch, ClockOutcome, FileIndex, PushDispatch, PushOutcome, PullDispatch,
-    PullOutcome, SetupDispatch, Storage, NetOutcome, NetService, System, UpdateDispatch,
-    UpdateOutcome,
+    Clock, ClockDispatch, ClockOutcome, FileIndex, Power, PowerEvent, PushDispatch, PushOutcome,
+    PullDispatch, PullOutcome, SetupDispatch, Storage, NetOutcome, NetService, System,
+    UpdateDispatch, UpdateOutcome,
 };
 use crate::render::Panel;
 
@@ -222,6 +222,60 @@ impl System for PanicSystem {
     }
 }
 
+/// Hardware with no charger on the bus and a button nobody touches — the
+/// default for every test that isn't about power.
+struct NoPower;
+impl Power for NoPower {
+    fn poll(&mut self) -> Option<PowerEvent> {
+        None
+    }
+    fn status(&self) -> Option<editor::Battery> {
+        None
+    }
+    fn power_off(&mut self) -> ! {
+        panic!("power off in test")
+    }
+}
+
+#[derive(Default)]
+struct PowerState {
+    queued: Option<PowerEvent>,
+    battery: Option<editor::Battery>,
+    powered_off: bool,
+}
+
+/// A power port a test drives: queue an event, set a reading, and read back
+/// whether the loop reached the shutdown.
+#[derive(Clone, Default)]
+struct ScriptedPower(Rc<RefCell<PowerState>>);
+impl ScriptedPower {
+    fn queue(&self, event: PowerEvent) {
+        self.0.borrow_mut().queued = Some(event);
+    }
+    fn set_battery(&self, battery: editor::Battery) {
+        self.0.borrow_mut().battery = Some(battery);
+    }
+    fn powered_off(&self) -> bool {
+        self.0.borrow().powered_off
+    }
+}
+impl Power for ScriptedPower {
+    fn poll(&mut self) -> Option<PowerEvent> {
+        self.0.borrow_mut().queued.take()
+    }
+    fn status(&self) -> Option<editor::Battery> {
+        self.0.borrow().battery
+    }
+    fn power_off(&mut self) -> ! {
+        self.0.borrow_mut().powered_off = true;
+        // The trait promises never to return and the run loop is entitled to
+        // believe it, so the double has to diverge too. A panic is the one
+        // divergence a test can catch (`shut_down`) — the same trick
+        // `PanicSystem::reboot` plays.
+        panic!("power off in test")
+    }
+}
+
 #[derive(Clone, Default)]
 struct RecFiles(Rc<RefCell<u32>>);
 impl FileIndex for RecFiles {
@@ -285,6 +339,7 @@ fn runtime(
         Box::new(sync),
         Box::new(FixedClock),
         Box::new(PanicSystem),
+        Box::new(NoPower),
         Box::new(files),
     )
 }
@@ -308,6 +363,7 @@ fn typing_runtime(
         Box::new(sync),
         Box::new(FixedClock),
         Box::new(PanicSystem),
+        Box::new(NoPower),
         Box::new(RecFiles::default()),
     )
 }
@@ -579,6 +635,7 @@ fn attach_between_boot_seed_and_runtime_start_repaints_the_kbd_flag() {
         Box::new(RecSync::new()),
         Box::new(FixedClock),
         Box::new(PanicSystem),
+        Box::new(NoPower),
         Box::new(RecFiles::default()),
     );
     let boot_paints = *screen.0.borrow();
@@ -685,6 +742,7 @@ fn rename_effect_paints_a_publishing_clue_before_the_card_work() {
         Box::new(RecSync::new()),
         Box::new(FixedClock),
         Box::new(PanicSystem),
+        Box::new(NoPower),
         Box::new(RecFiles::default()),
     );
     let before = *screen.0.borrow();
@@ -717,6 +775,7 @@ fn typed_publish_rewrites_a_subfolder_link_end_to_end() {
         Box::new(RecSync::new()),
         Box::new(FixedClock),
         Box::new(PanicSystem),
+        Box::new(NoPower),
         Box::new(WalkFiles(RefCell::new(Some(
             "/sd/repo/index.md\n/sd/repo/llm/the-file.md\n".into(),
         )))),
@@ -944,6 +1003,7 @@ fn runtime_on_clock(
         Box::new(sync),
         Box::new(clock),
         Box::new(PanicSystem),
+        Box::new(NoPower),
         Box::new(RecFiles::default()),
     )
 }
@@ -1052,6 +1112,7 @@ fn a_silent_clock_sync_costs_no_repaint() {
         Box::new(sync.clone()),
         Box::new(clock.clone()),
         Box::new(PanicSystem),
+        Box::new(NoPower),
         Box::new(RecFiles::default()),
     );
     rt.tick();
@@ -1080,6 +1141,7 @@ fn a_held_inbox_waits_for_the_card_walk_before_deciding_the_note_is_new() {
         Box::new(RecSync::new()),
         Box::new(clock.clone()),
         Box::new(PanicSystem),
+        Box::new(NoPower),
         Box::new(WalkFiles(RefCell::new(Some(INBOX_TODAY.to_string())))),
     );
 
@@ -1115,6 +1177,7 @@ fn the_note_a_held_inbox_opens_paints_itself() {
         Box::new(RecSync::new()),
         Box::new(clock.clone()),
         Box::new(PanicSystem),
+        Box::new(NoPower),
         Box::new(RecFiles::default()),
     );
 
@@ -1250,4 +1313,95 @@ fn up_to_date_update_does_not_reboot() {
         runtime(Editor::new(), RecStorage::default(), RecSync::new(), RecFiles::default());
     rt.handle_net_outcome(NetOutcome::Update(UpdateOutcome::UpToDate("0.7.7".into())));
     rt.handle_net_outcome(NetOutcome::Update(UpdateOutcome::Failed("no wifi".into())));
+}
+
+// ─── Power ────────────────────────────────────────────────────────────────────
+
+/// Build a runtime over a scripted power port, everything else defaulted.
+fn power_runtime(ed: Editor, storage: RecStorage, power: ScriptedPower) -> Runtime<MockScreen> {
+    let mut ed = ed;
+    let panel = Panel::new(MockScreen, &mut ed).expect("first paint");
+    Runtime::new(
+        ed,
+        panel,
+        Box::new(NoKeyboard),
+        Box::new(storage),
+        Box::new(RecSync::new()),
+        Box::new(FixedClock),
+        Box::new(PanicSystem),
+        Box::new(power),
+        Box::new(RecFiles::default()),
+    )
+}
+
+#[test]
+fn a_held_button_saves_the_buffer_before_it_cuts_power() {
+    // The whole point of a soft power button: the card is current by the time the
+    // rails drop. The Save must land in the same pass as the shutdown, since no
+    // further pass is coming.
+    let storage = RecStorage::default();
+    let power = ScriptedPower::default();
+    let mut ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    ed.handle(hal::Key::Char('i'));
+    ed.handle(hal::Key::Char('h'));
+    ed.handle(hal::Key::Escape);
+    let mut rt = power_runtime(ed, storage.clone(), power.clone());
+
+    power.queue(PowerEvent::OffAsked);
+    shut_down(&mut rt);
+
+    assert!(power.powered_off(), "a held button must reach the shutdown");
+    assert_eq!(
+        storage.0.borrow().saves.first().map(|(p, _)| p.clone()),
+        Some("/sd/repo/notes.md".to_string()),
+        "the dirty buffer must be on the card before the rails drop"
+    );
+}
+
+/// Drive one tick that is expected to end in [`ScriptedPower::power_off`], and
+/// swallow the divergence it panics with.
+fn shut_down(rt: &mut Runtime<MockScreen>) {
+    let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| rt.tick()));
+    assert!(caught.is_err(), "the tick was expected to reach power_off");
+}
+
+#[test]
+fn a_tapped_button_reports_the_charge_and_leaves_the_machine_on() {
+    let power = ScriptedPower::default();
+    power.set_battery(editor::Battery { percent: 62, charging: true });
+    let ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    let mut rt = power_runtime(ed, RecStorage::default(), power.clone());
+
+    power.queue(PowerEvent::StatusAsked);
+    rt.tick();
+
+    assert!(!power.powered_off(), "a tap must not switch the machine off");
+    assert_eq!(rt.ed.notice(), Some("battery 62% - charging"));
+}
+
+#[test]
+fn a_flat_cell_shuts_down_on_its_own() {
+    // Nobody is at the keyboard when this fires, so the loop has to do the whole
+    // sequence itself — the alternative is a brownout mid-write.
+    let power = ScriptedPower::default();
+    power.set_battery(editor::Battery { percent: 2, charging: false });
+    let ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    let mut rt = power_runtime(ed, RecStorage::default(), power.clone());
+
+    power.queue(PowerEvent::Critical);
+    shut_down(&mut rt);
+
+    assert!(power.powered_off(), "a critical cell must reach the shutdown");
+}
+
+#[test]
+fn the_cell_reading_reaches_the_panel() {
+    let power = ScriptedPower::default();
+    let ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    let mut rt = power_runtime(ed, RecStorage::default(), power.clone());
+
+    power.set_battery(editor::Battery { percent: 17, charging: false });
+    rt.tick();
+
+    assert_eq!(rt.ed.battery().map(|b| b.percent), Some(17));
 }

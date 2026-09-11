@@ -103,6 +103,17 @@ impl Frame {
         Self::branded("restarting...")
     }
 
+    /// The off card, painted just before the rails drop — the machine's power
+    /// indicator. E-paper is bistable, so this frame survives with no supply
+    /// behind it: the wordmark plus "off" on screen *is* how a powered-down
+    /// Typoena says so, and any other frame means it is awake.
+    ///
+    /// It names the way back, because there is no other affordance: the button
+    /// is the only thing that boots the device out of deep sleep.
+    pub fn power_off() -> Self {
+        Self::branded("off - press to wake")
+    }
+
     /// The boot splash for the first boot after an OTA `:update`, shown in place
     /// of [`splash`](Self::splash) while the new image is still in the
     /// bootloader's pending-verify state.

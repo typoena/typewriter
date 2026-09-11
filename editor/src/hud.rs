@@ -23,8 +23,9 @@ impl Editor {
     ///   a trailing `*` when the buffer has unsaved edits.
     /// * **Sync** (below the file tier, after a gap): a `Local` flag when the
     ///   buffer never leaves the device (`Tracked` is the silent default) and a
-    ///   `Syncing` flag while a push/pull is in flight, and beneath them the
-    ///   transient push/pull/save `notice` ("snackbar") when one is present.
+    ///   `Syncing` flag while a push/pull is in flight, then the cell charge when
+    ///   it is low or charging, and beneath them the transient push/pull/save
+    ///   `notice` ("snackbar") when one is present.
     /// * **Vim** (bottom-anchored): the focus marker, the mode indicator +
     ///   pending-command echo, and a keyboard-disconnect flag / snippet hint just
     ///   above the mode line.
@@ -108,13 +109,26 @@ impl Editor {
                 .infallible();
         }
 
+        // Cell charge, one row under the flags — and only when it has something
+        // to say (charging, or under `Battery::LOW_PERCENT`). A healthy cell on
+        // no cable draws nothing, so the row costs the tiers below it only while
+        // the writer would want it: the notice and Typo's face both start one
+        // row lower whenever it shows.
+        let battery_row = self.battery.and_then(Battery::panel_row);
+        if let Some(row) = &battery_row {
+            Text::with_baseline(row, Point::new(PANEL_X, scope_y + PANEL_CH), style, Baseline::Top)
+                .draw(f)
+                .infallible();
+        }
+        let battery_rows = i32::from(battery_row.is_some());
+
         // Transient notice ("snackbar") directly under the scope: the last
         // save/push/pull result. Word-wrapped to the panel width (so a message
         // like "save FAILED - retry :w" keeps its actionable tail instead of
         // clipping mid-word) and capped at a few lines; cleared on the next
         // keystroke.
         if let Some(msg) = &self.notice {
-            let notice_top = scope_y + PANEL_CH;
+            let notice_top = scope_y + (1 + battery_rows) * PANEL_CH;
             for (i, line) in wrap_text(msg, PANEL_COLS)
                 .into_iter()
                 .take(NOTICE_MAX_LINES)
@@ -140,7 +154,7 @@ impl Editor {
                 .notice
                 .as_ref()
                 .map_or(0, |m| wrap_text(m, PANEL_COLS).len().min(NOTICE_MAX_LINES));
-            let notice_end = scope_y + (1 + notice_rows as i32) * PANEL_CH;
+            let notice_end = scope_y + (1 + battery_rows + notice_rows as i32) * PANEL_CH;
             if notice_end <= FACE_Y {
                 let empty = self.text.is_empty();
                 // A pinned `face` pref wins outright — preview a mood, or keep a

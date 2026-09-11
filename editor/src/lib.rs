@@ -226,6 +226,35 @@ pub struct Date {
     pub day: u32,
 }
 
+/// Cell charge as the host's charger driver reads it, fed by
+/// [`set_battery`](Editor::set_battery) — the pure core has no ADC. `None`
+/// until the first reading lands, and for the whole session when no charger
+/// answered on the I2C bus.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Battery {
+    /// State of charge, 0–100.
+    pub percent: u8,
+    /// Whether the charger is putting current into the cell right now.
+    pub charging: bool,
+}
+
+impl Battery {
+    /// Below this, the panel row earns its place even on a healthy charge — the
+    /// point where the writer should start looking for a cable.
+    pub const LOW_PERCENT: u8 = 30;
+
+    /// The panel row for this reading, or `None` when there is nothing worth a
+    /// row: a cell above [`LOW_PERCENT`](Self::LOW_PERCENT) that is not
+    /// charging is the uninteresting case, and the panel stays bare.
+    pub fn panel_row(self) -> Option<String> {
+        match (self.charging, self.percent < Self::LOW_PERCENT) {
+            (true, _) => Some(format!("batt {}% chg", self.percent)),
+            (false, true) => Some(format!("batt {}%", self.percent)),
+            (false, false) => None,
+        }
+    }
+}
+
 impl Date {
     /// `YYYY-MM-DD` — the fleeting note's filename stem. ISO field order means a
     /// plain path sort is chronological, which is what [`open_oldest_inbox`]
@@ -331,6 +360,13 @@ pub enum Effect {
     /// of this, so the host flushes them before the reset); a dirty *unnamed*
     /// scratch buffer has nowhere to save and blocks the reboot instead.
     Reboot,
+    /// The power button, held — shut the machine down. Like
+    /// [`Reboot`](Effect::Reboot) the editor auto-saves every named dirty buffer
+    /// ahead of this, and the host paints the off card before it cuts power; the
+    /// difference is that nothing comes back up until the button is pressed
+    /// again. No y/n rides in front of it: the writer already held a physical
+    /// button for two seconds, which is the confirmation.
+    PowerOff,
     /// `:update` (or `> update`) — ask the release manifest whether a newer
     /// firmware exists. Downloads nothing and touches no OTA slot: a newer
     /// release comes back as [`UpdateOutcome::Available`], which the host hands
@@ -404,6 +440,10 @@ pub struct Editor {
     /// Whether a USB keyboard is attached; drives the panel disconnect flag.
     /// Fed from `usb_kbd::keyboard_present()` by the main loop.
     keyboard_present: bool,
+    /// The last cell reading the host fed in ([`set_battery`](Editor::set_battery)),
+    /// drawn as a panel row only when it has something to say (see
+    /// [`Battery::panel_row`]). `None` on a board with no charger on the bus.
+    battery: Option<Battery>,
     /// Transient side-panel message ("snackbar") — the last host event
     /// (save/push result). Shown until the next keystroke dismisses it
     /// (cleared in [`Editor::handle`]); `None` means nothing to show.
@@ -637,6 +677,7 @@ impl Editor {
             last_search: String::new(),
             shown_words: 0,
             keyboard_present: false,
+            battery: None,
             notice: None,
             net_flag: None,
             prefs: Prefs::default(),
@@ -835,6 +876,19 @@ impl Editor {
     /// `Runtime::new` for why it must not re-read the hardware instead).
     pub fn keyboard_present(&self) -> bool {
         self.keyboard_present
+    }
+
+    /// Feed the editor the latest cell reading (for the panel row). `None` keeps
+    /// the row off — what a board with no charger on the bus passes forever.
+    pub fn set_battery(&mut self, battery: Option<Battery>) {
+        self.battery = battery;
+    }
+
+    /// The reading as last fed via [`Self::set_battery`] — i.e. what the painted
+    /// frame shows. Read by the runtime's repaint diff, for the same reason
+    /// [`Self::keyboard_present`] is.
+    pub fn battery(&self) -> Option<Battery> {
+        self.battery
     }
 
     /// Feed the editor today's date from the host clock — the pure core has none.
@@ -1739,6 +1793,24 @@ impl Editor {
             return;
         }
         self.requests.push(Effect::Reboot);
+    }
+
+    /// The power button, held past its long-press threshold — the host calls
+    /// this, then services the [`PowerOff`](Effect::PowerOff) it queues. Saves
+    /// every *named* dirty buffer first, exactly as
+    /// [`do_reboot`](Self::do_reboot) does, so the card is current before the
+    /// rails drop.
+    ///
+    /// An unnamed dirty scratch has nowhere to save, so it refuses and stays on
+    /// — the same contract `:reboot` holds. The machine not switching off is the
+    /// lesser surprise: the text is still on the panel, and the notice says what
+    /// to do about it.
+    pub fn request_power_off(&mut self) {
+        if !self.try_save_all_dirty() {
+            self.set_notice("unnamed buffer - name it first");
+            return;
+        }
+        self.requests.push(Effect::PowerOff);
     }
 
     /// The host calls this when a bare `:gl` found saved-but-unpushed work in

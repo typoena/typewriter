@@ -229,3 +229,48 @@ fn long_command_line_stays_out_of_the_side_panel() {
     }
     assert_eq!(panel_region(&e.draw(true)), clean);
 }
+
+// ─── Battery row ──────────────────────────────────────────────────────────────
+
+#[test]
+fn battery_row_only_appears_when_low_or_charging() {
+    use crate::Battery;
+    assert_eq!(Battery { percent: 78, charging: false }.panel_row(), None);
+    assert_eq!(
+        Battery { percent: 78, charging: true }.panel_row().as_deref(),
+        Some("batt 78% chg")
+    );
+    assert_eq!(
+        Battery { percent: 18, charging: false }.panel_row().as_deref(),
+        Some("batt 18%")
+    );
+    // Low *and* charging reads as charging — the cable is the answer to both.
+    assert_eq!(
+        Battery { percent: 18, charging: true }.panel_row().as_deref(),
+        Some("batt 18% chg")
+    );
+}
+
+#[test]
+fn a_healthy_cell_leaves_the_panel_untouched() {
+    // The row is the only thing the reading may draw, so a cell with nothing to
+    // say must paint the exact same panel as a board with no charger at all.
+    let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    let bare = panel_region(&e.draw(true));
+    e.set_battery(Some(crate::Battery { percent: 78, charging: false }));
+    assert_eq!(panel_region(&e.draw(true)), bare);
+    e.set_battery(Some(crate::Battery { percent: 18, charging: false }));
+    assert_ne!(panel_region(&e.draw(true)), bare, "a low cell must show");
+}
+
+#[test]
+fn the_battery_row_pushes_the_notice_down_instead_of_overprinting_it() {
+    // Both live in the sync tier; the notice starts one row lower when the cell
+    // row is up, so the two never share pixels.
+    let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    e.set_notice("saved");
+    let notice_only = panel_region(&e.draw(true));
+    e.set_notice("saved");
+    e.set_battery(Some(crate::Battery { percent: 18, charging: false }));
+    assert_ne!(panel_region(&e.draw(true)), notice_only);
+}

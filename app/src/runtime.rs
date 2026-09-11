@@ -19,13 +19,13 @@ use std::collections::VecDeque;
 use std::time::Instant;
 
 use display::Frame;
-use editor::{Editor, Effect, Mode, NetFlag, Prefs, PullIntent, Scope, PREFS_PATH, REPO_DIR};
+use editor::{Battery, Editor, Effect, Mode, NetFlag, Prefs, PullIntent, Scope, PREFS_PATH, REPO_DIR};
 use hal::{Keyboard, Screen};
 
 use crate::ports::{
-    Clock, ClockDispatch, ClockOutcome, FileIndex, PushDispatch, PushOutcome, PullDispatch,
-    PullOutcome, SetupDispatch, Storage, NetOutcome, NetService, System, UpdateDispatch,
-    UpdateOutcome,
+    Clock, ClockDispatch, ClockOutcome, FileIndex, Power, PowerEvent, PushDispatch, PushOutcome,
+    PullDispatch, PullOutcome, SetupDispatch, Storage, NetOutcome, NetService, System,
+    UpdateDispatch, UpdateOutcome,
 };
 use crate::render::{FocusTimer, Panel};
 
@@ -51,6 +51,7 @@ pub struct Runtime<S: Screen> {
     net: Box<dyn NetService>,
     clock: Box<dyn Clock>,
     system: Box<dyn System>,
+    power: Box<dyn Power>,
     files: Box<dyn FileIndex>,
     /// Focus-mode (Pomodoro) block timer — off until `:focus`.
     focus: FocusTimer,
@@ -69,6 +70,15 @@ pub struct Runtime<S: Screen> {
     /// read by the idle branch's kbd-flag repaint).
     kbd: bool,
     kbd_changed: bool,
+    /// Whether this pass's cell reading changes the panel's battery row (see
+    /// [`Battery::panel_row`]) — the idle branch repaints on it, the way it does
+    /// for the keyboard flag. Diffed on the *row*, not the percent, so the panel
+    /// is driven when the writer would see something different, not every time
+    /// the charge ticks by one.
+    power_changed: bool,
+    /// A power-button notice is waiting for a paint nobody will otherwise ask
+    /// for: a press arrives with no keystroke behind it.
+    power_noticed: bool,
     /// Dispatched push/pull/update operations whose outcome is still
     /// outstanding, oldest first — the git thread takes an unbounded request
     /// queue, so a `:gl` dispatched behind a `:gs` overlaps it and the push's
@@ -99,6 +109,7 @@ impl<S: Screen> Runtime<S> {
         net: Box<dyn NetService>,
         clock: Box<dyn Clock>,
         system: Box<dyn System>,
+        power: Box<dyn Power>,
         files: Box<dyn FileIndex>,
     ) -> Self {
         // A cold boot has no date (no battery-backed RTC) and `:inbox` needs one,
@@ -130,6 +141,7 @@ impl<S: Screen> Runtime<S> {
             net,
             clock,
             system,
+            power,
             files,
             focus: FocusTimer::default(),
             last_activity: Instant::now(),
@@ -138,6 +150,8 @@ impl<S: Screen> Runtime<S> {
             last_kbd,
             kbd: last_kbd,
             kbd_changed: false,
+            power_changed: false,
+            power_noticed: false,
             net_in_flight: VecDeque::new(),
             pending_discard: Vec::new(),
         }
@@ -174,6 +188,13 @@ impl<S: Screen> Runtime<S> {
         let prev_mode = self.ed.mode();
         let keys = self.drain_keys();
 
+        // Ahead of `service_effects`, so a held button's Save + PowerOff drain in
+        // this same pass rather than waiting on the next keystroke — which, on a
+        // machine being switched off, may never come.
+        if let Some(event) = self.power.poll() {
+            self.handle_power_event(event);
+        }
+
         // Service the effects the batch queued, draining to empty: servicing a
         // Load can itself queue an eviction Save that must be persisted now.
         self.service_effects();
@@ -190,6 +211,13 @@ impl<S: Screen> Runtime<S> {
         self.ed.set_keyboard_present(self.kbd);
         self.kbd_changed = self.kbd != self.last_kbd;
         self.last_kbd = self.kbd;
+
+        // The cell reading feeds the panel's battery row. Diffed through the row
+        // itself, so a charge ticking 78 → 77 with the row hidden costs nothing.
+        let battery = self.power.status();
+        self.power_changed =
+            battery.and_then(Battery::panel_row) != self.ed.battery().and_then(Battery::panel_row);
+        self.ed.set_battery(battery);
 
         // A git operation reports here on *every* pass, not only an idle one: a
         // batch repaint is most of a second of e-paper drive, so at typing speed
@@ -336,6 +364,17 @@ impl<S: Screen> Runtime<S> {
                 self.panel.blit_full(&Frame::reboot());
                 self.system.reboot();
             }
+            Effect::PowerOff => {
+                // The off card is the power indicator: e-paper holds it with the
+                // rails down, so "sleeping wordmark on screen" is how the machine
+                // says it is off. Painted last, after the editor's saves have
+                // drained above, and with a blocking full refresh — `power_off`
+                // takes the panel's supply away the instant it returns.
+                log::info!("power off — painting the off card, then sleeping");
+                self.panel.blit_full(&Frame::power_off());
+                self.panel.sleep_screen();
+                self.power.power_off();
+            }
             // Non-blocking, like Push: the manifest fetch runs on the radio-owning
             // thread while the editor keeps running, and the outcome returns via
             // `poll_outcome` in `tick`. A newer release comes back as `Available`
@@ -418,6 +457,16 @@ impl<S: Screen> Runtime<S> {
         if self.panel.kbd_repaint(&mut self.ed, self.kbd_changed, self.kbd) {
             return;
         }
+        // A button press carries no keystroke, so nothing else would paint what
+        // it had to say.
+        if std::mem::take(&mut self.power_noticed) {
+            self.panel.show_notice(&mut self.ed);
+            return;
+        }
+        // A cable going in, or the charge crossing into the row's range, likewise.
+        if self.power_changed && self.panel.repaint_if_changed(&mut self.ed) {
+            return;
+        }
         // save_on_idle: once input has paused, quietly persist a dirty named
         // buffer. Silent — no snackbar, no forced flash. Fires once per idle
         // window, so a failing save can't busy-loop. Falls through afterwards.
@@ -462,6 +511,38 @@ impl<S: Screen> Runtime<S> {
         }
         if !self.panel.caret_if_due(&mut self.ed, self.last_activity) {
             self.clock.idle_yield();
+        }
+    }
+
+    /// Route one [`PowerEvent`]. Both shutdown causes go through the editor's
+    /// [`request_power_off`](Editor::request_power_off), so the button and a flat
+    /// cell save and refuse on exactly the same terms; the notices are painted by
+    /// the idle branch, which `power_noticed` sends there.
+    fn handle_power_event(&mut self, event: PowerEvent) {
+        self.power_noticed = true;
+        match event {
+            PowerEvent::StatusAsked => {
+                let msg = match self.power.status() {
+                    Some(b) if b.charging => format!("battery {}% - charging", b.percent),
+                    Some(b) => format!("battery {}%", b.percent),
+                    None => "no battery gauge".to_string(),
+                };
+                self.ed.set_notice(msg);
+            }
+            PowerEvent::Low => {
+                let pct = self.power.status().map_or(0, |b| b.percent);
+                log::warn!("battery low ({pct}%)");
+                self.ed.set_notice(format!("battery {pct}% - plug in soon"));
+            }
+            PowerEvent::OffAsked => {
+                log::info!("power button held — shutting down");
+                self.ed.request_power_off();
+            }
+            PowerEvent::Critical => {
+                log::warn!("battery critical — shutting down to save the note");
+                self.ed.set_notice("battery empty - saving and powering off");
+                self.ed.request_power_off();
+            }
         }
     }
 

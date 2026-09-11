@@ -3,6 +3,7 @@ use std::rc::Rc;
 use esp_idf_svc::hal::cpu::Core;
 use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::gpio::{AnyIOPin, PinDriver, Pull};
+use esp_idf_svc::hal::i2c::{config::Config as I2cConfig, I2cDriver};
 use esp_idf_svc::hal::peripherals::Peripherals;
 use esp_idf_svc::hal::spi::config::{Config, DriverConfig};
 use esp_idf_svc::hal::spi::{Dma, SpiBusDriver, SpiDriver};
@@ -12,8 +13,10 @@ use esp_idf_svc::hal::task::thread::ThreadSpawnConfiguration;
 use app::{FileIndex, Panel, Runtime};
 use display::Frame;
 use editor::{Editor, Prefs, Scope, Snippets, LOCAL_DIR, PREFS_PATH, SNIPPETS_PATH};
+use firmware::drivers::bq25896::Bq25896;
 use firmware::drivers::clock_esp::{self, EspClock};
 use firmware::drivers::keyboard_usb as usb_kbd;
+use firmware::drivers::power_esp::{EspPower, Rails};
 use firmware::drivers::screen_epd::Epd;
 use firmware::drivers::system_esp::EspSystem;
 use firmware::infrastructure::file_index::EspFileWalk;
@@ -39,6 +42,12 @@ fn main() -> anyhow::Result<()> {
 
     let peripherals = Peripherals::take()?;
     let pins = peripherals.pins;
+
+    // FIRST: the two switched rails (uSD 3V3 on IO40, keyboard 5V on IO41) and
+    // the button LED (IO38). Both enables carry a pulldown, so the card and the
+    // keyboard are dead hardware until this runs — before the SD mount and
+    // before `usb_kbd::start`, not merely early.
+    let rails = Rails::bring_up(pins.gpio40, pins.gpio41, pins.gpio38)?;
 
     // Positional arg order: SCK 12 · MOSI 11. CS 7 · DC 6 · RST 5 · BUSY 4 below.
     let spi = SpiDriver::new(
@@ -243,6 +252,28 @@ fn main() -> anyhow::Result<()> {
     // Every adapter below runs on this single UI task, so `Rc` (not `Arc`) is enough.
     let card = Rc::new(storage);
 
+    // The charger, on the I2C bus it shares with the expansion header. A board
+    // that doesn't answer is not fatal — the machine runs with no battery
+    // telemetry and a button that still works, which is exactly the bench rig.
+    let charger = match I2cDriver::new(
+        peripherals.i2c0,
+        pins.gpio17,
+        pins.gpio18,
+        &I2cConfig::new().baudrate(400.kHz().into()),
+    ) {
+        Ok(bus) => Bq25896::new(bus)
+            .inspect_err(|e| {
+                log::warn!("no charger answered on I2C ({e}); running without battery telemetry")
+            })
+            .ok(),
+        Err(e) => {
+            log::warn!("I2C bus bring-up FAILED ({e}); running without battery telemetry");
+            None
+        }
+    };
+    let power: Box<dyn app::Power> =
+        Box::new(EspPower::new(rails, pins.gpio21, charger, card.clone())?);
+
     let net: Box<dyn app::NetService> =
         Box::new(NetService::new(card.clone(), net_tx, net_rx));
     let system: Box<dyn app::System> = Box::new(EspSystem(card.clone()));
@@ -257,6 +288,7 @@ fn main() -> anyhow::Result<()> {
         net,
         Box::new(EspClock),
         system,
+        power,
         Box::new(files),
     );
 

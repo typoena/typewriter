@@ -929,3 +929,40 @@ fn publish_hands_the_host_the_non_resident_md_files() {
             if *retarget == vec!["/sd/local/journal.md".to_string(), "/sd/repo/a.md".to_string()]
     ));
 }
+
+#[test]
+fn power_button_shuts_down_without_a_prompt() {
+    // The held button IS the confirmation, so unlike `:reboot` nothing is asked:
+    // one call, one PowerOff.
+    let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    e.request_power_off();
+    assert_eq!(kinds(&e.take_effects()), vec![Kind::PowerOff]);
+}
+
+#[test]
+fn power_button_autosaves_a_dirty_buffer_before_cutting_power() {
+    // Same ordering contract as `:reboot`: the Save is queued ahead so the host
+    // flushes it to the card before the rails drop.
+    let mut e = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
+    e.handle(Key::Char('i'));
+    send(&mut e, "hi");
+    e.handle(Key::Escape);
+    e.request_power_off();
+    assert_eq!(kinds(&e.take_effects()), vec![Kind::Save, Kind::PowerOff]);
+}
+
+#[test]
+fn power_button_refuses_an_unsaved_unnamed_buffer() {
+    // Nowhere to save the scratch text, so the machine stays on and says why.
+    let mut e = Editor::with_text(String::new());
+    e.handle(Key::Char('i'));
+    send(&mut e, "hi");
+    e.handle(Key::Escape);
+    e.request_power_off();
+    assert!(e.take_effects().is_empty(), "must not power off over unsaved text");
+    assert!(
+        e.notice.as_deref().unwrap_or_default().contains("unnamed"),
+        "expected an unnamed-buffer notice, got {:?}",
+        e.notice
+    );
+}
