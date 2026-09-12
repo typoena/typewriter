@@ -32,11 +32,11 @@ $fn = 20;
 // ---- what this model is ---------------------------------------------------
 // NOMINAL GEOMETRY ONLY. Every dimension below is the part as it must END UP,
 // and every clearance is the functional gap wanted on the finished assembly.
-// The machine's own errors — XY over-extrusion, shrink — are NOT modelled here
-// and must not be: they belong to the process, not to the part, and they are
-// corrected in the slicer. The settings, their measured values and how to
-// re-measure them are in MANUFACTURING.md, which is required reading before
-// any print. A part sliced without them will not assemble.
+// The machine's own error — XY over-extrusion — is NOT modelled here and must
+// not be: it belongs to the process, not to the part, and it is corrected in the
+// slicer. The setting, its measured value and how to re-measure it are in
+// MANUFACTURING.md, which is required reading before any print. A part sliced
+// without it will not assemble.
 
 // ---- fasteners ------------------------------------------------------------
 // ONE family for everything that screws into the BODY: a ruthex RX-6-32x3.8
@@ -52,9 +52,9 @@ $fn = 20;
 // get OPENED — the baseplate every time the machine is serviced, the bracket
 // every time the glass comes out. A self-tapped thread in PLA is good for a
 // handful of cycles and then it is a stripped hole in a 10-hour print.
-// The PCBs are NOT in this family: they screw DOWN into the baseplate, whose
-// standoffs are 5 mm tall — nowhere near an insert's depth. They stay M2
-// self-tappers into Ø1.6 pilots, DRILLED not printed (see standoff_pilot).
+// The BOARD is in this family too: its four Ø3.7 holes are a #6-32 clearance and
+// it screws down into an insert in each standoff, so nothing in the machine is a
+// self-tapped thread and nothing on the baseplate has to be drilled.
 ins_hole_d  = 4.8;   // hole the datasheet asks for. The insert melts its own seat,
                      // so this is not a clearance fit — the brass must grip what it
                      // is pressed into.
@@ -92,9 +92,10 @@ D        = 104;   // depth  (Y)  — front (keyboard) .. back (ports)
 // The two heights MOVE AS A PAIR: theta is their difference over the pillar span,
 // so shifting both by the same amount translates the whole deck plane vertically
 // and leaves the recline, deck_L, screen_cy and the entire screen clamp untouched.
-// That is what the +4 over the original 24/58 bought — headroom over PCB 1's front
-// edge: +2 because turning the board on end had cut it to 0.75, +2 more because
-// the wiring bay under the boards took standoff_h from 3 to 5. See standoff_h.
+// Raising Hf alone flattens the deck by ~1 mm per degree. What they have to buy
+// is ceiling over the board's front edge, which is asserted at pcb_ceiling — the
+// board stack clears by 19 mm here, so this pair is free to come down if a
+// shorter machine is ever wanted.
 // In the kb variant Hf is also the bay/cavity SHARED WALL, so Hk and kb_post_h
 // must move with it or the top keycap row sinks into the wall — see README-kb.md.
 Hf       = 28;    // height at the FRONT edge
@@ -216,184 +217,178 @@ boss_xy  = [[boss_x_l, -boss_y], [boss_x_l, boss_y],
 br_ml = 5.5;   // LEFT margin
 br_m  = 9;     // the other three
 
-// ---- mounting, boards & battery (defined here: the ports below depend on it)
+// ---- mounting, board & battery (defined here: the ports below depend on it)
 bp_t           = 2.6;    // baseplate thickness
-standoff_h     = 5;      // board standoff height — also the WIRING BAY under both
-                         // boards. PCB 1's FRONT edge is the tight spot in the
-                         // whole cavity: the ceiling is 32.35 there (see pcb1_y0),
-                         // so the 22 mm stack clears by 2.75, and only because
-                         // Hf/Hb carry +4 for exactly this. Asserted below.
-standoff_pilot = 1.6/2;  // pilot Ø1.6 for an M2 self-tapper (PCB holes are Ø2).
-                         // The last self-tapped thread in the model — everything
-                         // screwing into the BODY takes a heat-set insert now.
-                         // NOT MODELLED, like the baseplate screws: the standoffs
-                         // print SOLID and the 8 pilots are DRILLED. A Ø1.6 hole is
-                         // 2-3 perimeters wide, so the printer rounds it to whatever
-                         // its extrusion width allows and the self-tapper meets a
-                         // hole of unknown size. A bit cuts 1.6. The number still
-                         // sizes the model: the standoff's Ø6 pad is 2.2 mm of wall
-                         // around it. See README, "Drilling the baseplate".
 pcb_t          = 1.6;    // PCB thickness (for port-height maths)
-// PCB 1 = ESP32 devkit + e-ink driver + MT3608 boost. 50(X) x 70(Y), back-LEFT,
-// long axis running FRONT-BACK. Standing it up out of the old 70(X) x 50(Y) is
-// what buys the screen ribbon its run: the board's FPC end now lands at the
-// front-left, directly under the FRONT end of the deck slot (world y 27..61), and
-// the front-left volume ahead of it — which the battery used to cross — is the
-// flex's plenum. The header/Dupont side comes to rest on the BACK edge, so the
-// 22 mm vertical F-F jumpers stay under the tall rear of the wedge and the ribbon
-// to PCB 2 stays short. Rigid board is only 10 mm; 22 mm is the jumpers.
-// Its own USB-C is reached by opening the case — no wall cutout.
-pcb1_x0 = 4;             pcb1_x1 = pcb1_x0 + 50;   // X  4 .. 54
-// Y 26 .. 96. Both ends are hard against something: the back edge keeps 5.6 mm
-// for the ribbon to leave, and the front edge is where the wedge's ceiling
-// (32.35) comes closest to the 22 mm stack — see standoff_h.
-pcb1_y0 = 26;            pcb1_y1 = pcb1_y0 + 70;
-pcb1_h  = 22;            // tallest point (rigid stack + vertical Dupont)
-// PCB 2 = µSD + 2x USB-C + TP4056. 80(X) x 20(Y), along the BACK wall, right end;
-// connectors overhang its back edge by 8 mm to meet the wall.
-pcb2_x1 = W - wall - 6;  pcb2_x0 = pcb2_x1 - 80;   // X ~87.6 .. 167.6
-pcb2_y1 = D - wall - 8;  pcb2_y0 = pcb2_y1 - 20;   // back edge 8 mm off the wall
-pcb2_h  = 8;             // tallest point (µSD cage / USB-C shells) — the power
-                         // button barrel has to clear this, see pwr_z
-// corner holes, centres 2 mm in from each edge (Ø2 hole, 1 mm pad)
-pcb1_holes = [[pcb1_x0+2,pcb1_y0+2],[pcb1_x1-2,pcb1_y0+2],
-              [pcb1_x0+2,pcb1_y1-2],[pcb1_x1-2,pcb1_y1-2]];
-pcb2_holes = [[pcb2_x0+2,pcb2_y0+2],[pcb2_x1-2,pcb2_y0+2],
-              [pcb2_x0+2,pcb2_y1-2],[pcb2_x1-2,pcb2_y1-2]];
-// LiPo 3700 mAh (94 x 32 x 10.3), flat in the FRONT-RIGHT — the void inside the
-// L the two boards make (PCB 1 down the left, PCB 2 across the back). Shallow
-// wedge space the board stack can't use, CG low + forward, leads out to the
-// charger on PCB 2. Cell measured.
-// NOT centred on the case any more: the front-LEFT corner it used to cross is the
-// screen ribbon's plenum, and that is the whole point of the layout.
-// The cage is NOT symmetric. It is a WALL at the cell's left end and two NIBS at its
-// mid-length: the cell goes in from the right, passes between the nibs — which only
-// hold it in Y — and slides left until it stops on the wall. The v1 four-corner
-// version was replaced because the two left nibs printed poorly and located nothing
-// the wall does not locate better.
+
+// ---- the mainboard --------------------------------------------------------
+// ONE board carries the machine. Its outline, hole grid and connector positions
+// are read off hardware/pcb/devboard/typoena-devboard.kicad_pcb: every number
+// below that describes the board is the board's own, and the case follows it.
+// The four Ø3.7 holes are a #6-32 clearance, so the board joins the case's one
+// fastener family — it screws DOWN into a heat-set insert in each standoff.
+// HAZARD: the board goes in TURNED. KiCad's canvas has Y pointing DOWN, so the
+// port edge is drawn at the BOTTOM; laying the board in with its ports at the
+// BACK is a 180° turn in plan, and every X then reads from the other end. Every
+// board-local X below is therefore `u = 116 - kicad_x`, measured from the
+// board's LEFT edge AS INSTALLED — take one straight off the canvas and the
+// whole cluster comes out mirrored. Y needs no such care: `kicad_y - 40` is the
+// distance back from the board's front edge either way.
+pcb_w       = 99;   pcb_d = 45;   pcb_r = 3;   // outline, corner radius
+pcb_hole_in = 5;    // hole centres, in from both edges at all four corners
+// The ESP32-S3-DevKitC-1 plugs into the two 1x22 rows and lies flat over the
+// board's right half. It is the tallest thing in the cavity and the only part of
+// the stack the PCB file does not carry — caliper it on the assembled board.
+hdr_mate    = 8.5;  // 2.54 socket: board face -> devkit underside
+devkit_t    = 1.6;
+devkit_top  = 3.4;  // the WROOM-1 can, and the devkit's own USB shells under it
+pcb_h       = hdr_mate + devkit_t + devkit_top;   // 13.5 over the board face
+devkit_w    = 63;   devkit_d = 25.5;              // the devkit's own outline,
+devkit_cu   = 69.83; devkit_cy = 22.53;           // centred on its header rows
+                    // (board-local). Its antenna end overhangs the board's RIGHT
+                    // edge by 2.33 mm — the widest the assembly ever gets, and
+                    // what the power switch has to clear.
+
+// Placement in Y is set by the ports: the USB-C shells stand usbc_proud past the
+// board's back edge and must reach INTO the wall opening, so the board is pushed
+// back until only pcb_gap_wall is left.
+pcb_gap_wall = 0.8;
+pcb_y1 = D - wall - pcb_gap_wall;   // back (port) edge  -> 100.8
+pcb_y0 = pcb_y1 - pcb_d;            // front edge        -> 55.8
+// X is as far LEFT as the back-left baseplate boss allows (asserted). J4 — the
+// FFC that takes the panel — sits at the board's LEFT end (u 2…7.3) and the
+// panel's flex drops through the deck slot at x 3.8…13.8: the two want to be as
+// near each other as the boss lets them.
+pcb_x0 = 18;
+pcb_x1 = pcb_x0 + pcb_w;            // 117
+pcb_holes = [[pcb_x0+pcb_hole_in, pcb_y0+pcb_hole_in],
+             [pcb_x1-pcb_hole_in, pcb_y0+pcb_hole_in],
+             [pcb_x0+pcb_hole_in, pcb_y1-pcb_hole_in],
+             [pcb_x1-pcb_hole_in, pcb_y1-pcb_hole_in]];
+
+// ---- standoffs ------------------------------------------------------------
+// The board's four feet, on the baseplate. They carry a heat-set insert like
+// every other joint that gets opened, so their height is set by the BORE and not
+// by the bay: the screw crosses the board and the rest of its thread has to land
+// in brass. The bore bottoms on the plate, which is the floor under it.
+standoff_r      = 4.45;               // Ø8.9 — the same wall over a Ø4.8 bore the
+                                      // bracket boss keeps; the assert holds it
+standoff_bore   = ins_hole_d/2;
+standoff_bore_h = ins_bore_h(pcb_t);  // 6.4, blind
+standoff_h      = 7;   // ...and the WIRING BAY under the board: the panel's FPC
+                       // extension crosses it west to east on its way to J4, and
+                       // the battery and button pigtails share it.
+pcb_z = bp_t + standoff_h + pcb_t;    // board TOP face, off the plate's
+                                      // UNDERSIDE — z=0 for the whole model
+
+// ---- battery --------------------------------------------------------------
+// LiPo 3700 mAh (94 x 32 x 10.3), flat across the FRONT — the shallow end of the
+// wedge, which the board stack cannot use anyway, and the heaviest part keeps
+// the centre of gravity low and forward. Cell measured. Its leads reach J1 on
+// the board's own front edge, ~25 mm away.
+// The cage is NOT symmetric. It is a WALL at the cell's left end and two NIBS at
+// its mid-length: the cell goes in from the right, passes between the nibs —
+// which only hold it in Y — and slides left until it stops on the wall. The nibs
+// sit at mid-length because that is where a pouch cell bows, and it is the one
+// spot from which neither end of the cell can lever itself out.
 bat_w = 94;  bat_d = 32;  bat_h = 10.3;
-// The WALL is the datum and it is pushed as far LEFT as PCB 1 allows, because the
-// only thing on the right is the front-right screw boss and a pouch cell must not
-// meet its corner. What is left over lands on the boss side, where it is air.
-// Asserted both ways below.
-bat_wall_t   = 2;     // cage wall thickness, grown LEFT (away from the cell), so the
-                      // cell's own position never moves when this does
-bat_gap_pcb1 = 4;     // air between PCB 1's edge and the BACK of that wall
-bat_x0 = pcb1_x1 + bat_gap_pcb1 + bat_wall_t;  // 60 — the wall's face IS the cell's
-                                               // left end (wall itself spans 58..60)
-bat_x1 = bat_x0 + bat_w;                       // 154, leaving 6 mm to the boss
-bat_y0 = wall + 4;                             // front edge just off the front wall
-// The nibs hold Y and nothing else, so they belong at MID-LENGTH: that is where a
-// pouch cell bows if it is going to, and it is the one spot where neither end of the
-// cell can lever itself out from between them.
-bat_nib_x = (bat_x0 + bat_x1)/2;   // 107
-bat_nib_h = 5;        // wall and nibs share it: half the cell's height, the rest is
-                      // the foam/VHB tape's job
+// The WALL is the datum, and what bounds it on the left is the flex plenum: the
+// panel's FPC drops through the deck slot into the front-left floor and its
+// slack coils there. On the right there is only the front-right screw boss, and
+// a pouch cell must never be asked to take a rigid printed corner — asserted.
+plenum_x1    = 56;    // front-left floor kept clear for the FPC and its slack
+bat_wall_t   = 2;     // cage wall, grown LEFT (away from the cell), so the cell's
+                      // own position never moves when this does
+bat_x0 = plenum_x1 + bat_wall_t;   // 58 — the wall's face IS the cell's left end
+bat_x1 = bat_x0 + bat_w;           // 152
+bat_y0 = wall + 4;                 // front edge just off the front wall
+bat_nib_x = (bat_x0 + bat_x1)/2;   // 105
+bat_nib_h = 5;        // wall and nibs share it: half the cell's height, the rest
+                      // is the foam/VHB tape's job
 
-// ---- ports on the back wall  (I/O board = PCB 2) --------------------------
-// PCB 2 lies flat at the back-right; its connectors overhang the board's back
-// edge by 8 mm and face out through the BACK wall (horizontal insertion). The
-// µSD/power end faces the case's RIGHT wall, so from the +X (right) end inward
-// the order is: power switch, µSD, keyboard, charge.
-// Port openings. These were the PLUG envelope off the USB-C spec sheet, not the
-// parts: usbc_h 2.5 against shells that caliper 2.75-3.0, and it jammed the first
-// coupon print. A coupon is a 45-minute print, so the openings are now sized to
-// clear on the next one rather than to look tight — never take a connector
-// opening from a datasheet again.
-usbc_w   = 8.5;  usbc_h = 3.0;               // USB-C shell (W x H), both measured
-                                             // off the part (9.0 was a guess at a
-                                             // typical shell, 8.0 the plug)
-sd_w     = 14.0; sd_h   = 2.0;               // microSD cage (W x H). W measured
-                                             // (13.0 was the same datasheet guess
-                                             // that jammed the USB-C); H is not
-port_fit = 0.7;                              // slack on every port opening, 0.35 a
-                                             // side: the plug has to pass with room,
-                                             // and the connectors are held by PCB 2,
-                                             // not by the panel — the wall must never
-                                             // bear on a shell and work its joints
-pcb2_z   = bp_t + standoff_h + pcb_t;        // PCB 2 top face, off the baseplate's
-                                             // UNDERSIDE — z=0 for the whole model
-// The port block's height is MEASURED as an absolute, on the assembled stack: with
-// PCB 2 on its standoffs the shells span 10.5 .. 13.5 off the baseplate's underside,
-// which is the one datum a caliper can still reach once the board is in (and whose
-// 3.0 span re-confirms usbc_h). It is carried as a height above the board so the
-// block still follows standoff_h. The 3.5 it replaces was a guess, 0.7 mm high.
-usbc_z   = 12.0;                             // shell centre off the baseplate underside
-usbc_cz  = usbc_z - pcb2_z;                  // -> 2.8, above PCB 2's top face
-// The µSD is pinned to the USB-C by a MEASURED step, bottom edge to bottom edge,
-// not by a guess at its centre (sd_cz was 3.0, which put both bottoms level).
-sd_rise  = 1.0;                              // cage bottom, ABOVE the shell bottoms
-sd_cz    = usbc_cz - usbc_h/2 + sd_rise + sd_h/2;   // -> 3.3
-// per-port centre heights off the baseplate underside  [charge, keyboard, µSD]
-port_z   = [pcb2_z+usbc_cz, pcb2_z+usbc_cz, pcb2_z+sd_cz];
-// PCB 2 is flipped vs how you view it: the charge end sits inward (low X), the
-// µSD/power end faces the RIGHT wall.
-// Spacing is MEASURED centre to centre, which is what a caliper can actually
-// reach on a populated board — edge gaps can't be got at once the shells are on.
-// This is also what caught the µSD: the old 8/7/5 edge-gap chain reproduced the
-// USB-C pitch exactly (15.5, so usbc_w = 8.5 and its 7 mm gap are both right),
-// but its 5 mm µSD gap gave 16.25 against a measured 15.0 — the slot was 1.25 mm
-// too far right, twice the slack that would have covered it.
-// These two are DRY-FITTED, not just measured — the coupon proved the three
-// ports land on the three parts — so the block is RIGID: a later reading may move
-// it bodily, never redistribute it. See the envelope assert at the bottom.
-port_pitch = [15.5, 15.0];                   // charge->keyboard, keyboard->µSD
-// Where the cluster sits on the board: measured edge to edge, PCB 2's left edge
-// to the charge shell (was 8 off the old chain). This one slides all three ports
-// together, so it is the reading the whole block hangs off.
-chg_gap  = 7;
-chg_cx   = chg_gap + usbc_w/2;                           // -> 11.25
-port_x   = [pcb2_x0 + chg_cx,                                        // -> 98.85
-            pcb2_x0 + chg_cx + port_pitch[0],                        // -> 114.35
-            pcb2_x0 + chg_cx + port_pitch[0] + port_pitch[1]];       // -> 129.35
+// ---- ports on the back wall -----------------------------------------------
+// All three user ports sit on the board's back long edge and face out through
+// the BACK wall (horizontal insertion). Their X is the board's own, so the whole
+// cluster follows pcb_x0 and nothing else can move it.
+// Listed LEFT TO RIGHT across the back wall, which after the turn above is
+// µSD, keyboard, charge. Index 0 is the µSD and the cuts below rely on that.
+port_lx  = [26.1875, 54.00, 71.89];   // board-local X: µSD, keyboard, charge
+port_x   = [for (lx = port_lx) pcb_x0 + lx];
+// USB-C: HRO TYPE-C-31-M-12. The shell sits ON the board face, and its mouth
+// stands usbc_proud past the board's edge — which is what pushes the board back
+// against the wall, since the mouth has to end up inside the opening and not
+// behind it.
+usbc_w   = 8.94;  usbc_h = 3.26;
+usbc_proud = 1.3;
+usbc_cz  = usbc_h/2;                  // shell centre over the board's top face
+// microSD: Molex 1040310811, push-pull, 1.42 tall, and its mouth sits sd_mouth
+// BEHIND the board's edge. HAZARD: the card reaches only sd_card_out past that
+// mouth, which is less than the wall is thick — so however the board is placed
+// the card stops short of the outer face. The finger pocket below is not
+// cosmetic, it is the only thing that makes the card removable. Asserted.
+sd_cage_h = 1.42;  sd_mouth = 1.92;  sd_card_out = 4.0;  sd_card_w = 11.0;
+sd_cz     = sd_cage_h/2;              // card plane over the board's top face
+sd_slot_w = 18;  sd_slot_h = 3.5;     // the wall opening — far wider and taller
+                                      // than the card, so a nail can reach down
+                                      // either side of it and pinch
+port_fit = 1.0;                       // slack on the USB-C openings, 0.5 a side.
+                                      // The shells stand INSIDE the openings, so
+                                      // this is no longer only the plug's
+                                      // clearance: it is how far the board may
+                                      // sit off in X and Z before the wall bears
+                                      // on a shell and works its joints. It
+                                      // costs nothing to give — the opening
+                                      // lives at the bottom of a 13 mm pocket
+                                      // and is not seen from outside.
+port_z   = [pcb_z + sd_cz, pcb_z + usbc_cz, pcb_z + usbc_cz];
 
-// ---- cable-boot lamage at the two USB-C ports ------------------------------
-// The receptacle mouths sit on the wall's INNER face, so a cable's overmould
-// lands on the outer face before the plug is home. The pocket buys back exactly
-// its own depth, and the floor under it is minimum printable because every
-// 0.1 mm left there is 0.1 mm not bought. 1.6 is all the wall has: past that,
-// pcb2_y1 moves back and carries the mouths out into the wall instead.
-usbc_boot_w = 13.0;  usbc_boot_h = 7.6;      // lamage opening (W x H)
-usbc_boot_r = 1.5;
-usbc_boot_d = wall - 0.8;                    // pocket depth -> 1.6, floor 0.8
+// ---- pockets in the wall's outer face -------------------------------------
+// One rule for all three: cut to port_pocket_d and leave 0.8 mm of floor, which
+// is all a 2.4 mm wall has to give and every 0.1 mm left there is 0.1 not
+// bought. At the two USB-C it buys insertion depth — the receptacle mouths sit
+// inside the wall, so a cable's overmould would otherwise land on the outer face
+// before the plug is home. At the µSD it is the finger recess that reaches the
+// card.
+port_pocket_d = wall - 0.8;                  // 1.6, floor 0.8
+usbc_boot_w = 13.0;  usbc_boot_h = 7.6;  usbc_boot_r = 1.5;
+sd_pocket_w = 26.0;  sd_pocket_h = 11.0; sd_pocket_r = 2.5;
 
 // ---- power on/off switch (latching push button, inline in the battery feed) --
-// A push-on / push-off (latching) button that makes/breaks the battery-side power
-// feed — press once to power up, again to cut it, so the machine is genuinely OFF
-// between sessions instead of idling on the LiPo. NOT wired to EN/GND (that would
-// be a momentary reset): it sits inline on the power rail. Panel-mounts through the
-// back wall, out past the µSD toward the RIGHT wall, so it's never hit while typing.
-// No reset/BOOT button is exposed — on the S3 both are recovery-only (auto-download
-// handles flashing), so like the ESP32's own USB-C they're reached by opening up.
+// A push-on / push-off (latching) button that makes/breaks the battery-side
+// power feed — press once to power up, again to cut it, so the machine is
+// genuinely OFF between sessions instead of idling on the LiPo. NOT wired to
+// EN/GND (that would be a momentary reset): it sits inline on the power rail.
+// Panel-mounts through the back wall, a loose part wired back to J2 on the
+// board, with its lamp on J3.
+// No reset/BOOT button is exposed — on the S3 both are recovery-only
+// (auto-download handles flashing), so like the devkit's own USB-C they are
+// reached by taking the baseplate off.
 pwr_btn  = true;             // set false to omit the switch hole entirely
 pwr_d    = 13.5;             // switch barrel Ø (the part Julien bought)
 pwr_fit  = 0.4;              // panel-hole clearance on the barrel Ø, far tighter
                              // than the ports': this switch IS retained by the
                              // panel, its nut bearing on the wall, so it wants a
-                             // close hole and not port_fit's slack. A coupon at
-                             // Ø14.7 came out loose — wider than pwr_body_d, so
-                             // nothing bore against the wall at all.
-                             // OPEN: the 0.4 was judged on a coupon printed before
-                             // the process was corrected, i.e. on a hole that came
-                             // out Ø13.55, not the Ø13.9 modelled here. Corrected,
-                             // the bearing against pwr_body_d falls to 0.05 a side.
-                             // Re-check the switch on the next coupon; if it is
-                             // loose, this wants ~0.05.
+                             // close hole and not port_fit's slack. At Ø14.7 a
+                             // coupon came out wider than pwr_body_d and nothing
+                             // bore against the wall at all.
+                             // OPEN: at 0.4 the hole is Ø13.9 and the bearing
+                             // against pwr_body_d is only 0.05 a side — and that
+                             // bearing is what retains the switch. Judge it on
+                             // the coupon; if it is loose, this wants ~0.05.
 pwr_r    = (pwr_d + pwr_fit) / 2;
-pwr_body_d = 14;             // WIDEST thing behind the panel — nut across corners,
-                             // body OD, solder lugs. NOT the barrel: this is what
-                             // decides the clearance below.  Measured off the part.
-pwr_inset= 20;               // button CENTRE, measured in from the RIGHT outer face
-pwr_x    = W - pwr_inset;    // 156 — past the µSD (right edge @ 138.0), 4.6 mm of
-                             // flat wall left before the back-right corner blend
-// The switch is a loose panel-mount part wired back to PCB 2, not mounted on it.
-// At Ø13.5 it cannot avoid PCB 2 in plan — the board runs to x=167.6, and the only
-// clear X band is the board gap, which turning PCB 1 widened to 33.6 without
-// helping: the back-centre baseplate post sits in the middle of it and leaves
-// 12.3 mm a side, still under the Ø13.9 hole. So the barrel MUST fly over the
-// board, and the clearance below it is the reserve for parts PCB 2 doesn't have:
-pwr_clear = 4;               // headroom kept free above PCB 2 for future parts
-pwr_z    = bp_t + standoff_h + pcb2_h + pwr_clear + pwr_body_d/2;   // ~26.6
+pwr_body_d = 14;             // WIDEST thing behind the panel — nut across
+                             // corners, body OD, solder lugs. NOT the barrel:
+                             // this is what decides the clearances below.
+                             // Measured off the part.
+// Nothing stands behind the button, so its placement has only three rules: clear
+// of the board assembly, clear of the back-right baseplate boss, and on the USB-C
+// centreline — which is where the back elevation wants it. All three asserted.
+// What it clears is the DEVKIT, not the PCB: the antenna end overhangs the
+// board's right edge and is the rightmost thing in the cavity.
+devkit_x1 = pcb_x0 + devkit_cu + devkit_w/2;   // 119.33
+pwr_gap  = 6;                                  // air from there to the nut
+pwr_x    = max(pcb_x1, devkit_x1) + pwr_gap + pwr_body_d/2;   // 132.3
+pwr_z    = pcb_z + usbc_cz;
 
 // ---- baseplate / chassis --------------------------------------------------
 // Clearance so the plate drops into the shell, 0.25 a side. This is the one fit
@@ -411,8 +406,8 @@ foot_h     = 3.5;
 //              battery nibs floating above it. The other two modes print
 //              flat-face-down with every feature growing upward off the bed.
 feet_mode = "none";
-// ---- the three baseplate screws (#6-32 into body inserts) -----------------
-// NOT MODELLED. The plate prints SOLID at the three post_xy and both features are
+// ---- the four baseplate screws (#6-32 into body inserts) ------------------
+// NOT MODELLED. The plate prints SOLID at the four post_xy and both features are
 // DRILLED after the print. The printed lamage came out poor on the first baseplate:
 // it is a flat-bottomed pocket in the FIRST layers, so the plate has to bridge from
 // Ø7.4 back in to Ø3.9 over open air, and the seat the head pulls against ends up
@@ -472,7 +467,8 @@ C_screen = "#F7F4EA";
 C_foam   = "#8a8f94";
 
 // ---- cutaway sections -----------------------------------------------------
-plan_z       = 22;   // height of the horizontal "plan" cut
+plan_z       = 26;   // height of the horizontal "plan" cut — clears the board
+                    // stack, so the whole cavity stays in the bottom half
 plan_explode = 62;   // gap between the halves in the exploded "plan" view
 
 // ===========================================================================
@@ -513,38 +509,33 @@ module body_cavity() {
     }
 }
 
-// baseplate screw bosses: two at the FRONT corners + one at the BACK centre.
-// The back corners are taken by the PCB 1 / PCB 2 standoffs, so a corner boss
-// there would clash — the third drops into the gap between the two boards.
-// The back screw stays 7.5 mm off the wall's inner face: the baseplate's own edge
-// is at D-wall-bp_gap/2, so any closer and the plate keeps under 3 mm of rim
-// outboard of the LAMAGE for the head to pull against. It was 6 against an M2.5
-// head; the #6-32's Ø6.9 lamage ate that rim down to 1.8 mm, hence the move. The
-// rim also absorbs the wander of a lamage that is now drilled, not printed.
-// Y is free here — the post lives in the x gap between the two boards, and that
-// band is clear the whole depth of the plate.
-post_xy = [[corner_r+3,          corner_r+3],     // front-left  corner
-           [W-corner_r-3,        corner_r+3],     // front-right corner
-           [(pcb1_x1+pcb2_x0)/2, D-wall-7.5]];    // back-centre, in the board gap
+// baseplate screw bosses: one at each of the four corners.
+// One per corner, on the same 3 mm inset off the corner tangent all round. Each
+// keeps ~4.9 mm of plate rim outboard of its Ø6.9 LAMAGE for the head to pull
+// against — the rim also absorbs the wander of a lamage that is drilled by hand.
+// CONTRACT: no boss may stand under the board. They run to post_h above bp_t,
+// i.e. 3 mm past the board's underside, so the back pair is what sets how far
+// left the board can go (asserted at pcb_x0).
+post_xy = [[corner_r+3,   corner_r+3],     // front-left
+           [W-corner_r-3, corner_r+3],     // front-right
+           [corner_r+3,   D-corner_r-3],   // back-left
+           [W-corner_r-3, D-corner_r-3]];  // back-right
 // Boss footprints [x0, x1, y0, y1]. A face driven past the shell is a FUSED face:
-// the two front boxes run out through both corner walls, the back one through the
-// back wall. Their free faces sit post_pad from the screw axis.
+// every box runs out through both of the corner walls it sits in. Their free
+// faces sit post_pad from the screw axis.
 post_box = [[-post_out,              post_xy[0][0]+post_pad,
              -post_out,              post_xy[0][1]+post_pad],
             [post_xy[1][0]-post_pad, W+post_out,
              -post_out,              post_xy[1][1]+post_pad],
-            [post_xy[2][0]-post_pad, post_xy[2][0]+post_pad,
-             post_xy[2][1]-post_pad, D+post_out]];
-// Foot centres. The two FRONT feet are concentric with the front screw posts on
-// purpose: the screw then lands dead centre in the disc, so the driver bore keeps
-// 3.3 mm of wall all round. Offset even 3 mm and that wall drops under 1 mm and
-// will not print. The back pair is decorative (the only back post is
-// centre-back, in the board gap) and stays on the corner grid.
+            [-post_out,              post_xy[2][0]+post_pad,
+             post_xy[2][1]-post_pad, D+post_out],
+            [post_xy[3][0]-post_pad, W+post_out,
+             post_xy[3][1]-post_pad, D+post_out]];
+// Foot centres — concentric with the four screw posts on purpose: the screw then
+// lands dead centre in the disc, so the driver bore keeps 3.3 mm of wall all
+// round. Offset even 3 mm and that wall drops under 1 mm and will not print.
 // [x, y, takes a screw?]
-foot_pos = [[post_xy[0][0], post_xy[0][1], true ],
-            [post_xy[1][0], post_xy[1][1], true ],
-            [corner_r+6,    D-corner_r-6,  false],
-            [W-corner_r-6,  D-corner_r-6,  false]];
+foot_pos = [for (p = post_xy) [p[0], p[1], true]];
 // one foot, sitting on the ground plane (ground face at z=0, top face at foot_h)
 module foot(screwed) {
     difference() {
@@ -625,53 +616,70 @@ assert(ins_grip(bp_t - bp_head_h) >= 2.5, "baseplate screw: not enough thread in
 // the glass pocket — both got tighter when boss_r grew for the insert
 assert(P_w/2 + br_ml >= -boss_x_l + boss_r, "bracket arm no longer covers the left boss");
 assert(boss_y - boss_r >= P_h/2,            "bracket boss has grown into the glass pocket");
-// PCB 1's front edge against the deck underside above it — the tightest spot in
-// the cavity, and the whole reason Hf/Hb carry +4 over the original 24/58. Held
-// here rather than in a comment because standoff_h and the heights are 120 lines
-// apart and either one alone renders clean and fails in plastic.
-pcb1_ceiling = Hf + (pcb1_y0 - corner_r)*tan(theta) - top_wall;
-assert(pcb1_ceiling - (bp_t + standoff_h + pcb1_h) >= 2.5,
-       "PCB 1 front edge: not enough ceiling over the 22 mm stack");
-// The cell's X band, boxed by PCB 1 on one side and the front-right screw boss on
-// the other. The boss one is the load-bearing check: it is a rigid printed corner at
-// the cell's own height, and a pouch cell must never be asked to take it. A 94 mm
-// cell against a wall at bat_x0 = 60 clears it by 6. Caught here because bat_x0 is
-// set 300 lines from post_xy and a plausible edit to either closes the gap silently.
+// The board's own joints. The screw crosses the PCB and everything left of its
+// thread has to land in brass, and the bore under it has to stop on the plate
+// rather than open into it — held here because standoff_h and pcb_t are set 200
+// lines apart and either alone renders clean and fails in plastic.
+assert(standoff_r - standoff_bore >= ins_wall,
+       "standoff: too little wall for the insert");
+assert(standoff_h + bp_t - standoff_bore_h >= 1.5,
+       "standoff: no floor left under the bore");
+assert(ins_grip(pcb_t) >= 2.5, "board screw: not enough thread in the insert");
+// The board's FRONT edge against the deck underside above it: the whole stack
+// stands at the back of the wedge, where the ceiling is highest, so this is slack
+// rather than a squeeze — but it is the check that fails if the heights are ever
+// dropped or the devkit stack grows.
+pcb_ceiling = Hf + (pcb_y0 - corner_r)*tan(theta) - top_wall;
+assert(pcb_ceiling - (pcb_z + pcb_h) >= 2.5,
+       "board front edge: not enough ceiling over the devkit stack");
+// ...and the back-LEFT screw boss against the board's left edge. This is what
+// sets pcb_x0, and pcb_x0 is what puts J4 within reach of the deck slot, so the
+// two are worth seeing together.
+assert(pcb_x0 - (post_xy[2][0] + post_pad) >= 1,
+       "the back-left baseplate boss has grown under the board");
+// The devkit's antenna end, against the right wall it overhangs toward.
+assert(W - wall - devkit_x1 >= 2, "the devkit has backed into the right wall");
+// The cell's X band, boxed by the flex plenum on one side and the front-right
+// screw boss on the other. The boss one is the load-bearing check: it is a rigid
+// printed corner at the cell's own height, and a pouch cell must never be asked
+// to take it. Caught here because bat_x0 is set 300 lines from post_xy and a
+// plausible edit to either closes the gap silently.
 assert(post_xy[1][0] - post_pad - bat_x1 >= 2,
        "battery: the cell runs into the front-right screw boss");
-assert(bat_x0 - bat_wall_t - pcb1_x1 >= 2,
-       "battery: the cage wall has backed into PCB 1");
-// The I/O block against the one X datum a caliper can reach on the ASSEMBLED
-// machine — the baseplate's right edge — measured to the PARTS, not the openings,
-// so no port_fit is in these numbers. It pins the cluster to the case instead of
-// to pcb2_x0: move the board or chg_gap and the render fails, not the coupon.
-// The block is anchored on the µSD end, which the model already predicted to
-// 0.01 from a datum it knows nothing about. The far end then reads 42.1 across
-// the cluster where the dry-fitted pitches give 41.75, and that 0.35 CANNOT be
-// taken out of a pitch — the coupon proved the pitches on the parts. So it lives
-// at the charge shell (outer flange, or a 42 mm span read across two dissimilar
-// parts) and the only thing worth holding is that it stays inside the opening.
-// HELD FROM THE SHELL'S INNER FACE, not from the plate edge: bp_x1 moves with
-// bp_gap while the boards stay put, so a reading taken off the plate is only good
-// for the plate it was taken on. HAZARD: any edit to bp_gap silently invalidates
-// a caliper reading anchored there, and it surfaces as this assert failing on a
-// number nothing about the I/O block had changed. Below are the original readings,
-// 36.5 / 78.6, taken when bp_gap was 1.5 and carried back to the face by that
-// plate's +0.75. At the bp_gap above the caliper should now read 37.00 / 79.10.
+assert(bat_y0 + bat_d <= pcb_y0 - 8,
+       "battery: the cell has closed the corridor in front of the board");
+// The I/O block. Its X comes straight off the PCB file, so what is worth holding
+// is not the pitches — they cannot drift — but that the openings stay on the flat
+// part of the back face and keep a wall between them.
 wall_x1 = W - wall;                                 // shell inner right face -> 173.6
-bp_x1   = wall_x1 - bp_gap/2;                       // baseplate right edge -> 173.35,
-                                                    // where the caliper is set down
-assert(abs(wall_x1 - (port_x[2] + sd_w/2) - 37.25) < 0.01,
-       "I/O block: the microSD is no longer 37.25 in from the shell's right face");
-assert(abs(wall_x1 - (port_x[0] - usbc_w/2) - 79.35) <= port_fit/2,
-       "I/O block: the measured charge-USB-C edge no longer falls inside its opening");
-// The lamage is bounded by the WEB to the next opening, not by the port pitch:
-// 1.15 mm to the µSD slot. Thin as that is, it prints as a raised land on the
-// pocket floor rather than a free-standing rib.
-boot_web = min((port_x[1] - usbc_boot_w/2) - (port_x[0] + usbc_boot_w/2),
-               (port_x[2] - (sd_w+port_fit)/2) - (port_x[1] + usbc_boot_w/2));
-assert(boot_web >= 1.0,
-       "I/O block: the USB-C boot lamage leaves under 1 mm of wall to its neighbour");
+port_env = [sd_pocket_w/2, usbc_boot_w/2, usbc_boot_w/2];   // outer-face pockets
+assert(port_x[0] - port_env[0] >= corner_r &&
+       port_x[2] + port_env[2] <= W - corner_r,
+       "I/O block: an opening has run off the flat part of the back face");
+port_web = min([for (i = [0:1]) (port_x[i+1] - port_env[i+1])
+                               - (port_x[i] + port_env[i])]);
+assert(port_web >= 1.0,
+       "I/O block: an outer-face pocket leaves under 1 mm of wall to its neighbour");
+// The µSD card against the pocket that has to reach it. The card stops short of
+// the wall's outer face by construction (see sd_mouth), so the pocket floor is
+// what a finger arrives at: if the card does not at least reach that floor there
+// is nothing to pull on and the slot is one-way.
+sd_card_y = pcb_y1 - sd_mouth + sd_card_out;        // where the card ends -> 102.88
+assert(sd_card_y >= D - port_pocket_d,
+       "microSD: the card no longer reaches the floor of its finger pocket");
+assert(sd_slot_w - sd_card_w >= 5 && sd_slot_h > sd_cage_h + 1,
+       "microSD: the opening leaves no room for a nail beside the card");
+// The two USB-C mouths have to end up INSIDE the wall opening, not behind the
+// wall: what the plug loses is the gap between the pocket floor and the mouth.
+assert(pcb_y1 + usbc_proud >= D - wall,
+       "USB-C: the shell mouths sit behind the wall's inner face");
+// The button. Nothing stands behind it, so these are the only three rules it has.
+assert(pwr_x - pwr_body_d/2 >= max(pcb_x1, devkit_x1) + 2,
+       "power switch: the nut has moved over the board or the devkit");
+assert(post_xy[3][0] - post_pad - (pwr_x + pwr_body_d/2) >= 2,
+       "power switch: the nut runs into the back-right screw boss");
+assert(pwr_z - pwr_body_d/2 >= bp_t + 2 && pwr_x + pwr_body_d/2 <= W - corner_r,
+       "power switch: the nut has no flat seat left, or fouls the baseplate");
 module bracket_cols(r, z0, h) {
     on_deck() for (p = boss_xy)
         translate([glass_dx + p[0], screen_cy + glass_dy + p[1], z0])
@@ -687,41 +695,56 @@ module bracket_inserts() {
 }
 
 // deck cuts: through-aperture, glass pocket (leaves the front lip), FPC slot
+// HAZARD: these three prisms are driven down the DECK NORMAL, and the deck is
+// reclined — so every millimetre of depth also carries them sin(theta) = 0.36 mm
+// toward the BACK. They only ever have to pierce top_wall, so they are bounded:
+// run them to the floor instead and the pocket's back edge lands at y 92 / z 0
+// and takes a wedge out of both back screw bosses, on the very face the
+// baseplate seats against. Depth is measured from the deck's OUTER face.
+deck_cut_d = 20;   // >> top_wall by a wide margin, and still stops the sweep
+                   // ~25 mm above the cavity floor
+
 module screen_cuts() {
     on_deck() translate([0, screen_cy, 0]) {
         // window — always on the ACTIVE area, wherever the glass has been put.
         // glass_dx cancels active_off_x, so this lands on the deck centre; keep
         // the expression rather than hardcoding 0, or the window silently stops
         // tracking the active area and rides onto the pixels.
-        translate([glass_dx + active_off_x, glass_dy + active_off_y, -30])
-            cube([A_ap_w, A_ap_h, 66], center=true);
-        // glass pocket behind the lip — shifted so the ACTIVE area lands centred
-        translate([glass_dx, glass_dy, -30-lip_t])
-            cube([P_w, P_h, 60], center=true);
+        translate([glass_dx + active_off_x, glass_dy + active_off_y, -deck_cut_d])
+            linear_extrude(deck_cut_d + 3)
+                square([A_ap_w, A_ap_h], center=true);
+        // glass pocket behind the lip — shifted so the ACTIVE area lands centred.
+        // Its top face IS the lip's underside: it must never start above -lip_t.
+        translate([glass_dx, glass_dy, -lip_t - deck_cut_d])
+            linear_extrude(deck_cut_d) square([P_w, P_h], center=true);
         // FPC clearance: an internal notch in the LEFT recess wall, kept BELOW
         // the bezel lip so it stays invisible from outside — the flex passes the
-        // glass's left edge and folds back into the cavity, to the breakout
-        translate([glass_dx-P_w/2, glass_dy, -30-lip_t])
-            cube([fpc_slot_x, fpc_w, 60], center=true);
+        // glass's left edge and folds back into the cavity, to the board
+        translate([glass_dx-P_w/2, glass_dy, -lip_t - deck_cut_d])
+            linear_extrude(deck_cut_d) square([fpc_slot_x, fpc_w], center=true);
     }
 }
 
 module port_cuts() {
-    // USB-C (charge, keyboard) + microSD through the BACK wall (y = D)
+    // USB-C (charge, keyboard) + microSD through the BACK wall (y = D). The two
+    // USB-C openings clear the SHELL, which passes into them; the µSD opening
+    // clears the CARD, which is all that ever reaches the wall.
     for (i=[0:2]) {
-        pw = ((i==2) ? sd_w : usbc_w) + port_fit;
-        ph = ((i==2) ? sd_h : usbc_h) + port_fit;
+        pw = (i==0) ? sd_slot_w : usbc_w + port_fit;
+        ph = (i==0) ? sd_slot_h : usbc_h + port_fit;
         translate([port_x[i], D-wall-1, port_z[i]])
             rotate([-90,0,0]) linear_extrude(wall+2)
                 offset(r=0.8) square([pw-1.6, ph-1.6], center=true);
     }
-    for (i=[0:1]) usbc_boot_lamage(i);
+    // and the pockets they open into, in the outer face
+    for (i=[1:2]) port_pocket(i, usbc_boot_w, usbc_boot_h, usbc_boot_r);
+    port_pocket(0, sd_pocket_w, sd_pocket_h, sd_pocket_r);
 }
 
-module usbc_boot_lamage(i) {
-    translate([port_x[i], D-usbc_boot_d, port_z[i]])
-        rotate([-90,0,0]) linear_extrude(usbc_boot_d+1)
-            rrect(usbc_boot_w, usbc_boot_h, usbc_boot_r);
+module port_pocket(i, w, h, r) {
+    translate([port_x[i], D-port_pocket_d, port_z[i]])
+        rotate([-90,0,0]) linear_extrude(port_pocket_d+1)
+            rrect(w, h, r);
 }
 
 // power switch mounting hole through the back wall (y = D)
@@ -802,11 +825,13 @@ module bracket() {
 // ===========================================================================
 //  baseplate / chassis
 // ===========================================================================
-// The plate is a pure UNION: it has no hole in it at all. Every fastener feature it
-// carries is DRILLED after the print — the 3 body screws at post_xy (through +
-// lamage) and the 8 standoff pilots. Both were tried as printed geometry on the
-// first plate and both came out badly; the reasons live at bp_screw_r/bp_head_r and
-// at standoff_pilot, the procedure in README, "Drilling the baseplate".
+// The only feature the plate does not print is the four body screws at post_xy:
+// their through hole and lamage are DRILLED after the print, because a printed
+// lamage is a flat-bottomed pocket in the FIRST layers and comes out as whatever
+// the bridge under it sagged to. Reasons at bp_screw_r/bp_head_r, procedure in
+// README, "Drilling the baseplate". Everything else — the standoff bores
+// included — is in the print: a Ø4.8 bore is wide enough for the printer to hold
+// it, which is exactly what a Ø1.6 pilot was not.
 module baseplate() {
     iw = W - 2*wall - bp_gap;
     id = D - 2*wall - bp_gap;
@@ -815,10 +840,15 @@ module baseplate() {
         translate([W/2, D/2, 0]) linear_extrude(bp_t) rrect(iw, id, corner_r-wall);
         // round feet underneath — only in "fused" mode, see feet_mode
         if (feet_mode == "fused") feet_parts();
-        // board standoffs on top (PCB 1 back-left + PCB 2 back-right)
-        for (h = concat(pcb1_holes, pcb2_holes))
-            translate([h[0], h[1], bp_t]) cylinder(h=standoff_h, r=3);
-        // battery cage (front-right LiPo; foam/VHB tape does the rest). Wall at the
+        // the board's four standoffs, bored for their inserts
+        difference() {
+            for (h = pcb_holes)
+                translate([h[0], h[1], bp_t]) cylinder(h=standoff_h, r=standoff_r);
+            for (h = pcb_holes)
+                translate([h[0], h[1], bp_t + standoff_h - standoff_bore_h])
+                    cylinder(h=standoff_bore_h + 1, r=standoff_bore);
+        }
+        // battery cage (front LiPo; foam/VHB tape does the rest). Wall at the
         // cell's LEFT end — the stop it slides onto — and two nibs at bat_nib_x that
         // only hold Y. The cell's right end is free: it overhangs the nibs.
         translate([bat_x0 - bat_wall_t, bat_y0 - 1, bp_t])
@@ -837,10 +867,10 @@ module baseplate() {
 //  card and the power button in this before committing to a 10-hour body print.
 //  Kept inside x <= W-corner_r so the slab is perfectly flat and lays on the bed.
 // ===========================================================================
-io_x0 = pcb2_x0 - 6;                 // just left of the charge port
-io_x1 = W - corner_r;                // back wall stays flat up to the corner tangent
-io_z0 = bp_t;                        // floor level
-io_z1 = pwr_z + pwr_r + 6;           // 6 mm of margin above the button hole
+io_x0 = port_x[0] - port_env[0] - 6;          // just left of the charge pocket
+io_x1 = pwr_x + pwr_body_d/2 + 6;             // just right of the button
+io_z0 = bp_t;                                 // floor level
+io_z1 = max(pwr_z + pwr_r, port_z[0] + usbc_boot_h/2) + 6;
 
 module io_coupon() {
     // lay the wall flat, outer face down, front-left corner at the origin
@@ -864,19 +894,17 @@ module ghost_battery() {
     translate([(bat_x0+bat_x1)/2, bat_y0+bat_d/2, bp_t+bat_h/2])
         color("#3f7d4f") cube([bat_w, bat_d, bat_h], center=true);
 }
-// a board slab on its standoffs + a translucent envelope for its tall parts
-module ghost_pcb(x0, y0, x1, y1, htot) {
-    w = x1-x0; d = y1-y0;
-    translate([(x0+x1)/2, (y0+y1)/2, bp_t+standoff_h]) color("#2f6f4f") {
-        linear_extrude(pcb_t) square([w, d], center=true);
-        translate([0,0,pcb_t]) %linear_extrude(htot-pcb_t)
-            square([w*0.7, d*0.7], center=true);
-    }
+// the mainboard on its standoffs, with the devkit floating over its right half
+module ghost_pcb() {
+    translate([pcb_x0 + pcb_w/2, pcb_y0 + pcb_d/2, bp_t + standoff_h])
+        color("#2f6f4f") linear_extrude(pcb_t) rrect(pcb_w, pcb_d, pcb_r);
+    translate([pcb_x0 + devkit_cu, pcb_y0 + devkit_cy, pcb_z + hdr_mate])
+        %linear_extrude(devkit_t + devkit_top)
+            square([devkit_w, devkit_d], center=true);
 }
 module ghost_boards() {
     ghost_battery();
-    ghost_pcb(pcb1_x0, pcb1_y0, pcb1_x1, pcb1_y1, pcb1_h);   // back-left, tall
-    ghost_pcb(pcb2_x0, pcb2_y0, pcb2_x1, pcb2_y1, pcb2_h);   // back-right, low I/O
+    ghost_pcb();
 }
 module placed_bracket() {
     on_deck() translate([glass_dx, screen_cy+glass_dy, -br_seat-bracket_t])

@@ -11,16 +11,19 @@
 //                 advertises Planck-case compatibility (JJ40, Niu Mini).
 //
 //  It connects over USB *internally*: a short cable runs from the keyboard PCB
-//  through a slot in the shared wall into the wedge cavity. PCB 2's keyboard
-//  USB-C faces out the back wall, so it can't take an internal plug — instead
-//  PCB 2 grows a 4-pin header (VBUS/D-/D+/GND) wired in parallel with that
-//  connector, and this model FILLS the old keyboard port cutout: the back wall
-//  shows only charge, µSD and the power switch.
+//  through a slot in the shared wall into the wedge cavity, to J13 on the
+//  mainboard — the 4-pin JST-PH (VBUS/D-/D+/GND) wired in parallel with the
+//  keyboard USB-C. That receptacle faces out the back wall and cannot take an
+//  internal plug, so this model FILLS its cutout: the back wall shows only
+//  charge, µSD and the power switch.
 //
 //  This file `include`s typoena-case.scad and overrides W (bay width wins over
-//  screen width) — the whole wedge (screen clamp, PCB 1/2, battery, baseplate,
-//  ports) carries over verbatim, translated back by the bay depth. `show` here
-//  uses kb_* names so the parent file's own show-chain stays dormant.
+//  screen width) — the whole wedge (screen clamp, board, battery, baseplate,
+//  ports) carries over verbatim, translated back by the bay depth. The screen
+//  re-centres on the wider deck; the board, the battery and the I/O cluster keep
+//  their distance from the LEFT wall, and only the right-hand baseplate bosses
+//  track the new right wall. `show` here uses kb_* names so the parent file's
+//  own show-chain stays dormant.
 //
 //  Units: millimetres.   Render: see README-kb.md
 //
@@ -70,8 +73,8 @@ Hk        = 26;                  // bay rim: hides the plate edge, caps sit prou
 DT        = kb_d + D;            // total body depth
 
 // width now comes from the keyboard, not the screen — this override reflows the
-// whole included wedge (screen stays centred, PCB 2 + ports track the new right
-// wall, posts and baseplate re-derive).
+// whole included wedge (screen re-centres, the right-hand bosses and the
+// baseplate re-derive; the board and its ports stay put against the left wall).
 // MUST be a literal: an include-override is evaluated at the base file's first
 // W assignment, before any variant variable exists (expressions land undef).
 // Keep the kb/W pair in sync — the assert below refuses a mismatch.
@@ -106,8 +109,10 @@ module bay_cavity() {
         linear_extrude(Hk) rrect(kb_int_w, kb_int_d, 3);
 }
 
-// Solid, like the wedge's own board standoffs: the Ø1.6 pilots are DRILLED after
-// the print, not modelled. See standoff_pilot in typoena-case.scad.
+// Solid: the keyboard's M2 Ø1.6 pilots are DRILLED after the print, not
+// modelled. A Ø1.6 hole is two or three perimeters wide, so the printer rounds it
+// to whatever its extrusion width allows and the self-tapper meets a hole of
+// unknown size; a bit cuts 1.6. The Ø6 pad leaves 2.2 mm of wall around it.
 module bay_posts() {
     for (h = kb_holes)
         translate([kb_px0 + h[0], kb_py1 - h[1], kb_floor])
@@ -119,18 +124,16 @@ module bay_feet() {
         translate([fx, corner_r+6, -foot_h]) cylinder(h=foot_h+0.1, r=foot_r);
 }
 
-// USB passthrough in the shared wall: keyboard PCB -> wedge cavity -> PCB 2's
-// internal keyboard header. Sized for a low-profile USB-C plug head.
+// USB passthrough in the shared wall: keyboard PCB -> wedge cavity -> the
+// mainboard's J13. Sized for a low-profile USB-C plug head.
 module kb_cable_cut() {
     translate([kb_px0 + kb_usb_x - 8, kb_d - 2, kb_pcb_z - 3])
         cube([16, wall + 4, 12], center=false);
 }
 
-// the external keyboard USB-C opening, filled: that port turns inward
-// (parallel 4-pin header on PCB 2), so the wall stays blank there.
-// Sized off the lamage, not the shell, or the pocket stays sunk in the wall
-// around a filled slot. The +1 overlap can go no further: the pocket is already
-// 1.15 mm off the µSD slot.
+// the external keyboard USB-C opening, filled: that port turns inward (J13 on
+// the mainboard), so the wall stays blank there. Sized off the boot pocket, not
+// the shell, or the pocket stays sunk in the wall around a filled slot.
 // Local wedge coordinates — union it inside the translated wedge.
 module kb_port_patch() {
     pw = usbc_boot_w + 1;

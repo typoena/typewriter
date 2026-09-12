@@ -30,9 +30,12 @@ it and re-derive `kb_holes` before printing.
 ## How it composes
 
 [`typoena-case-kb.scad`](typoena-case-kb.scad) `include`s the base model and
-overrides only `W`: the whole wedge — screen clamp, PCB 1 back-left, PCB 2
-back-right, front battery, baseplate, ports — re-derives at the new width and is
-translated back by the bay depth. The bay is additive:
+overrides only `W`: the whole wedge — screen clamp, the mainboard across the
+back, the front battery, the baseplate and the ports — carries over at the new
+width and is translated back by the bay depth. The screen re-centres on the wider
+deck and the right-hand baseplate bosses track the new right wall; the board, the
+battery and the I/O cluster keep their distance from the **left** wall. The bay is
+additive:
 
 - **Tray mount.** The keyboard PCB screws to integral posts on the bay floor
   (standard GH60 tray positions for the 60%; for the 40, the Planck's five M2
@@ -54,11 +57,11 @@ translated back by the bay depth. The bay is additive:
   derives from `kb_pcb_z`, so the USB passthrough follows the taller posts on its
   own — no third number to chase.
 - **Internal USB.** The keyboard stays a stock QMK device. Its cable leaves
-  through a slot in the shared wall into the wedge cavity. PCB 2's keyboard
-  USB-C faces **out** the back wall, so it can't take an internal plug — PCB 2
-  instead grows a **4-pin header (VBUS/D−/D+/GND) wired in parallel** with that
-  connector, and the model fills the old port cutout: the back wall shows only
-  charge, µSD and the power switch. (Direct matrix-on-GPIO — dropping the MT3608
+  through a slot in the shared wall into the wedge cavity and lands on **`J13`**,
+  the mainboard's 4-pin JST-PH (VBUS/D−/D+/GND) wired in parallel with the
+  keyboard USB-C. That receptacle faces **out** the back wall and can't take an
+  internal plug, so the model fills its cutout: the back wall shows only charge,
+  µSD and the power switch. (Direct matrix-on-GPIO — dropping the 5 V boost
   and USB host for wake-on-key — is a possible v2; it costs 19 pins plus matrix
   scan and a keymap in firmware.)
 - **Floor + feet.** The bay has an integral 3 mm floor and its own front feet;
@@ -88,12 +91,11 @@ model asserts if they drift.
       GH60 set is the commonly-cited standard; the 40 set is OLKB's own CAD, so
       it only holds for a Planck-compatible clone.
 - [ ] **USB position + slot** (`kb_usb_x`, `kb_post_h`): the plug head must pass
-      the shared-wall slot and clear PCB 2's cavity side. The slot is rear-left
-      now, so re-check it against PCB 2's position rather than assuming centre.
+      the shared-wall slot and clear the wedge cavity behind it. The slot is
+      rear-left, so re-check it against the battery cage rather than assuming
+      centre.
 - [ ] **MIT stabiliser clearance** — a 2u space wants a PCB-mount stab hanging
       below the PCB; confirm `kb_post_h = 12` still leaves room over the bay floor.
       It now sits the PCB 15 mm up off a 3 mm floor, so there is 12 mm under the
       board — the +4 that came with the body's height helps here.
-- [ ] **PCB 2 header** for the internal keyboard cable (4-pin, parallel to the
-      keyboard USB-C) — decide JST-PH vs soldered pigtail.
 - [ ] Everything on the base model's own list (battery dims, active-area offset).
