@@ -32,11 +32,11 @@ $fn = 20;
 // ---- what this model is ---------------------------------------------------
 // NOMINAL GEOMETRY ONLY. Every dimension below is the part as it must END UP,
 // and every clearance is the functional gap wanted on the finished assembly.
-// The machine's own error — XY over-extrusion — is NOT modelled here and must
-// not be: it belongs to the process, not to the part, and it is corrected in the
-// slicer. The setting, its measured value and how to re-measure it are in
-// MANUFACTURING.md, which is required reading before any print. A part sliced
-// without it will not assemble.
+// The machine's own error is NOT modelled here and must not be: it belongs to the
+// process, not to the part, and it is corrected in the slicer. The setting, its
+// qualified value and how to re-measure it are in MANUFACTURING.md, which is
+// required reading before any print — the number is per filament, and its sign
+// doubles the error when it is wrong.
 
 // ---- fasteners ------------------------------------------------------------
 // ONE family for everything that screws into the BODY: a ruthex RX-6-32x3.8
