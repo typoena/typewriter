@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-"""Génère hardware/pcb/mainboard/typoena.kicad_sym.
+"""Génère hardware/pcb/common/typoena.kicad_sym, partagé par les deux cartes.
 
 - BQ25896RTW : dérivé du BQ25895RTW stock (même WQFN-24-EP 4x4), avec les trois
   broches qui diffèrent renommées/retypées (2 D+ -> PSEL, 3 D- -> /PG, 24 DSEL -> NC).
 - TPS61023DRL : dessiné à partir de la datasheet TI (§ Pin Configuration).
   Le buck-boost 3V3 utilise le symbole ET l'empreinte stock du TPS63001.
 """
+import os
 import re
 
 STOCK = "/usr/share/kicad/symbols/Battery_Management.kicad_sym"
-OUT = "/home/emmanuel/Documents/Developpement/esp32/typewriter/hardware/pcb/mainboard/typoena.kicad_sym"
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                   "typoena.kicad_sym")
 
 
 def grab(text, start_marker):

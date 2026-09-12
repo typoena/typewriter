@@ -9709,7 +9709,7 @@
 			(size 0.3 1.45)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(roundrect_rratio 0.25)
-			(net "USB_DM")
+			(net "USB_DN")
 			(pinfunction "D-_A7")
 			(pintype "bidirectional")
 			(uuid "2473127d-5f64-4796-aa28-f88ff74be1c7")
@@ -9789,7 +9789,7 @@
 			(size 0.3 1.45)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(roundrect_rratio 0.25)
-			(net "USB_DM")
+			(net "USB_DN")
 			(pinfunction "D-_B7")
 			(pintype "bidirectional")
 			(uuid "aeb96ca6-6d9a-49f4-a3af-b38479a10e39")
@@ -14697,7 +14697,7 @@
 			(drill 0.75)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
-			(net "USB_DM")
+			(net "USB_DN")
 			(pinfunction "Pin_3_3")
 			(pintype "passive")
 			(uuid "ab8e5bef-487d-49df-810f-64360cb7d889")
@@ -20824,7 +20824,7 @@
 			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
-			(net "USB_DM")
+			(net "USB_DN")
 			(pinfunction "Pin_20_20")
 			(pintype "passive")
 			(uuid "a60efea3-9272-4da9-85a6-66032851ade1")
@@ -26333,7 +26333,7 @@
 		(end 61.25 77.275)
 		(width 0.25)
 		(layer "F.Cu")
-		(net "USB_DM")
+		(net "USB_DN")
 		(uuid "0aae2517-cf70-414f-a5d1-acc1c779b905")
 	)
 	(segment
@@ -26341,7 +26341,7 @@
 		(end 61.25 78.605)
 		(width 0.25)
 		(layer "F.Cu")
-		(net "USB_DM")
+		(net "USB_DN")
 		(uuid "61f036c0-52b2-4f85-bbd2-ae951020936d")
 	)
 	(segment
@@ -26349,7 +26349,7 @@
 		(end 62.392228 77.157772)
 		(width 0.25)
 		(layer "F.Cu")
-		(net "USB_DM")
+		(net "USB_DN")
 		(uuid "9f698192-a643-462a-afe1-72345d14b228")
 	)
 	(segment
@@ -26357,7 +26357,7 @@
 		(end 62.392228 77.165544)
 		(width 0.25)
 		(layer "F.Cu")
-		(net "USB_DM")
+		(net "USB_DN")
 		(uuid "abde6ea1-1a4c-4600-b89c-f35ae974dff2")
 	)
 	(segment
@@ -26365,7 +26365,7 @@
 		(end 62.25 77.3)
 		(width 0.25)
 		(layer "F.Cu")
-		(net "USB_DM")
+		(net "USB_DN")
 		(uuid "bc1e33c4-63cc-445f-8f06-c03414e07f8b")
 	)
 	(via
@@ -26373,7 +26373,7 @@
 		(size 0.6)
 		(drill 0.3)
 		(layers "F.Cu" "B.Cu")
-		(net "USB_DM")
+		(net "USB_DN")
 		(uuid "748f9dab-5cbe-4f9d-83c2-9dc8c9c349c1")
 	)
 	(via
@@ -26381,7 +26381,7 @@
 		(size 0.6)
 		(drill 0.3)
 		(layers "F.Cu" "B.Cu")
-		(net "USB_DM")
+		(net "USB_DN")
 		(uuid "ecd47a9f-5094-4fd9-b177-aa1792f7b988")
 	)
 	(segment
@@ -26389,7 +26389,7 @@
 		(end 61.125 77.15)
 		(width 0.25)
 		(layer "B.Cu")
-		(net "USB_DM")
+		(net "USB_DN")
 		(uuid "01a1b1fa-db54-4480-b743-e80517ee18ed")
 	)
 	(segment
@@ -26397,7 +26397,7 @@
 		(end 62.91834 77.165544)
 		(width 0.25)
 		(layer "B.Cu")
-		(net "USB_DM")
+		(net "USB_DN")
 		(uuid "02720a15-6d4e-4f71-9ab6-ef7e6d61d930")
 	)
 	(segment
@@ -26405,7 +26405,7 @@
 		(end 63.855 74.863299)
 		(width 0.25)
 		(layer "B.Cu")
-		(net "USB_DM")
+		(net "USB_DN")
 		(uuid "02ddf122-b2b5-44d1-b6ef-f6bb5c4213fe")
 	)
 	(segment
@@ -26413,7 +26413,7 @@
 		(end 62.975 59.225)
 		(width 0.25)
 		(layer "B.Cu")
-		(net "USB_DM")
+		(net "USB_DN")
 		(uuid "5d7aca05-af59-44fb-9421-96b0d782b3cc")
 	)
 	(segment
@@ -26421,7 +26421,7 @@
 		(end 66.585 49.925)
 		(width 0.25)
 		(layer "B.Cu")
-		(net "USB_DM")
+		(net "USB_DN")
 		(uuid "60cccd80-fd62-44f5-88aa-6e1a32811590")
 	)
 	(segment
@@ -26429,7 +26429,7 @@
 		(end 67.76 51.1)
 		(width 0.25)
 		(layer "B.Cu")
-		(net "USB_DM")
+		(net "USB_DN")
 		(uuid "753bfe89-d57c-45c2-bc24-c8b0d875f20c")
 	)
 	(segment
@@ -26437,7 +26437,7 @@
 		(end 67.76 54.44)
 		(width 0.25)
 		(layer "B.Cu")
-		(net "USB_DM")
+		(net "USB_DN")
 		(uuid "7a2a7db7-75e3-4e80-91e3-fc7702dd04d5")
 	)
 	(segment
@@ -26445,7 +26445,7 @@
 		(end 59.786396 45.75)
 		(width 0.25)
 		(layer "B.Cu")
-		(net "USB_DM")
+		(net "USB_DN")
 		(uuid "869bf29e-098a-489f-b52a-455a510838bd")
 	)
 	(segment
@@ -26453,7 +26453,7 @@
 		(end 54 47.45)
 		(width 0.25)
 		(layer "B.Cu")
-		(net "USB_DM")
+		(net "USB_DN")
 		(uuid "8f03547c-921b-4df6-bde7-687eb934c4a4")
 	)
 	(segment
@@ -26461,7 +26461,7 @@
 		(end 62.975 69.608887)
 		(width 0.25)
 		(layer "B.Cu")
-		(net "USB_DM")
+		(net "USB_DN")
 		(uuid "8f2fa643-1b64-4d87-9739-4bf143738748")
 	)
 	(segment
@@ -26469,7 +26469,7 @@
 		(end 61.140544 77.165544)
 		(width 0.25)
 		(layer "B.Cu")
-		(net "USB_DM")
+		(net "USB_DN")
 		(uuid "9834bf90-4458-47f2-b8d3-801ceaecfe50")
 	)
 	(segment
@@ -26477,7 +26477,7 @@
 		(end 63.375 75.343299)
 		(width 0.25)
 		(layer "B.Cu")
-		(net "USB_DM")
+		(net "USB_DN")
 		(uuid "a30119b5-89b0-4c50-93da-c8ca8fe09a16")
 	)
 	(segment
@@ -26485,7 +26485,7 @@
 		(end 63.961396 49.925)
 		(width 0.25)
 		(layer "B.Cu")
-		(net "USB_DM")
+		(net "USB_DN")
 		(uuid "b2266f2a-c471-4f01-8538-653bbcbcc585")
 	)
 	(segment
@@ -26493,7 +26493,7 @@
 		(end 63.375 76.708884)
 		(width 0.25)
 		(layer "B.Cu")
-		(net "USB_DM")
+		(net "USB_DN")
 		(uuid "c6c83d33-69f4-400f-bebd-a673ec8d36d7")
 	)
 	(segment
@@ -26501,7 +26501,7 @@
 		(end 55.7 45.75)
 		(width 0.25)
 		(layer "B.Cu")
-		(net "USB_DM")
+		(net "USB_DN")
 		(uuid "c7de7553-fcfb-4e0f-bb32-e1e2e7352b1e")
 	)
 	(segment
@@ -26509,7 +26509,7 @@
 		(end 63.855 70.488887)
 		(width 0.25)
 		(layer "B.Cu")
-		(net "USB_DM")
+		(net "USB_DN")
 		(uuid "f5b47bc8-b899-433c-b13a-f594149c2abd")
 	)
 	(segment

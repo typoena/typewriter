@@ -5,7 +5,7 @@
 	(uuid "b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3")
 	(paper "A4")
 	(title_block
-		(title "Typoena mainboard")
+		(title "Typoena mainboard v2")
 		(date "2026-08-15")
 		(rev "A")
 		(company "Typoena")
@@ -13,18 +13,6 @@
 		(comment 2 "Connectivite inter-feuilles par etiquettes globales")
 	)
 	(lib_symbols)
-	(text "USB-serie CH343P, extension"
-		(exclude_from_sim no)
-		(at 130.81 166.02 0)
-		(effects
-			(font
-				(size 1.5 1.5)
-				(bold yes)
-			)
-			(justify left bottom)
-		)
-		(uuid "3cc8660d-6585-4846-9a6a-9a418fdd9352")
-	)
 	(text "IO - USB-C charge/prog, USB-C clavier (hote),"
 		(exclude_from_sim no)
 		(at 130.81 160.02 0)
@@ -35,31 +23,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "54bdbc8e-5cad-4b42-abc1-7fe82a12078e")
-	)
-	(text "MCU - ESP32-S3-WROOM-1-N16R8, strapping,"
-		(exclude_from_sim no)
-		(at 130.81 93.98 0)
-		(effects
-			(font
-				(size 1.5 1.5)
-				(bold yes)
-			)
-			(justify left bottom)
-		)
-		(uuid "67c012f1-b623-4ccc-8b0d-3258ada0538d")
-	)
-	(text "decouplage"
-		(exclude_from_sim no)
-		(at 130.81 96.98 0)
-		(effects
-			(font
-				(size 1.5 1.5)
-				(bold yes)
-			)
-			(justify left bottom)
-		)
-		(uuid "8f8392a8-c728-4644-98cd-946c6beb18a5")
+		(uuid "2a32cf6c-a43b-4e34-84fe-1769f9986784")
 	)
 	(text "Alimentation - BQ25896 (charge + power path"
 		(exclude_from_sim no)
@@ -71,33 +35,9 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "9558a9c9-357b-4ffe-8765-1554bb2a715b")
+		(uuid "42360522-51b2-43ed-8d1f-1542e78cbd3b")
 	)
-	(text "uSD commute, bouton"
-		(exclude_from_sim no)
-		(at 30.48 99.98 0)
-		(effects
-			(font
-				(size 1.5 1.5)
-				(bold yes)
-			)
-			(justify left bottom)
-		)
-		(uuid "9c0d4a42-c595-45f7-b19a-4e4029e53b6b")
-	)
-	(text "Ecran GDEY0579T93 - etage de puissance du §9,"
-		(exclude_from_sim no)
-		(at 30.48 160.02 0)
-		(effects
-			(font
-				(size 1.5 1.5)
-				(bold yes)
-			)
-			(justify left bottom)
-		)
-		(uuid "a2fa2951-eaef-4a1d-8c55-298064e93be9")
-	)
-	(text "clavier interne JST-PH, microSD, pont"
+	(text "microSD, pont USB-serie CH343P, extension"
 		(exclude_from_sim no)
 		(at 130.81 163.02 0)
 		(effects
@@ -107,11 +47,11 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "b4114df9-5d10-4767-ad22-4c75fb4b84ef")
+		(uuid "48435381-f6a0-47aa-ad43-9c183a2fb185")
 	)
-	(text "FPC 24p"
+	(text "decouplage"
 		(exclude_from_sim no)
-		(at 30.48 163.02 0)
+		(at 130.81 96.98 0)
 		(effects
 			(font
 				(size 1.5 1.5)
@@ -119,7 +59,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "be3d8d4b-028e-448c-b17e-f73e528c609d")
+		(uuid "8692b27f-a7fa-4e95-8c5f-68380f690cd3")
 	)
 	(text "NVDC), TPS63001 3V3, TPS61023 5V clavier, rail"
 		(exclude_from_sim no)
@@ -131,7 +71,55 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "f85b7d70-f5d3-4d9d-90d4-49aa908ef2e9")
+		(uuid "8700be65-57b6-446c-8e01-aa222ad7d2dc")
+	)
+	(text "FPC 24p, header DESPI de secours"
+		(exclude_from_sim no)
+		(at 30.48 163.02 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "88db7c8a-884b-4c6c-98b4-ca960c5370b2")
+	)
+	(text "Ecran GDEY0579T93 - etage de puissance du §9,"
+		(exclude_from_sim no)
+		(at 30.48 160.02 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "a352105d-a66b-4293-98ab-7ad126e7d168")
+	)
+	(text "uSD commute, bouton"
+		(exclude_from_sim no)
+		(at 30.48 99.98 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "cf84ed2f-7dbb-416d-a0c9-72391b8ce93e")
+	)
+	(text "MCU - ESP32-S3-WROOM-1-N16R8, strapping,"
+		(exclude_from_sim no)
+		(at 130.81 93.98 0)
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "deb029ce-3276-457b-b080-5176b7d6fd09")
 	)
 	(sheet
 		(at 30.48 45.72)
@@ -172,7 +160,7 @@
 			)
 		)
 		(instances
-			(project "typoena-mainboard"
+			(project "typoena-mainboard-v2"
 				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3"
 					(page "2")
 				)
@@ -218,7 +206,7 @@
 			)
 		)
 		(instances
-			(project "typoena-mainboard"
+			(project "typoena-mainboard-v2"
 				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3"
 					(page "3")
 				)
@@ -264,7 +252,7 @@
 			)
 		)
 		(instances
-			(project "typoena-mainboard"
+			(project "typoena-mainboard-v2"
 				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3"
 					(page "4")
 				)
@@ -310,7 +298,7 @@
 			)
 		)
 		(instances
-			(project "typoena-mainboard"
+			(project "typoena-mainboard-v2"
 				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3"
 					(page "5")
 				)

@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
-"""Contrôle qualité de la mainboard : tout ce qui se vérifie par le calcul.
+"""Contrôle qualité d'une carte : tout ce qui se vérifie par le calcul.
 
-LECTURE SEULE. Ce script n'ouvre aucun fichier du projet en écriture, et déduit
-son chemin de `__file__` — jamais en dur. C'est délibéré : `gen_sch.py` écrit en
-chemins absolus et a déjà réécrit le vrai schéma pendant un essai censé se
-dérouler dans un bac à sable.
+LECTURE SEULE. Ce script n'ouvre aucun fichier du projet en écriture.
 
 Usage :
-    python3 tools/check_pcb.py [--profil routage|fabrication] [-v]
+    python3 common/check_pcb.py <carte> [--profil routage|fabrication] [-v]
 
 Le profil `routage` (défaut) tolère ce qui est normal en cours de travail :
 connexions restantes, sérigraphie, pistes en l'air. Le profil `fabrication`
@@ -23,12 +20,11 @@ import sys
 import tempfile
 from collections import Counter, defaultdict
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-PROJ = os.path.dirname(HERE)
-PCB = os.path.join(PROJ, "typoena-mainboard.kicad_pcb")
-SCH = os.path.join(PROJ, "typoena-mainboard.kicad_sch")
-DRU = os.path.join(PROJ, "typoena-mainboard.kicad_dru")
-PRO = os.path.join(PROJ, "typoena-mainboard.kicad_pro")
+import projet
+
+PROJET = projet.depuis_argv()
+PROJ = PROJET.dir
+PCB, SCH, DRU, PRO = PROJET.pcb, PROJET.sch, PROJET.dru, PROJET.pro
 
 
 # ---------------------------------------------------------------- lecture s-exp
@@ -1125,7 +1121,11 @@ def check_sensitive(bd, rep):
             "FB_5V critique, PMIC_TS informatif", rows)
 
     rows, worst = [], PASS
-    for a, b in (("USB_DP", "USB_DM"), ("USB_PROG_DP", "USB_PROG_DM")):
+    for a, b in (("USB_DP", "USB_DN"), ("USB_PROG_DP", "USB_PROG_DN")):
+        # Un net sans pad n'existe pas sur cette carte : la paire est absente du
+        # netlist (USB_PROG est propre à la mainboard), pas « non routée ».
+        if not bd.net_pads(a) and not bd.net_pads(b):
+            continue
         sa, sb = bd.net_segments(a), bd.net_segments(b)
         if not sa or not sb:
             rows.append(f"{a}/{b} : pas encore routés")
@@ -1156,6 +1156,7 @@ def load_classes():
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("carte", help="dossier de la carte (devboard, mainboard)")
     ap.add_argument("--profil", choices=("routage", "fabrication"), default="routage")
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()

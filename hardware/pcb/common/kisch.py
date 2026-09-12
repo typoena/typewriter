@@ -5,10 +5,15 @@ Connectivité par étiquettes : chaque broche reçoit un moignon de fil de 2,54 
 terminé par un label. C'est électriquement équivalent à des fils tracés, et ça évite
 tout routage géométrique — le schéma se réorganise ensuite dans le GUI.
 """
+import os
 import re
 import uuid as _uuid
 
 SYMDIR = "/usr/share/kicad/symbols"
+# Symboles maison (BQ25896RTW, TPS61023DRL), partages par les deux cartes et
+# generes par gen_syms.py.
+TYPOENA_SYM = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "typoena.kicad_sym")
 
 
 def uid():
@@ -35,10 +40,7 @@ class SymbolLib:
 
     def _load(self, lib):
         if lib not in self._files:
-            path = f"{SYMDIR}/{lib}.kicad_sym"
-            if lib == "typoena":
-                path = ("/home/emmanuel/Documents/Developpement/esp32/typewriter/"
-                        "hardware/pcb/mainboard/typoena.kicad_sym")
+            path = TYPOENA_SYM if lib == "typoena" else f"{SYMDIR}/{lib}.kicad_sym"
             self._files[lib] = open(path).read()
         return self._files[lib]
 

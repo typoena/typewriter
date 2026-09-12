@@ -1705,7 +1705,7 @@
 		)
 		(uuid "f19999c3-b71a-499f-87a8-5bdef708f09c")
 	)
-	(global_label "USB_DM"
+	(global_label "USB_DN"
 		(shape bidirectional)
 		(at 134.61999999999998 105.41 180)
 		(fields_autoplaced yes)

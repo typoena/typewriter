@@ -10,7 +10,7 @@
 //! (SLUSC76C, §9.5 Register Map). Board-side values — the 150 Ω `ILIM`, the
 //! fixed `TS` divider standing in for a cell with no thermistor, the hard-wired
 //! `PSEL`/`OTG`/`/CE` levels — are in
-//! `hardware/pcb/mainboard/DESIGN-NOTES.md`.
+//! `hardware/pcb/DESIGN-NOTES.md`.
 //!
 //! Two hazards live here and nowhere else:
 //!

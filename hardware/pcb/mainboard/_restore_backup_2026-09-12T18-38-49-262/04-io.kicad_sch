@@ -3081,129 +3081,6 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "Connector:TestPoint"
-				(pin_numbers
-					(hide yes)
-				)
-				(pin_names
-					(offset 0.762)
-					(hide yes)
-				)
-				(exclude_from_sim no)
-				(in_bom yes)
-				(on_board yes)
-				(in_pos_files yes)
-				(duplicate_pin_numbers_are_jumpers no)
-				(property "Reference" "TP"
-					(at 0 6.858 0)
-					(show_name no)
-					(do_not_autoplace no)
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(property "Value" "TestPoint"
-					(at 0 5.08 0)
-					(show_name no)
-					(do_not_autoplace no)
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(property "Footprint" ""
-					(at 5.08 0 0)
-					(show_name no)
-					(do_not_autoplace no)
-					(hide yes)
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(property "Datasheet" ""
-					(at 5.08 0 0)
-					(show_name no)
-					(do_not_autoplace no)
-					(hide yes)
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(property "Description" "test point"
-					(at 0 0 0)
-					(show_name no)
-					(do_not_autoplace no)
-					(hide yes)
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(property "ki_keywords" "test point tp"
-					(at 0 0 0)
-					(show_name no)
-					(do_not_autoplace no)
-					(hide yes)
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(property "ki_fp_filters" "Pin* Test*"
-					(at 0 0 0)
-					(show_name no)
-					(do_not_autoplace no)
-					(hide yes)
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(symbol "TestPoint_0_1"
-					(circle
-						(center 0 3.302)
-						(radius 0.762)
-						(stroke
-							(width 0)
-							(type default)
-						)
-						(fill
-							(type none)
-						)
-					)
-				)
-				(symbol "TestPoint_1_1"
-					(pin passive line
-						(at 0 0 90)
-						(length 2.54)
-						(name "1"
-							(effects
-								(font
-									(size 1.27 1.27)
-								)
-							)
-						)
-						(number "1"
-							(effects
-								(font
-									(size 1.27 1.27)
-								)
-							)
-						)
-					)
-				)
-				(embedded_fonts no)
-			)
 	)
 	(text "IO - USB-C charge/prog, USB-C clavier (hote), clavier interne JST-PH, microSD, pont USB-serie CH343P, extension"
 		(exclude_from_sim no)
@@ -3289,6 +3166,16 @@
 	)
 	(wire
 		(pts
+			(xy 480.06 148.59) (xy 474.98 148.59)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "08cbafa3-e194-476b-999f-88d75f20f0d8")
+	)
+	(wire
+		(pts
 			(xy 1065.53 64.77) (xy 1070.61 64.77)
 		)
 		(stroke
@@ -3349,6 +3236,16 @@
 	)
 	(wire
 		(pts
+			(xy 480.06 153.67) (xy 474.98 153.67)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "11a51732-852e-48e2-af2b-53d5cf1705cd")
+	)
+	(wire
+		(pts
 			(xy 223.52 95.25) (xy 223.52 100.33)
 		)
 		(stroke
@@ -3379,6 +3276,16 @@
 	)
 	(wire
 		(pts
+			(xy 480.06 140.97) (xy 474.98 140.97)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2012e331-629e-4365-abbe-c1028a290672")
+	)
+	(wire
+		(pts
 			(xy 320.04 130.81) (xy 320.04 125.73)
 		)
 		(stroke
@@ -3399,6 +3306,16 @@
 	)
 	(wire
 		(pts
+			(xy 480.06 130.81) (xy 474.98 130.81)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "24f56b01-cb10-4e11-9456-338607546c15")
+	)
+	(wire
+		(pts
 			(xy 238.76 77.47) (xy 243.84 77.47)
 		)
 		(stroke
@@ -3416,6 +3333,16 @@
 			(type default)
 		)
 		(uuid "38396964-d313-4c75-96e5-d38d437ad036")
+	)
+	(wire
+		(pts
+			(xy 480.06 143.51) (xy 474.98 143.51)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3bfa46a1-2799-477a-b186-0e987d1ce838")
 	)
 	(wire
 		(pts
@@ -3456,6 +3383,16 @@
 			(type default)
 		)
 		(uuid "57904bb9-0f4c-42dd-a3f1-b4e77be6c020")
+	)
+	(wire
+		(pts
+			(xy 480.06 151.13) (xy 474.98 151.13)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "59516810-49a8-4959-ba38-a9d416489328")
 	)
 	(wire
 		(pts
@@ -3556,6 +3493,26 @@
 			(type default)
 		)
 		(uuid "718a58fc-8b3d-4453-b82d-2524c365abdd")
+	)
+	(wire
+		(pts
+			(xy 480.06 156.21) (xy 474.98 156.21)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7d2ce0c2-3cf6-4f6c-91b1-53e25fc6c195")
+	)
+	(wire
+		(pts
+			(xy 480.06 158.75) (xy 474.98 158.75)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7f5d4385-adba-41c2-afaa-34e4f863a27e")
 	)
 	(wire
 		(pts
@@ -3699,6 +3656,16 @@
 	)
 	(wire
 		(pts
+			(xy 480.06 135.89) (xy 474.98 135.89)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "aad13c46-3e9c-4184-9149-8af8197a4f8f")
+	)
+	(wire
+		(pts
 			(xy 542.29 64.77) (xy 537.21 64.77)
 		)
 		(stroke
@@ -3749,6 +3716,16 @@
 	)
 	(wire
 		(pts
+			(xy 480.06 138.43) (xy 474.98 138.43)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bbbb7e9c-44fe-4a6b-8b72-2b10b75f4b3e")
+	)
+	(wire
+		(pts
 			(xy 554.99 133.35) (xy 549.91 133.35)
 		)
 		(stroke
@@ -3766,6 +3743,16 @@
 			(type default)
 		)
 		(uuid "c1495d33-24ea-4425-b33c-cba522fa9ecd")
+	)
+	(wire
+		(pts
+			(xy 480.06 133.35) (xy 474.98 133.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c75f28eb-262b-4ab8-9176-9a5f87e14600")
 	)
 	(wire
 		(pts
@@ -3876,6 +3863,16 @@
 			(type default)
 		)
 		(uuid "e05ff2c2-9b04-440a-9dc5-05d34c40cb73")
+	)
+	(wire
+		(pts
+			(xy 480.06 146.05) (xy 474.98 146.05)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e070e5c3-c04c-4a75-bc88-7f238223d254")
 	)
 	(wire
 		(pts
@@ -4037,6 +4034,29 @@
 		)
 		(uuid "fc7c33b1-9212-46cd-b823-701d8dcd3402")
 	)
+	(global_label "IO48"
+		(shape bidirectional)
+		(at 474.98 158.75 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "0324171c-0fef-4415-bdee-6e2ea97f4106")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 474.98 158.75 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
 	(global_label "+3V3"
 		(shape bidirectional)
 		(at 966.47 52.07 90)
@@ -4152,6 +4172,29 @@
 			)
 		)
 	)
+	(global_label "I2C_SDA"
+		(shape bidirectional)
+		(at 474.98 135.89 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "0fac5643-e776-4b28-b93f-2789483045e1")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 474.98 135.89 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
 	(global_label "+3V3_SD"
 		(shape bidirectional)
 		(at 661.67 52.07 90)
@@ -4244,7 +4287,7 @@
 			)
 		)
 	)
-	(global_label "USB_PROG_DN"
+	(global_label "USB_PROG_DM"
 		(shape bidirectional)
 		(at 58.42 146.05 180)
 		(fields_autoplaced yes)
@@ -4474,6 +4517,29 @@
 			)
 		)
 	)
+	(global_label "IO2"
+		(shape bidirectional)
+		(at 474.98 143.51 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "5ff4e19c-e75d-4865-93c1-004db23bd9a6")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 474.98 143.51 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
 	(global_label "SD_DAT2"
 		(shape bidirectional)
 		(at 814.07 69.85 270)
@@ -4533,6 +4599,29 @@
 		(uuid "6432f457-d4c7-48a7-8638-17611d6c82ae")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 160.02 143.51 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(global_label "IO1"
+		(shape bidirectional)
+		(at 474.98 140.97 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "6bbe1147-cf53-4f1b-b7d3-a13c3d02ee43")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 474.98 140.97 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4727,7 +4816,7 @@
 			)
 		)
 	)
-	(global_label "USB_DN"
+	(global_label "USB_DM"
 		(shape bidirectional)
 		(at 243.84 72.39 0)
 		(fields_autoplaced yes)
@@ -4957,6 +5046,29 @@
 			)
 		)
 	)
+	(global_label "IO9"
+		(shape bidirectional)
+		(at 474.98 148.59 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "96b974c7-13a1-4499-8762-540da16f15bc")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 474.98 148.59 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
 	(global_label "CC2"
 		(shape bidirectional)
 		(at 1070.61 64.77 0)
@@ -5072,7 +5184,7 @@
 			)
 		)
 	)
-	(global_label "USB_PROG_DN"
+	(global_label "USB_PROG_DM"
 		(shape bidirectional)
 		(at 1070.61 69.85 0)
 		(fields_autoplaced yes)
@@ -5154,6 +5266,29 @@
 		(uuid "a69b8595-4087-4137-b488-be8137d61f26")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 71.12 166.37 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(global_label "I2C_SCL"
+		(shape bidirectional)
+		(at 474.98 138.43 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "ab2e281a-24eb-4392-843d-06fa50d2bad1")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 474.98 138.43 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5256,7 +5391,7 @@
 			)
 		)
 	)
-	(global_label "USB_DN"
+	(global_label "USB_DM"
 		(shape bidirectional)
 		(at 462.28 62.23 180)
 		(fields_autoplaced yes)
@@ -5279,7 +5414,7 @@
 			)
 		)
 	)
-	(global_label "USB_DN"
+	(global_label "USB_DM"
 		(shape bidirectional)
 		(at 243.84 69.85 0)
 		(fields_autoplaced yes)
@@ -5601,6 +5736,52 @@
 			)
 		)
 	)
+	(global_label "IO39"
+		(shape bidirectional)
+		(at 474.98 151.13 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "e21c0cc7-b12a-49fd-957f-7545507d9c91")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 474.98 151.13 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 474.98 130.81 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "e2cc107c-7441-4e93-9ca3-c9e8ea91c44e")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 474.98 130.81 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
 	(global_label "+3V3_SD"
 		(shape bidirectional)
 		(at 537.21 64.77 180)
@@ -5624,7 +5805,7 @@
 			)
 		)
 	)
-	(global_label "USB_PROG_DN"
+	(global_label "USB_PROG_DM"
 		(shape bidirectional)
 		(at 1070.61 72.39 0)
 		(fields_autoplaced yes)
@@ -5741,6 +5922,29 @@
 	)
 	(global_label "+3V3"
 		(shape bidirectional)
+		(at 474.98 133.35 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "f605f2f3-70c7-458e-bb90-80d235d7d506")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 474.98 133.35 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(global_label "+3V3"
+		(shape bidirectional)
 		(at 236.22 125.73 90)
 		(fields_autoplaced yes)
 		(effects
@@ -5752,6 +5956,52 @@
 		(uuid "f67a8aca-c857-4064-adaf-c6c5f72e5f21")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 236.22 125.73 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(global_label "IO8"
+		(shape bidirectional)
+		(at 474.98 146.05 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "f69996dd-562c-40bd-ad60-d42384c35dd8")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 474.98 146.05 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(global_label "IO42"
+		(shape bidirectional)
+		(at 474.98 153.67 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "f6f66a10-b562-469a-bfe3-68829769e94a")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 474.98 153.67 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5775,6 +6025,29 @@
 		(uuid "f8d84689-2af8-407f-84cd-d8631c063abd")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 537.21 67.31 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(global_label "IO47"
+		(shape bidirectional)
+		(at 474.98 156.21 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "f9ff952f-f17a-4f80-bfe6-735362e38169")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 474.98 156.21 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7934,960 +8207,113 @@
 		)
 	)
 	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 63.5 185.42 0)
+		(lib_id "Connector_Generic:Conn_01x12")
+		(at 485.14 143.51 0)
 		(unit 1)
+		(body_style 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
+		(in_pos_files yes)
 		(dnp yes)
 		(fields_autoplaced yes)
-		(uuid "e54cc0c8-0387-485e-88d5-b54c90b80069")
-		(property "Reference" "TP1"
-			(at 63.5 172.72 0)
+		(uuid "fd6a1272-2c9a-4542-8cb9-2c82ca1ff40c")
+		(property "Reference" "J10"
+			(at 485.14 130.81 0)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 			)
 		)
-		(property "Value" "GND"
-			(at 63.5 170.18 0)
+		(property "Value" "EXTENSION (non monte)"
+			(at 485.14 128.27 0)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 			)
 		)
-		(property "Footprint" "TestPoint:TestPoint_THTPad_D2.0mm_Drill1.0mm"
-			(at 63.5 167.64 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
+		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x12_P2.54mm_Vertical"
+			(at 485.14 125.73 0)
 			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
 		)
 		(property "Datasheet" ""
-			(at 63.5 165.1 0)
+			(at 485.14 123.19 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 			)
-			(hide yes)
 		)
 		(property "Description" ""
-			(at 63.5 162.56 0)
+			(at 485.14 120.65 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 			)
-			(hide yes)
 		)
 		(pin "1"
-			(uuid "8e0ce8de-5ca0-4403-a266-7b6afeb954bd")
+			(uuid "a1d5a84f-9f93-4daa-bd5d-c5db2e153ae3")
+		)
+		(pin "2"
+			(uuid "f5e7b61d-7387-44cc-9326-7906d2ddc6b3")
+		)
+		(pin "3"
+			(uuid "10974960-adfb-4f4e-a885-e901e7909aef")
+		)
+		(pin "4"
+			(uuid "3135813f-ee8c-4dc0-9121-70304a43869d")
+		)
+		(pin "5"
+			(uuid "9b1fbdae-029d-42f2-828c-ee9799114971")
+		)
+		(pin "6"
+			(uuid "9ba45975-8556-4127-b5b0-39afbe6ca0ac")
+		)
+		(pin "7"
+			(uuid "5155e371-0329-40ca-9d47-640c4a083cbb")
+		)
+		(pin "8"
+			(uuid "1c751e43-4cfc-4fc7-8404-6717d883ec39")
+		)
+		(pin "9"
+			(uuid "b6b2b546-e947-4fb6-a51c-e10ac6779e91")
+		)
+		(pin "10"
+			(uuid "3f315002-7243-4478-9fbb-4c3247c20036")
+		)
+		(pin "11"
+			(uuid "afc56211-14fd-49de-add1-b1f4e35bfe53")
+		)
+		(pin "12"
+			(uuid "7acdc5d0-a540-47d5-8fa4-d8a8e32d96c4")
 		)
 		(instances
 			(project "typoena-mainboard"
 				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
-					(reference "TP1")
+					(reference "J10")
 					(unit 1)
 				)
 			)
 		)
-	)
-	(wire
-		(pts
-			(xy 63.5 185.42) (xy 63.5 190.5)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "89865602-68f9-4b5a-9d40-29c8fab8f1d5")
-	)
-	(global_label "GND"
-		(shape bidirectional)
-		(at 63.5 190.5 270)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "08e94ebe-a3c8-402a-b396-637aa4846780")
-	)
-	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 114.3 185.42 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp yes)
-		(fields_autoplaced yes)
-		(uuid "3d5528f5-aa67-435b-ab9f-b80b40756bc6")
-		(property "Reference" "TP3"
-			(at 114.3 172.72 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+3V3"
-			(at 114.3 170.18 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_THTPad_D2.0mm_Drill1.0mm"
-			(at 114.3 167.64 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(property "Datasheet" ""
-			(at 114.3 165.1 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(property "Description" ""
-			(at 114.3 162.56 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(pin "1"
-			(uuid "6166fa50-3e40-482b-a148-7fd5981204af")
-		)
-		(instances
-			(project "typoena-mainboard"
-				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
-					(reference "TP3")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 114.3 185.42) (xy 114.3 190.5)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "9e4100e7-9d3e-43bf-8514-5225c817b441")
-	)
-	(global_label "+3V3"
-		(shape bidirectional)
-		(at 114.3 190.5 270)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "0e52e9cc-2370-4129-8835-2b007e3cc615")
-	)
-	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 139.7 185.42 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp yes)
-		(fields_autoplaced yes)
-		(uuid "7d0a66ec-255d-4a70-8c12-34faba1b47b0")
-		(property "Reference" "TP4"
-			(at 139.7 172.72 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "I2C_SDA"
-			(at 139.7 170.18 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_THTPad_D2.0mm_Drill1.0mm"
-			(at 139.7 167.64 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(property "Datasheet" ""
-			(at 139.7 165.1 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(property "Description" ""
-			(at 139.7 162.56 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(pin "1"
-			(uuid "38f3ff72-1a90-453b-89d5-4446dd5af581")
-		)
-		(instances
-			(project "typoena-mainboard"
-				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
-					(reference "TP4")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 139.7 185.42) (xy 139.7 190.5)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "74e2e7fd-24ca-4986-8f0d-50e5aa0c053a")
-	)
-	(global_label "I2C_SDA"
-		(shape bidirectional)
-		(at 139.7 190.5 270)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "c57880fc-bba2-4d8c-8fb3-1ba4f2b2cc64")
-	)
-	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 165.1 185.42 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp yes)
-		(fields_autoplaced yes)
-		(uuid "2ab5342b-d385-483e-85f5-3f899f0b954a")
-		(property "Reference" "TP5"
-			(at 165.1 172.72 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "I2C_SCL"
-			(at 165.1 170.18 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_THTPad_D2.0mm_Drill1.0mm"
-			(at 165.1 167.64 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(property "Datasheet" ""
-			(at 165.1 165.1 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(property "Description" ""
-			(at 165.1 162.56 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(pin "1"
-			(uuid "caea963b-e906-41f5-acf9-69e842d04697")
-		)
-		(instances
-			(project "typoena-mainboard"
-				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
-					(reference "TP5")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 165.1 185.42) (xy 165.1 190.5)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "35f30b81-e25e-4a3b-9bbd-ec3ef2884ca0")
-	)
-	(global_label "I2C_SCL"
-		(shape bidirectional)
-		(at 165.1 190.5 270)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "fedbffb3-7821-47c2-91b3-66026bfdbdee")
-	)
-	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 190.5 185.42 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp yes)
-		(fields_autoplaced yes)
-		(uuid "62fc22cf-f134-44ba-94e4-1d1a0ad87a86")
-		(property "Reference" "TP6"
-			(at 190.5 172.72 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "IO1"
-			(at 190.5 170.18 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_THTPad_D1.5mm_Drill0.7mm"
-			(at 190.5 167.64 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(property "Datasheet" ""
-			(at 190.5 165.1 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(property "Description" ""
-			(at 190.5 162.56 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(pin "1"
-			(uuid "aa0538cd-e04c-40f7-a4b5-4becf8908026")
-		)
-		(instances
-			(project "typoena-mainboard"
-				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
-					(reference "TP6")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 190.5 185.42) (xy 190.5 190.5)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e441778c-2eac-4201-ae7a-cafd7ea40c52")
-	)
-	(global_label "IO1"
-		(shape bidirectional)
-		(at 190.5 190.5 270)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "fa17d4e2-bb9b-4d3c-8f53-fee1f26094c9")
-	)
-	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 215.89999999999998 185.42 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp yes)
-		(fields_autoplaced yes)
-		(uuid "399d1055-ea57-4580-aed7-c58a53c10f6b")
-		(property "Reference" "TP7"
-			(at 215.89999999999998 172.72 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "IO2"
-			(at 215.89999999999998 170.18 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_THTPad_D1.5mm_Drill0.7mm"
-			(at 215.89999999999998 167.64 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(property "Datasheet" ""
-			(at 215.89999999999998 165.1 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(property "Description" ""
-			(at 215.89999999999998 162.56 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(pin "1"
-			(uuid "0678342f-40da-49a7-bca4-d8eaffcc428a")
-		)
-		(instances
-			(project "typoena-mainboard"
-				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
-					(reference "TP7")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 215.89999999999998 185.42) (xy 215.89999999999998 190.5)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "819c4443-7c03-4f6d-a629-1f0cc631cd70")
-	)
-	(global_label "IO2"
-		(shape bidirectional)
-		(at 215.89999999999998 190.5 270)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "72b90e06-c1bc-42f5-9226-02fdb7901bda")
-	)
-	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 241.29999999999998 185.42 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp yes)
-		(fields_autoplaced yes)
-		(uuid "acb3d5a6-c51f-426f-b537-7ebbf52d03f7")
-		(property "Reference" "TP8"
-			(at 241.29999999999998 172.72 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "IO8"
-			(at 241.29999999999998 170.18 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_THTPad_D1.5mm_Drill0.7mm"
-			(at 241.29999999999998 167.64 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(property "Datasheet" ""
-			(at 241.29999999999998 165.1 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(property "Description" ""
-			(at 241.29999999999998 162.56 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(pin "1"
-			(uuid "1e776aef-1afa-4ca5-a23a-195b29d5b37e")
-		)
-		(instances
-			(project "typoena-mainboard"
-				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
-					(reference "TP8")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 241.29999999999998 185.42) (xy 241.29999999999998 190.5)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "bf62876d-ade6-4d5b-bcca-838bb4cf5cea")
-	)
-	(global_label "IO8"
-		(shape bidirectional)
-		(at 241.29999999999998 190.5 270)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "8b7f075a-2884-40c8-b7fd-3f0a97ce6d45")
-	)
-	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 266.7 185.42 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp yes)
-		(fields_autoplaced yes)
-		(uuid "b1790e28-acd6-4da0-a8e0-78d02a24e07b")
-		(property "Reference" "TP9"
-			(at 266.7 172.72 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "IO9"
-			(at 266.7 170.18 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_THTPad_D1.5mm_Drill0.7mm"
-			(at 266.7 167.64 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(property "Datasheet" ""
-			(at 266.7 165.1 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(property "Description" ""
-			(at 266.7 162.56 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(pin "1"
-			(uuid "5c67db8e-eb86-48eb-a2f3-029fdd2f2b52")
-		)
-		(instances
-			(project "typoena-mainboard"
-				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
-					(reference "TP9")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 266.7 185.42) (xy 266.7 190.5)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "665a5bb8-d6e8-47a1-923f-75db978c60a1")
-	)
-	(global_label "IO9"
-		(shape bidirectional)
-		(at 266.7 190.5 270)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "3d34e538-3ede-47a5-b116-a8faf21b6e08")
-	)
-	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 292.1 185.42 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp yes)
-		(fields_autoplaced yes)
-		(uuid "678bbc65-6b55-41de-851b-b1b394d7d1a1")
-		(property "Reference" "TP10"
-			(at 292.1 172.72 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "IO39"
-			(at 292.1 170.18 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_THTPad_D1.5mm_Drill0.7mm"
-			(at 292.1 167.64 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(property "Datasheet" ""
-			(at 292.1 165.1 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(property "Description" ""
-			(at 292.1 162.56 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(pin "1"
-			(uuid "055536d4-7d66-449f-89e5-ab09a7d56070")
-		)
-		(instances
-			(project "typoena-mainboard"
-				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
-					(reference "TP10")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 292.1 185.42) (xy 292.1 190.5)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "d72aa605-0afe-45c1-a213-1db58b6927b2")
-	)
-	(global_label "IO39"
-		(shape bidirectional)
-		(at 292.1 190.5 270)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "a301139f-036b-4b62-8982-2d36cc477842")
-	)
-	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 342.9 185.42 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp yes)
-		(fields_autoplaced yes)
-		(uuid "de8f66e5-0f28-4027-b4a6-011d5649d6b1")
-		(property "Reference" "TP12"
-			(at 342.9 172.72 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "IO47"
-			(at 342.9 170.18 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_THTPad_D1.5mm_Drill0.7mm"
-			(at 342.9 167.64 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(property "Datasheet" ""
-			(at 342.9 165.1 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(property "Description" ""
-			(at 342.9 162.56 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(pin "1"
-			(uuid "13cb35d8-a018-40c9-a27f-541c80d1bf14")
-		)
-		(instances
-			(project "typoena-mainboard"
-				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
-					(reference "TP12")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 342.9 185.42) (xy 342.9 190.5)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "ef6014fa-6919-49d1-bd09-84d680bffb38")
-	)
-	(global_label "IO47"
-		(shape bidirectional)
-		(at 342.9 190.5 270)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "bc876092-5176-4dd2-b391-92cfac279051")
-	)
-	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 368.29999999999995 185.42 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp yes)
-		(fields_autoplaced yes)
-		(uuid "8e3bfc1a-c3bc-4c18-8e47-aeddfc3543a1")
-		(property "Reference" "TP13"
-			(at 368.29999999999995 172.72 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "IO48"
-			(at 368.29999999999995 170.18 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_THTPad_D1.5mm_Drill0.7mm"
-			(at 368.29999999999995 167.64 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(property "Datasheet" ""
-			(at 368.29999999999995 165.1 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(property "Description" ""
-			(at 368.29999999999995 162.56 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-			(hide yes)
-		)
-		(pin "1"
-			(uuid "90c037f1-6196-4335-9e52-7284cfffca3e")
-		)
-		(instances
-			(project "typoena-mainboard"
-				(path "/b1f0c5a2-7d34-4e19-9a6c-0f2e8d41c7b3/3a1c9e40-0004-4a00-9000-000000000004"
-					(reference "TP13")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 368.29999999999995 185.42) (xy 368.29999999999995 190.5)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "834ea3d6-2344-4a0d-8b38-2a1b2b87f42b")
-	)
-	(global_label "IO48"
-		(shape bidirectional)
-		(at 368.29999999999995 190.5 270)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "f5786c80-4492-4091-b88f-cf116aeb5474")
 	)
 )

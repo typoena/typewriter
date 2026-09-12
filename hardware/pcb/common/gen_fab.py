@@ -4,7 +4,7 @@
 Lecture seule sur le projet, tout est écrit dans `fab/`, qui est ignoré par git.
 Le fichier de placement porte les corrections de rotation de la table ci-dessous.
 
-    python3 tools/gen_fab.py
+    python3 common/gen_fab.py <carte>
 """
 import csv
 import os
@@ -15,12 +15,11 @@ import zipfile
 ICI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, ICI)
 import check_pcb  # noqa: E402  — réutilise son lecteur de pastilles
+import projet  # noqa: E402
 
-CARTE = os.path.dirname(ICI)
-NOM = "typoena-mainboard"
-PCB = os.path.join(CARTE, NOM + ".kicad_pcb")
-BOM = os.path.join(CARTE, NOM + "-bom.csv")
-FAB = os.path.join(CARTE, "fab")
+PROJET = projet.depuis_argv()
+CARTE, NOM = PROJET.dir, PROJET.nom
+PCB, BOM, FAB = PROJET.pcb, PROJET.bom, PROJET.fab
 
 # Rotation à ajouter à la valeur du PCB, en degrés, sens trigonométrique.
 #
@@ -30,6 +29,8 @@ FAB = os.path.join(CARTE, "fab")
 # leur prévisualisation, où chaque valeur ci-dessous a été relevée à l'œil sur le
 # dessin des broches, jamais calculée.
 #
+# Table partagée par les deux cartes : une entrée dont le repère est absent
+# d'une carte y est simplement inerte.
 # À reprendre si une empreinte change de bibliothèque, ou si le fabricant change.
 ROTATION_JLCPCB = {
     "U4": 180,   # TPS61023, SOT-563
@@ -37,6 +38,8 @@ ROTATION_JLCPCB = {
     "J1": 180,   # JST-PH 2 points
     "J2": 180,
     "J3": 180,
+    # J13 (JST-PH 4 points, S4B-PH-K) ne prend AUCUNE correction : contrôlé dans
+    # l'aperçu JLCPCB, son orientation KiCad sort déjà bonne (à 180 dans le CPL).
 }
 
 # Composants dont la position doit rester celle de l'origine d'empreinte plutôt
@@ -54,11 +57,25 @@ POUR_ARCHIVE = (".gtl", ".g1", ".g2", ".gbl", ".gtp", ".gbp",
                 ".gto", ".gbo", ".gts", ".gbs", ".gm1", ".drl")
 
 
-def cli(*args):
-    r = subprocess.run(["kicad-cli", "pcb"] + list(args),
+def cli(*args, outil="pcb"):
+    r = subprocess.run(["kicad-cli", outil] + list(args),
                        capture_output=True, text=True)
     if r.returncode:
         sys.exit(f"kicad-cli a échoué :\n{r.stderr or r.stdout}")
+
+
+def exporter_bom():
+    """Réexporte la BOM du dépôt depuis le schéma.
+
+    `--ref-range-delimiter ''` désactive le repliement en plages : JLCPCB ne sait
+    pas lire « C18-C20 », il lui faut les désignateurs un par un.
+    """
+    cli("export", "bom", outil="sch",
+        "--fields", "Reference,Value,Footprint,MPN,LCSC,${QUANTITY},${DNP}",
+        "--labels", "Reference,Value,Footprint,MPN,LCSC,QUANTITY,DNP",
+        "--group-by", "Value,Footprint,MPN,LCSC,${DNP}",
+        "--sort-field", "Reference", "--ref-range-delimiter", "",
+        "--output", BOM, PROJET.sch)
 
 
 def normalise(a):
@@ -91,6 +108,8 @@ def main():
     os.makedirs(FAB, exist_ok=True)
     for f in os.listdir(FAB):
         os.remove(os.path.join(FAB, f))
+
+    exporter_bom()
 
     # --check-zones refait le remplissage avant de tracer : le gerber ne peut pas
     # hériter d'un remplissage périmé. --subtract-soldermask découpe la
@@ -141,8 +160,7 @@ def main():
     for r in lignes:
         if r["DNP"] or not r["LCSC"]:
             continue
-        # JLCPCB ne sait pas lire une plage « C18-C20 » : la BOM du dépôt est
-        # exportée en désignateurs séparés, on se contente de filtrer.
+        # Désignateurs séparés — voir exporter_bom().
         refs = [d.strip() for d in r["Reference"].split(",") if d.strip() in montes]
         if not refs:
             continue

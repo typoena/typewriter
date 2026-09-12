@@ -696,7 +696,7 @@
       },
       {
         "netclass": "USB",
-        "pattern": "USB_DM"
+        "pattern": "USB_DN"
       },
       {
         "netclass": "USB",
@@ -704,7 +704,7 @@
       },
       {
         "netclass": "USB",
-        "pattern": "USB_PROG_DM"
+        "pattern": "USB_PROG_DN"
       }
     ]
   },

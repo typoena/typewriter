@@ -2684,7 +2684,7 @@
 		)
 		(uuid "253f062d-46ad-42ec-8a04-b8a83339ac69")
 	)
-	(global_label "USB_DM"
+	(global_label "USB_DN"
 		(shape bidirectional)
 		(at 342.9 69.85 0)
 		(fields_autoplaced yes)
@@ -2750,7 +2750,7 @@
 		)
 		(uuid "f26d24d2-b569-426b-acd3-e01053a73147")
 	)
-	(global_label "USB_DM"
+	(global_label "USB_DN"
 		(shape bidirectional)
 		(at 342.9 72.39 0)
 		(fields_autoplaced yes)
@@ -3198,7 +3198,7 @@
 		)
 		(uuid "83cd1560-c4f1-45d7-9995-2b8129acdf32")
 	)
-	(global_label "USB_DM"
+	(global_label "USB_DN"
 		(shape bidirectional)
 		(at 560.0699999999999 62.23 180)
 		(fields_autoplaced yes)
