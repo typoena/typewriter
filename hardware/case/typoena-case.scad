@@ -89,7 +89,7 @@ function ins_grip(over) = min(ins_len, scr_thread - over);
 // ---- body envelope --------------------------------------------------------
 W        = 176;   // width  (X)  — screen 150.9 + bezel + walls
 D        = 104;   // depth  (Y)  — front (keyboard) .. back (ports)
-// The two heights MOVE AS A PAIR: theta is their difference over the pillar span,
+// The two heights MOVE AS A PAIR: theta is their difference over the full depth,
 // so shifting both by the same amount translates the whole deck plane vertically
 // and leaves the recline, deck_L, screen_cy and the entire screen clamp untouched.
 // Raising Hf alone flattens the deck by ~1 mm per degree. What they have to buy
@@ -98,14 +98,17 @@ D        = 104;   // depth  (Y)  — front (keyboard) .. back (ports)
 // shorter machine is ever wanted.
 // In the kb variant Hf is also the bay/cavity SHARED WALL, so Hk and kb_post_h
 // must move with it or the top keycap row sinks into the wall — see README-kb.md.
-Hf       = 28;    // height at the FRONT edge
-Hb       = 62;    // height at the BACK edge  (Hf<Hb makes the reclined deck)
+Hf       = 28;    // height at the FRONT edge (y = 0)
+Hb       = 68;    // height at the BACK edge  (y = D). Hf<Hb makes the reclined
+                  // deck, and the deck plane runs edge to edge: both heights are
+                  // ON it, with no flat at either end to break the slope.
 wall     = 2.4;   // side/back wall thickness
 top_wall = 2.6;   // deck thickness (before the bezel lip is cut into it)
 corner_r = 8;     // rounded vertical + top-edge radius (the "machined" look)
 
-// deck slope, derived from the pillar centres (this is the *true* top plane)
-theta    = atan((Hb - Hf) / (D - 2*corner_r));   // ~21 deg with the defaults
+// deck slope, derived from the two edge heights over the full depth — the deck
+// IS this plane, from the front edge to the back one (see body_outer)
+theta    = atan((Hb - Hf) / D);   // ~21 deg with the defaults
 // >> THE ergonomics dial. Raise Hb for a more vertical, easier-to-read screen;
 //    lower it for a flatter, more typewriter-like deck. 18-22 deg = shallow,
 //    28-35 deg reads better when you're sitting close.
@@ -180,12 +183,22 @@ name_font  = "Monaspace Krypton";   // install once — see README (Nameplate fo
 // only 0.5 mm a side to give away.
 A_ap_w = A_w + 2;
 A_ap_h = A_h + 1;
+// The window's FRONT edge is bevelled: straight-walled, lip_t of deck stands
+// between the user's sight line and the glass, and it shadows a strip along the
+// bottom of the image. The run below opens the mouth to ~40 deg off the deck
+// normal, past the ~35 deg a sitting user actually looks from, so nothing of the
+// active area is hidden. Only the front edge is cut — the other three are read
+// down the normal or from above and shadow nothing.
+// CONTRACT: the bevel eats the lip from the OUTER face inward, so it must stop
+// short of the glass border it overlaps or the mouth opens onto the glass edge
+// and the pocket shows. Asserted below.
+bezel_bevel = 2.0;   // run in the deck plane, at the outer face
 P_w    = G_w + glass_gap;          // glass pocket (locates the glass in X/Y)
 P_h    = G_h + glass_gap;
 
 // screen placed centred on the deck (measured up the slope)
-deck_L    = (D - 2*corner_r) / cos(theta);   // deck length along the slope
-screen_cy = deck_L/2;                        // centre it
+deck_L    = D / cos(theta);   // deck length along the slope, front edge to back
+screen_cy = deck_L/2;         // centre it
 // Bracket boss, now a heat-set insert instead of an M3 self-tapper: Ø8.9 against
 // the old Ø6.8. The insert is the reason this boss got fat — see the fastener
 // block, and boss_r below for why it stayed at Ø8.9.
@@ -364,17 +377,14 @@ sd_pocket_w = 26.0;  sd_pocket_h = 11.0; sd_pocket_r = 2.5;
 // (auto-download handles flashing), so like the devkit's own USB-C they are
 // reached by taking the baseplate off.
 pwr_btn  = true;             // set false to omit the switch hole entirely
-pwr_d    = 13.5;             // switch barrel Ø (the part Julien bought)
+pwr_d    = 11.8;             // switch barrel Ø, calipered off the part
 pwr_fit  = 0.4;              // panel-hole clearance on the barrel Ø, far tighter
                              // than the ports': this switch IS retained by the
                              // panel, its nut bearing on the wall, so it wants a
-                             // close hole and not port_fit's slack. At Ø14.7 a
-                             // coupon came out wider than pwr_body_d and nothing
-                             // bore against the wall at all.
-                             // OPEN: at 0.4 the hole is Ø13.9 and the bearing
-                             // against pwr_body_d is only 0.05 a side — and that
-                             // bearing is what retains the switch. Judge it on
-                             // the coupon; if it is loose, this wants ~0.05.
+                             // close hole and not port_fit's slack. HAZARD: the
+                             // hole has to stay well inside pwr_body_d or nothing
+                             // bears — a coupon printed Ø14.7 came out wider than
+                             // the body and the panel stopped retaining it at all.
 pwr_r    = (pwr_d + pwr_fit) / 2;
 pwr_body_d = 14;             // WIDEST thing behind the panel — nut across
                              // corners, body OD, solder lugs. NOT the barrel:
@@ -490,22 +500,30 @@ module on_deck() {
 // ===========================================================================
 //  body
 // ===========================================================================
+// Everything below a plane parallel to the deck, `under` past its outer face.
+// This is what gives the deck its slope: a prism tall enough to clear the plane
+// everywhere, sliced by it, so the top surface is ONE plane from the front edge
+// to the back one. Hulling flat-topped corner cylinders instead leaves their top
+// discs standing as a horizontal plateau at each end of the slope.
+module deck_halfspace(under = 0) {
+    on_deck() translate([0, D/2, -100 - under]) cube([2*W, 3*D, 200], center=true);
+}
+
 module body_outer() {
-    hull() {
-        translate([corner_r,     corner_r,     0]) cylinder(h=Hf, r=corner_r);
-        translate([W-corner_r,    corner_r,     0]) cylinder(h=Hf, r=corner_r);
-        translate([corner_r,      D-corner_r,   0]) cylinder(h=Hb, r=corner_r);
-        translate([W-corner_r,    D-corner_r,   0]) cylinder(h=Hb, r=corner_r);
+    intersection() {
+        translate([W/2, D/2, 0]) linear_extrude(Hb + 1) rrect(W, D, corner_r);
+        deck_halfspace();
     }
 }
 
+// The cavity ceiling is the same plane dropped top_wall down the deck NORMAL, so
+// top_wall is the deck's true thickness rather than a vertical drop.
 module body_cavity() {
     ri = corner_r - wall;
-    hull() {
-        translate([corner_r,   corner_r,   -3]) cylinder(h=Hf-top_wall+3, r=ri);
-        translate([W-corner_r, corner_r,   -3]) cylinder(h=Hf-top_wall+3, r=ri);
-        translate([corner_r,   D-corner_r, -3]) cylinder(h=Hb-top_wall+3, r=ri);
-        translate([W-corner_r, D-corner_r, -3]) cylinder(h=Hb-top_wall+3, r=ri);
+    intersection() {
+        translate([W/2, D/2, -3]) linear_extrude(Hb + 4)
+            rrect(W - 2*wall, D - 2*wall, ri);
+        deck_halfspace(top_wall);
     }
 }
 
@@ -616,6 +634,11 @@ assert(ins_grip(bp_t - bp_head_h) >= 2.5, "baseplate screw: not enough thread in
 // the glass pocket — both got tighter when boss_r grew for the insert
 assert(P_w/2 + br_ml >= -boss_x_l + boss_r, "bracket arm no longer covers the left boss");
 assert(boss_y - boss_r >= P_h/2,            "bracket boss has grown into the glass pocket");
+// Lip left at full thickness in front of the window, worst case: the glass sits
+// as far BACK in its pocket as the clearance allows, which is what pulls its
+// front edge toward the bevel.
+assert(G_h/2 - glass_gap/2 + active_off_y - A_ap_h/2 - bezel_bevel >= 0.8,
+       "bezel bevel: too little lip left, the mouth opens onto the glass edge");
 // The board's own joints. The screw crosses the PCB and everything left of its
 // thread has to land in brass, and the bore under it has to stop on the plate
 // rather than open into it — held here because standoff_h and pcb_t are set 200
@@ -629,7 +652,7 @@ assert(ins_grip(pcb_t) >= 2.5, "board screw: not enough thread in the insert");
 // stands at the back of the wedge, where the ceiling is highest, so this is slack
 // rather than a squeeze — but it is the check that fails if the heights are ever
 // dropped or the devkit stack grows.
-pcb_ceiling = Hf + (pcb_y0 - corner_r)*tan(theta) - top_wall;
+pcb_ceiling = Hf + pcb_y0*tan(theta) - top_wall/cos(theta);
 assert(pcb_ceiling - (pcb_z + pcb_h) >= 2.5,
        "board front edge: not enough ceiling over the devkit stack");
 // ...and the back-LEFT screw boss against the board's left edge. This is what
@@ -703,6 +726,24 @@ module bracket_inserts() {
 // baseplate seats against. Depth is measured from the deck's OUTER face.
 deck_cut_d = 20;   // >> top_wall by a wide margin, and still stops the sweep
                    // ~25 mm above the cavity floor
+// ...and the same drift in plan: the pocket's swept back edge has to stay clear
+// of the back screw bosses, the face the baseplate seats against. Centring the
+// screen on the FULL deck put it 8.6 mm further up the slope, which is what made
+// this worth holding rather than eyeballing.
+assert((screen_cy + glass_dy + P_h/2)*cos(theta) + deck_cut_d*sin(theta)
+       <= post_xy[2][1] - post_pad - 1,
+       "glass pocket: its swept back edge has reached the back screw bosses");
+
+module bezel_mouth() {
+    over = 0.6;
+    run  = bezel_bevel * (lip_t + over) / lip_t;
+    hull() {
+        translate([0, 0, -lip_t]) linear_extrude(0.01)
+            square([A_ap_w, A_ap_h], center=true);
+        translate([0, -run/2, over]) linear_extrude(0.01)
+            square([A_ap_w, A_ap_h + run], center=true);
+    }
+}
 
 module screen_cuts() {
     on_deck() translate([0, screen_cy, 0]) {
@@ -713,6 +754,12 @@ module screen_cuts() {
         translate([glass_dx + active_off_x, glass_dy + active_off_y, -deck_cut_d])
             linear_extrude(deck_cut_d + 3)
                 square([A_ap_w, A_ap_h], center=true);
+        // ...and the bevel on its front edge, from the glass face out. Carried
+        // `over` past the deck so the mouth is cut cleanly at the surface; the
+        // run is extrapolated with it or the slope would flatten over the last
+        // fraction of a millimetre.
+        translate([glass_dx + active_off_x, glass_dy + active_off_y, 0])
+            bezel_mouth();
         // glass pocket behind the lip — shifted so the ACTIVE area lands centred.
         // Its top face IS the lip's underside: it must never start above -lip_t.
         translate([glass_dx, glass_dy, -lip_t - deck_cut_d])

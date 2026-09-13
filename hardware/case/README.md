@@ -76,7 +76,7 @@ Baked into the model from the datasheets:
   overhangs the board's **right** edge by 2.3 mm, which is the widest the
   assembly ever gets.
 - **Battery:** LiPo 3700 mAh, 94 × 32 × 10.3 mm, flat in the front-right.
-- **Body:** 176 W × 104 D, 28 mm front → 62 mm back, deck reclined ~21°. Walls
+- **Body:** 176 W × 104 D, 28 mm front → 68 mm back, deck reclined ~21°. Walls
   2.4 mm, deck 2.6 mm, corner radius 8 mm.
 
 ## How the hardware goes in (glueless)
@@ -229,7 +229,7 @@ and the battery, button and lamp pigtails share it.
   11 mm card is what a fingernail hooks. That clearance *is* the grip — it is not
   slack, and it is the first thing to judge on the coupon.
 - **Power on/off switch** — a latching push button (push-on / push-off) through
-  the back wall (`pwr_*`), Ø13.5 barrel, centre at `x` **132.3** (43.7 mm in from
+  the back wall (`pwr_*`), Ø11.8 barrel, centre at `x` **132.3** (43.7 mm in from
   the right outer face), on the USB-C centreline. It carries **gate signal only**
   (µA) — it drives the soft-power latch that opens the load path, so the machine
   is genuinely off between sessions instead of draining the LiPo, and firmware
@@ -472,14 +472,13 @@ plausible edit could break, so those fail the render rather than the print.
       13.5 is socket 8.5 + board 1.6 + can 3.4, none of it calipered. It clears
       the deck by 19 mm, so it is not load-bearing — but it is what the ceiling
       assert is checked against, and the board is in hand.
-- [ ] **Re-check `pwr_fit = 0.4` on the coupon.** At 0.4 the hole is Ø13.9 and
-      the bearing against `pwr_body_d` is **0.05 mm a side** — thin, and that
-      bearing is what retains the switch. If it comes out loose, `pwr_fit` wants
-      about **0.05**. The switch is
-      deliberately far tighter than the ports: it is the one part *retained* by
-      the panel rather than merely passing through it, and at `pwr_fit = 1.2`
-      the hole printed Ø14.7, wider than `pwr_body_d`, and the panel stopped
-      retaining it at all.
+- [ ] **Re-check `pwr_fit = 0.4` on the coupon.** At 0.4 the hole is Ø12.2,
+      leaving 0.9 mm a side of bearing against the Ø14 `pwr_body_d` — ample, but
+      that bearing is what retains the switch, so it is judged on the coupon and
+      not on paper. The switch is deliberately far tighter than the ports: it is
+      the one part *retained* by the panel rather than merely passing through it,
+      and a coupon whose hole printed Ø14.7 came out wider than `pwr_body_d`,
+      with the panel no longer retaining it at all.
 - [ ] **The 12 heat-sets are the one irreversible step on a print.** The geometry
       is checked (walls, skin, roof, floor and thread engagement are asserted; the
       screw and insert-body envelopes were booleaned against the solids and come
