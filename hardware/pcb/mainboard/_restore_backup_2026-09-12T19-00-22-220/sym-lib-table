@@ -1,4 +1,0 @@
-(sym_lib_table
-  (version 7)
-  (lib (name "typoena")(type "KiCad")(uri "${KIPRJMOD}/../common/typoena.kicad_sym")(options "")(descr "Symboles maison, partages par les deux cartes : BQ25896RTW, TPS61023DRL"))
-)
