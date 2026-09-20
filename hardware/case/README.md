@@ -80,7 +80,7 @@ Baked into the model from the datasheets:
   assembly ever gets.
 - **Battery:** LiPo 3700 mAh, 94 × 32 × 10.3 mm, flat in the front-right.
 - **Body:** 176 W × 104 D, 28 mm front → 68 mm back, deck reclined ~21°. Walls
-  2.4 mm, deck 2.6 mm, corner radius 8 mm.
+  2.4 mm, deck 3.4 mm, corner radius 8 mm.
 
 ## How the hardware goes in (glueless)
 
@@ -89,8 +89,11 @@ No glue on the fragile 1 mm glass; every part stays serviceable.
 ![Bare body shell — screen recess through the deck, FPC slot on the left edge](renders/body.png)
 
 **Screen.** The glass drops into the deck recess from behind (the walls locate it
-in X/Y). Front to back the stack is: deck **bezel lip** (covers the inactive
-border only, `lip_t = 2.4 mm`) → **glass** → non-adhesive closed-cell **foam**
+in X/Y). The deck is that recess plus the lip in front of it — `top_wall` is
+`lip_t + G_t`, so the pocket wall is **exactly one glass deep**: it takes the glass
+over its full 1 mm and stops on its back face, where the foam frame (wider than the
+pocket) comes up to meet it. Front to back the stack is: deck **bezel lip** (covers
+the inactive border only, `lip_t = 2.4 mm`) → **glass** → non-adhesive closed-cell **foam**
 gasket (`foam_t = 5 mm` free, squashed to `foam_c = 3.5` — a 30% squash) → printed
 **bracket**
 screwed to 4 bosses. The lip stops the glass falling out the front; the bracket
@@ -108,8 +111,9 @@ the boss room for a **heat-set insert** (see *Fasteners* below). The bore stops
 `pilot_skin = 2.1 mm` short of the deck's outer face, so nothing shows on the side
 the user looks at — and that skin, not the thread, is what set `lip_t`.
 
-Locating tolerances: the pocket gives the glass **0.25 mm of play per side** in X
-and Y, against a window margin of 1.00 mm (X) / 0.50 mm (Y) over the active area —
+Locating tolerances: the pocket is the glass's *only* registration — nothing behind
+it is narrower than the cavity — and it gives the glass **0.25 mm of play per side**
+in X and Y, against a window margin of 1.00 mm (X) / 0.50 mm (Y) over the active area —
 so a drifted panel shifts the bezel by a quarter of a millimetre and can never clip
 a pixel. Don't try to make the bracket locate anything either way: the pocket
 locates, the bracket only clamps. Its clearance holes are **Ø3.9 on a Ø3.5 shank** —
@@ -508,7 +512,8 @@ plausible edit could break, so those fail the render rather than the print.
         insert and only **2.1 mm of deck** past that — on the face the user
         looks at. Sink to flush and stop; if a first deck dimples or blushes
         there, take `lip_t` up before touching anything else (each +1 is +1 of
-        skin, and the only cost is a deeper bezel well).
+        skin; the cost is a deeper bezel well and the same +1 on `top_wall`,
+        which an assert holds — the pocket has to stay one glass deep).
       - **The screw length is a tape-measure datum.** Bore depths are budgeted
         at `scr_thread_max = 8` against a measured 7, so a 7.5 mm batch is
         already covered; a 10 mm one is not, and on the bracket it would arrive

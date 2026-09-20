@@ -106,7 +106,12 @@ Hb       = 68;    // height at the BACK edge  (y = D). Hf<Hb makes the reclined
                   // deck, and the deck plane runs edge to edge: both heights are
                   // ON it, with no flat at either end to break the slope.
 wall     = 2.4;   // side/back wall thickness
-top_wall = 2.6;   // deck thickness (before the bezel lip is cut into it)
+top_wall = 3.4;   // deck thickness (before the bezel lip is cut into it), and it
+                  // is TWO things stacked: lip_t of deck stands in FRONT of the
+                  // glass, and what is left behind it is the pocket wall that
+                  // holds the glass in X/Y. So it moves with lip_t — asserted
+                  // below, because a deck that no longer swallows the glass
+                  // leaves a pocket that clamps it without locating it.
 corner_r = 8;     // rounded vertical + top-edge radius (the "machined" look)
 
 // deck slope, derived from the two edge heights over the full depth — the deck
@@ -673,6 +678,12 @@ assert(ins_grip(bp_t - bp_head_h) >= 2.5, "baseplate screw: not enough thread in
 // the glass pocket — both got tighter when boss_r grew for the insert
 assert(P_w/2 + br_ml >= -boss_x_l + boss_r, "bracket arm no longer covers the left boss");
 assert(boss_y - boss_r >= P_h/2,            "bracket boss has grown into the glass pocket");
+// The pocket wall behind the lip is the whole of the glass's X/Y registration —
+// nothing below it is narrower than the cavity. It must reach the glass's back
+// face, and it must not reach PAST it: the foam frame is wider than the pocket
+// and its top face sits exactly there, so a deeper wall meets the gasket.
+assert(abs(top_wall - lip_t - G_t) < 1e-9,
+       "glass pocket: the deck no longer stands exactly one glass behind the lip");
 // Lip left at full thickness in front of the window, worst case: the glass sits
 // as far BACK in its pocket as the clearance allows, which is what pulls its
 // front edge toward the bevel.
