@@ -37,8 +37,9 @@ Needs [OpenSCAD](https://openscad.org). From `hardware/`:
 
 ```sh
 just render   # regenerate every case/renders/*.png
-just stl      # export every STL: body / bracket / baseplate / coupon / assembly
+just stl      # export every STL: body / bracket / baseplate / coupon / jig / assembly
 just stl-io   # re-export just the back-wall I/O fit coupon (quick test print)
+just stl-guide # re-export just the baseplate drill jig block (print it 4x)
 just stl-feet # export the stick-on feet (deferred — see feet_mode)
 just open     # open the model in OpenSCAD
 ```
@@ -51,7 +52,9 @@ git push origin case-vX.Y.Z` has CI export from the tagged commit and publish
 
 `show` accepts `assembled` · `body` · `bracket` · `baseplate` · `feet` ·
 `print_plate` · `section` (vertical cut) · `plan` (exploded horizontal) ·
-`plan_up` / `plan_down` (each half alone) · `io_coupon` (the I/O fit test print).
+`plan_up` / `plan_down` (each half alone) · `io_coupon` (the I/O fit test print) ·
+`drill_guide` (one baseplate drill jig block, print four) / `drill_guide_fit`
+(the four of them seated on the plate).
 
 ## Dimensions
 
@@ -309,9 +312,9 @@ and the battery, button and lamp pigtails share it.
 **Assembly order.**
 
 0. **Drill the baseplate** — 4 screw passages, the only feature it does not
-   print. Mark their positions through the still-empty Ø4.8 baseplate boss bores
-   first; doing that before the inserts go in is what makes the marking possible.
-   See [Drilling the baseplate](#drilling-the-baseplate).
+   print. Print the corner jig (`just stl-guide`) and drill them off it; the
+   fallback is marking through the still-empty Ø4.8 boss bores, which only works
+   before the inserts go in. See [Drilling the baseplate](#drilling-the-baseplate).
 1. **Press the 12 inserts**: on the bare body, 4 into the bracket bosses under the
    deck and 4 into the baseplate bosses (from below); on the baseplate, 4 into the
    standoffs (from above). Iron at ~250 °C, straight in, stop when the brass is
@@ -363,7 +366,23 @@ is 170.7 × 98.7):
 | back-left | 8.35 | 90.35 |
 | back-right | 162.35 | 90.35 |
 
-Better than measuring: **transfer from the body, before the inserts go in.** The
+**A jig rather than a measurement.** `just stl-guide` exports `drill-guide.stl`:
+one corner block, of which the plate takes **four** — set the count in the slicer.
+The passage sits 8.35 in from *both* edges at every corner, so a block symmetric
+about its own diagonal serves all four positions: it is turned, never flipped. Drop it over a corner, where the two edges that meet there locate it
+completely, and 6 mm of Ø4 bore holds the bit square over the centre. The plate
+goes **underside up** on a sacrificial board: that face is the flat one, the
+standoffs stand on the other.
+
+The jig guides the **through hole only**, which inverts the order above — Ø4
+first, lamage second, concentric to a hole that is already open. A **step drill**
+is the bit for that: its Ø4 step drops into the passage and the Ø7 step cuts the
+flat seat on the same axis. A plain Ø7 twist bit has nothing left to centre on and
+will chase the hole off.
+
+![The four corner blocks seated on the plate they drill](renders/drill-guide.png)
+
+Without the jig, **transfer from the body, before the inserts go in.** The
 four boss bores are plain Ø4.8 holes at that point, open from below and pointing
 straight down at the seated plate — sit the plate in the shell and mark their
 centres through them (a Ø4.8 transfer punch, or a pointed marker and then a centre

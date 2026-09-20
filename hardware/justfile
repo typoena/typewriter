@@ -45,6 +45,8 @@ render:
     # back alongside name_on if the engrave ever returns:
     #   -o renders/nameplate.png {{base}} --camera=0,0,0,62,0,0,0 -D 'show="body"'
     cd case && openscad -o renders/front34.png    {{base}} --camera=0,0,0,72,0,200,0 -D 'show="assembled"' typoena-case.scad
+    # the corner drill jig, seated on the plate it drills
+    cd case && openscad -o renders/drill-guide.png {{base}} {{std_cam}} -D 'show="drill_guide_fit"' typoena-case.scad
     # the I/O fit coupon, straight down on its face
     cd case && openscad -o renders/io-coupon.png  {{base}} --camera=0,0,0,0,0,0,0    -D 'show="io_coupon"' typoena-case.scad
     # back elevation, lightly tilted — for judging how the I/O sits on the face
@@ -67,18 +69,23 @@ stl-kb:
     cd case && openscad {{mesh}} -o kb40-baseplate.stl {{kb40}} -D 'show="kb_baseplate"' {{scad_kb}}
     cd case && zip -qj stl-kb.zip kb60-body.stl kb60-baseplate.stl kb40-body.stl kb40-baseplate.stl
 
-# export every STL (3 printable parts, I/O coupon, assembly) + stl.zip bundle
+# export every STL (3 printable parts, I/O coupon, drill jig, assembly) + stl.zip
 stl:
     cd case && openscad {{mesh}} -o body.stl         -D 'show="body"'      typoena-case.scad
     cd case && openscad {{mesh}} -o bracket.stl      -D 'show="bracket"'   typoena-case.scad
     cd case && openscad {{mesh}} -o baseplate.stl    -D 'show="baseplate"' typoena-case.scad
     cd case && openscad {{mesh}} -o io-coupon.stl    -D 'show="io_coupon"' typoena-case.scad
+    cd case && openscad {{mesh}} -o drill-guide.stl  -D 'show="drill_guide"' typoena-case.scad
     cd case && openscad {{mesh}} -o typoena-case.stl -D 'show="assembled"' typoena-case.scad
     cd case && zip -qj stl.zip body.stl bracket.stl baseplate.stl
 
 # export the stick-on feet (only meaningful with feet_mode = "separate")
 stl-feet:
     cd case && openscad {{mesh}} -o feet.stl -D 'show="feet"' -D 'feet_mode="separate"' typoena-case.scad
+
+# export the corner drill jig block, print four (baseplate screw passages)
+stl-guide:
+    cd case && openscad {{mesh}} -o drill-guide.stl -D 'show="drill_guide"' typoena-case.scad
 
 # export just the back-wall I/O fit coupon (quick test print before the body)
 stl-io:

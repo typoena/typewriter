@@ -24,6 +24,9 @@
 //    "plan_down"   – just the bottom half (cavity: standoffs, bosses, ports)
 //    "io_coupon"   – TEST PRINT: a flat slice of the back wall with only the
 //                    I/O openings (2x USB-C, µSD, power button) — dry-fit check
+//    "drill_guide" – TOOL: the corner block that holds the Ø4 bit on a baseplate
+//                    screw passage — print FOUR (see README, "Drilling the
+//                    baseplate"); "drill_guide_fit" shows them in use
 // ============================================================================
 
 show = "assembled";
@@ -406,6 +409,12 @@ pwr_z    = pcb_z + usbc_cz;
 // away it gives away twice here — the joint that goes tight first, and the reason
 // MANUFACTURING.md calls it the check to make on every new filament.
 bp_gap     = 0.5;
+// the plate's outline, hoisted out of baseplate(): the corner drill jig below
+// registers on these three numbers, and a jig cut to a different rectangle than
+// the part it drops on is a jig that drills somewhere else.
+bp_w       = W - 2*wall - bp_gap;   // 170.7
+bp_d       = D - 2*wall - bp_gap;   // 98.7
+bp_r       = corner_r - wall;       // 5.6 — the plate's corner radius
 foot_r     = 7;    // round feet (the little typewriter feet)
 foot_h     = 3.5;
 // "none"     – no feet (current: deferred to a later version)
@@ -440,6 +449,30 @@ bp_head_h  = scr_head_h + 0.2;   // 1.2 deep — 0.2 past the head so it can onl
 // at the lamage Ø does both jobs (the v0 foot had a bore + its own head counterbore,
 // which the lamage made redundant).
 foot_bore_r = bp_head_r;
+// Where they stand: one inset, used at all four corners off whichever two edges
+// meet there — it is what lets the corner jig below be a single block.
+post_in    = corner_r + 3;
+// ---- corner drill jig -----------------------------------------------------
+// A printed block that drops over a plate CORNER — the two edges meeting there
+// locate it completely — and holds the bit on that corner's screw. ONE block
+// does all four: the passage sits dg_hole_in from both edges at every corner, so
+// a block symmetric about its own diagonal only has to be turned. It guides the
+// through hole alone, which inverts the drill order stated at bp_screw_r; the
+// lamage is then cut concentric to an existing Ø3.9 — see README, "Drilling the
+// baseplate", for the bit that does that without wandering.
+dg_hole_in = post_in - (W - bp_w)/2;   // 8.35, in from each plate edge
+dg_bit_d   = 4.0;   // the bit's NOMINAL size, no clearance added: the first turn
+                    // reams the bore to the bit and it stays on centre, where a
+                    // bore drawn loose would give the bit somewhere to lean.
+dg_lead    = 6.0;   // bore length standing over the plate. 1.5 bit diameters is
+                    // the FLOOR for a bushing — under it the bore stops holding
+                    // the bit square and only marks where it started.
+dg_seat    = bp_t - 0.4;   // pocket depth, deliberately SHORT of the plate: the
+                    // jig has to land on the plate's face, never on the
+                    // sacrificial board the plate is drilled against
+dg_slip    = 0.3;   // a side, pocket wall to plate edge
+dg_lip     = 3.0;   // material outboard of the plate edge
+dg_reach   = 22;    // ...and inboard of the corner, past the bore
 // Baseplate screw bosses. Rectangular pads FUSED INTO THE WALLS they sit against,
 // not free-standing posts: the box overshoots the shell by post_out and the
 // intersection with body_outer() trims it flush, so "touching the wall" is a
@@ -534,10 +567,10 @@ module body_cavity() {
 // CONTRACT: no boss may stand under the board. They run to post_h above bp_t,
 // i.e. 3 mm past the board's underside, so the back pair is what sets how far
 // left the board can go (asserted at pcb_x0).
-post_xy = [[corner_r+3,   corner_r+3],     // front-left
-           [W-corner_r-3, corner_r+3],     // front-right
-           [corner_r+3,   D-corner_r-3],   // back-left
-           [W-corner_r-3, D-corner_r-3]];  // back-right
+post_xy = [[post_in,   post_in],     // front-left
+           [W-post_in, post_in],     // front-right
+           [post_in,   D-post_in],   // back-left
+           [W-post_in, D-post_in]];  // back-right
 // Boss footprints [x0, x1, y0, y1]. A face driven past the shell is a FUSED face:
 // every box runs out through both of the corner walls it sits in. Their free
 // faces sit post_pad from the screw axis.
@@ -628,6 +661,12 @@ assert(post_pad - post_bore >= ins_wall,  "baseplate boss: too little wall for t
 assert(pilot_skin >= ins_wall,            "deck skin over the bracket insert too thin");
 assert(post_h - post_bore_h >= 1.5,       "baseplate boss: no roof left over the bore");
 assert(bp_t - bp_head_h     >= 1.2,       "baseplate: drilled lamage leaves too little plate");
+// one jig block for four corners — only true while the pattern is dg_hole_in in
+// from BOTH edges at every one of them
+assert(abs(post_xy[0][1] - (D-bp_d)/2       - dg_hole_in) < 1e-9 &&
+       abs(W - post_xy[1][0] - (W-bp_w)/2   - dg_hole_in) < 1e-9 &&
+       abs(D - post_xy[2][1] - (D-bp_d)/2   - dg_hole_in) < 1e-9,
+       "drill jig: the baseplate screws are no longer a symmetric corner pattern");
 assert(ins_grip(bracket_t)        >= 2.5, "bracket screw: not enough thread in the insert");
 assert(ins_grip(bp_t - bp_head_h) >= 2.5, "baseplate screw: not enough thread in the insert");
 // the bracket has to cover the boss it seats on, and the boss has to stay out of
@@ -880,11 +919,9 @@ module bracket() {
 // included — is in the print: a Ø4.8 bore is wide enough for the printer to hold
 // it, which is exactly what a Ø1.6 pilot was not.
 module baseplate() {
-    iw = W - 2*wall - bp_gap;
-    id = D - 2*wall - bp_gap;
     union() {
         // plate (centred on the footprint)
-        translate([W/2, D/2, 0]) linear_extrude(bp_t) rrect(iw, id, corner_r-wall);
+        translate([W/2, D/2, 0]) linear_extrude(bp_t) rrect(bp_w, bp_d, bp_r);
         // round feet underneath — only in "fused" mode, see feet_mode
         if (feet_mode == "fused") feet_parts();
         // the board's four standoffs, bored for their inserts
@@ -927,6 +964,47 @@ module io_coupon() {
         translate([io_x0, D-wall-0.01, io_z0])
             cube([io_x1-io_x0, wall+0.02, io_z1-io_z0]);
     }
+}
+
+// ===========================================================================
+//  corner drill jig  (TOOL — locates the four baseplate screw passages)
+// ---------------------------------------------------------------------------
+//  Lay the plate underside-up on a sacrificial board, drop a block over each
+//  corner, drill. Spec and the one-block-for-four-corners symmetry at dg_hole_in.
+//  Modelled bore-end DOWN, which is also how it prints: the seat is a pocket in
+//  the up-face, so nothing on the part is an overhang.
+// ===========================================================================
+module drill_block() {
+    r  = 2;                                  // outer corner break
+    x0 = -dg_lip - dg_slip;  x1 = dg_reach;  // block, in plate-corner coordinates
+    difference() {
+        linear_extrude(dg_lead + dg_seat)
+            hull() for (x = [x0+r, x1-r], y = [x0+r, x1-r])
+                translate([x, y]) circle(r=r);
+        // the plate corner's seat, cut into the face that meets the plate
+        translate([0, 0, dg_lead]) linear_extrude(dg_seat + 1)
+            difference() {
+                translate([-dg_slip, -dg_slip]) square(x1 + dg_slip + 1);
+                // ...less the material outside the plate's corner arc, grown by
+                // the same slip so the seat stays concentric with it
+                difference() {
+                    translate([-dg_slip, -dg_slip]) square(bp_r + dg_slip);
+                    translate([bp_r, bp_r]) circle(r = bp_r + dg_slip);
+                }
+            }
+        translate([dg_hole_in, dg_hole_in, -1])
+            cylinder(h = dg_lead + dg_seat + 2, d = dg_bit_d);
+    }
+}
+// ...and in use: the plate underside-up, a block turned onto each corner. The
+// blocks are flipped here (bore end up, seat down), and the +90 is the diagonal
+// symmetry being spent — it is what puts the seat back over the plate after the
+// flip mirrors the block.
+module placed_drill_guide() {
+    px = (W - bp_w)/2;   py = (D - bp_d)/2;
+    for (c = [[px, py, 0], [W-px, py, 90], [W-px, D-py, 180], [px, D-py, 270]])
+        translate([c[0], c[1], bp_t + dg_lead]) rotate([0, 0, 90 + c[2]])
+            rotate([180, 0, 0]) drill_block();
 }
 
 // ===========================================================================
@@ -1038,4 +1116,13 @@ if (show == "assembled") {
     plan_down();     // just the bottom half — cavity, standoffs, ports
 } else if (show == "io_coupon") {
     color(C_body) io_coupon();
+} else if (show == "drill_guide") {
+    // ONE block — the plate takes four of it. Modelled off the plate's corner, so
+    // it is walked back into the positive octant for the export.
+    color(C_bracket) translate([dg_lip + dg_slip, dg_lip + dg_slip, 0]) drill_block();
+} else if (show == "drill_guide_fit") {
+    // the plate as it lies to be drilled — underside UP, nothing standing on the
+    // face the jig lands on (the standoffs are on the other one)
+    translate([0, D, bp_t]) rotate([180, 0, 0]) color(C_plate) baseplate();
+    color(C_bracket) placed_drill_guide();
 }
