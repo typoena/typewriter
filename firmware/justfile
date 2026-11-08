@@ -120,7 +120,12 @@ changelog:
     root="{{justfile_directory()}}/.."
     site="$root/typoena-site"
     out="$root/CHANGELOG.md"
+    notes="$root/firmware/release-notes"
     cd "$root"
+    # "<ver> <date> …" over the firmware tags, newest first (one line: BSD awk
+    # rejects a newline in -v). git-cliff drops a release with no feat/fix commits,
+    # so a notes-only release gets its heading placed from this list.
+    tags="$(git tag -l 'firmware-v*' --sort=-v:refname --format='%(refname:strip=2) %(creatordate:short)' | sed 's/^firmware-v//' | tr '\n' ' ')"
     {
         printf '%s\n' \
             '# Typoena changelog' \
@@ -133,7 +138,27 @@ changelog:
             '' \
             '## Firmware' \
             ''
-        git-cliff --config cliff.toml --tag-pattern 'firmware-v.*' 2>/dev/null
+        # release-notes/<ver>.md becomes that version's lead paragraph (the site
+        # joins its lines into one). Notes for an untagged version wait for the tag.
+        git-cliff --config cliff.toml --tag-pattern 'firmware-v.*' 2>/dev/null | awk -v dir="$notes" -v tags="$tags" '
+            function has(v,   l, ok) { ok = (getline l < (dir "/" v ".md")) > 0; close(dir "/" v ".md"); return ok }
+            function note(v,   l) { while ((getline l < (dir "/" v ".md")) > 0) print l; close(dir "/" v ".md"); print "" }
+            function flush(upto) {
+                for (; nxt < upto; nxt++) if (has(ver[nxt])) { print "### [" ver[nxt] "] — " day[nxt]; note(ver[nxt]) }
+            }
+            BEGIN {
+                n = split(tags, t, " ") / 2
+                for (i = 1; i <= n; i++) { ver[i] = t[2 * i - 1]; day[i] = t[2 * i]; rank[ver[i]] = i }
+                nxt = 1
+            }
+            /^### \[/ {
+                v = substr($0, 6); v = substr(v, 1, index(v, "]") - 1)
+                flush(rank[v]); nxt = rank[v] + 1
+                print; if (has(v)) note(v); next
+            }
+            { print }
+            END { flush(n + 1) }
+        '
         printf '%s\n' \
             '' \
             '## Installer' \
