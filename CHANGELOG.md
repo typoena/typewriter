@@ -9,6 +9,11 @@ _Generated from the commit history with [git-cliff](https://git-cliff.org)._
 ## Firmware
 
 
+### [1.1.0] — 2026-11-08
+#### Added
+- **panel:** Mark charging with a Tabler bolt icon
+- **panel:** Show the low-cell percentage beside the battery icon, drop the plug-in notice
+
 ### [1.0.0] — 2026-11-08
 Typoena 1.0 is live. Everything a writing machine needs is in place: Vim-style
 editing on e-paper, notes kept as Markdown on the SD card, a command palette for
