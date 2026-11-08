@@ -76,8 +76,16 @@ fn prefs_to_toml_round_trips_through_parse() {
         face: "curious".into(),
         timezone: "CET-1CEST,M3.5.0,M10.5.0/3".into(),
         hidden_folders: "_archive,attachments".into(),
+        check_updates: false,
     };
     assert_eq!(Prefs::parse(&p.to_toml()), p);
+}
+
+#[test]
+fn prefs_parse_reads_check_updates_and_defaults_on() {
+    assert!(Prefs::default().check_updates);
+    assert!(!Prefs::parse("check_updates = false\n").check_updates);
+    assert!(Prefs::parse("check_updates = never\n").check_updates);
 }
 
 #[test]

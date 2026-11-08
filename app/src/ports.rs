@@ -181,7 +181,8 @@ pub trait NetService {
     /// it against the running image. Downloads nothing and touches no OTA slot —
     /// it answers [`Available`](UpdateOutcome::Available) or
     /// [`UpToDate`](UpdateOutcome::UpToDate), and the install is a separate ask.
-    fn check_update(&self) -> UpdateDispatch;
+    /// `quiet` suppresses the panel progress lines — the boot check runs unasked.
+    fn check_update(&self, quiet: bool) -> UpdateDispatch;
     /// Dispatch the confirmed install of `version`: download that release into
     /// the inactive OTA slot and make that the boot target. Reports back via
     /// [`UpdateOutcome`] — the caller reboots on

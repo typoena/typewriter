@@ -42,6 +42,7 @@ works with no config present.
 | `font`              | string | `"default"` | `default` / `jetbrains-mono` / `dejavu-sans-mono` / `cascadia-mono` / `mononoki` / `fira-code` / `courier-prime` / `ibm-plex-mono` / `space-mono` / `hack` | The body font the editor writes in. All families render into the same 10×20 cell, so switching never moves the grid.   |
 | `auto_sync`         | string | `"10m"`   | `2m` / `5m` / `10m` / `15m` / `30m` | Max-staleness cap for opportunistic auto-push. **Value only — no behaviour yet** (rides v0.10, with the sleep work). |
 | `hidden_folders`    | string | `""`      | any comma-separated folder list     | Folders kept out of the palette, the link picker, folder completion and `:oldest`. They still sync.                  |
+| `check_updates`     | bool   | `true`    | `true` / `false`                    | Ask for newer firmware once per boot. A find is a notice, never an install.                                           |
 
 The **Options** column is what the palette rotates through on **Enter**; a
 boolean is just the two-option case. Hand-editing a string key can still set any
@@ -211,6 +212,16 @@ one list whether a path is on the card, and an index with holes in it answers
 "no" for a file that is right there. Hiding is applied when the list is shown,
 never when it is built. Free-form, so the `>` palette does not cycle it — edit it
 here, and reboot to apply (prefs are read once at boot).
+
+### `check_updates`
+
+Once per boot, after the first editor frame, the radio thread asks the release
+manifest whether newer firmware exists — the same question `:update` asks, but
+with no progress lines and no panel flag. A newer release shows as
+`firmware X available - :update`; up to date, offline or unprovisioned Wi-Fi
+says nothing. It never raises the install y/n: an unasked prompt would catch
+keys typed at the editor, and `y` installs. Installing stays `:update`, which
+reboots. Takes effect at the next boot.
 
 ## Editing it
 

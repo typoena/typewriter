@@ -135,6 +135,7 @@ struct SyncLog {
     /// The intent of each dispatched pull, in order.
     pull_intents: Vec<PullIntent>,
     update_checks: u32,
+    quiet_update_checks: u32,
     update_installs: Vec<String>,
     clocks: u32,
     outcome: Option<NetOutcome>,
@@ -172,8 +173,14 @@ impl NetService for RecSync {
         drop(log);
         (self.pull_ret)()
     }
-    fn check_update(&self) -> UpdateDispatch {
-        self.log.borrow_mut().update_checks += 1;
+    fn check_update(&self, quiet: bool) -> UpdateDispatch {
+        let mut log = self.log.borrow_mut();
+        if quiet {
+            log.quiet_update_checks += 1;
+        } else {
+            log.update_checks += 1;
+        }
+        drop(log);
         (self.update_ret)()
     }
     fn install_update(&self, version: String) -> UpdateDispatch {
@@ -1285,11 +1292,19 @@ fn install_effect_carries_the_version_the_check_offered() {
     assert_eq!(sync.log.borrow().update_installs, vec!["0.15.0".to_string()]);
 }
 
+/// An editor whose prefs skip the boot update check, so the first update
+/// outcome a test feeds settles as an asked-for `:update`.
+fn no_boot_check() -> Editor {
+    let mut ed = Editor::new();
+    ed.set_prefs(Prefs { check_updates: false, ..Prefs::default() });
+    ed
+}
+
 #[test]
 fn an_available_release_prompts_instead_of_installing() {
     // The check is terminal: nothing is downloaded until the writer says yes.
     let sync = RecSync::new();
-    let mut rt = runtime(Editor::new(), RecStorage::default(), sync.clone(), RecFiles::default());
+    let mut rt = runtime(no_boot_check(), RecStorage::default(), sync.clone(), RecFiles::default());
     rt.handle_net_outcome(NetOutcome::Update(UpdateOutcome::Available("0.15.0".into())));
     assert_eq!(rt.ed.mode(), editor::Mode::Confirm);
     assert!(sync.log.borrow().update_installs.is_empty());
@@ -1301,8 +1316,57 @@ fn installed_update_reboots_into_the_new_image() {
     // A successful install makes the new slot the boot target; the runtime must
     // reboot into it. PanicSystem's reboot panics, which is the reboot signal here.
     let mut rt =
-        runtime(Editor::new(), RecStorage::default(), RecSync::new(), RecFiles::default());
+        runtime(no_boot_check(), RecStorage::default(), RecSync::new(), RecFiles::default());
     rt.handle_net_outcome(NetOutcome::Update(UpdateOutcome::Installed("0.8.0".into())));
+}
+
+#[test]
+fn boot_checks_for_an_update_quietly_when_the_pref_is_on() {
+    let sync = RecSync::new();
+    let _rt = runtime(Editor::new(), RecStorage::default(), sync.clone(), RecFiles::default());
+    assert_eq!(sync.log.borrow().quiet_update_checks, 1);
+    assert_eq!(sync.log.borrow().update_checks, 0);
+
+    let sync = RecSync::new();
+    let _rt = runtime(no_boot_check(), RecStorage::default(), sync.clone(), RecFiles::default());
+    assert_eq!(sync.log.borrow().quiet_update_checks, 0);
+}
+
+#[test]
+fn a_boot_found_release_is_a_notice_not_a_prompt() {
+    // An unasked y/n would catch keys typed at the editor, and `y` installs.
+    let sync = RecSync::new();
+    let mut rt = runtime(Editor::new(), RecStorage::default(), sync.clone(), RecFiles::default());
+    assert!(rt.handle_net_outcome(NetOutcome::Update(UpdateOutcome::Available("0.15.0".into()))));
+    assert_ne!(rt.ed.mode(), editor::Mode::Confirm);
+    assert_eq!(rt.ed.notice(), Some("firmware 0.15.0 available - :update"));
+    assert!(sync.log.borrow().update_installs.is_empty());
+}
+
+#[test]
+fn a_boot_check_with_nothing_to_offer_stays_silent() {
+    for outcome in [UpdateOutcome::UpToDate("0.7.7".into()), UpdateOutcome::Failed("no wifi".into())] {
+        let mut rt =
+            runtime(Editor::new(), RecStorage::default(), RecSync::new(), RecFiles::default());
+        assert!(!rt.handle_net_outcome(NetOutcome::Update(outcome)), "nothing to paint");
+        assert_eq!(rt.ed.notice(), None);
+    }
+}
+
+#[test]
+fn the_boot_check_settles_first_and_leaves_an_asked_update_its_slot() {
+    // The net thread answers in order: an `:update` typed while the boot check
+    // is out lands second, keeps its panel flag until then, and prompts.
+    let mut rt =
+        runtime(Editor::new(), RecStorage::default(), RecSync::new(), RecFiles::default());
+    rt.service_one(Effect::UpdateCheck);
+
+    rt.handle_net_outcome(NetOutcome::Update(UpdateOutcome::UpToDate("0.7.7".into())));
+    assert_eq!(rt.net_in_flight.len(), 1, "the boot check holds no slot to settle");
+
+    rt.handle_net_outcome(NetOutcome::Update(UpdateOutcome::Available("0.15.0".into())));
+    assert!(rt.net_in_flight.is_empty());
+    assert_eq!(rt.ed.mode(), editor::Mode::Confirm);
 }
 
 #[test]

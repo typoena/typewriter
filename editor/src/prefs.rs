@@ -120,6 +120,11 @@ pub struct Prefs {
     /// see [`visible_files`](Editor::visible_files) for the invariant that
     /// keeps the exact-path guards honest.
     pub hidden_folders: String,
+    /// Ask the release manifest for newer firmware once per boot, unprompted.
+    /// Only ever a notice — a found release names itself and waits for an
+    /// explicit `:update`, because installing reboots and drops the session.
+    /// Honoured by the host runtime, not the core.
+    pub check_updates: bool,
 }
 
 impl Default for Prefs {
@@ -138,6 +143,7 @@ impl Default for Prefs {
             face: "random".into(),
             timezone: String::new(),
             hidden_folders: String::new(),
+            check_updates: true,
         }
     }
 }
@@ -200,6 +206,11 @@ impl Prefs {
                 "face" => p.face = val.trim_matches('"').to_string(),
                 "timezone" => p.timezone = val.trim_matches('"').to_string(),
                 "hidden_folders" => p.hidden_folders = val.trim_matches('"').to_string(),
+                "check_updates" => {
+                    if let Some(b) = parse_bool(val) {
+                        p.check_updates = b;
+                    }
+                }
                 _ => {}
             }
         }
@@ -235,7 +246,9 @@ impl Prefs {
              # Folders hidden from the palette, link picker and completions —\n\
              # comma-separated, matched on whole path segments at any depth. They\n\
              # still sync (see Prefs::hidden_folders).\n\
-             hidden_folders = \"{}\"\n",
+             hidden_folders = \"{}\"\n\
+             # Check for newer firmware at boot; a find is a notice, never an install.\n\
+             check_updates = {}\n",
             self.save_on_idle,
             self.format_on_save,
             self.line_numbers,
@@ -249,6 +262,7 @@ impl Prefs {
             self.face,
             self.timezone,
             self.hidden_folders,
+            self.check_updates,
         )
     }
 

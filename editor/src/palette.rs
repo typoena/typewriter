@@ -125,6 +125,7 @@ pub(crate) enum PaletteCmd {
     Companion,
     Face,
     FastPartial,
+    CheckUpdates,
 }
 
 /// How a [`PaletteCmd`] behaves on Enter — see [`PaletteCmd::kind`].
@@ -178,7 +179,7 @@ impl PaletteCmd {
 
 /// The palette command list, in display order (empty `>` query shows them all):
 /// the actions first, the settings after.
-pub(crate) const PALETTE_CMDS: [PaletteCmd; 23] = [
+pub(crate) const PALETTE_CMDS: [PaletteCmd; 24] = [
     PaletteCmd::NewFile,
     PaletteCmd::Inbox,
     PaletteCmd::Oldest,
@@ -202,6 +203,7 @@ pub(crate) const PALETTE_CMDS: [PaletteCmd; 23] = [
     PaletteCmd::Companion,
     PaletteCmd::Face,
     PaletteCmd::FastPartial,
+    PaletteCmd::CheckUpdates,
 ];
 
 /// Which step the palette is showing. Most of its life it is a
@@ -517,6 +519,9 @@ impl Editor {
             PaletteCmd::Companion => format!("companion: {}", on(self.prefs.companion)),
             PaletteCmd::Face => format!("face: {}", self.prefs.face),
             PaletteCmd::FastPartial => format!("fast partial: {}", on(self.prefs.fast_partial)),
+            PaletteCmd::CheckUpdates => {
+                format!("check updates at boot: {}", on(self.prefs.check_updates))
+            }
         }
     }
 
@@ -731,6 +736,7 @@ impl Editor {
             }
             PaletteCmd::Companion => self.prefs.companion = !self.prefs.companion,
             PaletteCmd::FastPartial => self.prefs.fast_partial = !self.prefs.fast_partial,
+            PaletteCmd::CheckUpdates => self.prefs.check_updates = !self.prefs.check_updates,
             PaletteCmd::ScrollMargin => {
                 self.prefs.scroll_margin =
                     next_usize_option(self.prefs.scroll_margin, &SCROLL_MARGIN_OPTIONS)

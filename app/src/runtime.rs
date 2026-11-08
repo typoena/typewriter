@@ -94,6 +94,9 @@ pub struct Runtime<S: Screen> {
     /// evict the resident buffers whose text the discard threw away. Empty
     /// except across that one round trip.
     pending_discard: Vec<String>,
+    /// The unprompted boot update check is still out. The net thread answers in
+    /// request order, so the first [`UpdateOutcome`] to land is that check's.
+    boot_update_check: bool,
 }
 
 impl<S: Screen> Runtime<S> {
@@ -127,6 +130,16 @@ impl<S: Screen> Runtime<S> {
                 ClockDispatch::ThreadDown => log::warn!("boot: no net thread; clock stays unset"),
             }
         }
+        // Slotless like the clock kick: nobody asked, so no panel flag and no
+        // idle-save hold-off. A find becomes a notice (see `settle_boot_update`).
+        let boot_update_check = ed.prefs().check_updates
+            && match net.check_update(true) {
+                UpdateDispatch::Dispatched => {
+                    log::info!("boot: update check dispatched");
+                    true
+                }
+                UpdateDispatch::ThreadDown => false,
+            };
 
         // Diff against the flag baked into the painted boot frame, NOT the
         // hardware: a keyboard that attached between the editor seed and here
@@ -154,6 +167,7 @@ impl<S: Screen> Runtime<S> {
             power_noticed: false,
             net_in_flight: VecDeque::new(),
             pending_discard: Vec::new(),
+            boot_update_check,
         }
     }
 
@@ -379,7 +393,7 @@ impl<S: Screen> Runtime<S> {
             // thread while the editor keeps running, and the outcome returns via
             // `poll_outcome` in `tick`. A newer release comes back as `Available`
             // and raises the install prompt; nothing is downloaded yet.
-            Effect::UpdateCheck => match self.net.check_update() {
+            Effect::UpdateCheck => match self.net.check_update(false) {
                 UpdateDispatch::Dispatched => {
                     self.mark_net_dispatched(NetFlag::Updating);
                     self.ed.set_notice("checking for update...")
@@ -605,6 +619,8 @@ impl<S: Screen> Runtime<S> {
             // here would pop the slot of a `:gs`/`:gl` that is still running and
             // hand back the protection that sync depends on.
             NetOutcome::Clock(_) => {}
+            // Slotless too, for the same reason.
+            NetOutcome::Update(_) if self.boot_update_check => {}
             // Every other variant is terminal: it frees the idle-save and drops
             // the panel flag once the last outstanding operation lands.
             _ => self.settle_net_dispatch(),
@@ -657,6 +673,12 @@ impl<S: Screen> Runtime<S> {
                 }
                 notice
             }
+            NetOutcome::Update(o) if std::mem::take(&mut self.boot_update_check) => {
+                match self.settle_boot_update(o) {
+                    Some(notice) => notice,
+                    None => return false,
+                }
+            }
             NetOutcome::Update(o) => match o {
                 // The check is terminal on its own: the install is a second
                 // dispatch, and only a `y` on this prompt makes it.
@@ -694,6 +716,20 @@ impl<S: Screen> Runtime<S> {
         };
         self.ed.set_notice(notice);
         true
+    }
+
+    /// Settle the unprompted boot update check: a newer release is a notice and
+    /// never a y/n — a prompt nobody asked for would catch keys typed at it, and
+    /// `y` would install. Up to date or failed (offline, no Wi-Fi yet) is silent.
+    fn settle_boot_update(&mut self, outcome: UpdateOutcome) -> Option<String> {
+        match outcome {
+            UpdateOutcome::Available(ver) => Some(format!("firmware {ver} available - :update")),
+            UpdateOutcome::Failed(reason) => {
+                log::warn!("boot update check failed: {reason}");
+                None
+            }
+            _ => None,
+        }
     }
 
     /// Settle a finished clock-only sync into the notice it deserves, or `None`

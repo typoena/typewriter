@@ -238,8 +238,8 @@ pub enum NetRequest {
     /// the firmware. Downloads nothing; the UI turns an
     /// [`UpdateOutcome::Available`] into a y/n and sends [`UpdateInstall`] back.
     /// Rides this thread because it already owns the Wi-Fi modem, not because it
-    /// touches git.
-    UpdateCheck,
+    /// touches git. `quiet` (the unprompted boot check) sends no progress lines.
+    UpdateCheck { quiet: bool },
     /// The confirmed install: stream the named release into the inactive OTA
     /// slot over HTTPS and make it the boot target. Carries the version the
     /// check reported, so the image written is the one the writer said yes to.
@@ -389,6 +389,7 @@ pub fn run_net_service(
     let progress = |phase: Phase| {
         let _ = tx.send(NetOutcome::Progress(phase.label()));
     };
+    let silent = |_: Phase| {};
 
     while let Ok(req) = rx.recv() {
         let msg = match req {
@@ -440,14 +441,14 @@ pub fn run_net_service(
                     }
                 },
             ),
-            NetRequest::UpdateCheck => NetOutcome::Update(settle_update(update_cycle(
+            NetRequest::UpdateCheck { quiet } => NetOutcome::Update(settle_update(update_cycle(
                 &sys_loop,
                 &mut wifi,
                 &mut modem,
                 &mut nvs,
                 &mut clock_synced,
                 &mut tls_ready,
-                &progress,
+                if quiet { &silent } else { &progress },
                 UpdateJob::Check,
             ))),
             NetRequest::UpdateInstall(version) => NetOutcome::Update(settle_update(update_cycle(
@@ -2170,9 +2171,9 @@ impl app::NetService for NetService {
         }
     }
 
-    fn check_update(&self) -> app::UpdateDispatch {
+    fn check_update(&self, quiet: bool) -> app::UpdateDispatch {
         // No dirty journal to snapshot — OTA doesn't touch the working copy.
-        match self.tx.send(NetRequest::UpdateCheck) {
+        match self.tx.send(NetRequest::UpdateCheck { quiet }) {
             Ok(()) => app::UpdateDispatch::Dispatched,
             Err(_) => app::UpdateDispatch::ThreadDown,
         }
