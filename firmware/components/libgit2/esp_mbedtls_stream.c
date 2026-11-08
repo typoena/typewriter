@@ -7,7 +7,7 @@
 
 /*
  * esp_mbedtls_stream.c — verbatim copy of the vendored
- * src/libgit2/streams/mbedtls.c (v1.9.4) with ONE fix; it replaces the
+ * src/libgit2/streams/mbedtls.c (v1.9.7) with ONE fix; it replaces the
  * vendored file in CMakeLists.txt (same pattern as esp_map.c).
  *
  * THE FIX (2026-07-13): mbedtls_stream_wrap()'s `out_err` path closed and

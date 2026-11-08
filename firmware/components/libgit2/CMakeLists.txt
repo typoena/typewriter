@@ -38,9 +38,17 @@ file(GLOB LG2_SRCS
     "${LG2}/src/util/*.c"
     "${LG2}/deps/llhttp/*.c"
     "${LG2}/deps/xdiff/*.c"
-    "${LG2}/deps/pcre/*.c"
     "${LG2}/deps/zlib/*.c"
 )
+# deps/pcre2 also holds test/fuzz/JIT sources that must not be compiled; this
+# list mirrors PCRE2_SOURCES in deps/pcre2/CMakeLists.txt.
+foreach(f auto_possess chartables chkdint compile compile_cgroup compile_class
+        config context convert dfa_match error extuni find_bracket maketables
+        match match_data match_next newline ord2utf pattern_info script_run
+        serialize string_utils study substitute substring tables ucd valid_utf
+        xclass)
+    list(APPEND LG2_SRCS "${LG2}/deps/pcre2/pcre2_${f}.c")
+endforeach()
 # streams/mbedtls.c is replaced by our patched copy: its wrap() error path
 # double-freed the socket stream (tlsf abort on device when ssl_setup failed
 # under memory pressure), it had no TLS session resumption, and its close() path
@@ -77,27 +85,32 @@ idf_component_register(
         "${LG2}/src/util/hash"
         "${LG2}/deps/llhttp"
         "${LG2}/deps/xdiff"
-        "${LG2}/deps/pcre"
+        "${LG2}/deps/pcre2"
         "${LG2}/deps/zlib"
     # `log` is one of esp-idf's common requirements already; named explicitly
     # because esp_mbedtls_stream.c includes esp_log.h.
     REQUIRES mbedtls lwip pthread vfs newlib log
 )
 
-# PCRE (bundled regex backend) compile-time config — copied from libgit2-sys's
+# PCRE2 (bundled regex backend) compile-time config — copied from libgit2-sys's
 # build.rs. Global -D because libgit2 shares one config.h across the tree.
 target_compile_definitions(${COMPONENT_LIB} PRIVATE
     GIT_REGEX_BUILTIN=1
-    HAVE_STDINT_H=1
-    HAVE_MEMMOVE=1
-    NO_RECURSE=1
-    NEWLINE=10
-    POSIX_MALLOC_THRESHOLD=10
+    PCRE2_STATIC
+    PCRE2_EXPORT=
+    PCRE2_EXP_DECL=
+    PCRE2_EXP_DEFN=
+    PCRE2_CODE_UNIT_WIDTH=8
+    SUPPORT_PCRE2_8=1
+    SUPPORT_UNICODE=1
     LINK_SIZE=2
-    PARENS_NEST_LIMIT=250
+    HEAP_LIMIT=20000000
     MATCH_LIMIT=10000000
-    MATCH_LIMIT_RECURSION=MATCH_LIMIT
-    MAX_NAME_SIZE=32
+    MATCH_LIMIT_DEPTH=MATCH_LIMIT
+    MAX_VARLOOKBEHIND=255
+    NEWLINE_DEFAULT=2
+    PARENS_NEST_LIMIT=250
+    MAX_NAME_SIZE=128
     MAX_NAME_COUNT=10000
 )
 
