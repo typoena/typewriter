@@ -80,3 +80,25 @@ pub static BATTERY: [Sprite; 4] = [
         ],
     },
 ];
+
+/// Tabler `bolt`, the charging mark beside [`BATTERY`]. The 1:1 render is 20 px
+/// tall, past a panel row, so this one is rendered at 14 px with the stroke
+/// thickened to 2.75 to keep the battery's weight — 10×12, the battery's height.
+pub static BOLT: Sprite = Sprite {
+    w: 10,
+    h: 12,
+    rows: &[
+        0b0000010000,
+        0b0000110000,
+        0b0001110000,
+        0b0001110000,
+        0b0011011111,
+        0b0110011111,
+        0b1111100110,
+        0b1111101100,
+        0b0000111000,
+        0b0000111000,
+        0b0000110000,
+        0b0000100000,
+    ],
+};

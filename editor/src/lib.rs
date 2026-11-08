@@ -254,8 +254,8 @@ impl Battery {
     }
 }
 
-/// What the panel's battery row draws: a Tabler `battery-N` icon plus a `chg`
-/// tag while on the cable. Coarser than the percentage on purpose — the host
+/// What the panel's battery row draws: a Tabler `battery-N` icon, plus a `bolt`
+/// while on the cable. Coarser than the percentage on purpose — the host
 /// repaints on a row change, so the panel only redraws when a bar is gained or
 /// lost.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
