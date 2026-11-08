@@ -12,15 +12,15 @@ elf_wifi := "target/xtensa-esp32s3-espidf/release/wifi_tls"
 
 # Production dual-OTA partition table (ota_0/ota_1/otadata) for `:update`.
 # Applied by `flash-ota` — the one-time migration that makes a device OTA-capable.
-partition_table_ota := justfile_directory() + "/partitions-ota.csv"
+partition_table_ota := source_directory() + "/partitions-ota.csv"
 
 # Spike 7 Path 2 — env for the git2/libgit2 build. LIBGIT2_SRC points at the
 # vendored libgit2 submodule (v1.9.4, matches libgit2-sys 0.18.5). pkgconfig/
 # holds fake .pc files so libgit2-sys + libz-sys run in system mode and the
 # symbols come from the esp-idf libgit2 component. Only the git recipes set this,
 # so the editor build never compiles libgit2.
-libgit2_src := justfile_directory() + "/components/libgit2/vendor"
-git_env := "LIBGIT2_SRC=" + libgit2_src + " LIBGIT2_NO_VENDOR=1 PKG_CONFIG_ALLOW_CROSS=1 PKG_CONFIG_LIBDIR=" + justfile_directory() + "/pkgconfig"
+libgit2_src := source_directory() + "/components/libgit2/vendor"
+git_env := "LIBGIT2_SRC=" + libgit2_src + " LIBGIT2_NO_VENDOR=1 PKG_CONFIG_ALLOW_CROSS=1 PKG_CONFIG_LIBDIR=" + source_directory() + "/pkgconfig"
 
 # list recipes
 default:
@@ -117,7 +117,7 @@ changelog:
     #!/usr/bin/env bash
     set -euo pipefail
     command -v git-cliff >/dev/null || { echo "error: git-cliff required (brew install git-cliff)" >&2; exit 1; }
-    root="{{justfile_directory()}}/.."
+    root="{{source_directory()}}/.."
     site="$root/typoena-site"
     out="$root/CHANGELOG.md"
     notes="$root/firmware/release-notes"
@@ -206,7 +206,7 @@ changelog:
 publish-firmware bump="":
     #!/usr/bin/env bash
     set -euo pipefail
-    toml="{{justfile_directory()}}/Cargo.toml"
+    toml="{{source_directory()}}/Cargo.toml"
     ver="$(grep -m1 '^version[[:space:]]*=' "$toml" | sed -E 's/.*"([^"]+)".*/\1/')"
     [ -n "$ver" ] || { echo "error: couldn't read [package].version from firmware/Cargo.toml" >&2; exit 1; }
     command -v tea >/dev/null || { echo "error: the tea CLI is required (brew install tea; tea login add)" >&2; exit 1; }
@@ -228,7 +228,7 @@ publish-firmware bump="":
             ;;
         *) echo "error: bump must be patch, minor, or major (got '{{bump}}')" >&2; exit 1 ;;
     esac
-    if [ -n "$(git -C "{{justfile_directory()}}/.." status --porcelain | grep -vE ' firmware/Cargo\.(toml|lock)$' || true)" ]; then
+    if [ -n "$(git -C "{{source_directory()}}/.." status --porcelain | grep -vE ' firmware/Cargo\.(toml|lock)$' || true)" ]; then
         echo "warning: worktree has uncommitted changes beyond the version bump —" >&2
         echo "         the image is built from the worktree, so it won't match the tagged commit" >&2
     fi
@@ -236,12 +236,12 @@ publish-firmware bump="":
     # The bump path commits ONLY Cargo.toml (Cargo.lock is gitignored) and
     # pushes: tea tags the REMOTE's HEAD.
     if [ -n "{{bump}}" ]; then
-        git -C "{{justfile_directory()}}/.." add firmware/Cargo.toml
-        git -C "{{justfile_directory()}}/.." commit -m "chore(release): firmware v$ver"
-        git -C "{{justfile_directory()}}/.." push
+        git -C "{{source_directory()}}/.." add firmware/Cargo.toml
+        git -C "{{source_directory()}}/.." commit -m "chore(release): firmware v$ver"
+        git -C "{{source_directory()}}/.." push
     fi
     tag="firmware-v$ver"
-    site="{{justfile_directory()}}/../typoena-site"
+    site="{{source_directory()}}/../typoena-site"
     [ -d "$site/.git" ] || { echo "error: typoena-site repo not found at $site" >&2; exit 1; }
     # Build the OTA app image into a scratch dir (never committed to the site).
     work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
@@ -255,7 +255,7 @@ publish-firmware bump="":
     just changelog
     # Release note = this version's section from the regenerated CHANGELOG.md.
     # Falls back to a one-liner if the section is missing.
-    changelog="{{justfile_directory()}}/../CHANGELOG.md"
+    changelog="{{source_directory()}}/../CHANGELOG.md"
     note="Over-the-air firmware image for Typoena $ver."
     section="$(awk -v ver="$ver" '
         /^## / { infw = ($0 == "## Firmware") }
@@ -487,7 +487,7 @@ repro-foreign-card sd_volume="":
 #   just wipe -y                             # skip the y/N confirm (scripts)
 #   just wipe --ui                           # the old full-screen TUI (picker)
 wipe *args:
-    cd "{{justfile_directory()}}/../installer" && cargo run -- --wipe {{args}}
+    cd "{{source_directory()}}/../installer" && cargo run -- --wipe {{args}}
 
 # Resolve the target card volume. Prints the /Volumes/<name> path as the last
 # stdout line (callers capture it); all diagnostics go to stderr. Prefers an
@@ -712,7 +712,7 @@ _seed-configs vol:
     #!/usr/bin/env bash
     set -euo pipefail
     repo="{{vol}}/{{sd_repo_dir}}"
-    catalog="{{justfile_directory()}}/snippets-catalog"
+    catalog="{{source_directory()}}/snippets-catalog"
     interactive=1; [ -t 0 ] || interactive=0
 
     # ask_yn "label" → 0 (yes) / 1 (no); default yes, non-interactive → yes.
