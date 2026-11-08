@@ -1,6 +1,6 @@
 [package]
 name = "firmware"
-version = "1.0.0"
+version = "1.1.0"
 authors = ["Julien Calixte <juliencalixte@gmail.com>"]
 edition = "2024"
 resolver = "2"
