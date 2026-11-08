@@ -535,10 +535,11 @@ impl<S: Screen> Runtime<S> {
     fn handle_power_event(&mut self, event: PowerEvent) {
         self.power_noticed = true;
         match event {
+            // No notice: the panel's battery row already shows the low icon and
+            // the percentage from the same threshold.
             PowerEvent::Low => {
                 let pct = self.power.status().map_or(0, |b| b.percent);
                 log::warn!("battery low ({pct}%)");
-                self.ed.set_notice(format!("battery {pct}% - plug in soon"));
             }
             PowerEvent::SwitchedOff => {
                 log::info!("power switch flipped off — shutting down");
@@ -546,7 +547,7 @@ impl<S: Screen> Runtime<S> {
             }
             PowerEvent::Critical => {
                 log::warn!("battery critical — shutting down to save the note");
-                self.ed.set_notice("battery empty - saving and powering off");
+                self.ed.set_notice("saving and powering off");
                 self.ed.request_power_off();
             }
         }

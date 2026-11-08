@@ -121,10 +121,14 @@ impl Editor {
         if let Some((row, icon)) = battery_icon {
             let row_y = scope_y + PANEL_CH;
             typo::blit_sprite(f, PANEL_X, row_y + (PANEL_CH - icon.h as i32) / 2, icon, 1);
+            let x = PANEL_X + icon.w as i32 + PANEL_CW / 2;
             if row.charging {
                 let bolt = &icons::BOLT;
-                let x = PANEL_X + icon.w as i32 + PANEL_CW / 2;
                 typo::blit_sprite(f, x, row_y + (PANEL_CH - bolt.h as i32) / 2, bolt, 1);
+            } else if let Some(pct) = row.percent {
+                Text::with_baseline(&format!("{pct}%"), Point::new(x, row_y), style, Baseline::Top)
+                    .draw(f)
+                    .infallible();
             }
         }
         let battery_rows = i32::from(battery_row.is_some());

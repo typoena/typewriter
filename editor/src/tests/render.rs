@@ -238,16 +238,16 @@ fn battery_row_only_appears_when_low_or_charging() {
     assert_eq!(Battery { percent: 78, charging: false }.panel_row(), None);
     assert_eq!(
         Battery { percent: 78, charging: true }.panel_row(),
-        Some(BatteryRow { bars: 4, charging: true })
+        Some(BatteryRow { bars: 4, charging: true, percent: None })
     );
     assert_eq!(
         Battery { percent: 18, charging: false }.panel_row(),
-        Some(BatteryRow { bars: 1, charging: false })
+        Some(BatteryRow { bars: 1, charging: false, percent: Some(18) })
     );
     // Low *and* charging reads as charging — the cable is the answer to both.
     assert_eq!(
         Battery { percent: 18, charging: true }.panel_row(),
-        Some(BatteryRow { bars: 1, charging: true })
+        Some(BatteryRow { bars: 1, charging: true, percent: None })
     );
 }
 

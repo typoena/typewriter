@@ -1430,7 +1430,7 @@ fn shut_down(rt: &mut Runtime<MockScreen>) {
 }
 
 #[test]
-fn a_low_cell_warns_once_and_leaves_the_machine_on() {
+fn a_low_cell_leaves_the_machine_on_without_a_notice() {
     let power = ScriptedPower::default();
     power.set_battery(editor::Battery { percent: 18, charging: false });
     let ed = Editor::with_file("/sd/repo/notes.md".into(), Scope::Tracked, String::new());
@@ -1440,7 +1440,7 @@ fn a_low_cell_warns_once_and_leaves_the_machine_on() {
     rt.tick();
 
     assert!(!power.powered_off(), "a warning must not switch the machine off");
-    assert_eq!(rt.ed.notice(), Some("battery 18% - plug in soon"));
+    assert_eq!(rt.ed.notice(), None, "the panel's battery row is the warning");
 }
 
 #[test]

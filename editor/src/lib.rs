@@ -250,19 +250,22 @@ impl Battery {
         (self.charging || self.percent < Self::LOW_PERCENT).then(|| BatteryRow {
             bars: self.percent.min(99) / 25 + 1,
             charging: self.charging,
+            percent: (!self.charging).then_some(self.percent),
         })
     }
 }
 
 /// What the panel's battery row draws: a Tabler `battery-N` icon, plus a `bolt`
-/// while on the cable. Coarser than the percentage on purpose — the host
-/// repaints on a row change, so the panel only redraws when a bar is gained or
-/// lost.
+/// while on the cable or the percentage while the writer should plug in. The
+/// host repaints on a row change, so the panel redraws per bar while charging
+/// and per percent only while low.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BatteryRow {
     /// 1–4, one per started quarter of charge.
     pub bars: u8,
     pub charging: bool,
+    /// Set only when low and off the cable — the row is the plug-in warning.
+    pub percent: Option<u8>,
 }
 
 impl Date {
