@@ -20,7 +20,7 @@ use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use embedded_graphics::text::{Baseline, Text};
 
-use display::{blit_glyph, extra_glyph, typo, Frame, InfallibleExt, HEIGHT, WIDTH};
+use display::{blit_glyph, extra_glyph, icons, typo, Frame, InfallibleExt, HEIGHT, WIDTH};
 use keymap::Key;
 
 
@@ -246,13 +246,23 @@ impl Battery {
     /// The panel row for this reading, or `None` when there is nothing worth a
     /// row: a cell above [`LOW_PERCENT`](Self::LOW_PERCENT) that is not
     /// charging is the uninteresting case, and the panel stays bare.
-    pub fn panel_row(self) -> Option<String> {
-        match (self.charging, self.percent < Self::LOW_PERCENT) {
-            (true, _) => Some(format!("batt {}% chg", self.percent)),
-            (false, true) => Some(format!("batt {}%", self.percent)),
-            (false, false) => None,
-        }
+    pub fn panel_row(self) -> Option<BatteryRow> {
+        (self.charging || self.percent < Self::LOW_PERCENT).then(|| BatteryRow {
+            bars: self.percent.min(99) / 25 + 1,
+            charging: self.charging,
+        })
     }
+}
+
+/// What the panel's battery row draws: a Tabler `battery-N` icon plus a `chg`
+/// tag while on the cable. Coarser than the percentage on purpose — the host
+/// repaints on a row change, so the panel only redraws when a bar is gained or
+/// lost.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BatteryRow {
+    /// 1–4, one per started quarter of charge.
+    pub bars: u8,
+    pub charging: bool,
 }
 
 impl Date {

@@ -18,6 +18,7 @@ pub use glyphs::{blit_glyph, extra_glyph, Glyph};
 pub mod fonts;
 pub use fonts::{body_font, FONT_OPTIONS};
 
+pub mod icons;
 pub mod typo;
 
 pub const WIDTH: u16 = 792;

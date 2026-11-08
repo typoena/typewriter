@@ -30,7 +30,7 @@ mod sprites;
 pub struct Sprite {
     pub w: u16,
     pub h: u16,
-    rows: &'static [u128],
+    pub(crate) rows: &'static [u128],
 }
 
 /// The unmirrored base sprite (faces right, as drawn) — the boot-splash mark.

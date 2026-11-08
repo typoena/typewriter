@@ -234,21 +234,28 @@ fn long_command_line_stays_out_of_the_side_panel() {
 
 #[test]
 fn battery_row_only_appears_when_low_or_charging() {
-    use crate::Battery;
+    use crate::{Battery, BatteryRow};
     assert_eq!(Battery { percent: 78, charging: false }.panel_row(), None);
     assert_eq!(
-        Battery { percent: 78, charging: true }.panel_row().as_deref(),
-        Some("batt 78% chg")
+        Battery { percent: 78, charging: true }.panel_row(),
+        Some(BatteryRow { bars: 4, charging: true })
     );
     assert_eq!(
-        Battery { percent: 18, charging: false }.panel_row().as_deref(),
-        Some("batt 18%")
+        Battery { percent: 18, charging: false }.panel_row(),
+        Some(BatteryRow { bars: 1, charging: false })
     );
     // Low *and* charging reads as charging — the cable is the answer to both.
     assert_eq!(
-        Battery { percent: 18, charging: true }.panel_row().as_deref(),
-        Some("batt 18% chg")
+        Battery { percent: 18, charging: true }.panel_row(),
+        Some(BatteryRow { bars: 1, charging: true })
     );
+}
+
+#[test]
+fn battery_bars_count_started_quarters() {
+    use crate::Battery;
+    let bars = |percent| Battery { percent, charging: true }.panel_row().map(|r| r.bars);
+    assert_eq!([0, 24, 25, 49, 50, 74, 75, 100].map(bars), [1, 1, 2, 2, 3, 3, 4, 4].map(Some));
 }
 
 #[test]

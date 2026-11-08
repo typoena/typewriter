@@ -115,10 +115,18 @@ impl Editor {
         // the writer would want it: the notice and Typo's face both start one
         // row lower whenever it shows.
         let battery_row = self.battery.and_then(Battery::panel_row);
-        if let Some(row) = &battery_row {
-            Text::with_baseline(row, Point::new(PANEL_X, scope_y + PANEL_CH), style, Baseline::Top)
-                .draw(f)
-                .infallible();
+        let battery_icon = battery_row.and_then(|row| {
+            icons::BATTERY.get(usize::from(row.bars).saturating_sub(1)).map(|icon| (row, icon))
+        });
+        if let Some((row, icon)) = battery_icon {
+            let row_y = scope_y + PANEL_CH;
+            typo::blit_sprite(f, PANEL_X, row_y + (PANEL_CH - icon.h as i32) / 2, icon, 1);
+            if row.charging {
+                let x = PANEL_X + icon.w as i32 + PANEL_CW / 2;
+                Text::with_baseline("chg", Point::new(x, row_y), style, Baseline::Top)
+                    .draw(f)
+                    .infallible();
+            }
         }
         let battery_rows = i32::from(battery_row.is_some());
 
