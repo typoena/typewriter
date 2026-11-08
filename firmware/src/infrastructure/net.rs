@@ -63,6 +63,7 @@ use git2::{
 use app::Phase;
 
 use crate::drivers::wifi_esp::{connect_wifi, now_unix, sync_clock};
+use crate::infrastructure::file_index::is_media_path;
 use crate::infrastructure::sd_log::DIAG;
 use crate::infrastructure::storage_sd::{LOCAL_DIR, REPO_DIR};
 
@@ -1911,21 +1912,6 @@ fn rebase_local_onto(repo: &Repository, head: Oid, theirs: Oid) -> Result<Oid> {
     let message = format!("Typoena rebase onto origin — unix {}", now_unix());
     repo.commit(None, &sig, &sig, &message, &tree, &[&their_commit])
         .context("creating the rebased commit")
-}
-
-/// Paths [`apply_tree_diff`] never writes, deletes, or belt-hashes: binary
-/// media the device can't render and can't afford to hold in RAM. Matched by
-/// extension, case-insensitive. Text-ish assets (svg, csv…) stay eligible —
-/// the criterion is blob size risk, not "is it a note".
-fn is_media_path(rel: &str) -> bool {
-    const MEDIA_EXT: &[&str] = &[
-        "png", "jpg", "jpeg", "gif", "bmp", "webp", "heic", "tiff", "ico", "pdf", "mp3", "mp4",
-        "m4a", "wav", "mov", "avi", "mkv", "zip",
-    ];
-    std::path::Path::new(rel)
-        .extension()
-        .and_then(|e| e.to_str())
-        .is_some_and(|e| MEDIA_EXT.iter().any(|m| e.eq_ignore_ascii_case(m)))
 }
 
 /// Auth + cert callbacks shared by fetch and push. Captures only statics

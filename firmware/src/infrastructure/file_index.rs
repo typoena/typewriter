@@ -177,6 +177,9 @@ fn walk_files(dir: &std::path::Path, depth: usize, out: &mut String, count: &mut
             }
         };
         if is_file {
+            if is_media_path(name) {
+                continue;
+            }
             if let Some(p) = path.to_str() {
                 out.push_str(p);
                 out.push('\n');
@@ -186,6 +189,21 @@ fn walk_files(dir: &std::path::Path, depth: usize, out: &mut String, count: &mut
             walk_files(&path, depth + 1, out, count);
         }
     }
+}
+
+/// Binary media the device can't render and can't afford to hold in RAM: kept
+/// out of the palette, and never written, deleted, or belt-hashed by the sync's
+/// tree apply. Matched by extension, case-insensitive. Text-ish assets (svg,
+/// csv…) stay eligible — the criterion is blob size risk, not "is it a note".
+pub(crate) fn is_media_path(rel: &str) -> bool {
+    const MEDIA_EXT: &[&str] = &[
+        "png", "jpg", "jpeg", "gif", "bmp", "webp", "heic", "tiff", "ico", "pdf", "mp3", "mp4",
+        "m4a", "wav", "mov", "avi", "mkv", "zip",
+    ];
+    std::path::Path::new(rel)
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| MEDIA_EXT.iter().any(|m| e.eq_ignore_ascii_case(m)))
 }
 
 /// Free internal DRAM (excludes the 8 MB PSRAM pool, which masks DRAM
