@@ -9,6 +9,19 @@ _Generated from the commit history with [git-cliff](https://git-cliff.org)._
 ## Firmware
 
 
+### [0.15.0] — 2026-11-08
+#### Added
+- **update:** Confirm the install, not the check
+- **epd:** Sleep the panel behind Screen::sleep
+- **sd:** Add Storage::unmount to flush the card before power drops
+- **power:** Run the BQ25896 path, the power button and the status LED
+- **panel:** Draw the battery row as a Tabler battery icon
+- **update:** Check for newer firmware at boot, as a notice
+
+#### Fixed
+- **power:** Follow the latching switch instead of timing a press
+- **palette:** Keep binary media out of the file index
+
 ### [0.14.0] — 2026-09-06
 #### Added
 - **editor:** Add :link to write a markdown link from the file pick
